@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 23.2 19.9">
+  <defs>
+    <style>
+      .cls-1, .cls-2, .cls-3 {
+        fill: none;
+      }
+
+      .cls-4 {
+        clip-path: url(#clippath-1);
+      }
+
+      .cls-2 {
+        stroke-miterlimit: 10;
+        stroke-width: 1.5px;
+      }
+
+      .cls-2, .cls-3 {
+        stroke: #ee3e12;
+      }
+
+      .cls-3 {
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .cls-5 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <clipPath id="clippath">
+      <rect class="cls-1" width="5.33" height="5.26"/>
+    </clipPath>
+    <clipPath id="clippath-1">
+      <rect class="cls-1" x="17.86" width="5.33" height="5.26"/>
+    </clipPath>
+  </defs>
+  <g id="_レイヤー_2-2" data-name="レイヤー 2">
+    <path class="cls-2" d="M18.35,1.85c0,3.73-3.03,6.76-6.76,6.76S4.83,5.58,4.83,1.85h13.52Z"/>
+    <rect class="cls-2" x="10.25" y="8.61" width="2.68" height="3.31"/>
+    <polygon class="cls-2" points="17.52 19.15 5.67 19.15 6.3 12.13 16.89 12.13 17.52 19.15"/>
+    <g>
+      <g id="_リピートミラー_" data-name="&amp;lt;リピートミラー&amp;gt;">
+        <g class="cls-5">
+          <path class="cls-3" d="M4.83,4.02c-1.05,1.01-2.72.99-3.74-.06-.81-.84-.79-2.17.05-2.98.67-.65,1.74-.63,2.39.04.52.54.51,1.39-.03,1.91-.43.42-1.12.41-1.53-.02"/>
+        </g>
+      </g>
+      <g id="_リピートミラー_-2" data-name="&amp;lt;リピートミラー&amp;gt;">
+        <g class="cls-4">
+          <path class="cls-3" d="M18.36,4.02c1.05,1.01,2.72.99,3.74-.06.81-.84.79-2.17-.05-2.98-.67-.65-1.74-.63-2.39.04-.52.54-.51,1.39.03,1.91.43.42,1.12.41,1.53-.02"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,27 @@
+# 依存
+node_modules/
+
+# 環境変数
+.env
+.env.*
+!.env.example
+
+# 永続データ（プライベート情報）
+data/users.json
+data/users.migrated-*
+data/.secret
+data/projects/
+data/invites/
+data/notifications/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ログ
+*.log
+
+# エディタ
+.vscode/
+.idea/
+*.swp

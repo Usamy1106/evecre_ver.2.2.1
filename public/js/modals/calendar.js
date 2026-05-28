@@ -1,0 +1,363 @@
+// ===== カレンダーモーダル =====
+import { state } from '../state.js';
+
+// サポートする target:
+// - 'project'       : プロジェクト作成中のドラフトの開催日を編集（state.draftProject.dates）
+// - 'projectEdit'   : 確定済みプロジェクトの開催日（実施日）を編集（project.dates）
+// - 'mission'       : ミッション期限（単日のみ）
+// - 'claimDeadline' : 申告期限（単日のみ、選択日の23:59をタイムスタンプとして保存）
+// - 'view'          : 旧・閲覧専用。後方互換で projectEdit と同じ挙動にする
+
+/**
+ * カレンダーモーダルを開く
+ * @param {'project'|'projectEdit'|'mission'|'view'} target
+ */
+export function openCalendarModal(target = 'project') {
+  // 後方互換：'view' は 'projectEdit' にエイリアスする
+  if (target === 'view') target = 'projectEdit';
+
+  state.calendarDate = new Date();
+
+  let modal = document.getElementById('calendar-modal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'calendar-modal';
+  modal.dataset.target = target;
+  // ミッション・申告期限用はボトムシート（下から上にスライド）
+  if (target === 'mission' || target === 'claimDeadline') {
+    modal.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[200]';
+  } else {
+    modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 page-transition';
+  }
+  modal.onclick = (e) => { if (e.target === modal) _closeCalendar(target); };
+  document.body.appendChild(modal);
+
+  _renderCalendarInner(target);
+  _bindDragSelection(target);
+
+  // ボトムシートのスライドインアニメーション
+  if (target === 'mission' || target === 'claimDeadline') {
+    requestAnimationFrame(() => {
+      const panel = document.getElementById('calendar-bottomsheet-panel');
+      if (panel) panel.classList.remove('translate-y-full');
+    });
+  }
+}
+
+/**
+ * カレンダーを閉じる時の共通処理（プロジェクト編集後の保存・daysLeft再計算）
+ */
+function _closeCalendar(target) {
+  if (target === 'projectEdit') {
+    state.commitProjectDatesEdit();
+  }
+  // ミッション・申告期限用はボトムシートのスライドダウンアニメーション
+  if (target === 'mission' || target === 'claimDeadline') {
+    const panel = document.getElementById('calendar-bottomsheet-panel');
+    if (panel) panel.classList.add('translate-y-full');
+    setTimeout(() => {
+      document.getElementById('calendar-modal')?.remove();
+      state.render();
+      // ミッションモーダルが背後にあれば再描画して日付表示を更新
+      if (document.getElementById('mission-modal-content')) {
+        window._app?.renderMissionModalContent?.();
+      }
+    }, 280);
+    return;
+  }
+  document.getElementById('calendar-modal')?.remove();
+  state.render();
+}
+
+/**
+ * 対象日付配列への参照を取得する
+ * @param {string} target
+ * @returns {string[]}
+ */
+function _getTargetDates(target) {
+  if (target === 'project')     return state.draftProject.dates;
+  if (target === 'projectEdit') {
+    const p = state.projects.find(x => x.id === state.selectedProjectId);
+    return p ? p.dates : [];
+  }
+  if (target === 'mission')     return state.draftMission.dates;
+  if (target === 'claimDeadline') {
+    // タイムスタンプ → 日付文字列配列に変換（カレンダーの選択状態表示用）
+    if (!state.draftMission.claimDeadline) return [];
+    const d = new Date(state.draftMission.claimDeadline);
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return [ds];
+  }
+  return [];
+}
+
+/**
+ * カレンダー内部をレンダリング
+ * @param {'project'|'projectEdit'|'mission'} target
+ */
+function _renderCalendarInner(target) {
+  const modal = document.getElementById('calendar-modal');
+  if (!modal) return;
+
+  const year = state.calendarDate.getFullYear();
+  const month = state.calendarDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
+
+  const project = state.projects.find(p => p.id === state.selectedProjectId);
+  const currentTargetDates = _getTargetDates(target);
+
+  // 背景色用：プロジェクト実施日（編集中でない方）の参照
+  let eventDates = [];
+  if (target === 'project')          eventDates = state.draftProject.dates;
+  else if (target === 'projectEdit') eventDates = currentTargetDates; // 自身が対象
+  else if (target === 'mission')     eventDates = project ? project.dates : [];
+
+  const missionDeadlines = project ? project.missions.flatMap(m => m.dates || []) : [];
+
+  let daysHtml = '';
+  for (let i = 0; i < firstDay; i++) daysHtml += `<div class="h-10"></div>`;
+  for (let d = 1; d <= lastDate; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isSelected  = currentTargetDates.includes(dateStr);
+    const isEventDate = target !== 'projectEdit' && eventDates.includes(dateStr);
+    const hasMission  = missionDeadlines.includes(dateStr);
+
+    daysHtml += `
+      <div data-cal-day="${dateStr}"
+        class="relative h-10 w-full flex flex-col items-center justify-center rounded-lg cursor-pointer transition-all text-rs font-bold select-none
+        ${isSelected ? 'bg-[#0CA1E3] text-white shadow-md' : isEventDate ? 'bg-[#CFD8FF] text-[#484545]' : 'bg-white text-[#484545]'}"
+        style="touch-action: none; -webkit-user-select: none; user-select: none;">
+        ${d}
+        ${hasMission ? '<div class="absolute bottom-1 w-1 h-1 bg-[#EE3E12] rounded-full pointer-events-none"></div>' : ''}
+      </div>`;
+  }
+
+  const helperText = (target === 'mission' || target === 'claimDeadline')
+    ? '日付をタップして選択'
+    : 'タップまたはスライドで複数日選択';
+
+  const sheetTitle = target === 'claimDeadline' ? '応募期限を設定'
+                   : target === 'mission'        ? '期限を設定'
+                   : `${year}年 ${month + 1}月`;
+
+  if (target === 'mission' || target === 'claimDeadline') {
+    // ボトムシート形式（高さを 85vh まで）
+    const clearBtnHtml = (target === 'claimDeadline' && state.draftMission.claimDeadline)
+      ? `<button onclick="window._app.setMissionClaimDeadline(''); document.getElementById('calendar-modal')?.remove();"
+           class="text-[10px] text-[#A7AAAC] underline font-bold mt-2 block">期限をクリア</button>`
+      : '';
+    modal.innerHTML = `
+      <div id="calendar-bottomsheet-panel"
+        class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl p-6 transition-transform transform translate-y-full"
+        style="height: 85vh; overflow-y: auto;">
+        <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-4"></div>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="heading-r text-[#484545] font-bold">${sheetTitle}</h3>
+          <div class="flex gap-2">
+            <button onclick="window._app.moveCalendarMonth(-1, '${target}')"
+              class="p-2 bg-[#FDFBF8] rounded-full">
+              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 brightness-0 opacity-50">
+            </button>
+            <button onclick="window._app.moveCalendarMonth(1, '${target}')"
+              class="p-2 bg-[#FDFBF8] rounded-full">
+              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-50">
+            </button>
+          </div>
+        </div>
+        <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">${helperText}</p>
+        ${clearBtnHtml}
+        <div class="grid grid-cols-7 gap-1 mb-2 mt-4 text-center text-[10px] text-[#A7AAAC] font-bold">
+          ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
+        </div>
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1">${daysHtml}</div>
+      </div>`;
+  } else {
+    modal.innerHTML = `
+      <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-fadeIn">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="heading-r text-[#484545] font-bold">${year}年 ${month + 1}月</h3>
+          <div class="flex gap-2">
+            <button onclick="window._app.moveCalendarMonth(-1, '${target}')"
+              class="p-2 bg-[#FDFBF8] rounded-full">
+              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 brightness-0 opacity-50">
+            </button>
+            <button onclick="window._app.moveCalendarMonth(1, '${target}')"
+              class="p-2 bg-[#FDFBF8] rounded-full">
+              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-50">
+            </button>
+          </div>
+        </div>
+        <p class="text-[10px] text-[#A7AAAC] font-bold mb-4">${helperText}</p>
+        <div class="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] text-[#A7AAAC] font-bold">
+          ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
+        </div>
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1 mb-8">${daysHtml}</div>
+        <button id="calendar-confirm-btn"
+          class="btn-primary w-full py-3 heading-rs font-bold">決定</button>
+      </div>`;
+  }
+
+  // 決定ボタン（ミッション用は存在しない）
+  const confirmBtn = document.getElementById('calendar-confirm-btn');
+  if (confirmBtn) confirmBtn.onclick = () => _closeCalendar(target);
+}
+
+/**
+ * カレンダーの月を移動する
+ * @param {number} offset
+ * @param {string} target
+ */
+export function moveCalendarMonth(offset, target) {
+  state.calendarDate.setMonth(state.calendarDate.getMonth() + offset);
+  _renderCalendarInner(target);
+  _bindDragSelection(target);
+}
+
+// ===== ドラッグ選択（なぞって複数日選択） =====
+
+let _dragState = null; // { mode: 'add'|'remove', visited: Set<string>, target: string }
+
+/**
+ * ドラッグ選択のイベントリスナーを紐付ける
+ * @param {string} target
+ */
+function _bindDragSelection(target) {
+  const grid = document.getElementById('calendar-grid');
+  if (!grid) return;
+
+  // ミッションは単日選択のみ。タップで即決→ボトムシートを閉じる
+  if (target === 'mission') {
+    grid.querySelectorAll('[data-cal-day]').forEach(cell => {
+      cell.addEventListener('click', () => {
+        state.draftMission.dates = [cell.dataset.calDay];
+        _closeCalendar(target);
+      });
+    });
+    return;
+  }
+
+  // 申告期限も単日選択のみ。選択日の23:59のタイムスタンプを設定
+  if (target === 'claimDeadline') {
+    grid.querySelectorAll('[data-cal-day]').forEach(cell => {
+      cell.addEventListener('click', () => {
+        const parts = cell.dataset.calDay.split('-');
+        // 選択日の 23:59:59 をタイムスタンプとして設定
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 23, 59, 59);
+        state.draftMission.claimDeadline = d.getTime();
+        _closeCalendar(target);
+      });
+    });
+    return;
+  }
+
+  // 複数日選択 (project / projectEdit)
+  const dates = _getTargetDates(target);
+
+  grid.addEventListener('pointerdown', (e) => {
+    const cell = e.target.closest('[data-cal-day]');
+    if (!cell) return;
+    e.preventDefault();
+    const dateStr = cell.dataset.calDay;
+    const isOn = dates.includes(dateStr);
+    _dragState = {
+      mode: isOn ? 'remove' : 'add',
+      visited: new Set(),
+      target,
+    };
+    _applyPaint(dateStr);
+    try { grid.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+
+  grid.addEventListener('pointermove', (e) => {
+    if (!_dragState) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el) return;
+    const cell = el.closest('[data-cal-day]');
+    if (!cell || !grid.contains(cell)) return;
+    _applyPaint(cell.dataset.calDay);
+  });
+
+  const endDrag = () => {
+    if (!_dragState) return;
+    const t = _dragState.target;
+    _dragState = null;
+    // プロジェクト作成中の場合、裏側の画面も追従させる
+    if (t === 'project') state.render();
+  };
+  grid.addEventListener('pointerup',     endDrag);
+  grid.addEventListener('pointercancel', endDrag);
+  grid.addEventListener('pointerleave',  endDrag);
+}
+
+/**
+ * ドラッグ中の塗り塗り処理：セルの状態を dragState.mode に合わせる
+ * @param {string} dateStr
+ */
+function _applyPaint(dateStr) {
+  if (!_dragState) return;
+  if (_dragState.visited.has(dateStr)) return;
+  _dragState.visited.add(dateStr);
+
+  const dates = _getTargetDates(_dragState.target);
+  const idx = dates.indexOf(dateStr);
+  if (_dragState.mode === 'add' && idx === -1)    dates.push(dateStr);
+  if (_dragState.mode === 'remove' && idx !== -1) dates.splice(idx, 1);
+  dates.sort();
+
+  // セルだけを即時に見た目更新（全面再描画を避けてドラッグ中もスムーズに）
+  _updateCellAppearance(dateStr, _dragState.mode === 'add');
+}
+
+/**
+ * 特定セルだけ見た目を切り替える（ドラッグ中の再レンダリング抑制）
+ * @param {string} dateStr
+ * @param {boolean} on
+ */
+function _updateCellAppearance(dateStr, on) {
+  const cell = document.querySelector(`[data-cal-day="${dateStr}"]`);
+  if (!cell) return;
+  // 既存クラスをリセット
+  cell.classList.remove(
+    'bg-[#0CA1E3]', 'text-white', 'shadow-md',
+    'bg-[#CFD8FF]', 'bg-white'
+  );
+  if (on) {
+    cell.classList.add('bg-[#0CA1E3]', 'text-white', 'shadow-md');
+  } else {
+    cell.classList.add('bg-white', 'text-[#484545]');
+  }
+}
+
+/**
+ * 日付の選択状態をトグルする（単日用：ミッション、および旧来のクリック互換）
+ * @param {string} dateStr
+ * @param {string} target
+ */
+export function toggleDate(dateStr, target) {
+  if (target === 'view') target = 'projectEdit';
+
+  if (target === 'mission') {
+    const dates = state.draftMission.dates;
+    const idx = dates.indexOf(dateStr);
+    dates.splice(0, dates.length);
+    if (idx === -1) dates.push(dateStr);
+    dates.sort();
+    _renderCalendarInner(target);
+    _bindDragSelection(target);
+    window._app.renderMissionModalContent?.();
+    return;
+  }
+
+  // project / projectEdit の単発クリック相当
+  const dates = _getTargetDates(target);
+  const idx = dates.indexOf(dateStr);
+  if (idx > -1) dates.splice(idx, 1);
+  else dates.push(dateStr);
+  dates.sort();
+  _renderCalendarInner(target);
+  _bindDragSelection(target);
+
+  if (target === 'project') state.render();
+}

@@ -1,0 +1,1829 @@
+// ===== Express サーバー（MongoDB 版）=====
+// ストレージ: JSON ファイル → MongoDB Atlas
+// セッション: users.sessions[] → sessions コレクション
+// 通知: data/notifications/*.json → notifications コレクション
+// プロジェクト: data/projects/*.json → projects コレクション
+// 招待: data/invites/*.json → invites コレクション
+// 提出物: project.clearedData → submissions コレクション + R2
+
+try { require('dotenv').config(); } catch (_) {}
+
+const express      = require('express');
+const crypto       = require('crypto');
+const bcrypt       = require('bcryptjs');
+const cookieParser = require('cookie-parser');
+
+const { connectDb, closeDb, getDb, pingDb } = require('./lib/db');
+const userStore       = require('./lib/userStore');
+const sessionStore    = require('./lib/sessionStore');
+const inviteStore     = require('./lib/inviteStore');
+const projectStore    = require('./lib/projectStore');
+const notifStore      = require('./lib/notificationStore');
+const submissionStore = require('./lib/submissionStore');
+const r2              = require('./lib/r2');
+const eventBus        = require('./lib/eventBus');
+const crdt            = require('./lib/crdt');
+const { sendOtpEmail, sendPasswordResetEmail, generateOtp, IS_DEV, logTransportStatus } = require('./lib/email');
+
+// Google サインイン用（オプショナル）
+let googleAuthClient = null;
+try {
+  const { OAuth2Client } = require('google-auth-library');
+  if (process.env.GOOGLE_CLIENT_ID) {
+    googleAuthClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  }
+} catch (e) {
+  console.warn('google-auth-library が見つかりません（Google サインイン機能は無効）');
+}
+
+// ===== COOKIE_SECRET は必須（ファイル自動生成は廃止）=====
+const COOKIE_SECRET = process.env.COOKIE_SECRET;
+if (!COOKIE_SECRET) {
+  console.error('[fatal] 環境変数 COOKIE_SECRET が設定されていません。');
+  console.error('        openssl rand -hex 32 で生成して .env に追加してください。');
+  process.exit(1);
+}
+
+const SALT_ROUNDS    = 12;
+const SESSION_COOKIE = 'eve_sess';
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30日
+const OTP_TTL_MS     = 1000 * 60 * 10;             // 10分
+const OTP_MAX_TRIES  = 5;
+const INVITE_COOKIE  = 'invite_token';
+const INVITE_COOKIE_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7日
+const RESET_TTL_MS   = 30 * 60 * 1000; // 30分
+
+const rateLimit = require('express-rate-limit');
+
+const app = express();
+
+// Render / 一般的なリバースプロキシ対応
+// req.ip が正しいクライアント IP を返すようになる（rate limiting に必要）
+app.set('trust proxy', 1);
+
+app.use(express.json({ limit: '20mb' }));
+app.use(cookieParser(COOKIE_SECRET));
+
+// ── レート制限 ─────────────────────────────────────────────
+// 開発環境ではレート制限をスキップ（CI / テストを壊さないよう）
+const _skipInDev = () => IS_DEV;
+
+/** ログイン・登録・Google サインイン：10回 / 15分 / IP */
+const authLimiter = rateLimit({
+  windowMs:       15 * 60 * 1000,
+  max:            10,
+  standardHeaders: true,   // RateLimit-* ヘッダを返す（RFC 6585）
+  legacyHeaders:  false,   // X-RateLimit-* は返さない
+  skip:           _skipInDev,
+  message: { ok: false, error: 'リクエストが多すぎます。しばらく待ってから再試行してください。', code: 'rate_limited' },
+});
+
+/** OTP 検証・再送・パスワードリセット：5回 / 15分 / IP（より厳しく） */
+const strictLimiter = rateLimit({
+  windowMs:       15 * 60 * 1000,
+  max:            5,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  skip:           _skipInDev,
+  message: { ok: false, error: 'リクエストが多すぎます。しばらく待ってから再試行してください。', code: 'rate_limited' },
+});
+
+// ヘルスチェック（Render がデプロイ成功の確認に使う）
+app.get('/healthz', async (_req, res) => {
+  const dbOk = await pingDb();
+  if (dbOk) {
+    res.json({ ok: true, db: 'ok' });
+  } else {
+    res.status(503).json({ ok: false, db: 'unreachable' });
+  }
+});
+
+// 開発時：JS/HTML/CSS のキャッシュを無効化
+app.use((req, res, next) => {
+  if (IS_DEV && req.path.match(/\.(js|html|css)$/)) {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+  }
+  next();
+});
+
+app.use(require('express').static(require('path').join(__dirname, 'public')));
+
+// ===== バリデーション =====
+
+const USERNAME_RE = /^[\p{L}\p{N}_\-]{2,20}$/u;
+const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateUsername(name) {
+  if (!name) return 'ユーザー名を入力してください';
+  if (!USERNAME_RE.test(name)) return '2〜20文字の英数字・日本語・全角文字で入力してください（記号は - と _ のみ可）';
+  return null;
+}
+function validateEmail(email) {
+  if (!email) return 'メールアドレスを入力してください';
+  if (!EMAIL_RE.test(email)) return 'メールアドレスの形式が正しくありません';
+  return null;
+}
+function validatePassword(pw) {
+  if (!pw) return 'パスワードを入力してください';
+  if (pw.length < 8)   return 'パスワードは8文字以上にしてください';
+  if (pw.length > 100) return 'パスワードが長すぎます';
+  return null;
+}
+
+// ===== セッション =====
+
+function newToken() { return crypto.randomBytes(32).toString('hex'); }
+
+async function attachSession(res, userId) {
+  const token     = newToken();
+  const expiresAt = Date.now() + SESSION_TTL_MS;
+  await sessionStore.createSession(userId, token, expiresAt);
+  res.cookie(SESSION_COOKIE, `${userId}.${token}`, {
+    httpOnly: true, sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    signed: true, maxAge: SESSION_TTL_MS, path: '/',
+  });
+}
+
+async function requireAuth(req, res, next) {
+  try {
+    const raw = req.signedCookies[SESSION_COOKIE];
+    if (!raw || typeof raw !== 'string' || !raw.includes('.')) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    const [userId, token] = raw.split('.');
+    const sess = await sessionStore.findByToken(token);
+    if (!sess || sess.userId !== userId || sess.expiresAt < Date.now()) {
+      res.clearCookie(SESSION_COOKIE, { path: '/' });
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    const user = await userStore.findById(userId);
+    if (!user) {
+      res.clearCookie(SESSION_COOKIE, { path: '/' });
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    req.user = user; // フル情報（passwordHash 含む）。レスポンスに含めないこと
+    next();
+  } catch (e) {
+    next(e);
+  }
+}
+
+function userPublic(u) {
+  return {
+    id:         u.id,
+    username:   u.username,
+    email:      u.emailLower,
+    isVerified: !!u.isVerified,
+    avatarUrl:  u.avatarUrl || null,
+  };
+}
+
+// ===== OTP ヘルパ =====
+// user オブジェクトを直接変更後、呼び出し側で userStore.update() する
+
+async function setVerificationOtp(user, purpose, extra = {}) {
+  const code = generateOtp();
+  user.otp = {
+    purpose,
+    codeHash:  await bcrypt.hash(code, 8),
+    expiresAt: Date.now() + OTP_TTL_MS,
+    tries: 0,
+    ...extra,
+  };
+  return code;
+}
+
+async function consumeOtp(user, purpose, inputCode) {
+  const otp = user.otp;
+  if (!otp || otp.purpose !== purpose) return { ok: false, error: 'コードが要求されていません' };
+  if (Date.now() > otp.expiresAt)      return { ok: false, error: 'コードの有効期限が切れました。送り直してください' };
+  if (otp.tries >= OTP_MAX_TRIES)      return { ok: false, error: '入力回数の上限を超えました。送り直してください' };
+  otp.tries += 1;
+  // tries の更新を即時永続化（失敗試行もカウント）
+  await userStore.update(user.id, { otp });
+  let ok = false;
+  try { ok = await bcrypt.compare(String(inputCode || ''), otp.codeHash); } catch (_) {}
+  if (!ok) return { ok: false, error: 'コードが正しくありません' };
+  return { ok: true, otp };
+}
+
+// ===== 招待 Cookie 自動受諾 =====
+
+async function consumeInviteCookieIfAny(req, res, user) {
+  const token = req.cookies?.[INVITE_COOKIE];
+  if (!token) return null;
+
+  const clearCookie = () => res.clearCookie(INVITE_COOKIE, { path: '/' });
+
+  try {
+    const inv = await inviteStore.loadInvite(token);
+    if (!inv) { clearCookie(); return null; }
+
+    const now = Date.now();
+    if (inv.expiresAt && inv.expiresAt < now)              { clearCookie(); return null; }
+    if (inv.maxUses   && inv.usedBy.length >= inv.maxUses) { clearCookie(); return null; }
+
+    const p = await projectStore.loadProject(inv.projectId);
+    if (!p) { clearCookie(); return null; }
+
+    if (projectStore.isMember(p, user.id)) {
+      clearCookie();
+      return p.id;
+    }
+
+    p.members = p.members || [];
+    const existingMemberIds = p.members.map(m => m.userId);
+    p.members.push({ userId: user.id, role: 'member', roles: ['member'], joinedAt: now });
+    await projectStore.saveProject(p);
+
+    inv.usedBy = inv.usedBy || [];
+    inv.usedBy.push({ userId: user.id, joinedAt: now });
+    await inviteStore.saveInvite(inv);
+
+    const projectName = p.fields?.name?.v || 'プロジェクト';
+    await notifStore.notifyAll(existingMemberIds, {
+      type:      'member_joined',
+      message:   `@${user.username} が「${projectName}」に参加しました`,
+      projectId: p.id,
+      actorId:   user.id,
+      actorName: user.username,
+    });
+
+    eventBus.broadcast(p.id, 'memberJoined', { projectId: p.id, userId: user.id });
+    clearCookie();
+    return p.id;
+  } catch (e) {
+    console.error('consumeInviteCookieIfAny error:', e);
+    clearCookie();
+    return null;
+  }
+}
+
+// ===== 通知ヘルパ =====
+
+function _getManagerIds(project) {
+  const roles = projectStore.getRoles(project);
+  return (project.members || [])
+    .filter(m => {
+      const ids = projectStore.getMemberRoleIds(project, m.userId);
+      return ids.some(rid => roles.find(r => r.id === rid)?.canManage);
+    })
+    .map(m => m.userId);
+}
+
+async function _notifyAssignmentDecided(p, mid, m, decidedUserIds, actor) {
+  if (!Array.isArray(decidedUserIds) || decidedUserIds.length === 0) return;
+  const users = await userStore.findManyByIds(decidedUserIds);
+  const namesMap = {};
+  for (const u of users) namesMap[u.id] = `@${u.username}`;
+  const namesStr = decidedUserIds.map(uid => namesMap[uid] || '誰か').join('、');
+  const memberIds = (p.members || []).map(x => x.userId);
+  await notifStore.notifyAll(memberIds, {
+    type:      'assignment_decided',
+    message:   `「${m.title}」の担当が決定しました：${namesStr}`,
+    projectId: p.id,
+    missionId: mid,
+    actorId:   actor?.id   || null,
+    actorName: actor?.username || null,
+  });
+}
+
+// ===== ミッションヘルパ =====
+
+function _missionToFlat(cm, mid) {
+  if (!cm || cm.deletedAt) return null;
+  const flat = { id: mid };
+  for (const k of Object.keys(cm.fields || {})) {
+    flat[k] = cm.fields[k]?.v;
+  }
+  return flat;
+}
+
+function _setMissionField(p, mid, field, value, ts) {
+  if (!p.missions[mid]) return false;
+  if (!p.missions[mid].fields) p.missions[mid].fields = {};
+  p.missions[mid].fields[field] = { v: value, t: ts || Date.now() };
+  return true;
+}
+
+/**
+ * flat プロジェクトの clearedData を submissions コレクションに分離して保存する。
+ * - format === 'image' かつ content が dataURL の場合、R2 にアップロードして URL に置換。
+ * - R2 未設定の場合はそのまま submissions に保存（dataURL のまま）。
+ * - flat.clearedData を in-place で削除して返す（applyPatch に渡さないよう除外）。
+ *
+ * @param {string} projectId
+ * @param {object} flat  クライアントから来たフラット形式プロジェクト（変更あり）
+ */
+async function _extractClearedData(projectId, flat) {
+  if (!flat.clearedData || typeof flat.clearedData !== 'object') return;
+  const entries = Object.entries(flat.clearedData);
+  if (entries.length === 0) { delete flat.clearedData; return; }
+
+  await Promise.all(entries.map(async ([missionId, submission]) => {
+    if (!submission) return;
+    let content = submission.content ?? '';
+
+    // 画像 dataURL → R2 アップロード
+    if (
+      submission.format === 'image' &&
+      typeof content === 'string' &&
+      content.startsWith('data:') &&
+      r2.isConfigured()
+    ) {
+      try {
+        const ext = content.startsWith('data:image/png') ? 'png' : 'jpg';
+        const key = `submissions/${projectId}/${missionId}_${r2.randomSuffix()}.${ext}`;
+        content = await r2.uploadDataUrl(content, key);
+      } catch (e) {
+        console.error('[r2] submission upload error:', e.message);
+        // R2 失敗時はそのまま保存（graceful degradation）
+      }
+    }
+
+    await submissionStore.saveSubmission(projectId, missionId, {
+      content,
+      format:    submission.format    ?? 'text',
+      title:     submission.title     ?? '',
+      timestamp: submission.timestamp ?? Date.now(),
+    });
+  }));
+
+  // CRDT には clearedData を渡さない（submissions コレクションで管理）
+  delete flat.clearedData;
+}
+
+/**
+ * プロジェクトのフラット表現に submissions データをマージする。
+ * クライアントは引き続き project.clearedData として受け取れる。
+ *
+ * @param {string} projectId
+ * @param {object} flatProject  crdtToFlat() の結果（変更あり）
+ */
+async function _mergeSubmissions(projectId, flatProject) {
+  const submissions = await submissionStore.getSubmissionsForProject(projectId);
+  flatProject.clearedData = submissions;
+}
+
+// ===== 認証エンドポイント =====
+
+// 新規登録
+app.post('/api/auth/register', authLimiter, async (req, res) => {
+  try {
+    const username = (req.body?.username ?? '').trim();
+    const email    = (req.body?.email    ?? '').trim();
+    const password =  req.body?.password ?? '';
+
+    const errors = {};
+    const e1 = validateUsername(username); if (e1) errors.username = e1;
+    const e2 = validateEmail(email);       if (e2) errors.email    = e2;
+    const e3 = validatePassword(password); if (e3) errors.password = e3;
+    if (Object.keys(errors).length) return res.status(400).json({ ok: false, errors });
+
+    const emailLower = email.toLowerCase();
+    if (await userStore.emailExists(emailLower)) {
+      return res.status(409).json({ ok: false, errors: { email: 'このメールアドレスは既に登録されています' } });
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const id = crypto.randomBytes(8).toString('hex');
+    const user = {
+      id, username, emailLower, passwordHash,
+      isVerified: false,
+      createdAt: Date.now(),
+    };
+    await userStore.insert(user);
+
+    await attachSession(res, id);
+    const pendingProjectId = await consumeInviteCookieIfAny(req, res, user);
+
+    res.json({ ok: true, user: userPublic(user), pendingProjectId });
+  } catch (e) {
+    console.error('register error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 認証コード再送
+app.post('/api/auth/resend-verification', strictLimiter, requireAuth, async (req, res) => {
+  try {
+    if (req.user.isVerified) return res.json({ ok: true, alreadyVerified: true });
+    const code = await setVerificationOtp(req.user, 'verify');
+    await userStore.update(req.user.id, { otp: req.user.otp });
+    const mail = await sendOtpEmail(req.user.emailLower, code, '新規登録');
+    res.json({ ok: true, devCode: mail.devCode, mailError: mail.ok ? null : mail.error });
+  } catch (e) {
+    console.error('resend-verification error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メール認証コード照合
+app.post('/api/auth/verify-email', strictLimiter, requireAuth, async (req, res) => {
+  try {
+    const code = String(req.body?.code ?? '').trim();
+    if (req.user.isVerified) return res.json({ ok: true, alreadyVerified: true });
+    const r = await consumeOtp(req.user, 'verify', code);
+    if (!r.ok) return res.status(400).json({ ok: false, error: r.error });
+    req.user.isVerified = true;
+    delete req.user.otp;
+    await userStore.update(req.user.id, { isVerified: true, otp: null });
+    res.json({ ok: true, user: userPublic(req.user) });
+  } catch (e) {
+    console.error('verify-email error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ログイン
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  try {
+    const email    = String((req.body?.email ?? req.body?.identifier ?? '')).trim();
+    const password =  req.body?.password ?? '';
+    if (!email || !password) return res.status(400).json({ ok: false, error: 'メールアドレスとパスワードを入力してください' });
+
+    const emailLower = email.toLowerCase();
+    const user = await userStore.findByEmail(emailLower);
+
+    const hashToCompare = user?.passwordHash || '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalida';
+    let ok = false;
+    try { ok = await bcrypt.compare(password, hashToCompare); } catch (_) {}
+    if (!user || !ok) return res.status(401).json({ ok: false, error: 'メールアドレスまたはパスワードが違います' });
+
+    await attachSession(res, user.id);
+    const pendingProjectId = await consumeInviteCookieIfAny(req, res, user);
+    res.json({ ok: true, user: userPublic(user), pendingProjectId });
+  } catch (e) {
+    console.error('login error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 公開設定（Google Client ID など）
+app.get('/api/config', (req, res) => {
+  res.json({
+    ok: true,
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    googleEnabled:  !!googleAuthClient,
+  });
+});
+
+// Google サインイン
+app.post('/api/auth/google', authLimiter, async (req, res) => {
+  try {
+    if (!googleAuthClient) {
+      return res.status(503).json({ ok: false, error: 'Google サインインは設定されていません' });
+    }
+    const credential = String(req.body?.credential || '');
+    if (!credential) return res.status(400).json({ ok: false, error: 'credential が必要です' });
+
+    let payload = null;
+    try {
+      const ticket = await googleAuthClient.verifyIdToken({
+        idToken: credential, audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (e) {
+      console.error('[google-signin] ID トークン検証失敗:', e?.message);
+      return res.status(401).json({ ok: false, error: 'Google ID トークンの検証に失敗しました' });
+    }
+
+    if (!payload?.email) return res.status(400).json({ ok: false, error: 'Google アカウントのメールアドレスが取得できませんでした' });
+    if (payload.email_verified === false) return res.status(400).json({ ok: false, error: 'Google アカウントのメールアドレスが未認証です' });
+
+    const email     = String(payload.email).toLowerCase().trim();
+    const googleSub = String(payload.sub);
+
+    let pictureUrl = payload.picture || null;
+    if (pictureUrl) pictureUrl = pictureUrl.replace(/=s\d+-c$/, '=s256-c');
+
+    let user = await userStore.findByEmailOrGoogleSub(email, googleSub);
+
+    if (user) {
+      const updates = {};
+      if (!user.googleSub) updates.googleSub = googleSub;
+      updates.isVerified = true;
+      if (pictureUrl && (!user.avatarUrl || !String(user.avatarUrl).startsWith('data:'))) {
+        updates.avatarUrl = pictureUrl;
+      }
+      await userStore.update(user.id, updates);
+      user = { ...user, ...updates };
+    } else {
+      let base = String(payload.name || email.split('@')[0] || 'user').trim();
+      base = base.replace(/[^\p{L}\p{N}_\-]/gu, '').slice(0, 18) || 'user';
+      // ユーザー名衝突回避（MongoDB で都度チェック）
+      let username = base;
+      let n = 1;
+      while (true) {
+        // ユーザー名の重複チェック（username フィールドで検索）
+        const taken = await getDb().collection('users').countDocuments({ username }, { limit: 1 });
+        if (!taken) break;
+        username = `${base}_${n}`;
+        n++;
+      }
+      user = {
+        id: crypto.randomBytes(8).toString('hex'),
+        username, emailLower: email,
+        passwordHash: null, googleSub,
+        isVerified: true,
+        avatarUrl: pictureUrl,
+        createdAt: Date.now(),
+      };
+      await userStore.insert(user);
+    }
+
+    await attachSession(res, user.id);
+    const pendingProjectId = await consumeInviteCookieIfAny(req, res, user);
+    res.json({ ok: true, user: userPublic(user), pendingProjectId });
+  } catch (e) {
+    console.error('google-signin error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ログアウト
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const raw = req.signedCookies[SESSION_COOKIE];
+    if (raw && raw.includes('.')) {
+      const token = raw.split('.')[1];
+      await sessionStore.deleteByToken(token);
+    }
+    res.clearCookie(SESSION_COOKIE, { path: '/' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('logout error:', e);
+    res.clearCookie(SESSION_COOKIE, { path: '/' });
+    res.json({ ok: true });
+  }
+});
+
+// セッション確認
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const raw = req.signedCookies[SESSION_COOKIE];
+    if (!raw || !raw.includes('.')) return res.json({ ok: true, user: null });
+
+    const [userId, token] = raw.split('.');
+    const sess = await sessionStore.findByToken(token);
+    if (!sess || sess.userId !== userId || sess.expiresAt < Date.now()) {
+      res.clearCookie(SESSION_COOKIE, { path: '/' });
+      return res.json({ ok: true, user: null });
+    }
+    const user = await userStore.findById(userId);
+    if (!user) {
+      res.clearCookie(SESSION_COOKIE, { path: '/' });
+      return res.json({ ok: true, user: null });
+    }
+    const pendingProjectId = await consumeInviteCookieIfAny(req, res, user);
+    res.json({ ok: true, user: userPublic(user), pendingProjectId });
+  } catch (e) {
+    console.error('GET /api/auth/me error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== アカウント設定 =====
+
+// ユーザー名変更
+app.post('/api/account/change-username', requireAuth, async (req, res) => {
+  try {
+    const newName = (req.body?.username ?? '').trim();
+    const e1 = validateUsername(newName);
+    if (e1) return res.status(400).json({ ok: false, errors: { username: e1 } });
+    if (newName === req.user.username) return res.json({ ok: true, user: userPublic(req.user) });
+    await userStore.update(req.user.id, { username: newName });
+    req.user.username = newName;
+    res.json({ ok: true, user: userPublic(req.user) });
+  } catch (e) {
+    console.error('change-username error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メールアドレス変更：コード送信
+app.post('/api/account/change-email/request', requireAuth, async (req, res) => {
+  try {
+    const newEmail = (req.body?.email ?? '').trim();
+    const e1 = validateEmail(newEmail);
+    if (e1) return res.status(400).json({ ok: false, errors: { email: e1 } });
+
+    const newLower = newEmail.toLowerCase();
+    if (newLower === req.user.emailLower)
+      return res.status(400).json({ ok: false, errors: { email: '現在のメールアドレスと同じです' } });
+    if (await userStore.emailExists(newLower, req.user.id))
+      return res.status(409).json({ ok: false, errors: { email: 'このメールアドレスは既に登録されています' } });
+
+    const password = req.body?.password ?? '';
+    if (!password) return res.status(400).json({ ok: false, errors: { password: '現在のパスワードを入力してください' } });
+    const okPw = await bcrypt.compare(password, req.user.passwordHash);
+    if (!okPw) return res.status(401).json({ ok: false, errors: { password: 'パスワードが違います' } });
+
+    const code = await setVerificationOtp(req.user, 'changeEmail', { pendingEmail: newLower });
+    await userStore.update(req.user.id, { otp: req.user.otp });
+    const mail = await sendOtpEmail(newLower, code, 'メールアドレス変更');
+    res.json({ ok: true, devCode: mail.devCode, mailError: mail.ok ? null : mail.error });
+  } catch (e) {
+    console.error('change-email/request error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メールアドレス変更：コード照合 → 適用
+app.post('/api/account/change-email/confirm', requireAuth, async (req, res) => {
+  try {
+    const code = String(req.body?.code ?? '').trim();
+    const r = await consumeOtp(req.user, 'changeEmail', code);
+    if (!r.ok) return res.status(400).json({ ok: false, error: r.error });
+
+    const newLower = r.otp.pendingEmail;
+    if (!newLower) {
+      await userStore.update(req.user.id, { otp: null });
+      return res.status(400).json({ ok: false, error: '保留中の変更が見つかりません' });
+    }
+    if (await userStore.emailExists(newLower, req.user.id)) {
+      await userStore.update(req.user.id, { otp: null });
+      return res.status(409).json({ ok: false, error: 'このメールアドレスは既に登録されています' });
+    }
+
+    await userStore.update(req.user.id, { emailLower: newLower, isVerified: true, otp: null });
+    req.user.emailLower = newLower;
+    req.user.isVerified = true;
+    res.json({ ok: true, user: userPublic(req.user) });
+  } catch (e) {
+    console.error('change-email/confirm error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// パスワード変更：コード送信
+app.post('/api/account/change-password/request', requireAuth, async (req, res) => {
+  try {
+    const currentPassword = req.body?.currentPassword ?? '';
+    const newPassword     = req.body?.newPassword     ?? '';
+
+    const errors = {};
+    if (!currentPassword) errors.currentPassword = '現在のパスワードを入力してください';
+    const eNew = validatePassword(newPassword);
+    if (eNew) errors.newPassword = eNew;
+    if (Object.keys(errors).length) return res.status(400).json({ ok: false, errors });
+
+    const okCur = await bcrypt.compare(currentPassword, req.user.passwordHash);
+    if (!okCur) return res.status(401).json({ ok: false, errors: { currentPassword: '現在のパスワードが違います' } });
+    if (currentPassword === newPassword) return res.status(400).json({ ok: false, errors: { newPassword: '現在のパスワードと同じです' } });
+
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    const code = await setVerificationOtp(req.user, 'changePassword', { pendingPasswordHash: newHash });
+    await userStore.update(req.user.id, { otp: req.user.otp });
+    const mail = await sendOtpEmail(req.user.emailLower, code, 'パスワード変更');
+    res.json({ ok: true, devCode: mail.devCode, mailError: mail.ok ? null : mail.error });
+  } catch (e) {
+    console.error('change-password/request error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// パスワード変更：コード照合 → 適用
+app.post('/api/account/change-password/confirm', requireAuth, async (req, res) => {
+  try {
+    const code = String(req.body?.code ?? '').trim();
+    const r = await consumeOtp(req.user, 'changePassword', code);
+    if (!r.ok) return res.status(400).json({ ok: false, error: r.error });
+
+    const newHash = r.otp.pendingPasswordHash;
+    if (!newHash) {
+      await userStore.update(req.user.id, { otp: null });
+      return res.status(400).json({ ok: false, error: '保留中の変更が見つかりません' });
+    }
+
+    const raw = req.signedCookies[SESSION_COOKIE];
+    const currentToken = (raw && raw.includes('.')) ? raw.split('.')[1] : null;
+    if (currentToken) {
+      await sessionStore.deleteAllExceptToken(req.user.id, currentToken);
+    }
+    await userStore.update(req.user.id, { passwordHash: newHash, otp: null });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('change-password/confirm error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// アバター変更
+app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
+  try {
+    const dataUrl = String(req.body?.dataUrl || '');
+    if (!dataUrl) {
+      // 旧 R2 アバターがあれば削除
+      const oldKey = r2.urlToKey(req.user.avatarUrl);
+      if (oldKey) r2.deleteObject(oldKey).catch(e => console.warn('[r2] avatar delete warn:', e.message));
+      await userStore.update(req.user.id, { avatarUrl: null });
+      req.user.avatarUrl = null;
+      return res.json({ ok: true, user: userPublic(req.user) });
+    }
+    if (!/^data:image\/(png|jpeg|jpg|webp);base64,/.test(dataUrl)) {
+      return res.status(400).json({ ok: false, error: 'invalid_image' });
+    }
+    if (dataUrl.length > 600 * 1024) {
+      return res.status(400).json({ ok: false, error: 'image_too_large' });
+    }
+
+    let avatarUrl = dataUrl;
+    if (r2.isConfigured()) {
+      // R2 にアップロードして URL に置換
+      const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpg';
+      const key = `avatars/${req.user.id}_${r2.randomSuffix()}.${ext}`;
+      avatarUrl = await r2.uploadDataUrl(dataUrl, key);
+      // 旧アバターを削除（エラーは無視）
+      const oldKey = r2.urlToKey(req.user.avatarUrl);
+      if (oldKey) r2.deleteObject(oldKey).catch(e => console.warn('[r2] old avatar delete warn:', e.message));
+    }
+
+    await userStore.update(req.user.id, { avatarUrl });
+    req.user.avatarUrl = avatarUrl;
+    res.json({ ok: true, user: userPublic(req.user) });
+  } catch (e) {
+    console.error('change-avatar error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== 通知 =====
+
+app.get('/api/notifications', requireAuth, async (req, res) => {
+  try {
+    const data = await notifStore.loadNotifications(req.user.id);
+    res.json({ ok: true, notifications: data.notifications || [] });
+  } catch (e) {
+    console.error('GET /api/notifications error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.post('/api/notifications/read-all', requireAuth, async (req, res) => {
+  try {
+    await notifStore.markAllRead(req.user.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.post('/api/notifications/:id/read', requireAuth, async (req, res) => {
+  try {
+    await notifStore.markRead(req.user.id, req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.delete('/api/notifications/:id', requireAuth, async (req, res) => {
+  try {
+    await notifStore.deleteNotification(req.user.id, req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.delete('/api/notifications', requireAuth, async (req, res) => {
+  try {
+    await notifStore.clearAll(req.user.id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== プロジェクト =====
+
+// 全プロジェクト取得（HOME 用）
+app.get('/api/data', requireAuth, async (req, res) => {
+  try {
+    const rawProjects = await projectStore.listProjectsForUser(req.user.id);
+
+    // members 配列に username / avatarUrl を埋め込む（クライアントの表示用）
+    const projects = await Promise.all(rawProjects.map(async p => {
+      const flat = crdt.crdtToFlat(p);
+      if (Array.isArray(flat.members)) {
+        const memberIds = flat.members.map(m => m.userId);
+        const users = await userStore.findManyByIds(memberIds);
+        const usersMap = {};
+        for (const u of users) usersMap[u.id] = u;
+        flat.members = flat.members.map(mem => ({
+          ...mem,
+          username:  usersMap[mem.userId]?.username  || '(削除されたユーザー)',
+          avatarUrl: usersMap[mem.userId]?.avatarUrl || null,
+        }));
+      }
+      // submissions をマージ（clearedData として返す）
+      await _mergeSubmissions(p.id, flat);
+      return flat;
+    }));
+
+    res.json({ projects });
+  } catch (e) {
+    console.error('GET /api/data error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 単一プロジェクト取得
+app.get('/api/projects/:id', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (!projectStore.isMember(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    const flatProject = crdt.crdtToFlat(p);
+    await _mergeSubmissions(req.params.id, flatProject);
+    res.json({ ok: true, project: flatProject });
+  } catch (e) {
+    console.error('GET /api/projects/:id error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// CRDT 版プロジェクト保存（単一）
+app.put('/api/projects/:id', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (!projectStore.isMember(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (!projectStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'このプロジェクトを編集する権限がありません', code: 'no_manage_permission' });
+
+    const flat = req.body?.project || {};
+    // clearedData を submissions コレクションに分離（R2 画像アップロード含む）
+    await _extractClearedData(req.params.id, flat);
+
+    const merged = await projectStore.applyPatch(req.params.id, flat, {
+      timestamp:         Date.now(),
+      missionDeletions:  req.body?.missionDeletions  || [],
+      proposalDeletions: req.body?.proposalDeletions || [],
+    });
+
+    const flatMerged = crdt.crdtToFlat(merged);
+    await _mergeSubmissions(req.params.id, flatMerged);
+
+    const clientId = req.get('X-Client-Id') || null;
+    eventBus.broadcast(req.params.id, 'projectUpdated', {
+      projectId: req.params.id,
+      rev:       merged.rev,
+      project:   flatMerged,
+    }, clientId);
+
+    res.json({ ok: true, project: flatMerged });
+  } catch (e) {
+    console.error('PUT /api/projects/:id error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// 旧 PUT /api/data（後方互換）
+app.put('/api/data', requireAuth, async (req, res) => {
+  try {
+    const incoming  = req.body?.projects || [];
+    const current   = await projectStore.listProjectsForUser(req.user.id);
+    const currentIds  = new Set(current.map(p => p.id));
+    const incomingIds = new Set(incoming.map(p => p.id));
+
+    // --- 新規プロジェクト ---
+    const created = incoming.filter(p => !currentIds.has(p.id));
+    if (created.length > 0 && !req.user.isVerified) {
+      return res.status(403).json({ ok: false, error: 'メール認証が完了するまで新規プロジェクトを作成できません', code: 'verification_required' });
+    }
+    const now = Date.now();
+    for (const p of created) {
+      const cp = crdt.flatToCrdt(p, now);
+      cp.members   = [{ userId: req.user.id, role: 'owner', roles: ['owner'], joinedAt: now }];
+      cp.ownerId   = req.user.id;
+      cp.createdAt = p.createdAt || now;
+      cp.rev = 1;
+      await projectStore.saveProject(cp);
+      eventBus.broadcast(cp.id, 'projectUpdated', {
+        projectId: cp.id, rev: cp.rev, project: crdt.crdtToFlat(cp),
+      });
+    }
+
+    // --- 既存プロジェクトの更新 ---
+    const clientId = req.get('X-Client-Id') || null;
+    for (const incomingP of incoming) {
+      if (!currentIds.has(incomingP.id)) continue;
+      const existing = await projectStore.loadProject(incomingP.id);
+      if (!existing || !projectStore.isMember(existing, req.user.id)) continue;
+      if (!projectStore.canManage(existing, req.user.id)) continue;
+
+      // 通知トリガー検出（変更前後のミッション比較）
+      const prevMissionsMap = {};
+      for (const mid of Object.keys(existing.missions || {})) {
+        const cm = existing.missions[mid];
+        if (cm.deletedAt) continue;
+        const flat = { id: mid };
+        for (const k of Object.keys(cm.fields || {})) flat[k] = cm.fields[k]?.v;
+        prevMissionsMap[mid] = flat;
+      }
+
+      const notifications = [];
+      for (const m of (incomingP.missions || [])) {
+        const prev = prevMissionsMap[m.id];
+        const projectMembers = (existing.members || []).map(x => x.userId);
+
+        // (A) 担当者の新規割当（手動アサイン）
+        const prevAssigneeUser = (prev?.assignee?.type === 'user') ? prev.assignee.userId : null;
+        const newAssigneeUser  = (m.assignee?.type  === 'user')    ? m.assignee.userId    : null;
+        if (newAssigneeUser && newAssigneeUser !== prevAssigneeUser && newAssigneeUser !== req.user.id) {
+          if (!m.selfClaim) {
+            notifications.push({
+              userIds: [newAssigneeUser],
+              notif: {
+                type:      'assigned_to_me',
+                message:   `${req.user.username} さんが「${m.title}」をあなたに割り当てました`,
+                projectId: incomingP.id,
+                missionId: m.id,
+                actorId:   req.user.id,
+                actorName: req.user.username,
+              },
+            });
+          }
+        }
+
+        // (B) ミッション完了
+        const prevStatus = prev?.status || 'yet';
+        const newStatus  = m.status     || 'yet';
+        if (prevStatus !== 'cleared' && newStatus === 'cleared') {
+          notifications.push({
+            userIds: projectMembers.filter(uid => uid !== req.user.id),
+            notif: {
+              type:      'mission_cleared',
+              message:   `${req.user.username} さんが「${m.title}」を完了しました`,
+              projectId: incomingP.id,
+              missionId: m.id,
+              actorId:   req.user.id,
+              actorName: req.user.username,
+            },
+          });
+        }
+
+        // (C) リーダー確認待ち
+        if (prevStatus !== 'pending_leader_check' && newStatus === 'pending_leader_check') {
+          const managerIds = _getManagerIds(existing).filter(uid => uid !== req.user.id);
+          notifications.push({
+            userIds: managerIds,
+            notif: {
+              type:      'pending_leader_check',
+              message:   `${req.user.username} さんが「${m.title}」を提出しました。確認をお願いします`,
+              projectId: incomingP.id,
+              missionId: m.id,
+              actorId:   req.user.id,
+              actorName: req.user.username,
+            },
+          });
+        }
+
+        // (D) 新規ミッション作成
+        if (!prev) {
+          const managerIds = _getManagerIds(existing).filter(uid => uid !== req.user.id);
+          if (managerIds.length > 0) {
+            notifications.push({
+              userIds: managerIds,
+              notif: {
+                type:      'mission_created',
+                message:   `${req.user.username} さんが「${m.title}」を作成しました`,
+                projectId: incomingP.id,
+                missionId: m.id,
+                actorId:   req.user.id,
+                actorName: req.user.username,
+              },
+            });
+          }
+        }
+      }
+
+      const existingMissionIds  = Object.keys(existing.missions  || {});
+      const existingProposalIds = Object.keys(existing.proposals || {});
+      const incomingMissionIds  = new Set((incomingP.missions  || []).map(m => m.id));
+      const incomingProposalIds = new Set((incomingP.proposals || []).map(p => p.id));
+      const missionDeletions   = existingMissionIds.filter(id  => !incomingMissionIds.has(id)  && !existing.missions[id].deletedAt);
+      const proposalDeletions  = existingProposalIds.filter(id => !incomingProposalIds.has(id) && !existing.proposals[id].deletedAt);
+
+      // clearedData を submissions コレクションに分離
+      const patchFlat = { ...incomingP };
+      await _extractClearedData(incomingP.id, patchFlat);
+
+      const merged = await projectStore.applyPatch(incomingP.id, patchFlat, {
+        timestamp: now, missionDeletions, proposalDeletions,
+      });
+
+      const broadcastFlat = crdt.crdtToFlat(merged);
+      await _mergeSubmissions(incomingP.id, broadcastFlat);
+      eventBus.broadcast(incomingP.id, 'projectUpdated', {
+        projectId: incomingP.id, rev: merged.rev, project: broadcastFlat,
+      }, clientId);
+
+      await Promise.all(notifications.map(n => notifStore.notifyAll(n.userIds, n.notif)));
+    }
+
+    // --- 削除 ---
+    for (const p of current) {
+      if (incomingIds.has(p.id)) continue;
+      const role = projectStore.getRole(p, req.user.id);
+      if (role === 'owner') {
+        await projectStore.deleteProject(p.id);
+        await submissionStore.deleteAllForProject(p.id);
+        eventBus.broadcast(p.id, 'projectDeleted', { projectId: p.id });
+      } else if (role === 'member') {
+        p.members = p.members.filter(m => m.userId !== req.user.id);
+        await projectStore.saveProject(p);
+        eventBus.broadcast(p.id, 'memberLeft', { projectId: p.id, userId: req.user.id });
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PUT /api/data error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ===== メンバー =====
+
+app.get('/api/projects/:id/members', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.isMember(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const memberIds = (p.members || []).map(m => m.userId);
+    const users = await userStore.findManyByIds(memberIds);
+    const usersMap = {};
+    for (const u of users) usersMap[u.id] = u;
+
+    const members = (p.members || []).map(m => {
+      const roleIds = projectStore.getMemberRoleIds(p, m.userId);
+      return {
+        userId:    m.userId,
+        role:      roleIds[0] || null,
+        roles:     roleIds,
+        joinedAt:  m.joinedAt,
+        username:  usersMap[m.userId]?.username  || '(削除されたユーザー)',
+        avatarUrl: usersMap[m.userId]?.avatarUrl || null,
+      };
+    });
+
+    res.json({ ok: true, members, ownerId: p.ownerId, roles: projectStore.getRoles(p) });
+  } catch (e) {
+    console.error('GET /api/projects/:id/members error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メンバーのロール変更（後方互換：単一ロール）
+app.put('/api/projects/:id/members/:userId/role', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (projectStore.getRole(p, req.user.id) !== 'owner')
+      return res.status(403).json({ ok: false, error: 'オーナーのみがロールを変更できます' });
+
+    const targetId = req.params.userId;
+    const newRole  = String(req.body?.role || '');
+    const roles = projectStore.getRoles(p);
+    if (!roles.find(r => r.id === newRole) || newRole === 'owner')
+      return res.status(400).json({ ok: false, error: 'invalid_role' });
+
+    const target = (p.members || []).find(m => m.userId === targetId);
+    if (!target) return res.status(404).json({ ok: false, error: 'member not found' });
+    if (projectStore.getRole(p, targetId) === 'owner')
+      return res.status(400).json({ ok: false, error: 'オーナーのロールは変更できません' });
+
+    projectStore.setMemberRoleIds(p, targetId, [newRole]);
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'memberRoleChanged', { projectId: p.id, userId: targetId, role: newRole });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PUT /api/projects/:id/members/:userId/role error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メンバーのロール変更（複数ロール）
+app.put('/api/projects/:id/members/:userId/roles', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (projectStore.getRole(p, req.user.id) !== 'owner')
+      return res.status(403).json({ ok: false, error: 'オーナーのみがロールを変更できます' });
+
+    const targetId = req.params.userId;
+    let newRoles = req.body?.roles;
+    if (!Array.isArray(newRoles)) return res.status(400).json({ ok: false, error: 'roles is required (array)' });
+    newRoles = [...new Set(newRoles.map(String))];
+
+    const allRoles = projectStore.getRoles(p);
+    if (newRoles.includes('owner')) return res.status(400).json({ ok: false, error: 'owner ロールは割当不可' });
+    for (const rid of newRoles) {
+      if (!allRoles.find(r => r.id === rid)) return res.status(400).json({ ok: false, error: `不明なロール: ${rid}` });
+    }
+
+    const target = (p.members || []).find(m => m.userId === targetId);
+    if (!target) return res.status(404).json({ ok: false, error: 'member not found' });
+    if (projectStore.getRole(p, targetId) === 'owner')
+      return res.status(400).json({ ok: false, error: 'オーナーのロールは変更できません' });
+
+    if (newRoles.length === 0) newRoles = ['member'];
+
+    projectStore.setMemberRoleIds(p, targetId, newRoles);
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'memberRolesChanged', { projectId: p.id, userId: targetId, roles: newRoles });
+
+    if (targetId !== req.user.id) {
+      const roleNames = newRoles.map(rid => allRoles.find(r => r.id === rid)?.name || rid);
+      const pName = p.fields?.name?.v || 'プロジェクト';
+      await notifStore.addNotification(targetId, {
+        type:      'role_assigned',
+        message:   `「${pName}」でロール「${roleNames.join('・')}」が付与されました`,
+        projectId: p.id,
+        actorId:   req.user.id,
+        actorName: req.user.username,
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('PUT /api/projects/:id/members/:userId/roles error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== カスタムロール CRUD =====
+
+app.get('/api/projects/:id/roles', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    res.json({ ok: true, roles: projectStore.getRoles(p) });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.post('/api/projects/:id/roles', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'ロールの追加は管理可能なメンバーのみ可能です' });
+
+    const name      = String(req.body?.name || '').trim();
+    const canManage = !!req.body?.canManage;
+    if (!name || name.length > 20) return res.status(400).json({ ok: false, error: 'ロール名は1〜20文字で入力してください' });
+
+    const roles = projectStore.getRoles(p);
+    if (roles.some(r => r.name === name)) return res.status(409).json({ ok: false, error: '同じ名前のロールが既に存在します' });
+
+    const newRole = { id: projectStore.newRoleId(), name, canManage, builtIn: false };
+    roles.push(newRole);
+    projectStore.setRoles(p, roles);
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'rolesChanged', { projectId: p.id });
+    res.json({ ok: true, role: newRole });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.put('/api/projects/:id/roles/:roleId', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'ロールの編集は管理可能なメンバーのみ可能です' });
+
+    const roles  = projectStore.getRoles(p);
+    const target = roles.find(r => r.id === req.params.roleId);
+    if (!target) return res.status(404).json({ ok: false, error: 'role not found' });
+    if (target.builtIn && req.params.roleId === 'owner') return res.status(400).json({ ok: false, error: 'オーナーロールは変更できません' });
+
+    if (typeof req.body?.name === 'string') {
+      const name = req.body.name.trim();
+      if (!name || name.length > 20) return res.status(400).json({ ok: false, error: 'ロール名は1〜20文字で入力してください' });
+      if (roles.some(r => r.name === name && r.id !== target.id)) return res.status(409).json({ ok: false, error: '同じ名前のロールが既に存在します' });
+      target.name = name;
+    }
+    if (typeof req.body?.canManage === 'boolean') {
+      if (req.params.roleId === 'owner') {
+        // owner は常に true（変更不可）
+      } else if (req.params.roleId === 'admin' && req.body.canManage === false) {
+        return res.status(400).json({ ok: false, error: '管理者ロールの管理権限は変更できません' });
+      } else {
+        target.canManage = req.body.canManage;
+      }
+    }
+
+    projectStore.setRoles(p, roles);
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'rolesChanged', { projectId: p.id });
+    res.json({ ok: true, role: target });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.delete('/api/projects/:id/roles/:roleId', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'ロールの削除は管理可能なメンバーのみ可能です' });
+
+    const roles  = projectStore.getRoles(p);
+    const target = roles.find(r => r.id === req.params.roleId);
+    if (!target) return res.status(404).json({ ok: false, error: 'role not found' });
+    if (target.builtIn) return res.status(400).json({ ok: false, error: '組み込みロールは削除できません' });
+
+    (p.members || []).forEach(m => {
+      const ids      = projectStore.getMemberRoleIds(p, m.userId);
+      const filtered = ids.filter(rid => rid !== target.id);
+      projectStore.setMemberRoleIds(p, m.userId, filtered.length > 0 ? filtered : ['member']);
+    });
+
+    projectStore.setRoles(p, roles.filter(r => r.id !== target.id));
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'rolesChanged', { projectId: p.id });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== ミッション申告 =====
+
+app.post('/api/projects/:id/missions/:mid/claim', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+    if (!m.selfClaim) return res.status(400).json({ ok: false, error: 'このミッションは申告制ではありません' });
+
+    const mode = m.claimMode || 'first';
+    const now  = Date.now();
+
+    if ((mode === 'multi' || mode === 'selection') && m.claimDeadline && now > m.claimDeadline)
+      return res.status(400).json({ ok: false, error: '応募期限を過ぎています' });
+    if (mode === 'multi' && m.claimClosed)
+      return res.status(400).json({ ok: false, error: '応募は締め切られています' });
+    if (Array.isArray(m.assignees) && m.assignees.length > 0)
+      return res.status(400).json({ ok: false, error: '既に担当が確定しています' });
+
+    if (mode === 'first') {
+      if (m.assignee?.type === 'user' && m.assignee.userId !== req.user.id)
+        return res.status(409).json({ ok: false, error: '既に別のメンバーが担当しています' });
+      _setMissionField(p, req.params.mid, 'assignee',  { type: 'user', userId: req.user.id });
+      _setMissionField(p, req.params.mid, 'assignees', [req.user.id]);
+      await projectStore.saveProject(p);
+      eventBus.broadcast(p.id, 'missionClaimed', { projectId: p.id, missionId: req.params.mid, userId: req.user.id });
+      await _notifyAssignmentDecided(p, req.params.mid, m, [req.user.id], req.user);
+      return res.json({ ok: true });
+    }
+
+    if (mode === 'multi' || mode === 'selection') {
+      const applicants = Array.isArray(m.claimApplicants) ? m.claimApplicants.slice() : [];
+      if (applicants.includes(req.user.id)) return res.status(400).json({ ok: false, error: '既に申告済みです' });
+      applicants.push(req.user.id);
+      _setMissionField(p, req.params.mid, 'claimApplicants', applicants);
+      await projectStore.saveProject(p);
+      eventBus.broadcast(p.id, 'missionApplicantAdded', { projectId: p.id, missionId: req.params.mid, userId: req.user.id });
+
+      const managerIds = _getManagerIds(p).filter(uid => uid !== req.user.id);
+      await notifStore.notifyAll(managerIds, {
+        type:      'someone_claimed',
+        message:   `${req.user.username} さんが「${m.title}」に応募しました`,
+        projectId: p.id, missionId: req.params.mid,
+        actorId: req.user.id, actorName: req.user.username,
+      });
+      await notifStore.addNotification(req.user.id, {
+        type:      'self_claimed',
+        message:   `「${m.title}」に応募しました。担当者が決まり次第お知らせします`,
+        projectId: p.id, missionId: req.params.mid,
+        actorId: req.user.id, actorName: req.user.username,
+      });
+      return res.json({ ok: true });
+    }
+
+    res.status(400).json({ ok: false, error: '不明な申告モード' });
+  } catch (e) {
+    console.error('POST claim error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 申告取り消し
+app.delete('/api/projects/:id/missions/:mid/claim', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+    if (!m.selfClaim) return res.status(400).json({ ok: false, error: 'このミッションは申告制ではありません' });
+
+    const mode = m.claimMode || 'first';
+    if (mode === 'first') {
+      if (m.assignee?.type !== 'user' || m.assignee.userId !== req.user.id)
+        return res.status(400).json({ ok: false, error: '自分の担当ではありません' });
+      _setMissionField(p, req.params.mid, 'assignee',  null);
+      _setMissionField(p, req.params.mid, 'assignees', []);
+    } else {
+      if (Array.isArray(m.assignees) && m.assignees.length > 0)
+        return res.status(400).json({ ok: false, error: '担当確定後は取り消せません' });
+      const applicants = Array.isArray(m.claimApplicants) ? m.claimApplicants.slice() : [];
+      const idx = applicants.indexOf(req.user.id);
+      if (idx < 0) return res.status(400).json({ ok: false, error: '申告していません' });
+      applicants.splice(idx, 1);
+      _setMissionField(p, req.params.mid, 'claimApplicants', applicants);
+    }
+
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'missionUnclaimed', { projectId: p.id, missionId: req.params.mid });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE claim error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 応募締切（multi）
+app.post('/api/projects/:id/missions/:mid/close-claims', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: '管理権限がありません' });
+
+    const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+    if (!m.selfClaim || m.claimMode !== 'multi')
+      return res.status(400).json({ ok: false, error: '複数人可モードのミッションのみ締切できます' });
+    if (Array.isArray(m.assignees) && m.assignees.length > 0)
+      return res.status(400).json({ ok: false, error: '既に確定しています' });
+
+    const applicants = Array.isArray(m.claimApplicants) ? m.claimApplicants : [];
+    _setMissionField(p, req.params.mid, 'claimClosed', true);
+    _setMissionField(p, req.params.mid, 'assignees',   applicants.slice());
+    _setMissionField(p, req.params.mid, 'assignee',    applicants.length > 0 ? { type: 'user', userId: applicants[0] } : null);
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'missionClaimsClosed', { projectId: p.id, missionId: req.params.mid });
+    await _notifyAssignmentDecided(p, req.params.mid, m, applicants, req.user);
+    res.json({ ok: true, assignees: applicants });
+  } catch (e) {
+    console.error('close-claims error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 選定（selection / multi）
+app.post('/api/projects/:id/missions/:mid/select-claims', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: '管理権限がありません' });
+
+    const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+    if (!m.selfClaim || !['selection', 'multi'].includes(m.claimMode || 'first'))
+      return res.status(400).json({ ok: false, error: '申告制（選定あり・複数人可）のミッションのみ選定できます' });
+    if (Array.isArray(m.assignees) && m.assignees.length > 0)
+      return res.status(400).json({ ok: false, error: '既に選定済みです' });
+
+    let selected = req.body?.userIds;
+    if (!Array.isArray(selected) || selected.length === 0)
+      return res.status(400).json({ ok: false, error: 'userIds (配列) を1名以上指定してください' });
+    selected = [...new Set(selected.map(String))];
+
+    const applicants = Array.isArray(m.claimApplicants) ? m.claimApplicants : [];
+    for (const uid of selected) {
+      if (!applicants.includes(uid)) return res.status(400).json({ ok: false, error: '申告者の中から選んでください' });
+    }
+
+    _setMissionField(p, req.params.mid, 'assignees', selected);
+    _setMissionField(p, req.params.mid, 'assignee',  { type: 'user', userId: selected[0] });
+    if ((m.claimMode || 'first') === 'multi') {
+      _setMissionField(p, req.params.mid, 'claimClosed', true);
+    }
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'missionSelected', { projectId: p.id, missionId: req.params.mid });
+    await _notifyAssignmentDecided(p, req.params.mid, m, selected, req.user);
+    res.json({ ok: true, assignees: selected });
+  } catch (e) {
+    console.error('select-claims error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== リーダーチェック =====
+
+app.post('/api/projects/:id/missions/:mid/approve', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: '管理権限がありません' });
+
+    const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+    if (m.status !== 'pending_leader_check') return res.status(400).json({ ok: false, error: '確認待ち状態ではありません' });
+
+    _setMissionField(p, req.params.mid, 'status', 'cleared');
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'missionApproved', { projectId: p.id, missionId: req.params.mid });
+
+    const submitterId = m.assignee?.type === 'user' ? m.assignee.userId : null;
+    if (submitterId && submitterId !== req.user.id) {
+      await notifStore.addNotification(submitterId, {
+        type:      'leader_approved',
+        message:   `${req.user.username} さんが「${m.title}」を承認しました`,
+        projectId: p.id, missionId: req.params.mid,
+        actorId:   req.user.id, actorName: req.user.username,
+      });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('approve error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.post('/api/projects/:id/missions/:mid/reject', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: '管理権限がありません' });
+
+    const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+    if (m.status !== 'pending_leader_check') return res.status(400).json({ ok: false, error: '確認待ち状態ではありません' });
+
+    _setMissionField(p, req.params.mid, 'status', 'yet');
+    await projectStore.saveProject(p);
+    // 提出物を削除（submissions コレクションで管理）
+    await submissionStore.deleteSubmission(req.params.id, req.params.mid);
+    eventBus.broadcast(p.id, 'missionRejected', { projectId: p.id, missionId: req.params.mid });
+
+    const submitterId = m.assignee?.type === 'user' ? m.assignee.userId : null;
+    if (submitterId && submitterId !== req.user.id) {
+      await notifStore.addNotification(submitterId, {
+        type:      'leader_rejected',
+        message:   `${req.user.username} さんが「${m.title}」を差し戻しました。再度提出してください`,
+        projectId: p.id, missionId: req.params.mid,
+        actorId:   req.user.id, actorName: req.user.username,
+      });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('reject error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メンバー脱退・除名
+app.delete('/api/projects/:id/members/:userId', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const targetId   = req.params.userId;
+    const myRole     = projectStore.getRole(p, req.user.id);
+    const targetRole = projectStore.getRole(p, targetId);
+
+    if (req.user.id !== targetId && myRole !== 'owner')
+      return res.status(403).json({ ok: false, error: 'オーナーのみが他のメンバーを除名できます' });
+    if (targetRole === 'owner')
+      return res.status(400).json({ ok: false, error: 'オーナーは脱退・除名できません。プロジェクトを削除してください' });
+
+    p.members = (p.members || []).filter(m => m.userId !== targetId);
+    await projectStore.saveProject(p);
+    eventBus.broadcast(p.id, 'memberLeft', { projectId: p.id, userId: targetId });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE member error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== 招待 =====
+
+const INVITE_DEFAULT_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7日
+
+app.get('/api/projects/:id/invites', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    res.json({ ok: true, invites: await inviteStore.listInvitesForProject(p.id) });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.post('/api/projects/:id/invites', requireAuth, async (req, res) => {
+  try {
+    const p = await projectStore.loadProject(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!projectStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '管理可能なメンバーのみ招待を作成できます' });
+
+    const ttlMs   = Number(req.body?.ttlMs) > 0 ? Number(req.body.ttlMs) : INVITE_DEFAULT_TTL_MS;
+    const maxUses = Number(req.body?.maxUses) > 0 ? Number(req.body.maxUses) : null;
+
+    const invite = {
+      token:     inviteStore.newInviteToken(),
+      projectId: p.id,
+      createdBy: req.user.id,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + ttlMs,
+      maxUses,
+      usedBy: [],
+    };
+    await inviteStore.saveInvite(invite);
+    res.json({ ok: true, invite });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.delete('/api/projects/:id/invites/:token', requireAuth, async (req, res) => {
+  try {
+    const inv = await inviteStore.loadInvite(req.params.token);
+    if (!inv || inv.projectId !== req.params.id)
+      return res.status(404).json({ ok: false, error: 'invite not found' });
+    const p = await projectStore.loadProject(req.params.id);
+    if (!projectStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    await inviteStore.deleteInvite(req.params.token);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 招待プレビュー（認証不要）
+app.get('/api/invites/:token', async (req, res) => {
+  try {
+    const inv = await inviteStore.loadInvite(req.params.token);
+    if (!inv) return res.status(404).json({ ok: false, error: 'invite_not_found' });
+
+    const now = Date.now();
+    if (inv.expiresAt && inv.expiresAt < now) return res.status(410).json({ ok: false, error: 'invite_expired' });
+    if (inv.maxUses && inv.usedBy.length >= inv.maxUses) return res.status(410).json({ ok: false, error: 'invite_used_up' });
+
+    const p = await projectStore.loadProject(inv.projectId);
+    if (!p) return res.status(404).json({ ok: false, error: 'project_not_found' });
+
+    const owner = await userStore.findById(p.ownerId);
+    const flat  = crdt.crdtToFlat(p);
+    res.json({
+      ok: true,
+      invite: {
+        projectName: flat.name,
+        seedType:    flat.seedType,
+        ownerName:   owner?.username || '不明',
+        memberCount: (p.members || []).length,
+        expiresAt:   inv.expiresAt,
+      },
+    });
+  } catch (e) {
+    console.error('GET /api/invites/:token error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 招待受け入れ
+app.post('/api/invites/:token/accept', requireAuth, async (req, res) => {
+  try {
+    const inv = await inviteStore.loadInvite(req.params.token);
+    if (!inv) return res.status(404).json({ ok: false, error: 'invite_not_found' });
+
+    const now = Date.now();
+    if (inv.expiresAt && inv.expiresAt < now) return res.status(410).json({ ok: false, error: 'invite_expired' });
+    if (inv.maxUses && inv.usedBy.length >= inv.maxUses) return res.status(410).json({ ok: false, error: 'invite_used_up' });
+
+    const p = await projectStore.loadProject(inv.projectId);
+    if (!p) return res.status(404).json({ ok: false, error: 'project_not_found' });
+
+    if (projectStore.isMember(p, req.user.id)) {
+      return res.json({ ok: true, projectId: p.id, alreadyMember: true });
+    }
+
+    p.members = p.members || [];
+    const existingMemberIds = p.members.map(m => m.userId);
+    p.members.push({ userId: req.user.id, role: 'member', roles: ['member'], joinedAt: now });
+    await projectStore.saveProject(p);
+
+    inv.usedBy.push({ userId: req.user.id, joinedAt: now });
+    await inviteStore.saveInvite(inv);
+
+    const joinedProjectName = p.fields?.name?.v || 'プロジェクト';
+    await notifStore.notifyAll(existingMemberIds, {
+      type:      'member_joined',
+      message:   `@${req.user.username} が「${joinedProjectName}」に参加しました`,
+      projectId: p.id,
+      actorId:   req.user.id,
+      actorName: req.user.username,
+    });
+
+    eventBus.broadcast(p.id, 'memberJoined', { projectId: p.id, userId: req.user.id });
+    res.json({ ok: true, projectId: p.id });
+  } catch (e) {
+    console.error('POST /api/invites/:token/accept error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== SSE =====
+
+app.get('/api/events', requireAuth, async (req, res) => {
+  try {
+    const projectsParam = (req.query.projects || '').toString();
+    const projectIds = projectsParam.split(',').filter(Boolean);
+    const clientId   = (req.query.cid || '').toString() || null;
+
+    const allowed = [];
+    for (const pid of projectIds) {
+      const p = await projectStore.loadProject(pid);
+      if (p && projectStore.isMember(p, req.user.id)) allowed.push(pid);
+    }
+
+    res.set({
+      'Content-Type':      'text/event-stream',
+      'Cache-Control':     'no-cache, no-transform',
+      'Connection':        'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.flushHeaders?.();
+    res.write(`event: ready\ndata: ${JSON.stringify({ projects: allowed, clientId })}\n\n`);
+
+    res.__clientId = clientId;
+    const unsubscribe = eventBus.subscribe(allowed, res);
+
+    req.on('close', () => {
+      unsubscribe();
+      try { res.end(); } catch (_) {}
+    });
+  } catch (e) {
+    console.error('GET /api/events error:', e);
+    try { res.end(); } catch (_) {}
+  }
+});
+
+// ===== 招待リンク受信（Cookie保存）=====
+
+app.get('/invite/:token', (req, res) => {
+  const token = req.params.token;
+  if (!/^[A-Za-z0-9]+$/.test(token)) return res.redirect('/');
+  res.cookie(INVITE_COOKIE, token, {
+    httpOnly: false,
+    sameSite: 'lax',
+    secure:   process.env.NODE_ENV === 'production',
+    signed:   false,
+    maxAge:   INVITE_COOKIE_MAX_AGE,
+    path:     '/',
+  });
+  res.redirect('/');
+});
+
+// ===== パスワードリセット =====
+
+app.post('/api/auth/password-reset/request', strictLimiter, async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').toLowerCase().trim();
+    if (!email) return res.status(400).json({ ok: false, error: 'メールアドレスを入力してください' });
+
+    const user = await userStore.findByEmail(email);
+    if (!user) {
+      if (IS_DEV) console.log(`[password-reset] 該当ユーザーなし: ${email}`);
+      return res.json({ ok: true });
+    }
+    if (!user.passwordHash) {
+      if (IS_DEV) console.log(`[password-reset] Google 専用アカウントのためスキップ: ${email}`);
+      return res.json({ ok: true });
+    }
+
+    const token = newToken();
+    const passwordReset = { token, expiresAt: Date.now() + RESET_TTL_MS, requestedAt: Date.now() };
+    await userStore.update(user.id, { passwordReset });
+
+    const origin   = `${req.protocol}://${req.get('host')}`;
+    const resetUrl = `${origin}/reset-password/${token}`;
+    const mail = await sendPasswordResetEmail(email, resetUrl);
+
+    res.json({ ok: true, devUrl: mail.devUrl, mailError: mail.ok ? null : mail.error });
+  } catch (e) {
+    console.error('password-reset/request error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.get('/api/auth/password-reset/verify/:token', strictLimiter, async (req, res) => {
+  try {
+    const token = String(req.params.token || '');
+    if (!/^[a-f0-9]{32,}$/.test(token)) return res.status(400).json({ ok: false, error: 'invalid_token' });
+
+    const user = await userStore.findByPasswordResetToken(token);
+    if (!user) return res.status(404).json({ ok: false, error: 'token_not_found' });
+    if (user.passwordReset.expiresAt < Date.now()) return res.status(410).json({ ok: false, error: 'token_expired' });
+
+    res.json({ ok: true, email: user.emailLower });
+  } catch (e) {
+    console.error('password-reset/verify error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.post('/api/auth/password-reset/confirm', strictLimiter, async (req, res) => {
+  try {
+    const token       = String(req.body?.token       || '');
+    const newPassword = String(req.body?.newPassword || '');
+
+    if (!/^[a-f0-9]{32,}$/.test(token)) return res.status(400).json({ ok: false, error: 'invalid_token' });
+    const pwErr = validatePassword(newPassword);
+    if (pwErr) return res.status(400).json({ ok: false, errors: { newPassword: pwErr } });
+
+    const user = await userStore.findByPasswordResetToken(token);
+    if (!user) return res.status(404).json({ ok: false, error: 'token_not_found' });
+    if (user.passwordReset.expiresAt < Date.now()) return res.status(410).json({ ok: false, error: 'token_expired' });
+
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await sessionStore.deleteAllForUser(user.id);
+    await userStore.update(user.id, { passwordHash: newHash, passwordReset: null });
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('password-reset/confirm error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== SPA フォールバック =====
+
+app.get('*', (_req, res) => {
+  res.sendFile(require('path').join(__dirname, 'public', 'index.html'));
+});
+
+// ===== 起動 =====
+
+const PORT = process.env.PORT || 3000;
+
+async function start() {
+  await connectDb();
+
+  const server = app.listen(PORT, () => {
+    eventBus.startHeartbeat();
+    console.log(`✅ サーバー起動: http://localhost:${PORT}  ${IS_DEV ? '[DEV]' : '[PROD]'}`);
+    logTransportStatus();
+    if (googleAuthClient) {
+      console.log(`🔵 Google サインイン: 有効 (clientId=${process.env.GOOGLE_CLIENT_ID.slice(0, 20)}...)`);
+    } else {
+      console.log(`🔵 Google サインイン: 無効（GOOGLE_CLIENT_ID 未設定）`);
+    }
+    if (IS_DEV) console.log(`   開発モード: OTPはサーバーログ＆画面にも表示されます\n`);
+  });
+
+  // SIGTERM ハンドラ（Render のデプロイ・スケールダウン時）
+  // Render はデフォルト 10 秒待ってから SIGKILL を送る。
+  // SSE 接続を先に閉じ、新規接続受付を停止してから DB を切断する。
+  process.on('SIGTERM', () => {
+    console.log('[SIGTERM] グレースフルシャットダウン開始...');
+
+    // SSE 接続を全部閉じる（クライアントが再接続する）
+    eventBus.closeAll?.();
+
+    // 強制終了タイムアウト：8 秒以内に完了しなければ強制終了
+    const forceExit = setTimeout(() => {
+      console.warn('[SIGTERM] タイムアウト — 強制終了');
+      process.exit(1);
+    }, 8_000);
+    forceExit.unref(); // タイマーだけが残ってもプロセスを維持しない
+
+    server.close(async () => {
+      clearTimeout(forceExit);
+      try { await closeDb(); } catch (_) {}
+      console.log('[SIGTERM] シャットダウン完了');
+      process.exit(0);
+    });
+  });
+}
+
+start().catch(e => {
+  console.error('[fatal] 起動失敗:', e);
+  process.exit(1);
+});
