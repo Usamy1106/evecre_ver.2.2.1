@@ -1,3 +1,4 @@
+cat > .gitignore << 'EOF'
 # 依存
 node_modules/
 
@@ -23,3 +24,4 @@ Thumbs.db
 
 # Claude Code ローカル設定
 .claude/
+EOF
