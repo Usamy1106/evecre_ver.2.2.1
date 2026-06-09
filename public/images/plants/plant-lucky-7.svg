@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 750.08 1022.27">
+  <defs>
+    <style>
+      .cls-1, .cls-2, .cls-3 {
+        fill: none;
+      }
+
+      .cls-4 {
+        fill: #e99b97;
+      }
+
+      .cls-2 {
+        stroke: #d9e695;
+        stroke-width: 79px;
+      }
+
+      .cls-2, .cls-3 {
+        stroke-miterlimit: 10;
+      }
+
+      .cls-5 {
+        fill: #d9e695;
+      }
+
+      .cls-3 {
+        stroke: #d96195;
+        stroke-width: 50px;
+      }
+
+      .cls-6 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <clipPath id="clippath">
+      <ellipse class="cls-1" cx="350.99" cy="217.58" rx="164.8" ry="125.19" transform="translate(-61.54 236.54) rotate(-34.43)"/>
+    </clipPath>
+  </defs>
+  <g id="_レイヤー_3" data-name="レイヤー 3">
+    <path class="cls-2" d="M359.44,776.54s274.45-73.22,173.83-173.83c-100.62-100.62-458.37-80.09-244.91-167.11,213.46-87.03,243.87-113.78,158.8-161.54"/>
+    <polygon class="cls-4" points="577.56 1022.27 172.52 1022.27 0 740.99 750.08 740.99 577.56 1022.27"/>
+    <ellipse class="cls-5" cx="350.99" cy="217.58" rx="164.8" ry="125.19" transform="translate(-61.54 236.54) rotate(-34.43)"/>
+    <g class="cls-6">
+      <polyline class="cls-3" points="472.25 342.59 448.56 284.4 386.95 296.67 363.26 238.49 301.65 250.75 277.96 192.57 216.35 204.82 192.66 146.64 131.04 158.9 107.35 100.71"/>
+      <polyline class="cls-3" points="521.39 251.3 497.7 193.12 436.09 205.38 412.41 147.2 350.8 159.46 327.11 101.28 265.49 113.54 241.8 55.36 180.19 67.61 156.49 9.43"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,30 @@
+cat > .gitignore << 'EOF'
+# 依存
+node_modules/
+
+# 環境変数
+.env
+.env.*
+!.env.example
+
+# 永続データ（全体を除外）
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ログ
+*.log
+
+# エディタ
+.vscode/
+.idea/
+*.swp
+
+# Claude.md
+CLAUDE.md
+
+# Claude Code ローカル設定
+.claude/
+EOF

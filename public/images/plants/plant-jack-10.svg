@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 666.94 886.23">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #a300ff;
+      }
+
+      .cls-2 {
+        fill: #007e67;
+      }
+
+      .cls-3 {
+        fill: #e9ff00;
+      }
+
+      .cls-4 {
+        fill: #c73813;
+      }
+    </style>
+  </defs>
+  <g id="_レイヤー_3" data-name="レイヤー 3">
+    <polygon class="cls-4" points="616.92 886.23 50.02 886.23 0 596.94 666.94 596.94 616.92 886.23"/>
+    <polygon class="cls-2" points="445.68 0 262.65 175.44 358.74 308.88 221.76 423.11 257.33 596.94 445.68 596.94 373.2 432.75 448.72 318.99 341.52 182.53 445.68 0"/>
+    <circle class="cls-1" cx="292.72" cy="214.99" r="23.51"/>
+    <circle class="cls-1" cx="236.33" cy="191.48" r="36.16"/>
+    <circle class="cls-1" cx="247.72" cy="306.38" r="68.51"/>
+    <circle class="cls-1" cx="455.02" cy="168.59" r="23.51"/>
+    <circle class="cls-1" cx="478.54" cy="382.36" r="23.51"/>
+    <circle class="cls-1" cx="333.55" cy="340.86" r="34.48"/>
+    <circle class="cls-1" cx="221.76" cy="538.2" r="58.75"/>
+    <circle class="cls-1" cx="251.66" cy="417.72" r="35.37"/>
+    <circle class="cls-1" cx="424.1" cy="227.64" r="54.44"/>
+    <circle class="cls-1" cx="426.2" cy="453.09" r="52.34"/>
+    <circle class="cls-2" cx="292.98" cy="261.49" r=".26"/>
+    <circle class="cls-1" cx="335.24" cy="73.04" r="36.84"/>
+    <rect class="cls-3" x="394.01" y="197.55" width="60.17" height="60.17" transform="translate(285.18 -233.21) rotate(45)"/>
+    <rect class="cls-3" x="400.87" y="427.76" width="50.66" height="50.66" transform="translate(445.21 -168.66) rotate(45)"/>
+    <rect class="cls-3" x="470.52" y="374.34" width="16.03" height="16.03" transform="translate(410.53 -226.39) rotate(45)"/>
+    <rect class="cls-3" x="447.01" y="160.57" width="16.03" height="16.03" transform="translate(252.48 -272.37) rotate(45)"/>
+    <rect class="cls-3" x="284.33" y="206.97" width="16.03" height="16.03" transform="translate(237.65 -143.75) rotate(45)"/>
+    <rect class="cls-3" x="191.67" y="508.1" width="60.19" height="60.19" transform="translate(445.51 .82) rotate(45)"/>
+    <rect class="cls-3" x="216.17" y="274.83" width="63.11" height="63.11" transform="translate(289.2 -85.43) rotate(45)"/>
+    <rect class="cls-3" x="231.99" y="398.05" width="39.35" height="39.35" transform="translate(369.08 -55.6) rotate(45)"/>
+    <rect class="cls-3" x="313.87" y="321.19" width="39.35" height="39.35" transform="translate(338.72 -136.02) rotate(45)"/>
+    <rect class="cls-3" x="216.65" y="172.43" width="39.35" height="39.35" transform="translate(205.05 -110.84) rotate(45)"/>
+    <rect class="cls-3" x="315.57" y="53.36" width="39.35" height="39.35" transform="translate(149.84 -215.66) rotate(45)"/>
+  </g>
+</svg>

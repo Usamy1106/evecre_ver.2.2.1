@@ -1,0 +1,29 @@
+{
+  "name": "evecre01",
+  "version": "1.0.0",
+  "description": "イベント作りをサポートするアプリ",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "migrate": "node scripts/migrate-fs-to-atlas.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1054.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.5.2",
+    "google-auth-library": "^9.14.0",
+    "mongodb": "^7.2.0",
+    "nodemailer": "^6.9.13",
+    "resend": "^6.12.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

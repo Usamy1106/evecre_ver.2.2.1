@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 750.08 824.05">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: none;
+      }
+
+      .cls-3 {
+        fill: #e99b97;
+      }
+
+      .cls-2 {
+        stroke: #d9e695;
+        stroke-miterlimit: 10;
+        stroke-width: 79px;
+      }
+
+      .cls-4 {
+        fill: #d9e695;
+      }
+
+      .cls-5 {
+        fill: #d96195;
+      }
+
+      .cls-6 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <clipPath id="clippath">
+      <circle class="cls-1" cx="429.33" cy="103.92" r="103.92"/>
+    </clipPath>
+  </defs>
+  <g id="_レイヤー_3" data-name="レイヤー 3">
+    <path class="cls-2" d="M359.44,578.32s274.45-73.22,173.83-173.83c-100.62-100.62-458.37-80.09-244.91-167.11,213.46-87.03,243.87-113.78,158.8-161.54"/>
+    <polygon class="cls-3" points="577.56 824.05 172.52 824.05 0 542.77 750.08 542.77 577.56 824.05"/>
+    <circle class="cls-4" cx="429.33" cy="103.92" r="103.92"/>
+    <g class="cls-6">
+      <path class="cls-5" d="M522.92,7.68s-28.35,65.4-101.01,68.14c-72.66,2.74,145.32,16.92,145.32,16.92l-44.3-85.06Z"/>
+    </g>
+  </g>
+</svg>
