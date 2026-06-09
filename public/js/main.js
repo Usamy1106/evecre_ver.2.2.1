@@ -846,6 +846,13 @@ window._app = {
   // --- トースト公開（helpers.js など他モジュールから呼べるよう）---
   showToast: (msg) => _showToast(msg),
 
+  // --- ミッション表示モード切替（全て / 私のみ）---
+  setMissionViewMode: (mode) => {
+    state.missionViewMode = mode;
+    state.missionFilterTag = null; // タグフィルタはリセット
+    state.render();
+  },
+
   // --- ミッション絞り込みタグ変更 ---
   setMissionFilterTag: (tag) => {
     state.missionFilterTag = tag || null;

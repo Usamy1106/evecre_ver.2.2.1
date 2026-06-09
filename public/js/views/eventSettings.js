@@ -136,7 +136,7 @@ function _eventManagementSection(p, sec) {
           <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">開催日時</p>
           <div class="flex items-center justify-between">
             <span class="text-[14px] text-[#484545] font-bold">${_formatDates(p.dates)}</span>
-            ${canMgr ? `<button onclick="window._app.openCalendarModal('eventEdit')" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50">変更</button>` : ''}
+            ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50">変更</button>` : ''}
           </div>
         </div>
 
@@ -373,7 +373,7 @@ function _bindEvents(p, sec) {
   });
 
   // フェーズ変更（管理者権限が必要）
-  container.querySelectorAll('[data-ps-phase]').forEach(btn => {
+  document.querySelectorAll('[data-ps-phase]').forEach(btn => {
     btn.addEventListener('click', () => {
       const phase = btn.dataset.psPhase;
       const ev = state.events.find(x => x.id === p.id);

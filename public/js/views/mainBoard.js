@@ -168,27 +168,26 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
     return false;
   };
 
-  // 表示するミッション：
-  // - cleared と pending_leader_check は除外
-  // - 管理者権限あり → 全部表示
-  // - 一般ユーザー →
-  //     申告制：確定済みかつ自分が含まれない → 非表示
-  //     通常：担当が別ユーザーに確定済み → 非表示（未割当・自分担当は表示）
+  // ── ミッション表示モードの定義 ──────────────────────────────────
+  // 'all'  : cleared・pending_leader_check 以外を全件表示
+  // 'mine' : 自分が担当 / 未割当 / 申告受付中のミッションのみ
+  const viewMode = state.missionViewMode || 'all';
+
+  const _isMyOrOpen = (m) => {
+    if (m.selfClaim) {
+      if (!_isAssigned(m)) return true;  // 申告受付中
+      return _isMyMission(m);
+    }
+    const hasAssignee = (m.assignee?.type === 'user') ||
+                        (Array.isArray(m.assignees) && m.assignees.length > 0);
+    if (!hasAssignee) return true;       // 未割当
+    return _isMyMission(m);
+  };
+
   const ongoingMissions = getSortedMissions(
     p.missions
       .filter(m => m.status !== 'cleared' && m.status !== 'pending_leader_check')
-      .filter(m => {
-        if (canMgr) return true;
-        if (m.selfClaim) {
-          if (!_isAssigned(m)) return true;  // 募集中なら見える
-          return _isMyMission(m);            // 確定済みなら自分のものだけ
-        }
-        // 通常ミッション：担当なし or 自分が担当なら見える
-        const hasAssignee = (m.assignee?.type === 'user') ||
-                            (Array.isArray(m.assignees) && m.assignees.length > 0);
-        if (!hasAssignee) return true;
-        return _isMyMission(m);
-      })
+      .filter(m => viewMode === 'all' ? true : _isMyOrOpen(m))
   );
 
   // ── タグフィルター ──────────────────────────────────────────
@@ -240,7 +239,9 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
   const missionCards = displayMissions.length === 0
     ? (state.missionFilterTag
         ? `<p class="text-center py-6 text-[#A7AAAC] text-rs">このタグのミッションはありません</p>`
-        : '<p class="text-center py-10 text-[#A7AAAC] text-rs">全てのミッションが完了されました！</p>')
+        : viewMode === 'mine'
+          ? `<p class="text-center py-10 text-[#A7AAAC] text-rs">あなたに割り当てられたミッションはありません</p>`
+          : '<p class="text-center py-10 text-[#A7AAAC] text-rs">全てのミッションが完了されました！</p>')
     : displayMissions.map(m => {
         const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
         const applicants = Array.isArray(m.claimApplicants) ? m.claimApplicants : [];
@@ -391,6 +392,19 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
               <img src="/images/icon/icon-Filter.svg" class="w-5 h-4">
             </button>
           </div>
+        </div>
+        <!-- 表示モード切替（全て / 私のみ）-->
+        <div class="flex gap-1 bg-[#EBE8E5] rounded-xl p-1 mb-3">
+          <button onclick="window._app.setMissionViewMode('all')"
+            class="flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all
+            ${viewMode === 'all' ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
+            全てのミッション
+          </button>
+          <button onclick="window._app.setMissionViewMode('mine')"
+            class="flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all
+            ${viewMode === 'mine' ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
+            私のミッション
+          </button>
         </div>
         ${tagFilterHtml}
         <div class="space-y-3 pb-10">${missionCards}</div>

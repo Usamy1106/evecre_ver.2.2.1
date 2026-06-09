@@ -40,6 +40,7 @@ export const state = {
   inviteLinkError: null,               // 無効な招待リンクで来た時のエラーメッセージ
   mainBoardTab: 'MAIN',
   _infoModalShownForEvent: null,
+  missionViewMode: 'all',      // 'all' | 'mine'  ミッション表示モード
   missionFilterTag: null,      // ミッション絞り込みタグ（null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority' | 'assignee'
   editingMissionId: null,
