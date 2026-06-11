@@ -171,7 +171,7 @@ function _renderCalendarInner(target) {
         <div class="grid grid-cols-7 gap-1 mb-2 mt-4 text-center text-[10px] text-[#A7AAAC] font-bold">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
         </div>
-        <div id="calendar-grid" class="grid grid-cols-7 gap-1">${daysHtml}</div>
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1" style="touch-action:none;">${daysHtml}</div>
         ${target === 'mission' ? `<button id="calendar-confirm-btn"
           class="btn-primary w-full py-3 heading-rs font-bold mt-6">決定</button>` : ''}
       </div>`;
@@ -195,7 +195,7 @@ function _renderCalendarInner(target) {
         <div class="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] text-[#A7AAAC] font-bold">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
         </div>
-        <div id="calendar-grid" class="grid grid-cols-7 gap-1 mb-8">${daysHtml}</div>
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1 mb-8" style="touch-action:none;">${daysHtml}</div>
         <button id="calendar-confirm-btn"
           class="btn-primary w-full py-3 heading-rs font-bold">決定</button>
       </div>`;
@@ -224,7 +224,7 @@ export function moveCalendarMonth(offset, target) {
 
 // ===== ドラッグ選択（なぞって複数日選択） =====
 
-let _dragState = null; // { mode: 'add'|'remove', visited: Set<string>, target: string }
+let _dragState = null; // { mode, lastDate, monthAdvancing, target }
 
 /**
  * ドラッグ選択のイベントリスナーを紐付ける
@@ -259,7 +259,8 @@ function _bindDragSelection(target) {
     const isOn = dates.includes(dateStr);
     _dragState = {
       mode: isOn ? 'remove' : 'add',
-      visited: new Set(),
+      lastDate: null,
+      monthAdvancing: false,
       target,
     };
     _applyPaint(dateStr);
@@ -269,10 +270,22 @@ function _bindDragSelection(target) {
   grid.addEventListener('pointermove', (e) => {
     if (!_dragState) return;
     const el = document.elementFromPoint(e.clientX, e.clientY);
-    if (!el) return;
-    const cell = el.closest('[data-cal-day]');
-    if (!cell || !grid.contains(cell)) return;
-    _applyPaint(cell.dataset.calDay);
+    const cell = el?.closest('[data-cal-day]');
+    if (cell && grid.contains(cell)) {
+      _dragState.monthAdvancing = false;
+      _applyPaint(cell.dataset.calDay);
+    } else {
+      // グリッド右端を超えたら次月に進む（1回のみ）
+      if (!_dragState.monthAdvancing) {
+        const rect = grid.getBoundingClientRect();
+        if (e.clientX > rect.right + 10) {
+          _dragState.monthAdvancing = true;
+          const t = _dragState.target;
+          _dragState = null; // ドラッグ終了してから月を進める
+          moveCalendarMonth(1, t);
+        }
+      }
+    }
   });
 
   const endDrag = () => {
@@ -288,22 +301,37 @@ function _bindDragSelection(target) {
 }
 
 /**
- * ドラッグ中の塗り塗り処理：セルの状態を dragState.mode に合わせる
+ * ドラッグ中の塗り塗り処理：lastDate → dateStr の範囲を全て選択
  * @param {string} dateStr
  */
 function _applyPaint(dateStr) {
   if (!_dragState) return;
-  if (_dragState.visited.has(dateStr)) return;
-  _dragState.visited.add(dateStr);
 
-  const dates = _getTargetDates(_dragState.target);
-  const idx = dates.indexOf(dateStr);
-  if (_dragState.mode === 'add' && idx === -1)    dates.push(dateStr);
-  if (_dragState.mode === 'remove' && idx !== -1) dates.splice(idx, 1);
+  const dates    = _getTargetDates(_dragState.target);
+  const lastDate = _dragState.lastDate;
+  _dragState.lastDate = dateStr;
+
+  // lastDate → dateStr の間にある全グリッドセルを塗る（範囲補完）
+  const grid = document.getElementById('calendar-grid');
+  if (lastDate && lastDate !== dateStr && grid) {
+    const [from, to] = lastDate < dateStr ? [lastDate, dateStr] : [dateStr, lastDate];
+    grid.querySelectorAll('[data-cal-day]').forEach(cell => {
+      const d = cell.dataset.calDay;
+      if (d < from || d > to) return;
+      const idx = dates.indexOf(d);
+      if (_dragState.mode === 'add' && idx === -1)    dates.push(d);
+      if (_dragState.mode === 'remove' && idx !== -1) dates.splice(idx, 1);
+      _updateCellAppearance(d, _dragState.mode === 'add');
+    });
+  } else {
+    // 単セル塗り（初回タッチ、または同セル）
+    const idx = dates.indexOf(dateStr);
+    if (_dragState.mode === 'add' && idx === -1)    dates.push(dateStr);
+    if (_dragState.mode === 'remove' && idx !== -1) dates.splice(idx, 1);
+    _updateCellAppearance(dateStr, _dragState.mode === 'add');
+  }
+
   dates.sort();
-
-  // セルだけを即時に見た目更新（全面再描画を避けてドラッグ中もスムーズに）
-  _updateCellAppearance(dateStr, _dragState.mode === 'add');
 }
 
 /**

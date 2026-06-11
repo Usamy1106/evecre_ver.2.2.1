@@ -160,11 +160,20 @@ export const state = {
         this.currentUser = user;
         console.log('[init] 既存ログイン検出:', user.username);
 
-        if (meResp.pendingEventId) {
-          if (meResp.pendingApproval) {
+        if (meResp.pendingEventId || meResp.needsJoinConfirm) {
+          await this.loadAfterAuth(/*skipRender*/true);
+          if (meResp.needsJoinConfirm && meResp.inviteToken) {
+            // クッキー経由で来たが未申請 → 確認モーダルを表示
+            this.pendingInviteToken = null;
+            this.inviteContextForAuth = null;
+            this.currentView = 'HOME';
+            this.render();
+            this._hideLoading();
+            setTimeout(() => window._app?.openJoinEventModal?.(meResp.pendingEventName, meResp.inviteToken), 300);
+            return;
+          } else if (meResp.pendingApproval) {
             this.pendingApprovalMessage = `「${meResp.pendingEventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
-            await this.loadAfterAuth(/*skipRender*/true);
-          } else {
+          } else if (meResp.pendingEventId) {
             await this._enterInvitedEvent(meResp.pendingEventId);
           }
           this.render();
@@ -246,56 +255,18 @@ export const state = {
       }
     }
 
-    // 招待リンクから来た場合：自動受諾してイベント画面へ直接遷移
+    // 招待リンクから来た場合：確認モーダルを表示してから参加申請
     if (this.pendingInviteToken) {
-      console.log('[loadAfterAuth] 招待トークン検出 → acceptInvite を呼ぶ');
-      try {
-        const r = await api.acceptInvite(this.pendingInviteToken);
-        console.log('[loadAfterAuth] acceptInvite レスポンス:', r);
-        if (r.ok && r.pending) {
-          // 承認待ち：HOME に戻り待機メッセージを表示
-          this.pendingInviteToken   = null;
-          this.inviteContextForAuth = null;
-          this.pendingApprovalMessage = `「${r.eventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
-          this.currentView = 'HOME';
-          if (!skipRender) this.render();
-          return;
-        }
-        if (r.ok && r.eventId) {
-          this.pendingInviteToken = null;
-          this.inviteContextForAuth = null;
-          // イベントリストを再取得（参加したばかりのイベントを含めるため）
-          try {
-            const data = await api.load();
-            this.events = data.events || [];
-            console.log('[loadAfterAuth] 再取得後イベント数:', this.events.length);
-          } catch (e) {
-            console.error('[loadAfterAuth] 再取得失敗:', e);
-          }
-          this.selectedEventId = r.eventId;
-          this.currentView = 'MAIN_BOARD';
-          console.log('[loadAfterAuth] ✓ MAIN_BOARD へ遷移 eventId=', r.eventId);
-          syncRealtime();
-
-          // 未認証ユーザーが招待で参加した場合：認証モーダルを自動オープン
-          if (!this.currentUser?.isVerified) {
-            this._autoOpenVerifyModal = true;
-            console.log('[loadAfterAuth] 認証モーダル自動オープン予約');
-          }
-
-          if (!skipRender) this.render();
-          return;
-        } else {
-          console.warn('[loadAfterAuth] 招待受諾失敗:', r);
-          this.pendingInviteToken = null;
-          this.inviteContextForAuth = null;
-          this.inviteLinkError = _explainInviteError(r.error || '');
-        }
-      } catch (e) {
-        console.error('[loadAfterAuth] 招待受諾エラー:', e);
-        this.pendingInviteToken = null;
-        this.inviteContextForAuth = null;
-      }
+      const token = this.pendingInviteToken;
+      const eventName = this.inviteContextForAuth?.eventName || this.inviteContextForAuth?.name || 'イベント';
+      this.pendingInviteToken = null;
+      this.inviteContextForAuth = null;
+      this.currentView = 'HOME';
+      syncRealtime();
+      if (!skipRender) this.render();
+      // HOME レンダリング後に確認モーダルを開く
+      setTimeout(() => window._app?.openJoinEventModal?.(eventName, token), 300);
+      return;
     }
 
     console.log('[loadAfterAuth] HOME へ遷移');
@@ -540,6 +511,24 @@ export const state = {
     p.name = String(newName).trim();
     this.save();
     this.render();
+  },
+
+  // --- イベント脱退（非オーナー）---
+  async leaveEvent(eventId) {
+    if (!confirm('このイベントから脱退しますか？\n（再度招待されないと参加できなくなります）')) return;
+    const me = this.currentUser;
+    if (!me) return;
+    const r = await api.leaveProject(eventId, me.id);
+    if (r.ok) {
+      this.events = this.events.filter(x => x.id !== eventId);
+      if (this.selectedEventId === eventId) {
+        this.selectedEventId = null;
+        this.currentView = 'HOME';
+      }
+      this.render();
+    } else {
+      alert(r.error || '脱退に失敗しました');
+    }
   },
 
   // --- イベント削除 ---

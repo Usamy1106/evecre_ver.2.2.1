@@ -28,6 +28,7 @@ export function openMissionModal(missionId = null) {
       dates: [...(m.dates || [])],
       labels,
       assignee: m.assignee || null,
+      assignees: Array.isArray(m.assignees) ? [...m.assignees] : [],
       checklist: Array.isArray(m.checklist) ? [...m.checklist] : [],
       description: m.description || '',
       selfClaim: !!m.selfClaim,
@@ -38,7 +39,7 @@ export function openMissionModal(missionId = null) {
   } else {
     state.draftMission = {
       title: '', labels: [], priority: 0, dates: [],
-      note: '', assignee: null, checklist: [],
+      note: '', assignee: null, assignees: [], checklist: [],
       description: '', selfClaim: false, leaderCheck: false,
       claimMode: 'selection', claimDeadline: null,
     };
@@ -407,6 +408,10 @@ function _renderDetailTab(isEdit) {
             </svg>
           </button>` : ''}
       </div>
+      <button onclick="window._app.createOrUpdateMission()"
+        class="btn-primary w-full py-4 heading-r font-bold mt-4 shadow-lg shadow-blue-200">
+        ${isEdit ? '保存' : '作成'}
+      </button>
     </div>`;
 }
 
@@ -661,6 +666,7 @@ export function changeMissionSort(mode) {
 function _renderAssigneeSelect() {
   const cache = state.assigneeCache || {};
   const current = state.draftMission.assignee || null;
+  const multiIds = Array.isArray(state.draftMission.assignees) ? state.draftMission.assignees : [];
   const selfClaim = !!state.draftMission.selfClaim;
 
   if (cache.loading) {
@@ -679,19 +685,24 @@ function _renderAssigneeSelect() {
   const roles   = (cache.roles || []).filter(r => r.id !== 'owner');
 
   let label = '未割当';
-  if (current?.type === 'user') {
-    const m = members.find(x => x.userId === current.userId);
-    if (m) label = `@${m.username}`;
+  let hasValue = false;
+  if (multiIds.length > 0) {
+    const names = multiIds.map(uid => {
+      const m = members.find(x => x.userId === uid);
+      return m ? `@${m.username}` : uid;
+    });
+    label = names.join('、');
+    hasValue = true;
   } else if (current?.type === 'role') {
     const r = roles.find(x => x.id === current.roleId)
            || (cache.roles || []).find(x => x.id === current.roleId);
-    if (r) label = r.name;
+    if (r) { label = r.name; hasValue = true; }
   }
 
   return `
     <button type="button" onclick="window._app.openAssigneeSheet()"
       class="input-field w-full px-4 py-3 focus:outline-none text-[13px] text-left flex items-center justify-between">
-      <span class="${current ? 'text-[#484545] font-bold' : 'text-[#A7AAAC]'}">${_esc(label)}</span>
+      <span class="${hasValue ? 'text-[#484545] font-bold' : 'text-[#A7AAAC]'}">${_esc(label)}</span>
       <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-40">
     </button>`;
 }
@@ -735,6 +746,12 @@ export function openAssigneeSheet() {
 
       <!-- リスト -->
       <div id="assignee-sheet-list" class="flex-1 overflow-y-auto pb-6"></div>
+
+      <!-- 確定ボタン（ACCOUNTタブのみ表示） -->
+      <div id="assignee-confirm-bar" class="px-5 py-4 border-t border-[#E1DFDC] flex-shrink-0" style="display:none">
+        <button id="assignee-confirm-btn"
+          class="btn-primary w-full py-3 heading-r font-bold">確定</button>
+      </div>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -750,6 +767,12 @@ export function openAssigneeSheet() {
     });
   });
 
+  // 確定ボタン
+  overlay.querySelector('#assignee-confirm-btn')?.addEventListener('click', () => {
+    closeAssigneeSheet();
+    renderMissionModalContent();
+  });
+
   _renderAssigneeSheetList();
 }
 
@@ -763,10 +786,9 @@ function _renderAssigneeSheetList() {
   const cache = state.assigneeCache || {};
   const members = cache.members || [];
   const roles   = (cache.roles || []).filter(r => r.id !== 'owner');
-  const current = state.draftMission.assignee || null;
-  const currentValue = current
-    ? (current.type === 'user' ? `user:${current.userId}` : `role:${current.roleId}`)
-    : '';
+  const multiIds = Array.isArray(state.draftMission.assignees) ? state.draftMission.assignees : [];
+  const current  = state.draftMission.assignee || null;
+  const currentRoleVal = current?.type === 'role' ? `role:${current.roleId}` : '';
 
   const tab = state.assigneeSheetTab || 'ACCOUNT';
 
@@ -780,50 +802,92 @@ function _renderAssigneeSheetList() {
     }`;
   });
 
-  const row = (val, name, sub = '') => `
-    <button type="button" data-assignee-pick="${_escAttr(val)}"
-      class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between">
-      <div>
-        <p class="text-[13px] font-bold text-[#484545]">${_esc(name)}</p>
-        ${sub ? `<p class="text-[10px] text-[#A7AAAC]">${_esc(sub)}</p>` : ''}
-      </div>
-      ${currentValue === val ? '<span class="text-[#0CA1E3] font-bold">✓</span>' : ''}
-    </button>`;
+  // 確定バーはACCOUNTタブのみ表示
+  const confirmBar = overlay.querySelector('#assignee-confirm-bar');
+  if (confirmBar) confirmBar.style.display = tab === 'ACCOUNT' ? '' : 'none';
 
   let html = '';
-  // 共通：未割当
-  html += row('', '未割当');
 
   if (tab === 'ACCOUNT') {
+    // ACCOUNTタブ：複数選択。チェックボックス風。
+    const noneChecked = multiIds.length === 0 && !current?.type;
+    html += `
+      <button type="button" data-assignee-pick=""
+        class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between">
+        <p class="text-[13px] font-bold text-[#484545]">未割当</p>
+        ${noneChecked ? '<span class="text-[#0CA1E3] font-bold text-[16px]">✓</span>' : ''}
+      </button>`;
     if (members.length === 0) {
       html += '<p class="text-[11px] text-[#A7AAAC] text-center py-6">アカウントがありません</p>';
     } else {
-      html += members.map(m => row(`user:${m.userId}`, m.username)).join('');
+      html += members.map(m => {
+        const checked = multiIds.includes(m.userId);
+        return `
+          <button type="button" data-assignee-pick="user:${_escAttr(m.userId)}"
+            class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between ${checked ? 'bg-[#EBF8FF]' : ''}">
+            <p class="text-[13px] font-bold text-[#484545]">${_esc(m.username)}</p>
+            ${checked ? '<span class="text-[#0CA1E3] font-bold text-[16px]">✓</span>' : '<span class="w-4 h-4 rounded border border-[#D3D6D8] inline-block"></span>'}
+          </button>`;
+      }).join('');
     }
   } else if (tab === 'ROLE') {
+    // ROLEタブ：単一選択（従来通り）
+    html += `
+      <button type="button" data-assignee-pick=""
+        class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between">
+        <p class="text-[13px] font-bold text-[#484545]">未割当</p>
+        ${!currentRoleVal ? '<span class="text-[#0CA1E3] font-bold">✓</span>' : ''}
+      </button>`;
     if (roles.length === 0) {
       html += '<p class="text-[11px] text-[#A7AAAC] text-center py-6">ロールがありません</p>';
     } else {
-      html += roles.map(r => row(`role:${r.id}`, r.name, r.canManage ? '管理者権限' : '一般ユーザー')).join('');
+      html += roles.map(r => `
+        <button type="button" data-assignee-pick="role:${_escAttr(r.id)}"
+          class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between">
+          <div>
+            <p class="text-[13px] font-bold text-[#484545]">${_esc(r.name)}</p>
+            <p class="text-[10px] text-[#A7AAAC]">${r.canManage ? '管理者権限' : '一般ユーザー'}</p>
+          </div>
+          ${currentRoleVal === `role:${r.id}` ? '<span class="text-[#0CA1E3] font-bold">✓</span>' : ''}
+        </button>`).join('');
     }
   }
 
   const list = overlay.querySelector('#assignee-sheet-list');
   if (list) list.innerHTML = html;
 
-  // 行の選択ハンドラ（毎回バインドし直し）
+  // 行の選択ハンドラ
   overlay.querySelectorAll('[data-assignee-pick]').forEach(btn => {
     btn.addEventListener('click', () => {
       const val = btn.dataset.assigneePick;
-      if (!val) {
-        state.draftMission.assignee = null;
-      } else if (val.startsWith('user:')) {
-        state.draftMission.assignee = { type: 'user', userId: val.slice(5) };
-      } else if (val.startsWith('role:')) {
-        state.draftMission.assignee = { type: 'role', roleId: val.slice(5) };
+      if (tab === 'ACCOUNT') {
+        if (!val) {
+          // 未割当：全クリア
+          state.draftMission.assignees = [];
+          state.draftMission.assignee  = null;
+        } else {
+          const uid = val.slice(5); // "user:xxx" → "xxx"
+          const ids = state.draftMission.assignees || [];
+          if (ids.includes(uid)) {
+            state.draftMission.assignees = ids.filter(x => x !== uid);
+          } else {
+            state.draftMission.assignees = [...ids, uid];
+          }
+          state.draftMission.assignee = null; // ロール選択は解除
+        }
+        _renderAssigneeSheetList(); // 閉じずに再描画
+      } else {
+        // ROLEタブ：従来通り単一選択で閉じる
+        if (!val) {
+          state.draftMission.assignee  = null;
+          state.draftMission.assignees = [];
+        } else {
+          state.draftMission.assignee  = { type: 'role', roleId: val.slice(5) };
+          state.draftMission.assignees = [];
+        }
+        closeAssigneeSheet();
+        renderMissionModalContent();
       }
-      closeAssigneeSheet();
-      renderMissionModalContent();
     });
   });
 }

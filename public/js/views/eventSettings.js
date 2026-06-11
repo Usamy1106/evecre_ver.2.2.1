@@ -48,6 +48,7 @@ export function renderEventSettings(container) {
         ${_membersAvatarsSection(sec)}
         ${_eventManagementSection(p, sec)}
         ${_userManagementSection(p, sec)}
+        ${_leaveSection(p)}
       </main>
     </div>`;
 
@@ -335,6 +336,25 @@ function _renderRoleAddForm(sec) {
 }
 
 // =====================================================
+// セクション: 脱退
+// =====================================================
+function _leaveSection(p) {
+  const isOwner = p.ownerId === state.currentUser?.id;
+  if (isOwner) return ''; // オーナーは削除のみ（HOME長押しメニューから）
+  return `
+    <section>
+      <div class="bg-white rounded-2xl shadow-sm border border-[#EE3E12]/30 p-4">
+        <p class="text-[13px] font-bold text-[#484545] mb-1">このイベントから脱退する</p>
+        <p class="text-[11px] text-[#A7AAAC] font-bold mb-3">脱退後は再招待されないと参加できません</p>
+        <button onclick="window._app.leaveEvent('${_esc(p.id)}')"
+          class="w-full py-2.5 text-[13px] font-bold text-[#EE3E12] border border-[#EE3E12] rounded-xl active:scale-95 transition-transform">
+          脱退する
+        </button>
+      </div>
+    </section>`;
+}
+
+// =====================================================
 // イベント結線
 // =====================================================
 function _bindEvents(p, sec) {
@@ -466,6 +486,9 @@ function _bindEvents(p, sec) {
     if (r.ok) {
       sec.roles = sec.roles.concat([r.role]);
       sec.roleAdding = null;
+      // state.events の roles も更新（承認モーダルのロール一覧に反映）
+      const ev = state.events.find(x => x.id === p.id);
+      if (ev) ev.roles = (ev.roles || []).concat([r.role]);
       state.render();
     } else {
       alert(r.error || 'ロールの追加に失敗しました');

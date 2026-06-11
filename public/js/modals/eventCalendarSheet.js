@@ -350,8 +350,8 @@ function _renderGanttView(ctx) {
             <div style="display:flex;align-items:center;gap:5px;width:100%;overflow:hidden;">
               <div style="width:7px;height:7px;border-radius:3.5px;flex-shrink:0;
                 background:${barColor};opacity:${opacity};"></div>
-              <span style="font-size:10px;font-weight:700;color:#484545;
-                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+              <span style="font-size:8px;font-weight:700;color:#484545;
+                overflow:hidden;text-overflow:ellipsis;
                 max-width:${NAME_W - 26}px;${titleStyle}">${_esc(m.title)}</span>
             </div>
           </div>

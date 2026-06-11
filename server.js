@@ -246,47 +246,19 @@ async function consumeInviteCookieIfAny(req, res, user) {
 
     if (eventStore.isMember(p, user.id)) {
       clearCookie();
-      return { eventId: p.id, pending: false };
+      return { eventId: p.id, pending: false, eventName };
     }
 
     if ((p.pendingMembers || []).some(m => m.userId === user.id)) {
+      // すでに申請済み → 再申請不要。メッセージだけ表示
       clearCookie();
-      return { eventId: p.id, pending: true, eventName };
+      return { eventId: p.id, pending: true, eventName, alreadyPending: true };
     }
 
-    const pendingEntry = {
-      userId:      user.id,
-      username:    user.username,
-      avatarUrl:   user.avatarUrl || null,
-      requestedAt: now,
-      inviteToken: token,
-    };
-    await getDb().collection('events').updateOne(
-      { _id: p.id },
-      { $push: { pendingMembers: pendingEntry } }
-    );
-
-    inv.usedBy = inv.usedBy || [];
-    inv.usedBy.push({ userId: user.id, joinedAt: now });
-    await inviteStore.saveInvite(inv);
-
-    const managerIds = _getManagerIds(p);
-    if (managerIds.length > 0) {
-      await notifStore.notifyAll(managerIds, {
-        type:      'member_applied',
-        message:   `${user.username} さんが「${eventName}」への参加を申請しました`,
-        eventId: p.id,
-        actorId:   user.id,
-        actorName: user.username,
-      });
-    }
-
-    const updatedP = await eventStore.loadEvent(p.id);
-    const flatP    = crdt.crdtToFlat(updatedP);
-    eventBus.broadcast(p.id, 'eventUpdated', { eventId: p.id, event: flatP });
-
+    // pendingMembers には追加しない。クライアント側で「参加申請する」ボタン押下後に
+    // POST /api/invites/:token/accept を呼ばせる
     clearCookie();
-    return { eventId: p.id, pending: true, eventName };
+    return { eventId: p.id, needsJoinConfirm: true, eventName, inviteToken: token };
   } catch (e) {
     console.error('consumeInviteCookieIfAny error:', e);
     clearCookie();
@@ -465,9 +437,11 @@ app.post('/api/auth/verify-email', strictLimiter, requireAuth, async (req, res) 
     res.json({
       ok: true,
       user:             userPublic(req.user),
-      pendingEventId:   inv?.eventId   || null,
-      pendingApproval:  inv?.pending   ?? false,
-      pendingEventName: inv?.eventName || null,
+      pendingEventId:   inv?.eventId       || null,
+      pendingApproval:  inv?.pending       ?? false,
+      pendingEventName: inv?.eventName     || null,
+      needsJoinConfirm: inv?.needsJoinConfirm ?? false,
+      inviteToken:      inv?.inviteToken   || null,
     });
   } catch (e) {
     console.error('verify-email error:', e);
@@ -495,9 +469,11 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     res.json({
       ok: true,
       user:             userPublic(user),
-      pendingEventId:   inv?.eventId   || null,
-      pendingApproval:  inv?.pending   ?? false,
-      pendingEventName: inv?.eventName || null,
+      pendingEventId:   inv?.eventId       || null,
+      pendingApproval:  inv?.pending       ?? false,
+      pendingEventName: inv?.eventName     || null,
+      needsJoinConfirm: inv?.needsJoinConfirm ?? false,
+      inviteToken:      inv?.inviteToken   || null,
     });
   } catch (e) {
     console.error('login error:', e);
@@ -583,9 +559,11 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     res.json({
       ok: true,
       user:             userPublic(user),
-      pendingEventId:   inv?.eventId   || null,
-      pendingApproval:  inv?.pending   ?? false,
-      pendingEventName: inv?.eventName || null,
+      pendingEventId:   inv?.eventId       || null,
+      pendingApproval:  inv?.pending       ?? false,
+      pendingEventName: inv?.eventName     || null,
+      needsJoinConfirm: inv?.needsJoinConfirm ?? false,
+      inviteToken:      inv?.inviteToken   || null,
     });
   } catch (e) {
     console.error('google-signin error:', e);
@@ -631,9 +609,11 @@ app.get('/api/auth/me', async (req, res) => {
     res.json({
       ok: true,
       user:             userPublic(user),
-      pendingEventId:   inv?.eventId   || null,
-      pendingApproval:  inv?.pending   ?? false,
-      pendingEventName: inv?.eventName || null,
+      pendingEventId:   inv?.eventId       || null,
+      pendingApproval:  inv?.pending       ?? false,
+      pendingEventName: inv?.eventName     || null,
+      needsJoinConfirm: inv?.needsJoinConfirm ?? false,
+      inviteToken:      inv?.inviteToken   || null,
     });
   } catch (e) {
     console.error('GET /api/auth/me error:', e);
@@ -1720,20 +1700,34 @@ app.post('/api/events/:id/pending-members/:uid/approve', requireAuth, async (req
     const pending = (p.pendingMembers || []).find(m => m.userId === req.params.uid);
     if (!pending) return res.status(404).json({ ok: false, error: 'pending member not found' });
 
+    // すでにメンバーなら重複防止（2回押し対策）
+    if (eventStore.isMember(p, req.params.uid)) {
+      return res.json({ ok: true });
+    }
+
     // roleIds 配列（新）または roleId 単一（後方互換）を受け付ける
     const roleIds = Array.isArray(req.body?.roleIds) && req.body.roleIds.length > 0
       ? req.body.roleIds.map(String).filter(Boolean)
       : [String(req.body?.roleId || 'member')];
     const now = Date.now();
 
-    // pendingMembers から削除し members に追加（アトミックに）
-    await getDb().collection('events').updateOne(
-      { _id: req.params.id },
+    // pendingMembers から削除し members に追加。
+    // 同時リクエストによる二重追加を防ぐため、members に uid がないことを条件にする
+    const result = await getDb().collection('events').updateOne(
+      {
+        _id: req.params.id,
+        'pendingMembers.userId': req.params.uid,
+        'members.userId': { $ne: req.params.uid },
+      },
       {
         $pull: { pendingMembers: { userId: req.params.uid } },
         $push: { members: { userId: req.params.uid, role: roleIds[0], roles: roleIds, joinedAt: now } },
       }
     );
+    if (result.modifiedCount === 0) {
+      // すでに承認済み or レースコンディション → 冪等に OK を返す
+      return res.json({ ok: true });
+    }
 
     const eventName = p.fields?.name?.v || 'イベント';
 
@@ -1763,6 +1757,8 @@ app.post('/api/events/:id/pending-members/:uid/approve', requireAuth, async (req
     const updatedP = await eventStore.loadEvent(p.id);
     const flatP    = crdt.crdtToFlat(updatedP);
     eventBus.broadcast(p.id, 'eventUpdated', { eventId: p.id, event: flatP });
+    // 新メンバーにリアルタイムで「承認されました」を通知
+    eventBus.broadcastToUser(req.params.uid, 'memberApproved', { eventId: p.id });
 
     res.json({ ok: true });
   } catch (e) {
@@ -2043,10 +2039,12 @@ app.get('/api/events', requireAuth, async (req, res) => {
     res.write(`event: ready\ndata: ${JSON.stringify({ eventIds: allowed, clientId })}\n\n`);
 
     res.__clientId = clientId;
-    const unsubscribe = eventBus.subscribe(allowed, res);
+    const unsubscribe     = eventBus.subscribe(allowed, res);
+    const unsubscribeUser = eventBus.subscribeUser(req.user.id, res);
 
     req.on('close', () => {
       unsubscribe();
+      unsubscribeUser();
       try { res.end(); } catch (_) {}
     });
   } catch (e) {

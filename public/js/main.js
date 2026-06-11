@@ -319,8 +319,9 @@ window._app = {
           tags: [...(state.draftMission.labels || [])],
           dates: [...state.draftMission.dates],
           priority: state.draftMission.priority,
-          // 申告制 ON の場合、作成画面で指定した assignee は無視（メンバーの申告で再設定）
-          assignee: state.draftMission.selfClaim ? null : (state.draftMission.assignee || null),
+          // 申告制 ON の場合、作成画面で指定した担当は無視（メンバーの申告で再設定）
+          assignee:  state.draftMission.selfClaim ? null : (state.draftMission.assignee || null),
+          assignees: state.draftMission.selfClaim ? [] : (state.draftMission.assignees || []),
           checklist: _cleanChecklist(state.draftMission.checklist),
           description: String(state.draftMission.description || ''),
           selfClaim: !!state.draftMission.selfClaim,
@@ -341,7 +342,8 @@ window._app = {
         isDeletable: true,
         createdAt: Date.now(),
         priority: state.draftMission.priority,
-        assignee: state.draftMission.selfClaim ? null : (state.draftMission.assignee || null),
+        assignee:  state.draftMission.selfClaim ? null : (state.draftMission.assignee || null),
+        assignees: state.draftMission.selfClaim ? [] : (state.draftMission.assignees || []),
         checklist: _cleanChecklist(state.draftMission.checklist),
         description: String(state.draftMission.description || ''),
         selfClaim: !!state.draftMission.selfClaim,
@@ -350,7 +352,6 @@ window._app = {
         claimDeadline: (state.draftMission.selfClaim && state.draftMission.claimDeadline) ? state.draftMission.claimDeadline : null,
         claimApplicants: [],
         claimClosed: false,
-        assignees: [],
       });
     }
     if (state.editingMissionId) {
@@ -500,7 +501,7 @@ window._app = {
               ＋ 新しいロールを追加
             </button>
             <div id="role-add-form" class="hidden border border-[#E1DFDC] rounded-xl p-4 bg-[#FDFBF8] mb-3">
-              <input id="role-add-name" placeholder="例: デザイナー、閲覧者など" maxlength="20"
+              <input id="role-add-name" placeholder="例: サブリーダー、デザイナーなど" maxlength="20"
                 class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
               <label class="flex items-center gap-2 mb-3 cursor-pointer">
                 <input id="role-add-canmanage" type="checkbox" class="w-4 h-4 accent-[#0CA1E3]">
@@ -548,6 +549,7 @@ window._app = {
             // チェックリストに追加（自動チェック）
             checkList.appendChild(_roleCheckItem(r.role, true));
             mutableRoles.push(r.role);
+            roles.push(r.role); // 外側の roles も更新（次回モーダルオープン時に反映）
             // ローカルイベント state にも反映
             const proj = state.events.find(x => x.id === state.selectedEventId);
             if (proj) proj.roles = (proj.roles || []).concat([r.role]);
@@ -562,7 +564,29 @@ window._app = {
         };
 
         roleOverlay.querySelector('[data-action="cancel"]').onclick = () => roleOverlay.remove();
-        roleOverlay.querySelector('[data-action="confirm"]').onclick = async () => {
+        roleOverlay.querySelector('[data-action="confirm"]').onclick = async (evConf) => {
+          const confirmBtn = evConf.currentTarget;
+          if (confirmBtn.disabled) return;
+          confirmBtn.disabled = true;
+          confirmBtn.textContent = '承認中…';
+
+          // ロール追加フォームが表示中で名前が入力されていれば先に追加
+          const addFormEl = roleOverlay.querySelector('#role-add-form');
+          if (addFormEl && !addFormEl.classList.contains('hidden')) {
+            const newName = (roleOverlay.querySelector('#role-add-name')?.value || '').trim();
+            if (newName) {
+              const canManage = roleOverlay.querySelector('#role-add-canmanage')?.checked || false;
+              const rr = await api.createRole(state.selectedEventId, newName, canManage);
+              if (rr.ok && rr.role) {
+                checkList.appendChild(_roleCheckItem(rr.role, true));
+                mutableRoles.push(rr.role);
+                roles.push(rr.role);
+                const proj = state.events.find(x => x.id === state.selectedEventId);
+                if (proj) proj.roles = (proj.roles || []).concat([rr.role]);
+              }
+            }
+          }
+
           const roleIds = [...roleOverlay.querySelectorAll('[data-role-check]:checked')]
             .map(cb => cb.value).filter(Boolean);
           const finalRoles = roleIds.length > 0 ? roleIds : ['member'];
@@ -571,7 +595,11 @@ window._app = {
           if (r.ok) {
             _showToast(`@${username} を承認しました`);
             _removeCard(uid);
-          } else { alert(r.error || '承認に失敗しました'); }
+          } else {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = '承認する';
+            alert(r.error || '承認に失敗しました');
+          }
         };
       });
     });
@@ -894,6 +922,7 @@ window._app = {
   openDeleteConfirm: (id) => openDeleteConfirm(id),
   renameEvent: (id, name) => state.renameEvent(id, name),
   deleteEvent: (id) => state.deleteEvent(id),
+  leaveEvent:  (id) => state.leaveEvent(id),
 
   // --- ホームタブ切替 ---
   setHomeTab: (tab) => {
@@ -912,6 +941,57 @@ window._app = {
     state.selectedFolderId = folderId;
     state.draftEvent = { name: '', description: '', dates: [], seedType: 'jack' };
     state.setView('CREATE_EVENT_INFO');
+  },
+
+  // --- 招待参加確認モーダル ---
+  openJoinEventModal: (eventName, inviteToken) => {
+    document.getElementById('join-event-confirm-modal')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'join-event-confirm-modal';
+    overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-6';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = `
+      <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
+        <p class="text-[36px] mb-2">🎉</p>
+        <h3 class="heading-m text-[#484545] font-bold mb-3">イベントに参加する</h3>
+        <p class="text-[13px] text-[#484545] font-bold mb-1">「${_escH(eventName || 'イベント')}」</p>
+        <p class="text-[12px] text-[#A7AAAC] font-bold mb-8">への参加を申請しますか？<br>管理者の承認後に参加できます。</p>
+        <div class="flex gap-3">
+          <button id="jec-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+          <button id="jec-confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md bg-[#0CA1E3]">参加申請する</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    document.getElementById('jec-cancel').onclick = () => overlay.remove();
+    document.getElementById('jec-confirm').onclick = async () => {
+      const btn = document.getElementById('jec-confirm');
+      btn.disabled = true;
+      btn.textContent = '送信中…';
+      try {
+        const r = await api.acceptInvite(inviteToken);
+        overlay.remove();
+        if (r.ok) {
+          if (r.pending) {
+            state.pendingApprovalMessage = `「${eventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
+            state.setView('HOME');
+            state.render();
+          } else if (r.alreadyMember) {
+            // 既に参加済み → イベント画面へ
+            await state.silentReloadEvents?.();
+            state.setView('MAIN_BOARD', r.eventId);
+          } else {
+            state.pendingApprovalMessage = `「${eventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
+            state.setView('HOME');
+            state.render();
+          }
+        } else {
+          alert(r.error || '参加申請に失敗しました');
+        }
+      } catch (e) {
+        alert('通信エラーが発生しました');
+      }
+    };
   },
 
   // --- 認証 ---

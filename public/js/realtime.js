@@ -33,8 +33,7 @@ export function syncRealtime() {
   _disconnect();
   _subscribedIds = ids;
 
-  if (!ids) return; // 購読対象なし
-
+  // ids が空でも接続する（ユーザー固有チャンネルで memberApproved 等を受信するため）
   const url = `/api/events?cid=${encodeURIComponent(clientId)}&eventIds=${encodeURIComponent(ids)}`;
   _es = new EventSource(url);
 
@@ -59,6 +58,15 @@ export function syncRealtime() {
   });
   _es.addEventListener('memberLeft', () => {
     state.silentReloadEvents?.();
+  });
+  // 自分が承認されたとき: 申請中バナーを消し、イベント一覧を再取得してホームに反映
+  _es.addEventListener('memberApproved', async () => {
+    try {
+      state.pendingApprovalMessage = null;
+      if (state.currentView !== 'HOME') state.currentView = 'HOME';
+      await state.silentReloadEvents?.();
+      _flashToast('参加が承認されました');
+    } catch (_) {}
   });
 
   // 通知が増えそうなイベント → 通知一覧を再取得

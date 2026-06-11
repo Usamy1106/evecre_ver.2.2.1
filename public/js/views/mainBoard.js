@@ -284,6 +284,18 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
           m._modeBadge = modeBadge;
         }
 
+        // 通常担当（申告制でない）の担当者表示
+        let assigneeLine = '';
+        if (!m.selfClaim) {
+          if (assignees.length > 0) {
+            const names = _resolveUsernames(p, assignees);
+            assigneeLine = `<p class="text-[10px] text-[#484545] font-bold mt-1">担当：${names}</p>`;
+          } else if (m.assignee?.type === 'role') {
+            const roleObj = (p.roles || []).find(r => r.id === m.assignee.roleId);
+            if (roleObj) assigneeLine = `<p class="text-[10px] text-[#484545] font-bold mt-1">担当：${roleObj.name}</p>`;
+          }
+        }
+
         const modeBadgeHtml = m._modeBadge || '';
 
         // クリックで完了モーダル：申告制で「自分の担当」じゃない場合は反応しない
@@ -299,8 +311,8 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
             <span class="text-[11px] text-black/40 font-bold">${_missionDeadlineText(m)}</span>
             ${modeBadgeHtml}
           </div>
-          <h3 class="text-[14px] font-bold text-[#484545] pr-8">${m.title}</h3>
-          ${m.description ? `<p class="text-[11px] text-[#A7AAAC] mt-1 line-clamp-2 whitespace-pre-wrap">${_esc(m.description)}</p>` : ''}
+          <h3 class="text-[14px] font-bold text-[#484545] pr-8" style="text-overflow:ellipsis;-webkit-line-clamp: 2;overflow: hidden;">${m.title}</h3>
+          ${assigneeLine}
           ${claimLine}
           ${canMgr ? `
             <div onclick="event.stopPropagation(); window._app.toggleMissionMenu(event, '${m.id}')"

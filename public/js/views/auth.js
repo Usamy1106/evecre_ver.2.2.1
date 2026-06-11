@@ -120,8 +120,9 @@ export function renderCreateAccountInfo(container) {
         state.pendingVerifyDevCode = null;
         state.pendingMailError     = null;
 
-        // 通常のフロー（HOME へ）→ VerifyBanner から認証後に招待申請が送られる
+        // HOME へ遷移 → メール認証モーダルを自動表示
         await state.loadAfterAuth();
+        setTimeout(() => window._app.openVerifyModal?.(), 50);
       } else {
         state.authErrors = r.errors || { _global: r.error || '作成に失敗しました' };
         state.render();

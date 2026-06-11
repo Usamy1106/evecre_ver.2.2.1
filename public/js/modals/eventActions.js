@@ -85,7 +85,8 @@ function openEventMenu(projectId) {
   const p = state.events.find(x => x.id === projectId);
   if (!p) return;
 
-  const canMgr = state.canManageCurrentEvent(projectId);
+  const canMgr  = state.canManageCurrentEvent(projectId);
+  const isOwner = p.ownerId === state.currentUser?.id;
 
   // 既存メニューを除去
   document.getElementById('event-action-sheet')?.remove();
@@ -112,6 +113,7 @@ function openEventMenu(projectId) {
         </svg>
         プロジェクトに追加
       </button>
+      ${isOwner ? `
       <button id="pa-delete"
         class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FFEEEA] text-[15px] font-bold text-[#EE3E12] flex items-center gap-3">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -120,7 +122,16 @@ function openEventMenu(projectId) {
           <line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>
         </svg>
         削除
-      </button>
+      </button>` : `
+      <button id="pa-leave"
+        class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FFEEEA] text-[15px] font-bold text-[#EE3E12] flex items-center gap-3">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        このイベントから脱退
+      </button>`}
       <button id="pa-cancel"
         class="w-full py-3 mt-2 text-[14px] font-bold text-[#A7AAAC]">キャンセル</button>
     </div>`;
@@ -128,7 +139,8 @@ function openEventMenu(projectId) {
 
   document.getElementById('pa-rename')?.addEventListener('click', () => { overlay.remove(); openRenameDialog(projectId); });
   document.getElementById('pa-add-to-project').onclick = () => { overlay.remove(); openAddToProjectModal(projectId); };
-  document.getElementById('pa-delete').onclick = () => { overlay.remove(); openDeleteConfirm(projectId); };
+  document.getElementById('pa-delete')?.addEventListener('click', () => { overlay.remove(); openDeleteConfirm(projectId); });
+  document.getElementById('pa-leave')?.addEventListener('click', () => { overlay.remove(); state.leaveEvent(projectId); });
   document.getElementById('pa-cancel').onclick = () => overlay.remove();
 }
 

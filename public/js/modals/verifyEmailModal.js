@@ -120,14 +120,20 @@ async function _verify(overlay, ctx) {
     _render(overlay, ctx);
     setTimeout(async () => {
       _close(overlay);
-      if (r.pendingEventId) {
+      if (r.needsJoinConfirm && r.inviteToken) {
+        // 招待リンク経由 → 参加申請確認モーダルを表示
+        state.render();
+        setTimeout(() => window._app?.openJoinEventModal?.(r.pendingEventName, r.inviteToken), 100);
+      } else if (r.pendingEventId) {
         if (r.pendingApproval) {
           state.pendingApprovalMessage = `「${r.pendingEventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
         } else {
           await state._enterInvitedEvent(r.pendingEventId);
         }
+        state.render();
+      } else {
+        state.render();
       }
-      state.render();
     }, 900);
   } else {
     ctx.error = r.error || '認証に失敗しました';
