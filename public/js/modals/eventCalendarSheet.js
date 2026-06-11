@@ -14,6 +14,7 @@
 import { state } from '../state.js';
 import { getSortedMissions } from './mission.js';
 import { calculateDaysLeft } from '../utils.js';
+import { LABEL_CONFIG } from '../constants.js';
 
 const OVERLAY_ID = 'event-cal-sheet';
 
@@ -240,6 +241,15 @@ function _renderCalendarContent(overlay, ctx) {
   if (list) list.innerHTML = _renderSections(ctx);
 }
 
+// ミッションの最初のタグ名からカラーコードを解決する
+function _resolveTagColor(tagNames, customTags) {
+  const name = Array.isArray(tagNames) ? tagNames[0] : tagNames;
+  if (!name) return '#D3D6D8';
+  if (LABEL_CONFIG[name]) return LABEL_CONFIG[name].color;
+  const custom = (customTags || []).find(t => t.name === name);
+  return custom ? custom.color : '#D3D6D8';
+}
+
 // =====================================================
 // ガントチャートビュー
 // =====================================================
@@ -255,7 +265,6 @@ function _renderGanttView(ctx) {
 
   const projDates  = new Set(ctx.p.dates || []);
   const missions   = getSortedMissions(ctx.p.missions || []);
-  const barColors  = { cleared: '#9EDF05', pending_leader_check: '#FFC300', yet: '#0CA1E3' };
   const contentW   = TOTAL * CELL_W;
 
   // ── ヘッダー日付セル ──────────────────────────────
@@ -295,7 +304,8 @@ function _renderGanttView(ctx) {
   const missionsHtml = missions.length === 0
     ? `<div style="padding:28px 16px;text-align:center;font-size:12px;color:#A7AAAC;">ミッションがありません</div>`
     : missions.map(m => {
-        const barColor = barColors[m.status] || '#0CA1E3';
+        const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
+        const barColor = _resolveTagColor(tagNames, ctx.p.customTags);
         const isCleared = m.status === 'cleared';
         const opacity   = isCleared ? 0.4 : 1;
         const mDates    = (m.dates || []).slice().sort();
@@ -326,7 +336,7 @@ function _renderGanttView(ctx) {
               const rR  = (isSingle || isE) ? '5px' : '0';
               const ml  = (isSingle || isS) ? '5px' : '0';
               const mr  = (isSingle || isE) ? '5px' : '0';
-              bar = `<div style="height:10px;background:${barColor};opacity:${opacity};
+              bar = `<div style="height:14px;background:${barColor};opacity:${opacity};
                 border-radius:${rL} ${rR} ${rR} ${rL};
                 margin-left:${ml};margin-right:${mr};flex:1;"></div>`;
             }

@@ -230,7 +230,7 @@ function _userManagementSection(p, sec) {
             <p class="text-[10px] text-[#A7AAAC] truncate">${_esc(labels)}</p>
           </div>
         </div>
-        ${isOwner && !isOwnerRow ? `
+        ${(isOwner || canMgr) && !isOwnerRow ? `
           <button data-ps-mrole-edit="${m.userId}" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>
         ` : ''}
       </div>`;
@@ -310,7 +310,7 @@ function _userManagementSection(p, sec) {
       <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC]">
         <div class="px-4 pt-4 pb-2">
           <p class="text-[13px] font-bold text-[#484545]">メンバーのロール</p>
-          ${!isOwner ? '<p class="text-[10px] text-[#A7AAAC] mt-0.5">ロールの変更はオーナーのみ可能です</p>' : ''}
+          ${!isOwner && !canMgr ? '<p class="text-[10px] text-[#A7AAAC] mt-0.5">ロールの変更は管理者権限を持つメンバーのみ可能です</p>' : ''}
         </div>
         <div class="divide-y divide-[#E1DFDC]">${memberList}</div>
       </div>

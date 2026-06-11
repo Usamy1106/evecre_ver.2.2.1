@@ -1162,8 +1162,8 @@ app.put('/api/events/:id/members/:userId/role', requireAuth, async (req, res) =>
   try {
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
-    if (eventStore.getRole(p, req.user.id) !== 'owner')
-      return res.status(403).json({ ok: false, error: 'オーナーのみがロールを変更できます' });
+    if (!eventStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '管理者権限が必要です' });
 
     const targetId = req.params.userId;
     const newRole  = String(req.body?.role || '');
@@ -1191,8 +1191,10 @@ app.put('/api/events/:id/members/:userId/roles', requireAuth, async (req, res) =
   try {
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
-    if (eventStore.getRole(p, req.user.id) !== 'owner')
-      return res.status(403).json({ ok: false, error: 'オーナーのみがロールを変更できます' });
+    const callerIds = eventStore.getMemberRoleIds(p, req.user.id);
+    console.log('[roles PUT] caller=%s callerRoles=%j canManage=%s', req.user.id, callerIds, eventStore.canManage(p, req.user.id));
+    if (!eventStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '管理者権限が必要です' });
 
     const targetId = req.params.userId;
     let newRoles = req.body?.roles;

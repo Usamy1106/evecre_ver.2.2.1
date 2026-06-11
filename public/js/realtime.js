@@ -121,8 +121,15 @@ function _applyEventUpdate(eventId, event) {
   const prevPropos  = (prev?.memberProposals || []).length;
   const newPropos   = (event?.memberProposals || []).length;
 
+  // 参加申請が増えた && ボトムシートが開いている → シートをリアルタイム更新（インフォモーダル抑制）
+  const pendingSheetOpen = !!document.getElementById('pending-members-sheet');
+  if (newPending > prevPending && pendingSheetOpen) {
+    // 状態を先に更新してからシートをリフレッシュ（後続の state.events[idx] = ... の後で呼ぶ必要があるため defer）
+    setTimeout(() => window._app?.openPendingMembersSheet?.(), 0);
+  }
+
   const needsReset = (newLeader > prevLeader) || (newClaims > prevClaims) ||
-                     (newPending > prevPending) || (newPropos > prevPropos);
+                     (newPending > prevPending && !pendingSheetOpen) || (newPropos > prevPropos);
   if (needsReset && state._infoModalShownForEvent === eventId) {
     state._infoModalShownForEvent = null;
   }

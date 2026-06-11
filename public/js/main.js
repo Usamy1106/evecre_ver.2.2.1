@@ -54,6 +54,134 @@ registerRenderer('MAIN_BOARD',            renderMainBoard);
 registerRenderer('EVENT_SETTINGS',      renderEventSettings);
 registerRenderer('PROJECT_DETAIL',      renderProjectDetail);
 
+// ===== 参加承認ロール設定モーダル（共通ヘルパー）=====
+// uid: 承認対象userId, username: 表示名, roles: イベントのロール配列（破壊的に追加される）
+// onSuccess(uid): 承認成功時コールバック
+function _openApproveModal(uid, username, roles, onSuccess) {
+  const mutableRoles = roles.slice();
+
+  function _roleCheckItem(r, checked = false) {
+    const el = document.createElement('label');
+    el.className = 'flex items-center gap-3 py-2 cursor-pointer';
+    el.innerHTML = `
+      <input type="checkbox" data-role-check value="${_escH(r.id)}"
+        ${checked || r.id === 'member' ? 'checked' : ''}
+        class="w-4 h-4 accent-[#0CA1E3] flex-shrink-0">
+      <div class="flex-1 min-w-0">
+        <span class="text-[13px] text-[#484545] font-bold">${_escH(r.name || r.id)}</span>
+        ${r.canManage
+          ? '<span class="ml-2 text-[9px] text-[#0CA1E3] font-bold">管理者権限</span>'
+          : '<span class="ml-2 text-[9px] text-[#A7AAAC] font-bold">一般ユーザー</span>'}
+      </div>`;
+    return el;
+  }
+
+  const roleOverlay = document.createElement('div');
+  roleOverlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6';
+  roleOverlay.onclick = (e2) => { if (e2.target === roleOverlay) roleOverlay.remove(); };
+  roleOverlay.innerHTML = `
+    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
+      <h3 class="heading-m text-[#484545] mb-2 font-bold">ロールを設定する</h3>
+      <p class="text-rs text-[#A7AAAC] font-medium mb-4">@${_escH(username)} さんのロールを選択してください（複数可）</p>
+      <div id="role-check-list" class="border border-[#E1DFDC] rounded-xl px-4 py-1 bg-[#FDFBF8] mb-3"></div>
+      <button id="role-add-toggle"
+        class="w-full text-left text-[12px] font-bold text-[#0CA1E3] py-2 mb-3 active:opacity-60">
+        ＋ 新しいロールを追加
+      </button>
+      <div id="role-add-form" class="hidden border border-[#E1DFDC] rounded-xl p-4 bg-[#FDFBF8] mb-3">
+        <input id="role-add-name" placeholder="例: サブリーダー、デザイナーなど" maxlength="20"
+          class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+        <label class="flex items-center gap-2 mb-3 cursor-pointer">
+          <input id="role-add-canmanage" type="checkbox" class="w-4 h-4 accent-[#0CA1E3]">
+          <span class="text-[12px] text-[#484545] font-bold">管理者権限</span>
+          <span class="text-[10px] text-[#A7AAAC] ml-auto">イベント管理・ミッション編集</span>
+        </label>
+        <div class="flex gap-2">
+          <button id="role-add-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
+          <button id="role-add-save" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">追加</button>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button data-action="cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+        <button data-action="confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md" style="background-color:#0CA1E3">承認する</button>
+      </div>
+    </div>`;
+  document.body.appendChild(roleOverlay);
+
+  const checkList = roleOverlay.querySelector('#role-check-list');
+  mutableRoles.forEach(r => checkList.appendChild(_roleCheckItem(r, false)));
+
+  const addToggle = roleOverlay.querySelector('#role-add-toggle');
+  const addForm   = roleOverlay.querySelector('#role-add-form');
+  addToggle.onclick = () => {
+    addForm.classList.remove('hidden');
+    addToggle.classList.add('hidden');
+    roleOverlay.querySelector('#role-add-name').focus();
+  };
+  roleOverlay.querySelector('#role-add-cancel').onclick = () => {
+    addForm.classList.add('hidden');
+    addToggle.classList.remove('hidden');
+    roleOverlay.querySelector('#role-add-name').value = '';
+    roleOverlay.querySelector('#role-add-canmanage').checked = false;
+  };
+  roleOverlay.querySelector('#role-add-save').onclick = async () => {
+    const name = roleOverlay.querySelector('#role-add-name').value.trim();
+    if (!name) { roleOverlay.querySelector('#role-add-name').focus(); return; }
+    const canManage = roleOverlay.querySelector('#role-add-canmanage').checked;
+    const r = await api.createRole(state.selectedEventId, name, canManage);
+    if (r.ok && r.role) {
+      checkList.appendChild(_roleCheckItem(r.role, true));
+      mutableRoles.push(r.role);
+      roles.push(r.role);
+      const proj = state.events.find(x => x.id === state.selectedEventId);
+      if (proj) proj.roles = (proj.roles || []).concat([r.role]);
+      addForm.classList.add('hidden');
+      addToggle.classList.remove('hidden');
+      roleOverlay.querySelector('#role-add-name').value = '';
+      roleOverlay.querySelector('#role-add-canmanage').checked = false;
+    } else {
+      alert(r.error || 'ロールの追加に失敗しました');
+    }
+  };
+  roleOverlay.querySelector('[data-action="cancel"]').onclick = () => roleOverlay.remove();
+  roleOverlay.querySelector('[data-action="confirm"]').onclick = async (evConf) => {
+    const confirmBtn = evConf.currentTarget;
+    if (confirmBtn.disabled) return;
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '承認中…';
+
+    const addFormEl = roleOverlay.querySelector('#role-add-form');
+    if (addFormEl && !addFormEl.classList.contains('hidden')) {
+      const newName = (roleOverlay.querySelector('#role-add-name')?.value || '').trim();
+      if (newName) {
+        const canManage = roleOverlay.querySelector('#role-add-canmanage')?.checked || false;
+        const rr = await api.createRole(state.selectedEventId, newName, canManage);
+        if (rr.ok && rr.role) {
+          checkList.appendChild(_roleCheckItem(rr.role, true));
+          mutableRoles.push(rr.role);
+          roles.push(rr.role);
+          const proj = state.events.find(x => x.id === state.selectedEventId);
+          if (proj) proj.roles = (proj.roles || []).concat([rr.role]);
+        }
+      }
+    }
+
+    const roleIds = [...roleOverlay.querySelectorAll('[data-role-check]:checked')]
+      .map(cb => cb.value).filter(Boolean);
+    const finalRoles = roleIds.length > 0 ? roleIds : ['member'];
+    const r = await api.approvePendingMember(state.selectedEventId, uid, finalRoles);
+    roleOverlay.remove();
+    if (r.ok) {
+      _showToast(`@${username} を承認しました`);
+      onSuccess(uid);
+    } else {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = '承認する';
+      alert(r.error || '承認に失敗しました');
+    }
+  };
+}
+
 // ===== window._app : インラインイベントハンドラーから呼び出されるAPI =====
 // HTMLテンプレート内の onclick="window._app.xxx()" から参照される
 window._app = {
@@ -400,6 +528,70 @@ window._app = {
       { id: 'member', name: 'メンバー', canManage: false },
     ]).filter(r => r.id !== 'owner');
 
+    // ── シートが既に開いている場合はリアルタイム追加のみ ──
+    const existingOverlay = document.getElementById('pending-members-sheet');
+    if (existingOverlay) {
+      const shownUIDs = new Set(
+        [...existingOverlay.querySelectorAll('[data-pending-uid]')].map(el => el.dataset.pendingUid)
+      );
+      const list     = existingOverlay.querySelector('#pending-members-list');
+      const countEl  = existingOverlay.querySelector('#pending-members-count');
+      const newItems = pending.filter(m => !shownUIDs.has(m.userId));
+      if (newItems.length === 0) return;
+      // 空メッセージを消す
+      list?.querySelector('p')?.remove();
+      newItems.forEach(m => {
+        const card = document.createElement('div');
+        card.dataset.pendingUid = m.userId;
+        card.className = 'bg-[#FDFBF8] rounded-2xl p-4 mb-3 border border-[#E1DFDC] animate-fadeIn';
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-9 h-9 rounded-full bg-[#0CA1E3] flex items-center justify-center text-white font-bold text-[13px] flex-shrink-0">
+                ${_escH((m.username || '?').charAt(0).toUpperCase())}
+              </div>
+              <p class="text-[14px] font-bold text-[#484545] truncate">@${_escH(m.username)}</p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <button data-reject-pending="${_escH(m.userId)}"
+                class="px-3 py-2 text-[12px] font-bold text-[#A7AAAC] bg-[#EBE8E5] rounded-lg active:scale-95 transition-transform">拒否</button>
+              <button data-approve-pending="${_escH(m.userId)}" data-username="${_escH(m.username)}"
+                class="px-3 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg active:scale-95 transition-transform">承認</button>
+            </div>
+          </div>`;
+        list?.prepend(card);
+        // 拒否ハンドラ（既存の _removeCard を呼ぶため、ここでは直接処理）
+        card.querySelector('[data-reject-pending]').addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          const r = await api.rejectPendingMember(state.selectedEventId, m.userId);
+          if (r.ok) {
+            card.remove();
+            const proj = state.events.find(x => x.id === state.selectedEventId);
+            if (proj) proj.pendingMembers = (proj.pendingMembers || []).filter(x => x.userId !== m.userId);
+            const remaining = existingOverlay.querySelectorAll('[data-pending-uid]').length;
+            if (remaining === 0) { existingOverlay.remove(); state.render(); }
+            else if (countEl) countEl.textContent = `参加申請（${remaining}件）`;
+          } else { alert(r.error || '失敗しました'); }
+        });
+        // 承認ハンドラは後段の共通関数で後付け（既存ロジックと同じなので再呼出し）
+        card.querySelector('[data-approve-pending]').addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          _openApproveModal(m.userId, m.username, roles, (uid) => {
+            card.remove();
+            const proj = state.events.find(x => x.id === state.selectedEventId);
+            if (proj) proj.pendingMembers = (proj.pendingMembers || []).filter(x => x.userId !== uid);
+            const remaining = existingOverlay.querySelectorAll('[data-pending-uid]').length;
+            if (remaining === 0) { existingOverlay.remove(); state.render(); }
+            else if (countEl) countEl.textContent = `参加申請（${remaining}件）`;
+          });
+        });
+      });
+      const total = existingOverlay.querySelectorAll('[data-pending-uid]').length;
+      if (countEl) countEl.textContent = `参加申請（${total}件）`;
+      return;
+    }
+
+    // ── 新規シート作成 ──
     const overlay = document.createElement('div');
     overlay.id = 'pending-members-sheet';
     overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-end';
@@ -462,145 +654,16 @@ window._app = {
       });
     });
 
-    // 承認 → ロール設定モーダル
+    // 承認 → ロール設定モーダル（共通ヘルパーに委譲）
     overlay.querySelectorAll('[data-approve-pending]').forEach(btn => {
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
-        const uid      = btn.dataset.approvePending;
-        const username = btn.dataset.username || '?';
-
-        // ロール一覧は後から追加できるよう mutableRoles で管理
-        const mutableRoles = roles.slice();
-
-        function _roleCheckItem(r, checked = false) {
-          const el = document.createElement('label');
-          el.className = 'flex items-center gap-3 py-2 cursor-pointer';
-          el.innerHTML = `
-            <input type="checkbox" data-role-check value="${_escH(r.id)}"
-              ${checked || r.id === 'member' ? 'checked' : ''}
-              class="w-4 h-4 accent-[#0CA1E3] flex-shrink-0">
-            <div class="flex-1 min-w-0">
-              <span class="text-[13px] text-[#484545] font-bold">${_escH(r.name || r.id)}</span>
-              ${r.canManage
-                ? '<span class="ml-2 text-[9px] text-[#0CA1E3] font-bold">管理者権限</span>'
-                : '<span class="ml-2 text-[9px] text-[#A7AAAC] font-bold">一般ユーザー</span>'}
-            </div>`;
-          return el;
-        }
-
-        const roleOverlay = document.createElement('div');
-        roleOverlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6';
-        roleOverlay.onclick = (e2) => { if (e2.target === roleOverlay) roleOverlay.remove(); };
-        roleOverlay.innerHTML = `
-          <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
-            <h3 class="heading-m text-[#484545] mb-2 font-bold">ロールを設定する</h3>
-            <p class="text-rs text-[#A7AAAC] font-medium mb-4">@${_escH(username)} さんのロールを選択してください（複数可）</p>
-            <div id="role-check-list" class="border border-[#E1DFDC] rounded-xl px-4 py-1 bg-[#FDFBF8] mb-3"></div>
-            <button id="role-add-toggle"
-              class="w-full text-left text-[12px] font-bold text-[#0CA1E3] py-2 mb-3 active:opacity-60">
-              ＋ 新しいロールを追加
-            </button>
-            <div id="role-add-form" class="hidden border border-[#E1DFDC] rounded-xl p-4 bg-[#FDFBF8] mb-3">
-              <input id="role-add-name" placeholder="例: サブリーダー、デザイナーなど" maxlength="20"
-                class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
-              <label class="flex items-center gap-2 mb-3 cursor-pointer">
-                <input id="role-add-canmanage" type="checkbox" class="w-4 h-4 accent-[#0CA1E3]">
-                <span class="text-[12px] text-[#484545] font-bold">管理者権限</span>
-                <span class="text-[10px] text-[#A7AAAC] ml-auto">イベント管理・ミッション編集</span>
-              </label>
-              <div class="flex gap-2">
-                <button id="role-add-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-                <button id="role-add-save" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">追加</button>
-              </div>
-            </div>
-            <div class="flex gap-3">
-              <button data-action="cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-              <button data-action="confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md" style="background-color:#0CA1E3">承認する</button>
-            </div>
-          </div>`;
-        document.body.appendChild(roleOverlay);
-
-        // 既存ロールのチェックボックスを描画
-        const checkList = roleOverlay.querySelector('#role-check-list');
-        mutableRoles.forEach(r => checkList.appendChild(_roleCheckItem(r, false)));
-
-        // 新規ロールフォームの開閉
-        const addToggle = roleOverlay.querySelector('#role-add-toggle');
-        const addForm   = roleOverlay.querySelector('#role-add-form');
-        addToggle.onclick = () => {
-          addForm.classList.remove('hidden');
-          addToggle.classList.add('hidden');
-          roleOverlay.querySelector('#role-add-name').focus();
-        };
-        roleOverlay.querySelector('#role-add-cancel').onclick = () => {
-          addForm.classList.add('hidden');
-          addToggle.classList.remove('hidden');
-          roleOverlay.querySelector('#role-add-name').value = '';
-          roleOverlay.querySelector('#role-add-canmanage').checked = false;
-        };
-
-        // 新規ロール追加
-        roleOverlay.querySelector('#role-add-save').onclick = async () => {
-          const name = roleOverlay.querySelector('#role-add-name').value.trim();
-          if (!name) { roleOverlay.querySelector('#role-add-name').focus(); return; }
-          const canManage = roleOverlay.querySelector('#role-add-canmanage').checked;
-          const r = await api.createRole(state.selectedEventId, name, canManage);
-          if (r.ok && r.role) {
-            // チェックリストに追加（自動チェック）
-            checkList.appendChild(_roleCheckItem(r.role, true));
-            mutableRoles.push(r.role);
-            roles.push(r.role); // 外側の roles も更新（次回モーダルオープン時に反映）
-            // ローカルイベント state にも反映
-            const proj = state.events.find(x => x.id === state.selectedEventId);
-            if (proj) proj.roles = (proj.roles || []).concat([r.role]);
-            // フォームをリセット・非表示
-            addForm.classList.add('hidden');
-            addToggle.classList.remove('hidden');
-            roleOverlay.querySelector('#role-add-name').value = '';
-            roleOverlay.querySelector('#role-add-canmanage').checked = false;
-          } else {
-            alert(r.error || 'ロールの追加に失敗しました');
-          }
-        };
-
-        roleOverlay.querySelector('[data-action="cancel"]').onclick = () => roleOverlay.remove();
-        roleOverlay.querySelector('[data-action="confirm"]').onclick = async (evConf) => {
-          const confirmBtn = evConf.currentTarget;
-          if (confirmBtn.disabled) return;
-          confirmBtn.disabled = true;
-          confirmBtn.textContent = '承認中…';
-
-          // ロール追加フォームが表示中で名前が入力されていれば先に追加
-          const addFormEl = roleOverlay.querySelector('#role-add-form');
-          if (addFormEl && !addFormEl.classList.contains('hidden')) {
-            const newName = (roleOverlay.querySelector('#role-add-name')?.value || '').trim();
-            if (newName) {
-              const canManage = roleOverlay.querySelector('#role-add-canmanage')?.checked || false;
-              const rr = await api.createRole(state.selectedEventId, newName, canManage);
-              if (rr.ok && rr.role) {
-                checkList.appendChild(_roleCheckItem(rr.role, true));
-                mutableRoles.push(rr.role);
-                roles.push(rr.role);
-                const proj = state.events.find(x => x.id === state.selectedEventId);
-                if (proj) proj.roles = (proj.roles || []).concat([rr.role]);
-              }
-            }
-          }
-
-          const roleIds = [...roleOverlay.querySelectorAll('[data-role-check]:checked')]
-            .map(cb => cb.value).filter(Boolean);
-          const finalRoles = roleIds.length > 0 ? roleIds : ['member'];
-          const r = await api.approvePendingMember(state.selectedEventId, uid, finalRoles);
-          roleOverlay.remove();
-          if (r.ok) {
-            _showToast(`@${username} を承認しました`);
-            _removeCard(uid);
-          } else {
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = '承認する';
-            alert(r.error || '承認に失敗しました');
-          }
-        };
+        _openApproveModal(
+          btn.dataset.approvePending,
+          btn.dataset.username || '?',
+          roles,
+          (uid) => _removeCard(uid)
+        );
       });
     });
   },

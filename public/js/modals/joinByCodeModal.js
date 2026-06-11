@@ -1,4 +1,4 @@
-// ===== 招待コードでイベント参加モーダル =====
+// ===== 招待リンクでイベント参加モーダル =====
 // HOME のユーザーメニューから開かれる。
 // ユーザーは招待リンク全体（http://...local/invite/<token>）または トークンだけを貼り付けられる。
 
@@ -44,7 +44,7 @@ function _render(overlay, ctx) {
         </svg>
       </button>
       <h2 class="heading-r text-[#484545] font-bold mb-2">イベントに参加する</h2>
-      <p class="text-[12px] text-[#A7AAAC] font-bold mb-4">招待コードを入力してください</p>
+      <p class="text-[12px] text-[#A7AAAC] font-bold mb-4">招待リンクを入力してください</p>
 
       ${ctx.info ? _renderConfirm(ctx) : _renderInput(ctx)}
     </div>`;
@@ -68,7 +68,7 @@ function _render(overlay, ctx) {
 
 function _renderInput(ctx) {
   return `
-    <input id="jbc-input" type="text" placeholder="招待コード"
+    <input id="jbc-input" type="text" placeholder="https://evecre..."
       class="input-field w-full px-4 py-3 text-[13px] font-mono focus:outline-none mb-2"
       value="${_esc(ctx.input)}"
       autocomplete="off" autocapitalize="off" spellcheck="false"
@@ -127,7 +127,7 @@ async function _verify(overlay, ctx) {
   ctx.error = '';
   const token = _extractToken(ctx.input);
   if (!token) {
-    ctx.error = '招待コードを入力してください';
+    ctx.error = '招待リンクを入力してください';
     _render(overlay, ctx);
     return;
   }
@@ -199,7 +199,7 @@ function _close(overlay) {
 
 function _explainError(code) {
   switch (code) {
-    case 'invite_not_found':  return '招待コードが見つかりません。コードが間違っているか、取り消されています';
+    case 'invite_not_found':  return '招待リンクが見つかりません。コードが間違っているか、取り消されています';
     case 'invite_expired':    return '招待の有効期限が切れています';
     case 'invite_used_up':    return '招待の使用上限に達しています';
     case 'project_not_found': return 'イベントが見つかりません';

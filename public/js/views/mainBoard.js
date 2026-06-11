@@ -3,7 +3,6 @@ import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions } from '../modals/mission.js';
 import { LABEL_CONFIG } from '../constants.js';
-import { calculateDaysLeft } from '../utils.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
 // モジュールロード時に一度だけ登録。document 全体にデリゲート。
@@ -146,6 +145,10 @@ export function renderMainBoard(container) {
           </svg>
         </button>` : ''}
     </div>`;
+
+  if (state.mainBoardTab === 'MAIN') {
+    _checkMissionDeadlineNotifications(p.missions || []);
+  }
 }
 
 // ===== メインタブ =====
@@ -308,7 +311,7 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
           class="bg-white border border-[#D3D6D8] rounded-xl p-4 flex flex-col shadow-sm relative animate-fadeIn group ${cursorCls}">
           <div class="flex items-center gap-2 mb-2 flex-wrap">
             ${tagNames.map(t => Components.Tag(t)).join('')}
-            <span class="text-[11px] text-black/40 font-bold">${_missionDeadlineText(m)}</span>
+            ${_missionDeadlineText(m)}
             ${modeBadgeHtml}
           </div>
           <h3 class="text-[14px] font-bold text-[#484545] pr-8" style="text-overflow:ellipsis;-webkit-line-clamp: 2;overflow: hidden;">${m.title}</h3>
@@ -342,14 +345,37 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
     : [];
 
   const hasDates = Array.isArray(p.dates) && p.dates.length > 0;
+  const _dateChip = (() => {
+    if (!hasDates) return `<span class="text-[11px] font-bold text-[#A7AAAC]">開催日時が設定されていません</span>`;
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const sorted = [...p.dates].sort();
+    const firstDate = sorted[0];
+    const lastDate  = sorted[sorted.length - 1];
+    const todayIdx  = sorted.indexOf(todayStr);
+    if (todayIdx !== -1) {
+      const dayNum = todayIdx + 1;
+      const isFirst = dayNum === 1;
+      const isLast  = todayIdx === sorted.length - 1;
+      if (isFirst) return `<span class="text-[12px] font-bold">Day${dayNum} / いよいよ今日から！</span>`;
+      if (isLast)  return `<span class="text-[12px] font-bold">Day${dayNum} / ついに最終日！</span>`;
+      return `<span class="text-[12px] font-bold"><span class="text-[18px] font-mono">Day${dayNum}</span></span>`;
+    }
+    if (todayStr > lastDate) {
+      const fmt = s => { const [, m, day] = s.split('-'); return `${parseInt(m)}月${parseInt(day)}日`; };
+      const range = (firstDate === lastDate)
+        ? `${fmt(firstDate)}開催`
+        : `${fmt(firstDate)}〜${fmt(lastDate)}開催`;
+      return `<span class="text-[12px] font-bold text-[#A7AAAC]">${range}</span>`;
+    }
+    return `<span class="text-[12px] font-bold">開催まで残り <span class="text-[18px] font-mono">${p.daysLeft}</span> 日</span>`;
+  })();
   return `
     <div class="px-6 pt-4 space-y-6 page-transition">
       <div onclick="window._app.openEventCalendarSheet()"
         class="cursor-pointer bg-white border border-[#D3D6D8] rounded-full px-4 py-2 flex items-center justify-center gap-3 shadow-sm mx-auto w-fit active:scale-95 transition-transform">
         <img src="/images/icon/icon-Calender.svg" class="w-4 h-4">
-        ${hasDates
-          ? `<span class="text-[12px] font-bold">開催まで残り <span class="text-[18px] font-mono">${p.daysLeft}</span> 日</span>`
-          : `<span class="text-[11px] font-bold text-[#A7AAAC]">開催日時が設定されていません</span>`}
+        ${_dateChip}
       </div>
 
       <!-- 承認待ちメンバーバナー（管理者のみ・該当がある場合のみ表示）-->
@@ -923,12 +949,69 @@ function _esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ミッションの残り日数テキスト（終了日 = dates の最終要素から計算）
+// ミッションの残り日数テキスト（dates をソートし最終日から計算）
 function _missionDeadlineText(m) {
-  if (!Array.isArray(m.dates) || m.dates.length === 0) return 'スケジュール未設定';
-  const endDate = m.dates[m.dates.length - 1];
-  const days = calculateDaysLeft(endDate);
-  return days === 0 ? '今日まで' : `残り${days}日`;
+  if (!Array.isArray(m.dates) || m.dates.length === 0) {
+    return '<span class="text-[11px] text-black/40 font-bold">スケジュール未設定</span>';
+  }
+  const endDate = [...m.dates].sort().at(-1);
+  const target = new Date(endDate);
+  const now = new Date();
+  target.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((target.getTime() - now.getTime()) / 86_400_000);
+  if (diff < 0)  return `<span class="text-[11px] font-bold" style="color:#E74C3C">${-diff}日超過</span>`;
+  if (diff === 0) return `<span class="text-[11px] font-bold" style="color:#E74C3C">今日まで</span>`;
+  return `<span class="text-[11px] text-black/40 font-bold">残り${diff}日</span>`;
+}
+
+// 締め切り系トースト（sessionStorage でセッション内重複抑制）
+function _checkMissionDeadlineNotifications(missions) {
+  if (!Array.isArray(missions)) return;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+  const toasts = [];
+  for (const m of missions) {
+    if (m.status === 'cleared' || m.status === 'pending_leader_check') continue;
+    if (!Array.isArray(m.dates) || m.dates.length === 0) continue;
+    const sorted    = [...m.dates].sort();
+    const startDate = sorted[0];
+    const endDate   = sorted[sorted.length - 1];
+    const target    = new Date(endDate);
+    target.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((target.getTime() - now.getTime()) / 86_400_000);
+    const title = m.title.length > 15 ? m.title.slice(0, 15) + '…' : m.title;
+
+    if (startDate === endDate && todayStr === startDate) {
+      // 1日のみのミッション → 締め切り当日
+      const key = `notif:${m.id}:single:${todayStr}`;
+      if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」締め切り当日です`); }
+    } else if (todayStr === startDate) {
+      // 期間スタート（複数日）
+      const key = `notif:${m.id}:start:${todayStr}`;
+      if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」の期間が始まりました・残り${diff}日`); }
+    } else if (diff === 1) {
+      // 締め切り前日
+      const key = `notif:${m.id}:1day:${todayStr}`;
+      if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」の締め切りまで残り1日`); }
+    } else if (diff === 0) {
+      // 締め切り当日（複数日ミッションの最終日）
+      const key = `notif:${m.id}:due:${todayStr}`;
+      if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」の締め切り当日です`); }
+    }
+  }
+
+  toasts.forEach((msg, i) => {
+    setTimeout(() => {
+      const t = document.createElement('div');
+      t.className = 'fixed bottom-24 left-4 right-4 bg-[#484545] text-white px-4 py-3 rounded-xl shadow-2xl text-[12px] font-bold z-[300] text-center';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.transition = 'opacity 0.4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);
+    }, i * 600);
+  });
 }
 
 // 申告期限の表示
