@@ -16,14 +16,14 @@ import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
 
 // モーダル
-import { openCalendarModal, moveCalendarMonth, toggleDate } from './modals/calendar.js';
+import { openCalendarModal, moveCalendarMonth } from './modals/calendar.js';
 import {
   openMissionModal, closeMissionModal, deleteMission,
   renderMissionModalContent,
   addProposalToMission, showProposalHelp,
   toggleMissionMenu, toggleSortMenu,
   showMissionListModal, changeMissionSort,
-  openAssigneeSheet, closeAssigneeSheet,
+  openAssigneeSheet,
   openTagCreator, closeTagCreator,
   openSelectClaimModal,
 } from './modals/mission.js';
@@ -31,13 +31,10 @@ import {
   editArchiveItem, openEditModal,
   openClearMissionModal, submitMissionClear, handleImageSelect, clearImagePreview,
   handleGoodClick,
-  copyInviteCode, shareInvite, showProjectInviteModal,
-  updateDraftInfo, removeDraftDateGroup,
+  updateDraftInfo,
 } from './modals/helpers.js';
-import { openRenameDialog, openDeleteConfirm, openAddToProjectModal } from './modals/eventActions.js';
 import { openVerifyEmailModal } from './modals/verifyEmailModal.js';
 import { openJoinByCodeModal } from './modals/joinByCodeModal.js';
-import { openInviteIssueModal } from './modals/inviteIssueModal.js';
 import { openEventCalendarSheet } from './modals/eventCalendarSheet.js';
 
 // ===== ビューレンダラーの登録 =====
@@ -187,7 +184,6 @@ function _openApproveModal(uid, username, roles, onSuccess) {
 window._app = {
   // --- state 委譲 ---
   setView: (view, id) => state.setView(view, id),
-  addEvent: () => state.addEvent(),
   setTab: (tab) => {
     state.mainBoardTab = tab;
     logEvent('board_tab_switched', { tab });
@@ -198,14 +194,12 @@ window._app = {
 
   // --- 招待コード入力・メンバー管理 ---
   openJoinByCodeModal: () => openJoinByCodeModal(),
-  openInviteIssueModal: (id) => openInviteIssueModal(id || state.selectedEventId),
 
   // --- メインボードのカレンダーボトムシート（開催まで残り○日 タップで開く）---
   openEventCalendarSheet: () => openEventCalendarSheet(),
 
   // --- ミッションモーダル：担当者選択 ---
   openAssigneeSheet:  () => openAssigneeSheet(),
-  closeAssigneeSheet: () => closeAssigneeSheet(),
   // --- イベント設定ページへの遷移（歯車アイコン）---
   toggleProjectMenu: (e) => {
     e.stopPropagation();
@@ -231,7 +225,6 @@ window._app = {
   // --- カレンダー ---
   openCalendarModal: (target) => openCalendarModal(target),
   moveCalendarMonth: (offset, target) => moveCalendarMonth(offset, target),
-  toggleDate: (dateStr, target) => toggleDate(dateStr, target),
 
   // --- ミッションモーダル ---
   openMissionModal: (id = null) => openMissionModal(id),
@@ -420,10 +413,6 @@ window._app = {
   deleteNotification: async (notifId) => {
     await api.deleteNotification(notifId);
     state.notifications = (state.notifications || []).filter(n => n.id !== notifId);
-    state.render();
-  },
-  refreshNotifications: async () => {
-    await state.loadNotifications();
     state.render();
   },
   createOrUpdateMission: () => {
@@ -971,20 +960,10 @@ window._app = {
   // --- いいね ---
   handleGoodClick: (e) => handleGoodClick(e),
 
-  // --- 招待 ---
-  copyInviteCode: (code) => copyInviteCode(code),
-  shareInvite: (code) => shareInvite(code),
-  showProjectInviteModal: (code) => showProjectInviteModal(code),
-
   // --- イベント作成フォーム ---
   updateDraftInfo: (field, value) => updateDraftInfo(field, value),
-  removeDraftDateGroup: (jsonGroup) => removeDraftDateGroup(jsonGroup),
 
   // --- イベント操作（長押しメニューから呼ばれる）---
-  openRenameDialog: (id) => openRenameDialog(id),
-  openDeleteConfirm: (id) => openDeleteConfirm(id),
-  renameEvent: (id, name) => state.renameEvent(id, name),
-  deleteEvent: (id) => state.deleteEvent(id),
   leaveEvent:  (id) => state.leaveEvent(id),
 
   // --- ホームタブ切替 ---
@@ -997,7 +976,6 @@ window._app = {
   openNewProjectModal: (pendingEventId = null) => _openNewProjectModal(pendingEventId),
   openNewProjectModalForEvent: (eventId) => _openNewProjectModal(eventId),
   openProjectMenu: (folderId) => _openProjectMenu(folderId),
-  deleteFolder: (id) => state.deleteFolder(id),
 
   // プロジェクト詳細から「+ 新規イベント作成」
   createEventInFolder: (folderId) => {
@@ -1058,7 +1036,6 @@ window._app = {
   },
 
   // --- 認証 ---
-  logout: () => state.logout(),
   requireVerification: () => {
     // 「+作成」ボタンを押した時など → 認証モーダルを直接開く
     openVerifyEmailModal();
