@@ -59,6 +59,12 @@ export function syncRealtime() {
   _es.addEventListener('memberLeft', () => {
     state.silentReloadEvents?.();
   });
+  // ロール定義・ロール割当の変更（canManage の付け外しが画面に影響するため再取得）
+  ['memberRoleChanged', 'memberRolesChanged', 'rolesChanged'].forEach(ev => {
+    _es.addEventListener(ev, () => {
+      state.silentReloadEvents?.().then(() => state.render());
+    });
+  });
   // 自分が承認されたとき: 申請中バナーを消し、イベント一覧を再取得してホームに反映
   _es.addEventListener('memberApproved', async () => {
     try {
@@ -136,8 +142,22 @@ function _applyEventUpdate(eventId, event) {
 
   // SSE payload は crdtToFlat 出力のため folderId / lastProposalGeneratedAt を含まない。
   // prev から引き継いで上書き消失を防ぐ。
+  // members の username / avatarUrl も /api/data でのみ合成されるため prev から補完する
+  // （補完できない新規メンバーは memberJoined → silentReloadEvents で再取得される）。
+  const prevMembersById = new Map((prev.members || []).map(m => [m.userId, m]));
+  const members = (event.members || []).map(m => {
+    const pm = prevMembersById.get(m.userId);
+    if (!pm) return m;
+    return {
+      ...m,
+      username:  m.username  ?? pm.username,
+      avatarUrl: m.avatarUrl ?? pm.avatarUrl,
+    };
+  });
+
   state.events[idx] = {
     ...event,
+    members,
     folderId:                  event.folderId                  ?? prev.folderId,
     lastProposalGeneratedAt:   event.lastProposalGeneratedAt   ?? prev.lastProposalGeneratedAt,
   };
