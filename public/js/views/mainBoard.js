@@ -413,7 +413,7 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
         <div class="grid grid-cols-3 gap-2">
           ${proposalCards}
           ${p.proposals.length === 0 ? (() => {
-            const nextAt  = (p.lastProposalGeneratedAt || 0) + 12 * 60 * 60 * 1000;
+            const nextAt  = (p.lastProposalGeneratedAt || 0) + 8 * 60 * 60 * 1000;
             const remMs   = Math.max(0, nextAt - Date.now());
             const remHr   = Math.ceil(remMs / (1000 * 60 * 60));
             const label   = remMs <= 0 ? '準備中...' : `${remHr}時間後に新しい提案が届きます`;

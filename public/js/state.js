@@ -561,11 +561,11 @@ export const state = {
 
     // 提案の更新チェック
     // - 初期3件（lastProposalGeneratedAt=null）: ミッションに追加されなくても更新しない
-    // - 動的生成済み（lastProposalGeneratedAt 設定済み）: 12時間ごとに更新（残り数に関わらず）
+    // - 動的生成済み（lastProposalGeneratedAt 設定済み）: 8時間ごとに更新（残り数に関わらず）
     if (this.selectedEventId && !this._proposalFetching) {
       const p = this.events.find(x => x.id === this.selectedEventId);
       if (p && Array.isArray(p.proposals) && p.lastProposalGeneratedAt) {
-        const cycleElapsed = Date.now() - p.lastProposalGeneratedAt >= 12 * 60 * 60 * 1000;
+        const cycleElapsed = Date.now() - p.lastProposalGeneratedAt >= 8 * 60 * 60 * 1000;
         if (cycleElapsed) this._refreshProposals(p);
       }
     }
