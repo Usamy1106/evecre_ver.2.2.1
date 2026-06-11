@@ -942,6 +942,12 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       description:    flat.description || '',
       existingTitles,
       usedProposalIds,
+      // 進捗連動: 開催日・残り日数からフェーズ判定、既存ミッションのタグ×完了状況からギャップ検出
+      eventDates:     Array.isArray(flat.dates) ? flat.dates : [],
+      daysLeft:       typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
+      missions:       flat.missions.map(m => ({
+        tag: m.tag, tags: m.tags, status: m.status, dates: m.dates,
+      })),
     });
 
     // usedProposalIds と lastProposalGeneratedAt を直接更新（CRDT外フィールド）
