@@ -190,8 +190,9 @@ window._app = {
     state.mainBoardTab = tab;
     logEvent('board_tab_switched', { tab });
     if (tab === 'ARCHIVE')       logEvent('archive_viewed');
-    if (tab === 'NOTIFICATIONS') state.loadNotifications().then(() => state.render());
+    if (tab === 'NOTIFICATIONS') state.loadNotifications().then(() => { state.render(); window.scrollTo(0, 0); });
     state.render();
+    window.scrollTo(0, 0);
   },
 
   // --- 招待コード入力・メンバー管理 ---
@@ -1262,6 +1263,13 @@ function _showToast(msg, durationMs = 2500) {
 // ===== ロガー初期化 =====
 setProjectIdGetter(() => state.selectedEventId);
 initLogger();
+
+// ===== 提案の8時間サイクル監視 =====
+// render() はユーザー操作時にしか走らないため、画面を開いたまま放置しても
+// 8時間経過で新しい提案が出現するよう定期チェックする（生成判定は state 側）
+setInterval(() => {
+  if (document.visibilityState === 'visible') state._checkProposalCycle?.();
+}, 5 * 60 * 1000);
 
 // ===== アプリ起動 =====
 state.init().catch(e => {

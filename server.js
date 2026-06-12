@@ -948,6 +948,7 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       daysLeft:       typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
       missions:       flat.missions.map(m => ({
         tag: m.tag, tags: m.tags, status: m.status, dates: m.dates,
+        originProposalId: m.originProposalId,
       })),
     });
 

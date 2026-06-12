@@ -570,16 +570,8 @@ export const state = {
     const appEl = document.getElementById('app');
     if (!appEl) return;
 
-    // 提案の更新チェック
-    // - 初期3件（lastProposalGeneratedAt=null）: ミッションに追加されなくても更新しない
-    // - 動的生成済み（lastProposalGeneratedAt 設定済み）: 8時間ごとに更新（残り数に関わらず）
-    if (this.selectedEventId && !this._proposalFetching) {
-      const p = this.events.find(x => x.id === this.selectedEventId);
-      if (p && Array.isArray(p.proposals) && p.lastProposalGeneratedAt) {
-        const cycleElapsed = Date.now() - p.lastProposalGeneratedAt >= 8 * 60 * 60 * 1000;
-        if (cycleElapsed) this._refreshProposals(p);
-      }
-    }
+    // 提案の更新チェック（判定本体は _checkProposalCycle。main.js の定期タイマーからも呼ばれる）
+    this._checkProposalCycle();
 
     const fn = _renderers[this.currentView];
     if (fn) fn(appEl);
@@ -648,6 +640,21 @@ export const state = {
     const ev = this.events.find(e => e.id === eventId);
     if (ev) ev.folderId = folderId || null;
     this.render();
+  },
+
+  // --- 提案の更新サイクル判定 ---
+  // - 動的生成済み（lastProposalGeneratedAt 設定済み）: 8時間ごとに更新（残り数に関わらず）
+  // - 未生成（lastProposalGeneratedAt=null、初期3件のまま）: 使い切って空になったら最初の動的生成
+  //   ※かつて「lastProposalGeneratedAt が truthy」を必須にしていたため、初期3件を
+  //     使い切ったイベントが永遠に「準備中...」のまま固まるバグがあった
+  _checkProposalCycle() {
+    if (!this.selectedEventId || this._proposalFetching) return;
+    const p = this.events.find(x => x.id === this.selectedEventId);
+    if (!p || !Array.isArray(p.proposals)) return;
+    const due = p.lastProposalGeneratedAt
+      ? Date.now() - p.lastProposalGeneratedAt >= 8 * 60 * 60 * 1000
+      : p.proposals.length === 0;
+    if (due) this._refreshProposals(p);
   },
 
   // --- 提案リフレッシュ（サーバー側ルールベースエンジンを呼ぶ） ---
