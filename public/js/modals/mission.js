@@ -340,7 +340,7 @@ function _renderDetailTab(isEdit) {
               <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${noInput ? 'translate-x-5' : ''}"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">テキスト・画像の入力欄はなく、完了ボタンのみで即完了するミッションになります。</p>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">テキスト・画像の入力欄はなく、完了ボタンのみで即完了するミッションになります。</p>
         </div>
 
         <!-- 個別完了 -->
@@ -352,7 +352,7 @@ function _renderDetailTab(isEdit) {
               <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${individualClear ? 'translate-x-5' : ''}"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">ユーザーごとに個別に回答・完了できるようになります。</p>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">ユーザーごとに個別に回答・完了できるようになります。</p>
         </div>
 
         <!-- アナウンス -->
@@ -364,7 +364,7 @@ function _renderDetailTab(isEdit) {
               <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${announce ? 'translate-x-5' : ''}"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">担当者（無割当の場合は全員）のメインボード上部にアナウンスカードで表示します。</p>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">担当者（無割当の場合は全員）のメインボード上部にアナウンスカードで表示します。</p>
         </div>
 
         <!-- リーダーによるチェック -->
@@ -376,7 +376,7 @@ function _renderDetailTab(isEdit) {
               <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${leaderCheck ? 'translate-x-5' : ''}"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">完了後すぐにはアーカイブされず、リーダーの確認待ちになります。</p>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">完了後すぐにはアーカイブされず、リーダーの確認待ちになります。</p>
         </div>
 
         <!-- 担当の申告制 -->
@@ -389,7 +389,7 @@ function _renderDetailTab(isEdit) {
             </button>
           </div>
 
-          <p class="text-[11px] text-[#A7AAAC] mb-2">メンバーが担当申告し、管理者が担当者を選定する形式になります。</p>
+          <p class="text-[11px] text-[#A7AAAC] mb-2" style="padding-right: 5em;">メンバーが担当申告し、管理者が担当者を選定する形式になります。</p>
           ${selfClaim ? `
             <!-- 応募期限（カレンダーUIで設定） -->
             <div class="mt-1">
@@ -410,7 +410,7 @@ function _renderDetailTab(isEdit) {
         <!-- チェック項目 -->
         <div>
           <label class="heading-rs block mb-2 text-[#484545] font-bold">チェック項目</label>
-          <p class="text-[11px] text-[#A7AAAC] mb-3">完了時にチェックしないと提出できません</p>
+          <p class="text-[11px] text-[#A7AAAC] mb-3" style="padding-right: 5em;">完了時にチェックしないと提出できません</p>
           ${checklist.length === 0 ? `
             <button onclick="window._app.addChecklistItem()"
               class="w-full text-[12px] text-[#A7AAAC] font-bold py-3 bg-[#FDFBF8] rounded-xl border border-dashed border-[#D3D6D8] active:opacity-50">
