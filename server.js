@@ -350,9 +350,10 @@ async function _extractClearedData(projectId, flat) {
 
     await submissionStore.saveSubmission(projectId, missionId, {
       content,
-      format:    submission.format    ?? 'text',
-      title:     submission.title     ?? '',
-      timestamp: submission.timestamp ?? Date.now(),
+      format:      submission.format      ?? 'text',
+      title:       submission.title       ?? '',
+      timestamp:   submission.timestamp   ?? Date.now(),
+      submittedBy: submission.submittedBy ?? null,
     });
   }));
 

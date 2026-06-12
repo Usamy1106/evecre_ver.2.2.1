@@ -397,11 +397,11 @@ async function _setupGoogleSignIn(mode) {
             }
             await state.loadAfterAuth();
           } else {
-            alert(r.error || 'Google サインインに失敗しました');
+            window._app?.showToast(r.error || 'Google サインインに失敗しました', 'error');
           }
         } catch (e) {
           console.error('[google-signin] エラー:', e);
-          alert('Google サインインでエラーが発生しました');
+          window._app?.showToast('Google サインインでエラーが発生しました', 'error');
         }
       },
       auto_select: false,

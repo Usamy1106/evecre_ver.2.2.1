@@ -301,10 +301,30 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
 
         const modeBadgeHtml = m._modeBadge || '';
 
-        // クリックで完了モーダル：申告制で「自分の担当」じゃない場合は反応しない
-        const isClickable = !m.selfClaim || myMission;
-        const cardOnClick = isClickable ? `onclick="window._app.openClearMissionModal('${m.id}')"` : '';
-        const cursorCls   = isClickable ? 'cursor-pointer active:bg-[#FDFBF8]' : 'cursor-default';
+        // 個別完了モード
+        const indivClearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
+        const iIndivDone = m.individualClear && indivClearedBy.includes(meId);
+
+        // 個別完了ミッション：常に完了者リストモーダルを開く
+        // 通常ミッション：申告制で自分の担当でない場合は反応しない
+        const isClickable = m.individualClear ? true : (!m.selfClaim || myMission);
+        const cardOnClick = isClickable
+          ? (m.individualClear
+              ? `onclick="window._app.openIndividualClearListModal('${m.id}')"`
+              : `onclick="window._app.openClearMissionModal('${m.id}')"`)
+          : '';
+        const cursorCls = isClickable ? 'cursor-pointer active:bg-[#FDFBF8]' : 'cursor-default';
+
+        const _indivHasAssignees = (Array.isArray(m.assignees) && m.assignees.length > 0) || m.assignee?.type === 'user';
+        const _indivTotal = Array.isArray(m.assignees) && m.assignees.length > 0
+          ? m.assignees.length : (m.assignee?.type === 'user' ? 1 : 0);
+        const indivProgressBadge = m.individualClear
+          ? (iIndivDone
+              ? `<span class="text-[10px] font-bold text-[#5b8104] bg-[#F0FCD4] px-2 py-0.5 rounded-full">自分済み ✓</span>`
+              : (_indivHasAssignees
+                  ? `<span class="text-[10px] font-bold text-[#A7AAAC] bg-[#EBE8E5] px-2 py-0.5 rounded-full">${indivClearedBy.length}/${_indivTotal}人完了</span>`
+                  : ''))
+          : '';
 
         return `
         <div ${cardOnClick}
@@ -313,6 +333,7 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
             ${tagNames.map(t => Components.Tag(t)).join('')}
             ${_missionDeadlineText(m)}
             ${modeBadgeHtml}
+            ${indivProgressBadge}
           </div>
           <h3 class="text-[14px] font-bold text-[#484545] pr-8" style="text-overflow:ellipsis;-webkit-line-clamp: 2;overflow: hidden;">${m.title}</h3>
           ${assigneeLine}
@@ -377,6 +398,9 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
         <img src="/images/icon/icon-Calender.svg" class="w-4 h-4">
         ${_dateChip}
       </div>
+
+      <!-- アナウンスカード -->
+      ${_renderAnnounceCards(p, meId)}
 
       <!-- 承認待ちメンバーバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingMembers.length > 0 ? _renderPendingMembersBanner(pendingMembers) : ''}
@@ -528,6 +552,96 @@ function _renderClaimAnnouncementBanner(p, missions) {
     </div>`;
 }
 
+function _renderAnnounceCards(p, meId) {
+  const active = [...(p.missions || [])].filter(m => {
+    if (!m.announce || m.status === 'cleared') return false;
+    const hasAssignee = m.assignee || (Array.isArray(m.assignees) && m.assignees.length > 0);
+    if (!hasAssignee) return true;
+    if (m.assignee?.type === 'user' && m.assignee.userId === meId) return true;
+    if (Array.isArray(m.assignees) && m.assignees.includes(meId)) return true;
+    if (m.assignee?.type === 'role') {
+      const mem = (p.members || []).find(x => x.userId === meId);
+      if (mem && Array.isArray(mem.roles) && mem.roles.includes(m.assignee.roleId)) return true;
+    }
+    return false;
+  }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); // 新しい順
+
+  if (active.length === 0) return '';
+
+  const _assigneeLabel = (m) => {
+    if (Array.isArray(m.assignees) && m.assignees.length > 0) {
+      return _resolveUsernames(p, m.assignees);
+    }
+    if (m.assignee?.type === 'user') {
+      const mem = (p.members || []).find(x => x.userId === m.assignee.userId);
+      return mem?.username || '不明';
+    }
+    if (m.assignee?.type === 'role') {
+      const role = (p.roles || []).find(r => r.id === m.assignee.roleId);
+      return role?.name || '不明なロール';
+    }
+    return '全員';
+  };
+
+  const _deadlineLabel = (m) => {
+    if (!Array.isArray(m.dates) || m.dates.length === 0) return '';
+    const end = [...m.dates].sort().at(-1);
+    const target = new Date(end); target.setHours(0,0,0,0);
+    const now = new Date(); now.setHours(0,0,0,0);
+    const diff = Math.ceil((target - now) / 86_400_000);
+    if (diff < 0)  return `<span class="text-[10px] font-bold text-[#E74C3C]">${-diff}日超過</span>`;
+    if (diff === 0) return `<span class="text-[10px] font-bold text-[#E74C3C]">今日まで</span>`;
+    return `<span class="text-[10px] font-bold text-[#A7AAAC]">残り${diff}日</span>`;
+  };
+
+  const cardHtml = (m) => `
+    <div class="bg-[#EAF6FF] border border-[#0CA1E3]/40 rounded-2xl px-4 py-3">
+      <div class="flex items-start gap-2">
+        <svg class="flex-shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0CA1E3" stroke-width="2.5">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <div class="flex-1 min-w-0">
+          <p class="text-[12px] font-bold text-[#484545] mb-1 truncate">${_esc(m.title)}</p>
+          <div class="flex items-center gap-3 flex-wrap">
+            ${_deadlineLabel(m)}
+            <span class="text-[10px] text-[#A7AAAC]">担当：${_esc(_assigneeLabel(m))}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  if (active.length === 1) {
+    return cardHtml(active[0]);
+  }
+
+  // 複数の場合：折りたたみ式
+  const listId = 'announce-list-' + (p.id || 'x');
+  const cards = active.map(cardHtml).join('');
+  return `
+    <div class="bg-[#EAF6FF] border border-[#0CA1E3]/40 rounded-2xl overflow-hidden">
+      <button onclick="
+        const el=document.getElementById('${listId}');
+        const icon=this.querySelector('.announce-chevron');
+        if(el.style.display==='none'){el.style.display='';icon.style.transform='rotate(0deg)';}
+        else{el.style.display='none';icon.style.transform='rotate(-90deg)';}
+      " class="w-full flex items-center justify-between px-4 py-3 active:bg-[#D4EFFF]">
+        <div class="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0CA1E3" stroke-width="2.5">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="text-[12px] font-bold text-[#0CA1E3]">アナウンス（${active.length}件）</span>
+        </div>
+        <svg class="announce-chevron transition-transform" width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="#0CA1E3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div id="${listId}" class="space-y-2 px-4 pb-3">${cards}</div>
+    </div>`;
+}
+
 // ── アーカイブ：概要カードスロット識別 ───────────────────────────
 // clearedData のキーがこれらのミッションIDに一致するものは Layer 1（概要カード）専用
 const _OVERVIEW_IDS     = new Set(['def-2', 'def-3']);
@@ -574,8 +688,8 @@ function _renderArchiveTab(p) {
   }
 
   const mode = state.archiveDisplayMode || 'label';
-  const archiveTabBtns = ['label','date','priority','assignee'].map(m => {
-    const label = { label:'ラベル別', date:'完了日順', priority:'優先度順', assignee:'完了者別' }[m];
+  const archiveTabBtns = ['label','date','priority','assignee','creator'].map(m => {
+    const label = { label:'ラベル別', date:'完了日順', priority:'優先度順', assignee:'完了者別', creator:'作成者別' }[m];
     const active = mode === m;
     return `<button onclick="window._app.setArchiveDisplayMode('${m}')"
       class="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${active ? 'bg-[#484545] text-white border-[#484545]' : 'bg-white text-[#484545] border-[#D3D6D8]'}">
@@ -604,15 +718,30 @@ function _renderArchiveTab(p) {
   } else if (mode === 'assignee') {
     const assigneeGroups = {};
     for (const m of clearedMissions) {
-      const uid = (Array.isArray(m.assignees) && m.assignees.length > 0)
-        ? m.assignees[0]
-        : (m.assignee?.type === 'user' ? m.assignee.userId : null);
+      // submittedBy（実際の完了者）を優先し、なければ assignee にフォールバック
+      const uid = p.clearedData?.[m.id]?.submittedBy
+        || (Array.isArray(m.assignees) && m.assignees.length > 0 ? m.assignees[0] : null)
+        || (m.assignee?.type === 'user' ? m.assignee.userId : null);
       const mem = uid ? (p.members || []).find(x => x.userId === uid) : null;
-      const key = mem?.username || uid || '担当なし';
+      const key = mem?.username || uid || '不明';
       if (!assigneeGroups[key]) assigneeGroups[key] = [];
       assigneeGroups[key].push(m);
     }
     missionsRecordHtml = Object.entries(assigneeGroups).map(([name, missions]) => `
+      <div class="mb-4">
+        <p class="text-[12px] font-bold text-[#A7AAAC] mb-2">@${_esc(name)}（${missions.length}件）</p>
+        <div class="space-y-3">${missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>
+      </div>`).join('');
+  } else if (mode === 'creator') {
+    const creatorGroups = {};
+    for (const m of clearedMissions) {
+      const uid = m.createdBy || null;
+      const mem = uid ? (p.members || []).find(x => x.userId === uid) : null;
+      const key = mem?.username || (uid ? uid : '作成者不明');
+      if (!creatorGroups[key]) creatorGroups[key] = [];
+      creatorGroups[key].push(m);
+    }
+    missionsRecordHtml = Object.entries(creatorGroups).map(([name, missions]) => `
       <div class="mb-4">
         <p class="text-[12px] font-bold text-[#A7AAAC] mb-2">@${_esc(name)}（${missions.length}件）</p>
         <div class="space-y-3">${missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>
@@ -726,6 +855,7 @@ function _renderArchiveCategorySection(p, tag, missions) {
 
 // ミッションブロック（text / image / link で表示切替）
 function _renderArchiveMissionBlock(m, cd, sectionTag) {
+  const canMgr      = state.canManageCurrentEvent();
   const tagNames    = (Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : [sectionTag]));
   const completedAt = cd?.timestamp ? _fmtDate(cd.timestamp) : '';
 
@@ -747,16 +877,38 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
     }
   }
 
+  const clearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
+  const totalAssignees = Array.isArray(m.assignees) && m.assignees.length > 0
+    ? m.assignees.length
+    : (m.assignee?.type === 'user' ? 1 : clearedBy.length);
+  const indivSummary = m.individualClear
+    ? `<span class="text-[10px] text-[#5b8104] font-bold bg-[#F0FCD4] px-2 py-0.5 rounded-full">${clearedBy.length}/${Math.max(1,totalAssignees)}人完了</span>`
+    : '';
+  const archiveClick = m.individualClear
+    ? `onclick="window._app.openIndividualClearListModal('${m.id}')"`
+    : '';
+  const archiveCursor = m.individualClear ? 'cursor-pointer active:bg-[#FDFBF8]' : '';
+
+  const meatballBtn = canMgr ? `
+    <button onclick="event.stopPropagation(); window._app.openArchiveMissionMenu(event, '${m.id}')"
+      class="absolute top-3 right-3 p-2 opacity-40 hover:opacity-100 transition-opacity active:scale-90">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+      </svg>
+    </button>` : '';
+
   return `
-    <div class="bg-white border border-[#D3D6D8] rounded-xl p-4 shadow-sm">
-      <div class="flex items-center justify-between mb-1.5">
+    <div ${archiveClick} class="bg-white border border-[#D3D6D8] rounded-xl p-4 shadow-sm relative ${archiveCursor}">
+      <div class="flex items-center justify-between mb-1.5 ${canMgr ? 'pr-7' : ''}">
         <div class="flex items-center gap-1.5 flex-wrap">
           ${tagNames.map(t => Components.Tag(t)).join('')}
+          ${indivSummary}
         </div>
         ${completedAt ? `<span class="text-[10px] text-[#A7AAAC] flex-shrink-0">${completedAt}完了</span>` : ''}
       </div>
-      <h3 class="text-[13px] font-bold text-[#484545]">${_esc(m.title)}</h3>
+      <h3 class="text-[13px] font-bold text-[#484545] ${canMgr ? 'pr-6' : ''}">${_esc(m.title)}</h3>
       ${contentHtml}
+      ${meatballBtn}
     </div>`;
 }
 

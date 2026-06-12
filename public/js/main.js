@@ -32,10 +32,12 @@ import {
   openClearMissionModal, submitMissionClear, handleImageSelect, clearImagePreview,
   handleGoodClick,
   updateDraftInfo,
+  openIndividualClearListModal,
 } from './modals/helpers.js';
 import { openVerifyEmailModal } from './modals/verifyEmailModal.js';
 import { openJoinByCodeModal } from './modals/joinByCodeModal.js';
 import { openEventCalendarSheet } from './modals/eventCalendarSheet.js';
+import { showConfirmDialog } from './dialog.js';
 
 // ===== ビューレンダラーの登録 =====
 registerRenderer('CREATE_ACCOUNT_INFO',   renderCreateAccountInfo);
@@ -137,7 +139,7 @@ function _openApproveModal(uid, username, roles, onSuccess) {
       roleOverlay.querySelector('#role-add-name').value = '';
       roleOverlay.querySelector('#role-add-canmanage').checked = false;
     } else {
-      alert(r.error || 'ロールの追加に失敗しました');
+      window._app?.showToast(r.error || 'ロールの追加に失敗しました', 'error');
     }
   };
   roleOverlay.querySelector('[data-action="cancel"]').onclick = () => roleOverlay.remove();
@@ -174,7 +176,7 @@ function _openApproveModal(uid, username, roles, onSuccess) {
     } else {
       confirmBtn.disabled = false;
       confirmBtn.textContent = '承認する';
-      alert(r.error || '承認に失敗しました');
+      window._app?.showToast(r.error || '承認に失敗しました', 'error');
     }
   };
 }
@@ -211,7 +213,7 @@ window._app = {
   tryProceedFromInfo: () => {
     const d = state.draftEvent || {};
     if (!d.name?.trim()) {
-      alert('イベント名を入力してください');
+      window._app?.showToast('イベント名を入力してください', 'error');
       return;
     }
     logEvent('project_info_completed', { hasDates: (d.dates?.length > 0) });
@@ -230,6 +232,106 @@ window._app = {
   openMissionModal: (id = null) => openMissionModal(id),
   closeMissionModal: () => closeMissionModal(),
   deleteMission: (e) => deleteMission(e),
+
+  revertMissionToIncomplete: async (missionId) => {
+    const ok = await showConfirmDialog({
+      message: 'このミッションを未完了に戻しますか？\n完了記録は削除されます。',
+      confirmLabel: '未完了に戻す',
+      cancelLabel: 'キャンセル',
+    });
+    if (!ok) return;
+    const event = state.events.find(p => p.id === state.selectedEventId);
+    if (!event) return;
+    const m = event.missions.find(x => x.id === missionId);
+    if (!m) return;
+    m.status = 'yet';
+    m.individualClearedBy = [];
+    delete event.clearedData[missionId];
+    Object.keys(event.clearedData).forEach(k => {
+      if (k.startsWith(missionId + '_u_')) delete event.clearedData[k];
+    });
+    state.save();
+    state.render();
+    window._app.showToast('未完了に戻しました');
+  },
+
+  deleteMissionFromArchive: async (missionId) => {
+    const ok = await showConfirmDialog({
+      message: 'このミッションを完全に削除しますか？\nこの操作は元に戻せません。',
+      confirmLabel: '削除する',
+      cancelLabel: 'キャンセル',
+      destructive: true,
+    });
+    if (!ok) return;
+    const event = state.events.find(p => p.id === state.selectedEventId);
+    if (!event) return;
+    event.missions = event.missions.filter(m => m.id !== missionId);
+    delete event.clearedData[missionId];
+    Object.keys(event.clearedData).forEach(k => {
+      if (k.startsWith(missionId + '_u_')) delete event.clearedData[k];
+    });
+    state.save();
+    state.render();
+    window._app.showToast('ミッションを削除しました');
+  },
+
+  openArchiveMissionMenu: (e, missionId) => {
+    e.stopPropagation();
+    const existing = document.getElementById('archive-mission-menu');
+    if (existing) {
+      const same = existing.dataset.mid === missionId;
+      existing.remove();
+      if (same) return;
+    }
+    const triggerEl = e.currentTarget ?? e.target;
+    const rect = triggerEl.getBoundingClientRect();
+    const menu = document.createElement('div');
+    menu.id = 'archive-mission-menu';
+    menu.dataset.mid = missionId;
+    menu.className = 'fixed bg-white border border-[#D3D6D8] rounded-xl shadow-xl z-[60] overflow-hidden min-w-[130px] animate-fadeIn';
+    menu.style.top   = `${rect.bottom + 4}px`;
+    menu.style.right = `${window.innerWidth - rect.right}px`;
+    menu.innerHTML = `
+      <button id="amm-revert" class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">未完了に戻す</button>
+      <button id="amm-delete" class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold text-[#EE3E12]">削除する</button>`;
+    document.body.appendChild(menu);
+    document.getElementById('amm-revert').onclick = (ev) => {
+      ev.stopPropagation(); menu.remove();
+      window._app.revertMissionToIncomplete(missionId);
+    };
+    document.getElementById('amm-delete').onclick = (ev) => {
+      ev.stopPropagation(); menu.remove();
+      window._app.deleteMissionFromArchive(missionId);
+    };
+    const close = () => { menu.remove(); document.removeEventListener('click', close); };
+    setTimeout(() => document.addEventListener('click', close), 10);
+  },
+
+  completeMissionFromListModal: (missionId) => {
+    document.getElementById('indiv-clear-list-modal')?.remove();
+    window._app.openClearMissionModal(missionId);
+  },
+
+  forceCloseMission: async (missionId) => {
+    const ok = await showConfirmDialog({
+      message: 'このミッションを公開終了しますか？\n全員が完了していなくてもアーカイブされます。',
+      confirmLabel: '公開終了する',
+      cancelLabel: 'キャンセル',
+    });
+    if (!ok) return;
+    const event = state.events.find(p => p.id === state.selectedEventId);
+    if (!event) return;
+    const m = event.missions.find(x => x.id === missionId);
+    if (!m) return;
+    m.status = 'cleared';
+    if (!event.clearedData[missionId]) {
+      event.clearedData[missionId] = { content: '', format: 'text', title: m.title, timestamp: Date.now(), submittedBy: null };
+    }
+    state.save();
+    document.getElementById('indiv-clear-list-modal')?.remove();
+    state.render();
+    window._app.showToast('公開終了しました');
+  },
   renderMissionModalContent: () => renderMissionModalContent(),
   setMissionTab: (tab) => { state.missionModalTab = tab; renderMissionModalContent(); },
   toggleMissionLabel: (l) => {
@@ -296,6 +398,18 @@ window._app = {
     state.draftMission.leaderCheck = !state.draftMission.leaderCheck;
     renderMissionModalContent();
   },
+  toggleMissionAnnounce: () => {
+    state.draftMission.announce = !state.draftMission.announce;
+    renderMissionModalContent();
+  },
+  toggleMissionNoInput: () => {
+    state.draftMission.noInput = !state.draftMission.noInput;
+    renderMissionModalContent();
+  },
+  toggleMissionIndividualClear: () => {
+    state.draftMission.individualClear = !state.draftMission.individualClear;
+    renderMissionModalContent();
+  },
   // --- ミッション自己申告（メインボードの「やる」ボタンから）---
   claimMissionAsSelf: async (missionId) => {
     const eventId = state.selectedEventId;
@@ -308,19 +422,24 @@ window._app = {
       if (m) m.assignee = { type: 'user', userId: state.currentUser.id };
       state.render();
     } else {
-      alert(r.error || '申告に失敗しました');
+      window._app?.showToast(r.error || '申告に失敗しました', 'error');
     }
   },
   unclaimMissionAsSelf: async (missionId) => {
     const eventId = state.selectedEventId;
     if (!eventId) return;
-    if (!confirm('応募を取り消しますか？')) return;
+    const ok = await showConfirmDialog({
+      message: '応募を取り消しますか？',
+      confirmLabel: '取り消す',
+      cancelLabel: 'キャンセル',
+    });
+    if (!ok) return;
     const r = await api.unclaimMission(eventId, missionId);
     if (r.ok) {
       await state.silentReloadEvents();
       state.render();
     } else {
-      alert(r.error || '取り消しに失敗しました');
+      window._app.showToast(r.error || '取り消しに失敗しました');
     }
   },
 
@@ -333,7 +452,7 @@ window._app = {
     if (!eventId) return;
     const selected = Array.from(document.querySelectorAll('[data-select-claim]:checked')).map(el => el.value);
     if (selected.length === 0) {
-      alert('1名以上選んでください');
+      window._app?.showToast('1名以上選んでください', 'error');
       return;
     }
     const r = await api.selectMissionClaims(eventId, missionId, selected);
@@ -342,7 +461,7 @@ window._app = {
       await state.silentReloadEvents();
       state.render();
     } else {
-      alert(r.error || '選定に失敗しました');
+      window._app?.showToast(r.error || '選定に失敗しました', 'error');
     }
   },
 
@@ -358,7 +477,7 @@ window._app = {
       _showToast('ミッション確認完了');
       _removeLeaderCheckCard(missionId);
     } else {
-      alert(r.error || '承認に失敗しました');
+      window._app?.showToast(r.error || '承認に失敗しました', 'error');
     }
   },
   rejectMission: async (missionId) => {
@@ -390,7 +509,7 @@ window._app = {
         _showToast('差し戻しました');
         _removeLeaderCheckCard(missionId);
       } else {
-        alert(r.error || '差し戻しに失敗しました');
+        window._app?.showToast(r.error || '差し戻しに失敗しました', 'error');
       }
     };
   },
@@ -445,6 +564,10 @@ window._app = {
           leaderCheck: !!state.draftMission.leaderCheck,
           claimMode: 'selection',
           claimDeadline: (state.draftMission.selfClaim && state.draftMission.claimDeadline) ? state.draftMission.claimDeadline : null,
+          announce: !!state.draftMission.announce,
+          announceText: state.draftMission.announce ? (state.draftMission.announceText || '') : '',
+          noInput: !!state.draftMission.noInput,
+          individualClear: !!state.draftMission.individualClear,
         };
       }
     } else {
@@ -458,6 +581,7 @@ window._app = {
         status: 'yet',
         isDeletable: true,
         createdAt: Date.now(),
+        createdBy: state.currentUser?.id ?? null,
         priority: state.draftMission.priority,
         assignee:  state.draftMission.selfClaim ? null : (state.draftMission.assignee || null),
         assignees: state.draftMission.selfClaim ? [] : (state.draftMission.assignees || []),
@@ -469,6 +593,11 @@ window._app = {
         claimDeadline: (state.draftMission.selfClaim && state.draftMission.claimDeadline) ? state.draftMission.claimDeadline : null,
         claimApplicants: [],
         claimClosed: false,
+        announce: !!state.draftMission.announce,
+        announceText: state.draftMission.announce ? (state.draftMission.announceText || '') : '',
+        noInput: !!state.draftMission.noInput,
+        individualClear: !!state.draftMission.individualClear,
+        individualClearedBy: [],
       });
     }
     if (state.editingMissionId) {
@@ -499,6 +628,7 @@ window._app = {
 
   // --- ミッション完了 ---
   openClearMissionModal: (mid, fmt) => openClearMissionModal(mid, fmt),
+  openIndividualClearListModal: (mid) => openIndividualClearListModal(mid),
   submitMissionClear: (mid) => submitMissionClear(mid),
   handleImageSelect:  (input) => handleImageSelect(input),
   clearImagePreview:  ()      => clearImagePreview(),
@@ -560,7 +690,7 @@ window._app = {
             const remaining = existingOverlay.querySelectorAll('[data-pending-uid]').length;
             if (remaining === 0) { existingOverlay.remove(); state.render(); }
             else if (countEl) countEl.textContent = `参加申請（${remaining}件）`;
-          } else { alert(r.error || '失敗しました'); }
+          } else { window._app?.showToast(r.error || '失敗しました', 'error'); }
         });
         // 承認ハンドラは後段の共通関数で後付け（既存ロジックと同じなので再呼出し）
         card.querySelector('[data-approve-pending]').addEventListener('click', (ev) => {
@@ -605,8 +735,8 @@ window._app = {
       </div>`).join('');
 
     overlay.innerHTML = `
-      <div class="bg-white rounded-t-3xl w-full shadow-2xl h-[85vh] flex flex-col animate-fadeIn">
-        <div class="shrink-0 px-6 pt-5 pb-4">
+      <div class="bg-white rounded-t-3xl w-full shadow-2xl max-h-[70vh] flex flex-col animate-fadeIn">
+        <div id="pending-sheet-header" class="shrink-0 px-6 pt-5 pb-4 cursor-grab active:cursor-grabbing">
           <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-5"></div>
           <h3 id="pending-members-count" class="heading-m text-[#484545]">参加申請（${pending.length}件）</h3>
         </div>
@@ -615,6 +745,12 @@ window._app = {
         </div>
       </div>`;
     document.body.appendChild(overlay);
+
+    // ヘッダー部分の下スワイプで閉じる
+    let _sy = 0;
+    const _hdr = overlay.querySelector('#pending-sheet-header');
+    _hdr.addEventListener('touchstart', e => { _sy = e.touches[0].clientY; }, { passive: true });
+    _hdr.addEventListener('touchend',   e => { if (e.changedTouches[0].clientY - _sy > 60) overlay.remove(); });
 
     // カードを1枚削除してカウントを更新。残りゼロならシートを閉じる
     function _removeCard(uid) {
@@ -639,7 +775,7 @@ window._app = {
         const uid = btn.dataset.rejectPending;
         const r = await api.rejectPendingMember(state.selectedEventId, uid);
         if (r.ok) { _removeCard(uid); }
-        else { alert(r.error || '失敗しました'); }
+        else { window._app?.showToast(r.error || '失敗しました', 'error'); }
       });
     });
 
@@ -669,8 +805,7 @@ window._app = {
         <h3 class="heading-m text-[#484545] mb-4">ミッションを提案する</h3>
         <textarea id="member-proposal-input" rows="4"
           placeholder="ミッション名を入力してください"
-          class="w-full p-4 rounded-2xl bg-[#EBE8E5] focus:outline-none text-r resize-none leading-relaxed">
-        </textarea>
+          class="w-full p-4 rounded-2xl bg-[#EBE8E5] focus:outline-none text-r resize-none leading-relaxed"></textarea>
         <button id="member-proposal-submit"
           class="w-full py-4 mt-4 heading-r font-bold text-white rounded-xl active:scale-95 transition-transform"
           style="background-color: #9EDF05">提案する</button>
@@ -679,7 +814,7 @@ window._app = {
 
     document.getElementById('member-proposal-submit').onclick = async () => {
       const text = document.getElementById('member-proposal-input')?.value?.trim();
-      if (!text) return alert('ミッション名を入力してください');
+      if (!text) { window._app?.showToast('ミッション名を入力してください', 'error'); return; }
       const eventId = state.selectedEventId;
       const btn = document.getElementById('member-proposal-submit');
       if (btn) { btn.disabled = true; btn.textContent = '送信中…'; }
@@ -689,7 +824,7 @@ window._app = {
       } else {
         // 失敗時はモーダルを残してボタンをリセット → ユーザーが再試行できる
         if (btn) { btn.disabled = false; btn.textContent = '提案する'; }
-        alert(r.error || '提案の送信に失敗しました');
+        window._app?.showToast(r.error || '提案の送信に失敗しました', 'error');
       }
     };
   },
@@ -738,7 +873,7 @@ window._app = {
           overlay.remove();
           state.render();
         } else {
-          alert(r.error || '失敗しました');
+          window._app?.showToast(r.error || '失敗しました', 'error');
         }
       });
     });
@@ -760,7 +895,7 @@ window._app = {
           state.draftMission.title = text;
           renderMissionModalContent();
         } else {
-          alert(r.error || '失敗しました');
+          window._app?.showToast(r.error || '失敗しました', 'error');
         }
       });
     });
@@ -1027,10 +1162,10 @@ window._app = {
             state.render();
           }
         } else {
-          alert(r.error || '参加申請に失敗しました');
+          window._app?.showToast(r.error || '参加申請に失敗しました', 'error');
         }
       } catch (e) {
-        alert('通信エラーが発生しました');
+        window._app?.showToast('通信エラーが発生しました', 'error');
       }
     };
   },
@@ -1237,11 +1372,15 @@ function _openProjectMenu(folderId) {
   document.body.appendChild(overlay);
 
   document.getElementById('pm-rename').onclick = () => { overlay.remove(); _openProjectRenameDialog(folderId); };
-  document.getElementById('pm-delete').onclick = () => {
+  document.getElementById('pm-delete').onclick = async () => {
     overlay.remove();
-    if (confirm(`「${folder.name}」を削除しますか？\n所属イベントはそのまま残ります。`)) {
-      state.deleteFolder(folderId);
-    }
+    const ok = await showConfirmDialog({
+      message: `「${folder.name}」を削除しますか？\n所属イベントはそのまま残ります。`,
+      confirmLabel: '削除する',
+      cancelLabel: 'キャンセル',
+      destructive: true,
+    });
+    if (ok) state.deleteFolder(folderId);
   };
   document.getElementById('pm-cancel').onclick = () => overlay.remove();
 }
@@ -1283,7 +1422,7 @@ function _openProjectRenameDialog(folderId) {
       if (f) f.name = name;
       state.render();
     } else {
-      alert(r.error || '更新に失敗しました');
+      window._app?.showToast(r.error || '更新に失敗しました', 'error');
     }
   };
   input.addEventListener('keydown', (e) => {

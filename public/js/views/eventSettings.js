@@ -8,6 +8,7 @@ import { state } from '../state.js';
 import { api }   from '../api.js';
 import { Components } from '../components.js';
 import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
+import { showConfirmDialog } from '../dialog.js';
 
 export function renderEventSettings(container) {
   const p = state.events.find(x => x.id === state.selectedEventId);
@@ -373,7 +374,7 @@ function _bindEvents(p, sec) {
   document.getElementById('ps-name-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
   document.getElementById('ps-name-save')?.addEventListener('click', async () => {
     const v = String(sec.draftValue || '').trim();
-    if (!v) { alert('イベント名を入力してください'); return; }
+    if (!v) { window._app?.showToast('イベント名を入力してください', 'error'); return; }
     p.name = v;
     await state.save();
     sec.editing = null;
@@ -456,7 +457,7 @@ function _bindEvents(p, sec) {
         sec.memberRolesEditingSet = null;
         state.render();
       } else {
-        alert(r.error || 'ロールの変更に失敗しました');
+        window._app?.showToast(r.error || 'ロールの変更に失敗しました', 'error');
       }
     });
   });
@@ -480,7 +481,7 @@ function _bindEvents(p, sec) {
   });
   document.getElementById('ps-role-add-save')?.addEventListener('click', async () => {
     const name = String(sec.roleAdding?.name || '').trim();
-    if (!name) { alert('ロール名を入力してください'); return; }
+    if (!name) { window._app?.showToast('ロール名を入力してください', 'error'); return; }
     const eventId = p.id;
     const r = await api.createRole(eventId, name, !!sec.roleAdding?.canManage);
     if (r.ok) {
@@ -491,7 +492,7 @@ function _bindEvents(p, sec) {
       if (ev) ev.roles = (ev.roles || []).concat([r.role]);
       state.render();
     } else {
-      alert(r.error || 'ロールの追加に失敗しました');
+      window._app?.showToast(r.error || 'ロールの追加に失敗しました', 'error');
     }
   });
 
@@ -530,7 +531,7 @@ function _bindEvents(p, sec) {
         sec.roleEditDraft = null;
         state.render();
       } else {
-        alert(r.error || 'ロールの編集に失敗しました');
+        window._app?.showToast(r.error || 'ロールの編集に失敗しました', 'error');
       }
     });
   });
@@ -539,7 +540,13 @@ function _bindEvents(p, sec) {
   document.querySelectorAll('[data-ps-role-delete]').forEach(el => {
     el.addEventListener('click', async () => {
       const id = el.dataset.psRoleDelete;
-      if (!confirm('このロールを削除しますか？該当メンバーは「メンバー」ロールに降格されます')) return;
+      const ok = await showConfirmDialog({
+        message: 'このロールを削除しますか？該当メンバーは「メンバー」ロールに降格されます',
+        confirmLabel: '削除する',
+        cancelLabel: 'キャンセル',
+        destructive: true,
+      });
+      if (!ok) return;
       const eventId = p.id;
       const r = await api.deleteRole(eventId, id);
       if (r.ok) {
@@ -548,7 +555,7 @@ function _bindEvents(p, sec) {
         (sec.members || []).forEach(m => { if (m.role === id) m.role = 'member'; });
         state.render();
       } else {
-        alert(r.error || 'ロールの削除に失敗しました');
+        window._app?.showToast(r.error || 'ロールの削除に失敗しました', 'error');
       }
     });
   });

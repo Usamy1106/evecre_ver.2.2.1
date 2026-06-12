@@ -4,6 +4,7 @@ import { SEED_TYPES, GROWTH_THRESHOLDS, PROPOSAL_POOL } from './constants.js';
 import { logEvent } from './logger.js';
 import { calculateDaysLeft } from './utils.js';
 import { syncRealtime, disconnectRealtime } from './realtime.js';
+import { showConfirmDialog } from './dialog.js';
 
 
 // ビューレンダラーの登録テーブル（循環依存を避けるため）
@@ -264,8 +265,12 @@ export const state = {
       this.currentView = 'HOME';
       syncRealtime();
       if (!skipRender) this.render();
-      // HOME レンダリング後に確認モーダルを開く
-      setTimeout(() => window._app?.openJoinEventModal?.(eventName, token), 300);
+      // 未認証ユーザー（新規登録直後）はメール認証後に verifyEmailModal.js が
+      // needsJoinConfirm レスポンスを受けて openJoinEventModal を呼ぶ。
+      // ここで開くのは認証済みユーザー（ログイン・Google サインイン）のみ。
+      if (this.currentUser?.isVerified === true) {
+        setTimeout(() => window._app?.openJoinEventModal?.(eventName, token), 300);
+      }
       return;
     }
 
@@ -313,10 +318,10 @@ export const state = {
           this.currentView = 'LOGIN';
           this.render();
         } else if (e?.code === 'verification_required') {
-          alert('メール認証が完了するまで新規イベントを作成できません。\nアカウント設定からメール認証を完了してください。');
+          window._app?.showToast('メール認証が完了するまで新規イベントを作成できません。アカウント設定からメール認証を完了してください。', 'error');
           this.setView('ACCOUNT');
         } else if (e?.code === 'no_manage_permission') {
-          alert('このイベントを編集する権限がありません。\nロール設定をご確認ください。');
+          window._app?.showToast('このイベントを編集する権限がありません。ロール設定をご確認ください。', 'error');
         }
       });
   },
@@ -515,7 +520,13 @@ export const state = {
 
   // --- イベント脱退（非オーナー）---
   async leaveEvent(eventId) {
-    if (!confirm('このイベントから脱退しますか？\n（再度招待されないと参加できなくなります）')) return;
+    const ok = await showConfirmDialog({
+      message: 'このイベントから脱退しますか？\n（再度招待されないと参加できなくなります）',
+      confirmLabel: '脱退する',
+      cancelLabel: 'キャンセル',
+      destructive: true,
+    });
+    if (!ok) return;
     const me = this.currentUser;
     if (!me) return;
     const r = await api.leaveProject(eventId, me.id);
@@ -527,7 +538,7 @@ export const state = {
       }
       this.render();
     } else {
-      alert(r.error || '脱退に失敗しました');
+      window._app?.showToast(r.error || '脱退に失敗しました');
     }
   },
 
@@ -602,7 +613,7 @@ export const state = {
 
   async addFolder(name, description = '') {
     const r = await api.createProject(name, description);
-    if (!r.ok) { alert(r.error || 'プロジェクトの作成に失敗しました'); return; }
+    if (!r.ok) { window._app?.showToast(r.error || 'プロジェクトの作成に失敗しました', 'error'); return; }
     this.folders.unshift(r.project);
     this.selectedFolderId = r.project.id;
     this.currentView = 'PROJECT_DETAIL';
@@ -611,7 +622,7 @@ export const state = {
 
   async deleteFolder(id) {
     const r = await api.deleteProject(id);
-    if (!r.ok) { alert(r.error || 'プロジェクトの削除に失敗しました'); return; }
+    if (!r.ok) { window._app?.showToast(r.error || 'プロジェクトの削除に失敗しました', 'error'); return; }
     this.folders = this.folders.filter(f => f.id !== id);
     // 削除したフォルダを開いていた場合はHOMEへ
     if (this.selectedFolderId === id) {
@@ -626,12 +637,12 @@ export const state = {
   async setEventFolder(eventId, folderId) {
     if (folderId) {
       const r = await api.addEventToProject(folderId, eventId);
-      if (!r.ok) { alert(r.error || 'イベントの追加に失敗しました'); return; }
+      if (!r.ok) { window._app?.showToast(r.error || 'イベントの追加に失敗しました', 'error'); return; }
     } else {
       const ev = this.events.find(e => e.id === eventId);
       if (ev?.folderId) {
         const r = await api.removeEventFromProject(ev.folderId, eventId);
-        if (!r.ok) { alert(r.error || 'イベントの除外に失敗しました'); return; }
+        if (!r.ok) { window._app?.showToast(r.error || 'イベントの除外に失敗しました', 'error'); return; }
       }
     }
     const ev = this.events.find(e => e.id === eventId);

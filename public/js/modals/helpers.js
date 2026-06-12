@@ -4,6 +4,7 @@ import { api }   from '../api.js';
 import { MISSION_DESCRIPTIONS } from '../constants.js';
 import { logEvent } from '../logger.js';
 import { openCalendarModal } from './calendar.js';
+import { showConfirmDialog } from '../dialog.js';
 
 // ===== アーカイブ直接編集 =====
 
@@ -184,6 +185,27 @@ export function openEditModal(title, currentVal, format, onSave) {
 export function openClearMissionModal(missionId, _overrideFormat = null) {
   const project   = state.events.find(p => p.id === state.selectedEventId);
   const m         = project?.missions.find(x => x.id === missionId);
+
+  // 入力なしで完了モード：シンプルな確認モーダルを表示
+  if (m?.noInput) {
+    const noInputOverlay = document.createElement('div');
+    noInputOverlay.id = 'clear-mission-modal';
+    noInputOverlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-6 page-transition';
+    noInputOverlay.innerHTML = `
+      <div class="bg-white rounded-3xl w-full max-sm:w-[90%] max-w-sm p-8 shadow-2xl relative animate-fadeIn">
+        <button onclick="document.getElementById('clear-mission-modal').remove()" class="absolute top-4 right-4 p-2 opacity-40">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <h3 class="heading-m text-[#484545] mb-2 pr-6">${_esc(m.title)}</h3>
+        ${m.description ? `<p class="text-rs text-[#A7AAAC] mb-6 font-bold whitespace-pre-wrap">${_esc(m.description)}</p>` : '<div class="mb-6"></div>'}
+        <button onclick="window._app.submitMissionClear('${missionId}')"
+          class="btn-primary w-full py-4 heading-r font-bold">完了する</button>
+      </div>`;
+    document.body.appendChild(noInputOverlay);
+    return;
+  }
   const title     = m ? m.title : 'ミッション';
   const desc      = MISSION_DESCRIPTIONS[missionId]
                     || (m?.originProposalId ? MISSION_DESCRIPTIONS[m.originProposalId] : null)
@@ -366,12 +388,43 @@ export function submitMissionClear(missionId) {
     detectedFormat  = 'text';
   }
 
-  if (!content) return alert('入力を完了させてください');
+  if (!content && !m.noInput) { window._app?.showToast('入力を完了させてください', 'error'); return; }
 
   // clearFormat をアーカイブ表示用に自動判別結果で更新
   m.clearFormat = detectedFormat;
 
-  project.clearedData[missionId] = { content, timestamp: Date.now(), title: m.title, format: detectedFormat };
+  const userId = state.currentUser?.id ?? null;
+
+  // 個別完了モード
+  if (m.individualClear) {
+    // 個人の提出を composite key で保存
+    project.clearedData[missionId + '_u_' + userId] = {
+      content, format: detectedFormat, title: m.title,
+      timestamp: Date.now(), submittedBy: userId,
+    };
+    // 完了済みリストに追加（重複なし）
+    if (!Array.isArray(m.individualClearedBy)) m.individualClearedBy = [];
+    if (!m.individualClearedBy.includes(userId)) m.individualClearedBy.push(userId);
+
+    // 全担当者が完了したか判定
+    const assigneeIds = Array.isArray(m.assignees) && m.assignees.length > 0
+      ? m.assignees
+      : (m.assignee?.type === 'user' ? [m.assignee.userId] : []);
+    const allDone = assigneeIds.length > 0 && assigneeIds.every(id => m.individualClearedBy.includes(id));
+    if (allDone) {
+      m.status = m.leaderCheck ? 'pending_leader_check' : 'cleared';
+      if (m.leaderCheck) state._infoModalShownForEvent = null;
+    }
+    // 全員完了でない場合は status を 'yet' のまま維持（メインボードに残す）
+    logEvent('mission_completed', { tag: m.tag || (Array.isArray(m.tags) ? m.tags[0] : null), format: detectedFormat, priority: m.priority });
+    state.save();
+    document.getElementById('clear-mission-modal')?.remove();
+    state.render();
+    window._app?.showToast(allDone ? (m.leaderCheck ? 'リーダーチェック提出完了' : 'ミッション完了') : '完了を記録しました');
+    return;
+  }
+
+  project.clearedData[missionId] = { content, timestamp: Date.now(), title: m.title, format: detectedFormat, submittedBy: userId };
   // リーダーチェックありの場合は確認待ち、無しの場合はそのまま完了
   m.status = m.leaderCheck ? 'pending_leader_check' : 'cleared';
 
@@ -443,8 +496,8 @@ export function handleGoodClick(e) {
 export function copyInviteCode(code) {
   logEvent('invite_code_copied');
   navigator.clipboard.writeText(code)
-    .then(() => alert('招待コードをコピーしました！'))
-    .catch(() => alert('コピーに失敗しました。直接メモしてください: ' + code));
+    .then(() => window._app?.showToast('招待コードをコピーしました！'))
+    .catch(() => window._app?.showToast('コピーに失敗しました。直接メモしてください: ' + code, 'error'));
 }
 
 /**
@@ -653,7 +706,12 @@ async function _createInvite(ctx, overlay) {
 }
 
 async function _revokeInvite(token, ctx, overlay) {
-  if (!confirm('この招待リンクを取り消しますか？\n（既に参加した人は影響を受けません）')) return;
+  const ok = await showConfirmDialog({
+    message: 'この招待リンクを取り消しますか？\n（既に参加した人は影響を受けません）',
+    confirmLabel: '取り消す',
+    cancelLabel: 'キャンセル',
+  });
+  if (!ok) return;
   const r = await api.revokeInvite(ctx.projectId, token);
   if (r.ok) {
     ctx.invites = ctx.invites.filter(i => i.token !== token);
@@ -667,7 +725,13 @@ async function _revokeInvite(token, ctx, overlay) {
 async function _removeMember(userId, ctx, overlay) {
   const target = ctx.members.find(m => m.userId === userId);
   if (!target) return;
-  if (!confirm(`${target.username} さんをイベントから除名しますか？`)) return;
+  const ok = await showConfirmDialog({
+    message: `${target.username} さんをイベントから除名しますか？`,
+    confirmLabel: '除名する',
+    cancelLabel: 'キャンセル',
+    destructive: true,
+  });
+  if (!ok) return;
   const r = await api.leaveProject(ctx.projectId, userId);
   if (r.ok) {
     ctx.members = ctx.members.filter(m => m.userId !== userId);
@@ -679,7 +743,13 @@ async function _removeMember(userId, ctx, overlay) {
 }
 
 async function _leaveProject(ctx, overlay) {
-  if (!confirm('このイベントから脱退しますか？\n（再度招待されないと参加できなくなります）')) return;
+  const ok = await showConfirmDialog({
+    message: 'このイベントから脱退しますか？\n（再度招待されないと参加できなくなります）',
+    confirmLabel: '脱退する',
+    cancelLabel: 'キャンセル',
+    destructive: true,
+  });
+  if (!ok) return;
   const me = state.currentUser;
   const r = await api.leaveProject(ctx.projectId, me.id);
   if (r.ok) {
@@ -697,7 +767,7 @@ async function _leaveProject(ctx, overlay) {
 function _copyText(text) {
   navigator.clipboard.writeText(text)
     .then(() => _flashToast('コピーしました'))
-    .catch(() => alert('コピーに失敗しました: ' + text));
+    .catch(() => window._app?.showToast('コピーに失敗しました: ' + text, 'error'));
 }
 
 function _buildInviteText(url) {
@@ -827,3 +897,149 @@ export const _clearDraft = {
   save:    _saveClearDraft,
   discard: _discardClearDraft,
 };
+
+/**
+ * 個別完了ミッションの完了者リストモーダルを開く（全ユーザー閲覧可能）
+ */
+export function openIndividualClearListModal(missionId) {
+  // 既存モーダルを必ず除去してから再生成（ID競合による非表示を防ぐ）
+  document.getElementById('indiv-clear-list-modal')?.remove();
+
+  const project = state.events.find(p => p.id === state.selectedEventId);
+  const m = project?.missions?.find(x => x.id === missionId);
+  if (!project || !m) return;
+
+  const meId = state.currentUser?.id;
+
+  const canMgr = (() => {
+    if (!meId) return false;
+    if (project.ownerId === meId) return true;
+    const mem = (project.members || []).find(x => x.userId === meId);
+    if (!mem) return false;
+    const roles = Array.isArray(mem.roles) ? mem.roles : (mem.role ? [mem.role] : []);
+    return roles.some(rid => {
+      const r = (project.roles || []).find(x => x.id === rid);
+      return r?.canManage;
+    });
+  })();
+
+  const assigneeIds = Array.isArray(m.assignees) && m.assignees.length > 0
+    ? m.assignees
+    : (m.assignee?.type === 'user' ? [m.assignee.userId] : []);
+  const hasAssignees = assigneeIds.length > 0;
+  const clearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
+
+  const _fmtContent = (cd) => {
+    if (!cd?.content) return '';
+    if (cd.format === 'image') return `<img src="${cd.content}" class="w-full max-h-32 object-cover rounded-lg mt-2" loading="lazy">`;
+    if (cd.format === 'link') return `<a href="${_esc(cd.content)}" class="text-[11px] text-[#0CA1E3] underline break-all block mt-1">${_esc(cd.content)}</a>`;
+    return `<p class="text-[11px] text-[#484545] bg-[#FDFBF8] p-2 rounded-lg whitespace-pre-wrap break-words mt-1">${_esc(cd.content)}</p>`;
+  };
+
+  const listIds = hasAssignees ? assigneeIds : clearedBy;
+  const rows = listIds.map(uid => {
+    const mem = (project.members || []).find(x => x.userId === uid);
+    const name = mem?.username || '不明なユーザー';
+    const done = clearedBy.includes(uid);
+    const cd = project.clearedData?.[missionId + '_u_' + uid];
+    return `
+      <div class="py-3 border-b border-[#EBE8E5] last:border-0">
+        <div class="flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0
+            ${done ? 'bg-[#0CA1E3] text-white' : 'bg-[#EBE8E5] text-[#A7AAAC]'}">
+            ${done ? '✓' : '–'}
+          </span>
+          <span class="text-[13px] font-bold text-[#484545] flex-1">${_esc(name)}</span>
+          <span class="text-[10px] font-bold ${done ? 'text-[#5b8104]' : 'text-[#A7AAAC]'}">${done ? '完了済み' : '未完了'}</span>
+        </div>
+        ${(done && !m.noInput) ? _fmtContent(cd) : ''}
+      </div>`;
+  }).join('');
+
+  const isMeAssigned = !hasAssignees || assigneeIds.includes(meId);
+  const meNotDone = isMeAssigned && !clearedBy.includes(meId) && m.status !== 'cleared';
+  const completeBtn = meNotDone ? `
+    <button onclick="window._app.completeMissionFromListModal('${missionId}')"
+      class="btn-primary w-full py-3 heading-r font-bold mt-4">完了する</button>` : '';
+
+  const adminBtn = canMgr && m.status !== 'cleared' ? `
+    <button onclick="window._app.forceCloseMission('${missionId}')"
+      class="w-full py-3 text-[13px] font-bold text-[#A7AAAC] border border-[#D3D6D8] rounded-2xl mt-2 active:opacity-60">
+      公開終了する
+    </button>` : '';
+
+  const countLine = hasAssignees
+    ? `<p class="text-[12px] font-bold text-[#484545] mb-4">完了状況：<span class="text-[#0CA1E3]">${clearedBy.length}</span> / ${assigneeIds.length} 人</p>`
+    : '';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'indiv-clear-list-modal';
+  // fixed inset-0 → 背景全体をカバー。上部タップで閉じられる。
+  overlay.className = 'fixed inset-0 bg-black/50 z-[150] flex items-end justify-center';
+  overlay.innerHTML = `
+    <div data-indiv-sheet
+      class="bg-white rounded-t-3xl w-full max-w-lg flex flex-col"
+      style="max-height:82vh">
+      <!-- ドラッグハンドル -->
+      <div id="indiv-sheet-handle"
+        class="flex-shrink-0 flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
+        <div class="w-10 h-1 bg-[#D3D6D8] rounded-full"></div>
+      </div>
+      <!-- スクロール領域 -->
+      <div class="flex-1 overflow-y-auto px-6 pb-10 pt-2">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="heading-m text-[#484545] flex-1 mr-4">${_esc(m.title)}</h3>
+          <button onclick="document.getElementById('indiv-clear-list-modal').remove()"
+            class="p-2 opacity-40 flex-shrink-0">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        ${countLine}
+        <div>${rows || '<p class="text-[12px] text-[#A7AAAC] text-center py-4">まだ完了者はいません</p>'}</div>
+        ${completeBtn}
+        ${adminBtn}
+      </div>
+    </div>`;
+
+  // 上部（オーバーレイ背景）タップで閉じる
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  document.body.appendChild(overlay);
+
+  // 下スワイプで閉じる（ドラッグハンドル + シート全体）
+  const sheet = overlay.querySelector('[data-indiv-sheet]');
+  const handle = overlay.querySelector('#indiv-sheet-handle');
+  let _swStartY = 0;
+  let _swActive = false;
+
+  const onTouchStart = (e) => {
+    _swStartY = e.touches[0].clientY;
+    _swActive = true;
+    sheet.style.transition = 'none';
+  };
+  const onTouchMove = (e) => {
+    if (!_swActive) return;
+    const dy = e.touches[0].clientY - _swStartY;
+    if (dy > 0) {
+      sheet.style.transform = `translateY(${dy}px)`;
+    }
+  };
+  const onTouchEnd = (e) => {
+    if (!_swActive) return;
+    _swActive = false;
+    const dy = e.changedTouches[0].clientY - _swStartY;
+    sheet.style.transition = 'transform 0.25s ease';
+    if (dy > 60) {
+      sheet.style.transform = 'translateY(100%)';
+      setTimeout(() => overlay.remove(), 240);
+    } else {
+      sheet.style.transform = 'translateY(0)';
+    }
+  };
+
+  handle.addEventListener('touchstart', onTouchStart, { passive: true });
+  handle.addEventListener('touchmove', onTouchMove, { passive: true });
+  handle.addEventListener('touchend', onTouchEnd, { passive: true });
+}

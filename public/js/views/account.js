@@ -2,6 +2,7 @@
 import { state } from '../state.js';
 import { api }   from '../api.js';
 import { Components } from '../components.js';
+import { showConfirmDialog } from '../dialog.js';
 
 /**
  * アカウント設定画面
@@ -240,7 +241,13 @@ function _bindEvents() {
     }
   });
   removeBtn?.addEventListener('click', async () => {
-    if (!confirm('プロフィール画像を削除しますか？')) return;
+    const ok = await showConfirmDialog({
+      message: 'プロフィール画像を削除しますか？',
+      confirmLabel: '削除する',
+      cancelLabel: 'キャンセル',
+      destructive: true,
+    });
+    if (!ok) return;
     sec.avatarSaving = true;
     state.render();
     const r = await api.changeAvatar('');

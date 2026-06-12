@@ -12,7 +12,7 @@ import { logEvent } from '../logger.js';
 export function openMissionModal(missionId = null) {
   // 一般ユーザーは編集禁止
   if (!state.canManageCurrentEvent()) {
-    alert('このイベントを編集する権限がありません');
+    window._app?.showToast('このイベントを編集する権限がありません', 'error');
     return;
   }
   state.editingMissionId = missionId;
@@ -35,6 +35,10 @@ export function openMissionModal(missionId = null) {
       leaderCheck: !!m.leaderCheck,
       claimMode: m.claimMode || 'selection',
       claimDeadline: m.claimDeadline || null,
+      announce: !!m.announce,
+      announceText: m.announceText || '',
+      noInput: !!m.noInput,
+      individualClear: !!m.individualClear,
     };
   } else {
     state.draftMission = {
@@ -42,6 +46,9 @@ export function openMissionModal(missionId = null) {
       note: '', assignee: null, assignees: [], checklist: [],
       description: '', selfClaim: false, leaderCheck: false,
       claimMode: 'selection', claimDeadline: null,
+      announce: false, announceText: '',
+      noInput: false,
+      individualClear: false,
     };
   }
 
@@ -285,6 +292,9 @@ function _renderDetailTab(isEdit) {
   const claimMode = state.draftMission.claimMode || 'selection';
   const claimDeadline = state.draftMission.claimDeadline || null;
   const leaderCheck = !!state.draftMission.leaderCheck;
+  const announce = !!state.draftMission.announce;
+  const noInput = !!state.draftMission.noInput;
+  const individualClear = !!state.draftMission.individualClear;
 
   // 期限入力用：タイムスタンプ → datetime-local 形式
   const _toLocalDt = (ts) => {
@@ -321,34 +331,40 @@ function _renderDetailTab(isEdit) {
             class="input-field w-full px-3 py-2.5 text-[13px] focus:outline-none resize-none">${_esc(description)}</textarea>
         </div>
 
-        <!-- 担当の申告制 -->
+        <!-- 完了のみ -->
         <div>
-          <div class="flex items-center justify-between mb-2">
-            <label class="heading-rs text-[#484545] font-bold">担当の申告制</label>
-            <button onclick="window._app.toggleMissionSelfClaim()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${selfClaim ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${selfClaim ? 'translate-x-5' : ''}"></span>
+          <div class="flex items-center justify-between mb-1">
+            <label class="heading-rs text-[#484545] font-bold">完了のみ</label>
+            <button onclick="window._app.toggleMissionNoInput()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${noInput ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${noInput ? 'translate-x-5' : ''}"></span>
             </button>
           </div>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">テキスト・画像の入力欄はなく、完了ボタンのみで即完了するミッションになります。</p>
+        </div>
 
-          ${selfClaim ? `
-            <p class="text-[11px] text-[#A7AAAC] mb-3">基本設定の「担当者」は無効。メンバーが申告し、管理者が担当者を選定します。</p>
-            <!-- 応募期限（カレンダーUIで設定） -->
-            <div class="mt-2">
-              <label class="text-[12px] text-[#484545] font-bold block mb-2">応募期限（任意）</label>
-              <div class="flex items-center gap-2 cursor-pointer" onclick="window._app.openCalendarModal('claimDeadline')">
-                <img src="/images/icon/icon-Calender.svg" class="w-4 h-4 opacity-40">
-                ${deadlineDisplay
-                  ? `<span class="text-[12px] font-bold text-[#484545]">${deadlineDisplay} 23:59 まで</span>`
-                  : `<span class="text-[12px] font-bold text-[#A7AAAC]">カレンダーから設定する</span>`}
-              </div>
-              ${deadlineDisplay ? `
-                <button onclick="window._app.setMissionClaimDeadline('')" type="button"
-                  class="text-[10px] text-[#A7AAAC] underline mt-1">期限をクリア</button>` : ''}
-            </div>
-          ` : `
-            <p class="text-[11px] text-[#A7AAAC]">OFF：通常通り、作成者が担当者を指定します。</p>
-          `}
+        <!-- 個別完了 -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="heading-rs text-[#484545] font-bold">個別完了</label>
+            <button onclick="window._app.toggleMissionIndividualClear()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${individualClear ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${individualClear ? 'translate-x-5' : ''}"></span>
+            </button>
+          </div>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">ユーザーごとに個別に回答・完了できるようになります。</p>
+        </div>
+
+        <!-- アナウンス -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="heading-rs text-[#484545] font-bold">アナウンス</label>
+            <button onclick="window._app.toggleMissionAnnounce()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${announce ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${announce ? 'translate-x-5' : ''}"></span>
+            </button>
+          </div>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">担当者（無割当の場合は全員）のメインボード上部にアナウンスカードで表示します。</p>
         </div>
 
         <!-- リーダーによるチェック -->
@@ -360,11 +376,35 @@ function _renderDetailTab(isEdit) {
               <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${leaderCheck ? 'translate-x-5' : ''}"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">
-            ${leaderCheck
-              ? 'ON：完了後すぐにはアーカイブされず、リーダーの確認待ちになります。'
-              : 'OFF：完了するとそのままアーカイブされます。'}
-          </p>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed">完了後すぐにはアーカイブされず、リーダーの確認待ちになります。</p>
+        </div>
+
+        <!-- 担当の申告制 -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="heading-rs text-[#484545] font-bold">担当の申告制</label>
+            <button onclick="window._app.toggleMissionSelfClaim()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${selfClaim ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${selfClaim ? 'translate-x-5' : ''}"></span>
+            </button>
+          </div>
+
+          <p class="text-[11px] text-[#A7AAAC] mb-2">メンバーが担当申告し、管理者が担当者を選定する形式になります。</p>
+          ${selfClaim ? `
+            <!-- 応募期限（カレンダーUIで設定） -->
+            <div class="mt-1">
+              <label class="text-[12px] text-[#484545] font-bold block mb-2">応募期限（任意）</label>
+              <div class="flex items-center gap-2 cursor-pointer" onclick="window._app.openCalendarModal('claimDeadline')">
+                <img src="/images/icon/icon-Calender.svg" class="w-4 h-4 opacity-40">
+                ${deadlineDisplay
+                  ? `<span class="text-[12px] font-bold text-[#484545]">${deadlineDisplay} 23:59 まで</span>`
+                  : `<span class="text-[12px] font-bold text-[#A7AAAC]">カレンダーから設定する</span>`}
+              </div>
+              ${deadlineDisplay ? `
+                <button onclick="window._app.setMissionClaimDeadline('')" type="button"
+                  class="text-[10px] text-[#A7AAAC] underline mt-1">期限をクリア</button>` : ''}
+            </div>
+          ` : ''}
         </div>
 
         <!-- チェック項目 -->
@@ -537,7 +577,7 @@ function _openMissionDeleteConfirm(missionId) {
   const m = project?.missions.find(x => x.id === missionId);
   if (!m) return;
   if (m.isDeletable === false) {
-    alert('このミッションは削除できません');
+    window._app?.showToast('このミッションは削除できません', 'error');
     return;
   }
 
@@ -1027,12 +1067,12 @@ function _doCreateTag() {
   const existsBuiltIn = Object.keys(LABEL_CONFIG).includes(name);
   const existsCustom  = (project.customTags || []).some(t => t.name === name);
   if (existsBuiltIn || existsCustom) {
-    alert('同じ名前のタグが既に存在します');
+    window._app?.showToast('同じ名前のタグが既に存在します', 'error');
     return;
   }
   // 同色チェック（保険）
   if (_getUsedColors().has(color.toUpperCase())) {
-    alert('この色は既に使われています');
+    window._app?.showToast('この色は既に使われています', 'error');
     return;
   }
 
@@ -1099,7 +1139,7 @@ export function openSelectClaimModal(missionId) {
 
   const applicants = Array.isArray(m.claimApplicants) ? m.claimApplicants : [];
   if (applicants.length === 0) {
-    alert('応募者がいません');
+    window._app?.showToast('応募者がいません', 'error');
     return;
   }
 
