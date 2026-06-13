@@ -958,9 +958,12 @@ export function openIndividualClearListModal(missionId) {
 
   const isMeAssigned = !hasAssignees || assigneeIds.includes(meId);
   const meNotDone = isMeAssigned && !clearedBy.includes(meId) && m.status !== 'cleared';
+  const descHtml = m.description
+    ? `<p class="text-rs text-[#A7AAAC] font-bold whitespace-pre-wrap mb-4">${_esc(m.description)}</p>`
+    : '';
   const completeBtn = meNotDone ? `
     <button onclick="window._app.completeMissionFromListModal('${missionId}')"
-      class="btn-primary w-full py-3 heading-r font-bold mt-4">完了する</button>` : '';
+      class="btn-primary w-full py-3 heading-r font-bold mb-5">完了する</button>` : '';
 
   const adminBtn = canMgr && m.status !== 'cleared' ? `
     <button onclick="window._app.forceCloseMission('${missionId}')"
@@ -987,7 +990,7 @@ export function openIndividualClearListModal(missionId) {
       </div>
       <!-- スクロール領域 -->
       <div class="flex-1 overflow-y-auto px-6 pb-10 pt-2">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between mb-3">
           <h3 class="heading-m text-[#484545] flex-1 mr-4">${_esc(m.title)}</h3>
           <button onclick="document.getElementById('indiv-clear-list-modal').remove()"
             class="p-2 opacity-40 flex-shrink-0">
@@ -996,9 +999,10 @@ export function openIndividualClearListModal(missionId) {
             </svg>
           </button>
         </div>
+        ${descHtml}
+        ${completeBtn}
         ${countLine}
         <div>${rows || '<p class="text-[12px] text-[#A7AAAC] text-center py-4">まだ完了者はいません</p>'}</div>
-        ${completeBtn}
         ${adminBtn}
       </div>
     </div>`;

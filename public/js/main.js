@@ -310,7 +310,16 @@ window._app = {
 
   completeMissionFromListModal: (missionId) => {
     document.getElementById('indiv-clear-list-modal')?.remove();
-    window._app.openClearMissionModal(missionId);
+    const p = state.events.find(x => x.id === state.selectedEventId);
+    const m = p?.missions.find(x => x.id === missionId);
+    // 完了のみ（noInput）ミッションは、タイトル＋説明だけの確認モーダル
+    //（＝「ミッションについて」に見えるもの）を挟まず、その場で完了を記録する。
+    // 説明はリストのボトムシート上部に表示済み。入力ありミッションのみ入力モーダルを開く。
+    if (m?.noInput) {
+      submitMissionClear(missionId);
+    } else {
+      window._app.openClearMissionModal(missionId);
+    }
   },
 
   forceCloseMission: async (missionId) => {
