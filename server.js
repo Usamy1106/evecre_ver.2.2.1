@@ -154,7 +154,7 @@ async function attachSession(res, userId) {
   const expiresAt = Date.now() + SESSION_TTL_MS;
   await sessionStore.createSession(userId, token, expiresAt);
   res.cookie(SESSION_COOKIE, `${userId}.${token}`, {
-    httpOnly: true, sameSite: 'strict',
+    httpOnly: true, sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     signed: true, maxAge: SESSION_TTL_MS, path: '/',
   });

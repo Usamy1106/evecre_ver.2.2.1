@@ -235,7 +235,21 @@ export const state = {
     console.log('[loadAfterAuth] 開始 user=', this.currentUser?.username,
                 'pendingInviteToken=', this.pendingInviteToken);
     try {
-      const data = await api.load();
+      let data;
+      try {
+        data = await api.load();
+      } catch (e1) {
+        // 認証直後（login/register/google）の 401 は、Set-Cookie の伝播タイミングの
+        // ばらつきで一過性に起きることがある。サーバーは ok+user を返しているので
+        // 一度だけリトライしてからログアウト扱いにする（バグ：Google認証後に
+        // アカウント作成画面へ戻ってしまう問題の対策）。
+        if (e1?.code === 'unauthorized') {
+          await new Promise(r => setTimeout(r, 400));
+          data = await api.load();
+        } else {
+          throw e1;
+        }
+      }
       this.events = data.events || [];
       console.log('[loadAfterAuth] イベント一覧取得:', this.events.length, '件');
       // フォルダ一覧も取得
@@ -296,6 +310,10 @@ export const state = {
   async logout() {
     logEvent('logout');
     try { await api.logout(); } catch (_) {}
+    // Google Identity Services の自動選択キャッシュを解除。
+    // これを呼ばないと、別アカウントでログインしようとしても前回のアカウントが
+    // 自動的に返ってきてしまう（One Tap / ボタンの auto-select）。
+    try { window.google?.accounts?.id?.disableAutoSelect?.(); } catch (_) {}
     disconnectRealtime();
     this.currentUser = null;
     this.events = [];
