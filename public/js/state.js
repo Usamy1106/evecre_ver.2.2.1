@@ -263,8 +263,16 @@ export const state = {
       console.error('[loadAfterAuth] イベント読み込みエラー:', e);
       this.events = [];
       if (e?.code === 'unauthorized') {
-        this.currentUser = null;
-        this.currentView = 'CREATE_ACCOUNT_INFO';
+        // loadAfterAuth は「直前に認証が成立したユーザー」に対してのみ呼ばれる
+        // （init は meRaw でユーザー確認後、login/register/google は ok レスポンス後）。
+        // リトライ後もここで 401 になるのは Cookie のタイミング等が原因で、
+        // 本当にログアウトしているわけではない。ここでアカウント作成画面へ飛ばすと
+        // 「Google サインインのたびにアカウント作成へ戻される」症状になり、
+        // 連打 → レート制限 →「ページは開けません」まで連鎖するため、
+        // セッションは破棄せず HOME に留める（イベントは次回 render / 操作で再取得）。
+        this.currentUser = this.currentUser || null;
+        this.currentView = this.currentUser ? 'HOME' : 'CREATE_ACCOUNT_INFO';
+        syncRealtime();
         if (!skipRender) this.render();
         return;
       }
