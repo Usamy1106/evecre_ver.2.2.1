@@ -522,6 +522,17 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 
     let user = await userStore.findByEmailOrGoogleSub(email, googleSub);
 
+    // 【一時診断ログ】どの認証情報が来て、どのユーザーに解決されたかを記録する。
+    // 「別アカウントでログインしたのに前のアカウントに入る」問題の切り分け用。
+    // 切り分け完了後に削除すること。
+    {
+      const matchReason = !user
+        ? 'new'
+        : (user.emailLower === email ? 'email-match'
+          : (user.googleSub === googleSub ? 'sub-match' : 'unknown'));
+      console.log(`[google-signin][diag] credential email=${email} sub=${googleSub} -> resolved user id=${user?.id || '(new)'} username=${user?.username || '-'} userEmail=${user?.emailLower || '-'} matchedBy=${matchReason}`);
+    }
+
     if (user) {
       const updates = {};
       if (!user.googleSub) updates.googleSub = googleSub;
