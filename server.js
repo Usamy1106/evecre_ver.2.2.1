@@ -153,9 +153,16 @@ async function attachSession(res, userId) {
   const token     = newToken();
   const expiresAt = Date.now() + SESSION_TTL_MS;
   await sessionStore.createSession(userId, token, expiresAt);
+  // 本番(HTTPS)では SameSite=None; Secure を使う。
+  // モバイル Chrome の Google サインイン(FedCM)直後、/api/auth/google のレスポンスが
+  // クロスサイト文脈とみなされ、SameSite=Lax だと Cookie の保存が拒否されてログインできない
+  // （デスクトップ/他ブラウザはポップアップで同一サイト扱いになり Lax でも通る）。
+  // SameSite=None には Secure 必須。ローカル開発(HTTP)では None が使えないため Lax にフォールバック。
+  const isProd = process.env.NODE_ENV === 'production';
   res.cookie(SESSION_COOKIE, `${userId}.${token}`, {
-    httpOnly: true, sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: isProd ? 'none' : 'lax',
+    secure: isProd,
     signed: true, maxAge: SESSION_TTL_MS, path: '/',
   });
 }
