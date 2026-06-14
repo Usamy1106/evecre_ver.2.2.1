@@ -164,11 +164,17 @@ async function requireAuth(req, res, next) {
   try {
     const raw = req.signedCookies[SESSION_COOKIE];
     if (!raw || typeof raw !== 'string' || !raw.includes('.')) {
+      // 【一時診断ログ】Chrome で Google サインイン後にログインできない問題の切り分け。
+      // ブラウザが eve_sess Cookie を送ってきたか／署名が有効かを記録する。切り分け後に削除。
+      const sentHeader = (req.headers.cookie || '').includes(SESSION_COOKIE + '=');
+      const sig = raw === false ? 'sig-fail' : 'absent';
+      console.log(`[auth][diag] 401 ${req.method} ${req.path} eve_sess-header=${sentHeader ? 'SENT' : 'NOT-sent'} signed=${sig}`);
       return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
     const [userId, token] = raw.split('.');
     const sess = await sessionStore.findByToken(token);
     if (!sess || sess.userId !== userId || sess.expiresAt < Date.now()) {
+      console.log(`[auth][diag] 401 session-not-found ${req.method} ${req.path} userId=${userId} reason=${!sess ? 'no-session' : (sess.userId !== userId ? 'user-mismatch' : 'expired')}`);
       res.clearCookie(SESSION_COOKIE, { path: '/' });
       return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
