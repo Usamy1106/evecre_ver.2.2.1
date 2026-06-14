@@ -610,11 +610,18 @@ app.post('/api/auth/logout', async (req, res) => {
 app.get('/api/auth/me', async (req, res) => {
   try {
     const raw = req.signedCookies[SESSION_COOKIE];
-    if (!raw || !raw.includes('.')) return res.json({ ok: true, user: null });
+    if (!raw || !raw.includes('.')) {
+      // 【一時診断ログ】Google サインイン後にログイン状態が維持されない問題の切り分け。
+      // ページ再読み込み時の init は /api/auth/me 経由なのでここにも記録する。切り分け後に削除。
+      const sentHeader = (req.headers.cookie || '').includes(SESSION_COOKIE + '=');
+      console.log(`[auth][diag] /me user=null eve_sess-header=${sentHeader ? 'SENT' : 'NOT-sent'} signed=${raw === false ? 'sig-fail' : 'absent'}`);
+      return res.json({ ok: true, user: null });
+    }
 
     const [userId, token] = raw.split('.');
     const sess = await sessionStore.findByToken(token);
     if (!sess || sess.userId !== userId || sess.expiresAt < Date.now()) {
+      console.log(`[auth][diag] /me session-not-found userId=${userId} reason=${!sess ? 'no-session' : (sess.userId !== userId ? 'user-mismatch' : 'expired')}`);
       res.clearCookie(SESSION_COOKIE, { path: '/' });
       return res.json({ ok: true, user: null });
     }
