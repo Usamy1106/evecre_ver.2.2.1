@@ -345,14 +345,10 @@ export function clearImagePreview() {
  * ミッション完了を確定する
  * @param {string} missionId
  */
-export function submitMissionClear(missionId) {
+export async function submitMissionClear(missionId) {
   const project = state.events.find(p => p.id === state.selectedEventId);
-  let m = project?.missions.find(x => x.id === missionId);
-
-  if (!m) {
-    m = { id: missionId, title: 'ミッション', tag: '企画', clearFormat: 'text', status: 'yet', dates: [], daysLeft: 7, createdAt: Date.now(), priority: 5, isDeletable: true };
-    project.missions.push(m);
-  }
+  const m = project?.missions.find(x => x.id === missionId);
+  if (!project || !m) return;
 
   // チェック項目のバリデーション
   const checklist = Array.isArray(m.checklist) ? m.checklist : [];
@@ -390,43 +386,14 @@ export function submitMissionClear(missionId) {
 
   if (!content && !m.noInput) { window._app?.showToast('入力を完了させてください', 'error'); return; }
 
-  // clearFormat をアーカイブ表示用に自動判別結果で更新
-  m.clearFormat = detectedFormat;
-
-  const userId = state.currentUser?.id ?? null;
-
-  // 個別完了モード
-  if (m.individualClear) {
-    // 個人の提出を composite key で保存
-    project.clearedData[missionId + '_u_' + userId] = {
-      content, format: detectedFormat, title: m.title,
-      timestamp: Date.now(), submittedBy: userId,
-    };
-    // 完了済みリストに追加（重複なし）
-    if (!Array.isArray(m.individualClearedBy)) m.individualClearedBy = [];
-    if (!m.individualClearedBy.includes(userId)) m.individualClearedBy.push(userId);
-
-    // 全担当者が完了したか判定
-    const assigneeIds = Array.isArray(m.assignees) && m.assignees.length > 0
-      ? m.assignees
-      : (m.assignee?.type === 'user' ? [m.assignee.userId] : []);
-    const allDone = assigneeIds.length > 0 && assigneeIds.every(id => m.individualClearedBy.includes(id));
-    if (allDone) {
-      m.status = m.leaderCheck ? 'pending_leader_check' : 'cleared';
-      if (m.leaderCheck) state._infoModalShownForEvent = null;
-    }
-    // 全員完了でない場合は status を 'yet' のまま維持（メインボードに残す）
-    logEvent('mission_completed', { tag: m.tag || (Array.isArray(m.tags) ? m.tags[0] : null), format: detectedFormat, priority: m.priority });
-    state.save();
-    document.getElementById('clear-mission-modal')?.remove();
-    state.render();
-    window._app?.showToast(allDone ? (m.leaderCheck ? 'リーダーチェック提出完了' : 'ミッション完了') : '完了を記録しました');
+  // ── サーバーで永続化 ─────────────────────────────────────
+  // PUT /api/data は canManage 必須のため、一般メンバーの完了が保存されず
+  // 再読み込みで未完了に戻る不具合があった。完了は専用エンドポイントで永続化する。
+  const r = await api.completeMission(project.id, missionId, { content, format: detectedFormat });
+  if (!r.ok) {
+    window._app?.showToast(r.error || '完了の保存に失敗しました', 'error');
     return;
   }
-
-  project.clearedData[missionId] = { content, timestamp: Date.now(), title: m.title, format: detectedFormat, submittedBy: userId };
-  // リーダーチェックありの場合は確認待ち、無しの場合はそのまま完了
-  m.status = m.leaderCheck ? 'pending_leader_check' : 'cleared';
 
   logEvent('mission_completed', {
     tag:      m.tag || (Array.isArray(m.tags) ? m.tags[0] : null),
@@ -436,14 +403,22 @@ export function submitMissionClear(missionId) {
 
   // 送信成功 → ローカルドラフト破棄
   _clearDraft.discard(missionId);
-
   // leaderCheck 提出時はインフォモーダルを再表示できるようリセット
   if (m.leaderCheck) state._infoModalShownForEvent = null;
 
-  state.save();
+  // サーバーの権威ある状態（status / individualClearedBy / clearedData）を取り込む
+  await state.silentReloadEvents();
+
   document.getElementById('clear-mission-modal')?.remove();
   state.render();
-  window._app?.showToast(m.leaderCheck ? 'リーダーチェック提出完了' : 'ミッション完了');
+
+  // トースト文言はサーバーが返した最新 status から判定
+  const newStatus = r.mission?.status || 'yet';
+  if (m.individualClear && newStatus === 'yet') {
+    window._app?.showToast('完了を記録しました');
+  } else {
+    window._app?.showToast(m.leaderCheck ? 'リーダーチェック提出完了' : 'ミッション完了');
+  }
 }
 
 /**

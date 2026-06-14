@@ -1519,6 +1519,110 @@ app.post('/api/events/:id/missions/:mid/reject', requireAuth, async (req, res) =
   }
 });
 
+// ミッション完了（メンバー可）
+// PUT /api/data は canManage 必須のため、一般メンバーが完了しても永続化されず
+// 再読み込みで未完了に戻る不具合があった。完了はメンバーの正当な操作なので専用化する。
+// load→mutate→saveEvent パターン（CLAUDE.md「ミッション操作系」）。
+app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const mid = req.params.mid;
+    const m = _missionToFlat(p.missions?.[mid], mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+    if (m.status === 'cleared') return res.status(400).json({ ok: false, error: '既に完了しています' });
+
+    const userId = req.user.id;
+    let content   = String(req.body?.content ?? '');
+    const format  = ['text', 'image', 'link'].includes(req.body?.format) ? req.body.format : 'text';
+    const now     = Date.now();
+
+    // 画像 dataURL → R2 アップロード（_extractClearedData と同じ扱い）
+    if (format === 'image' && content.startsWith('data:') && r2.isConfigured()) {
+      try {
+        const ext = content.startsWith('data:image/png') ? 'png' : 'jpg';
+        const key = `submissions/${p.id}/${mid}_${r2.randomSuffix()}.${ext}`;
+        content = await r2.uploadDataUrl(content, key);
+      } catch (e) {
+        console.error('[r2] complete upload error:', e.message);
+      }
+    }
+
+    let becameCleared        = false;
+    let becamePendingCheck   = false;
+
+    if (m.individualClear) {
+      // 個別完了：individualClearedBy に自分を追加し、composite key で提出を保存
+      const clearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy.slice() : [];
+      if (clearedBy.includes(userId)) return res.status(400).json({ ok: false, error: '既に完了しています' });
+      clearedBy.push(userId);
+      _setMissionField(p, mid, 'individualClearedBy', clearedBy, now);
+      _setMissionField(p, mid, 'clearFormat', format, now);
+      await submissionStore.saveSubmission(p.id, `${mid}_u_${userId}`, {
+        content, format, title: m.title, timestamp: now, submittedBy: userId,
+      });
+
+      // 全担当者が完了したら status を進める
+      const assigneeIds = Array.isArray(m.assignees) && m.assignees.length > 0
+        ? m.assignees
+        : (m.assignee?.type === 'user' ? [m.assignee.userId] : []);
+      const allDone = assigneeIds.length > 0 && assigneeIds.every(id => clearedBy.includes(id));
+      if (allDone) {
+        const next = m.leaderCheck ? 'pending_leader_check' : 'cleared';
+        _setMissionField(p, mid, 'status', next, now);
+        becameCleared      = next === 'cleared';
+        becamePendingCheck = next === 'pending_leader_check';
+      }
+    } else {
+      const next = m.leaderCheck ? 'pending_leader_check' : 'cleared';
+      _setMissionField(p, mid, 'clearFormat', format, now);
+      _setMissionField(p, mid, 'status', next, now);
+      await submissionStore.saveSubmission(p.id, mid, {
+        content, format, title: m.title, timestamp: now, submittedBy: userId,
+      });
+      becameCleared      = next === 'cleared';
+      becamePendingCheck = next === 'pending_leader_check';
+    }
+
+    await eventStore.saveEvent(p);
+
+    const flat = crdt.crdtToFlat(p);
+    await _mergeSubmissions(p.id, flat);
+    eventBus.broadcast(p.id, 'eventUpdated', {
+      eventId: p.id, rev: p.rev, event: flat,
+    }, req.get('X-Client-Id') || null);
+
+    // 通知（PUT /api/data の (B)(C) と同じ条件）
+    if (becameCleared) {
+      await notifStore.notifyAll(
+        (p.members || []).map(x => x.userId).filter(uid => uid !== userId),
+        {
+          type: 'mission_cleared',
+          message: `${req.user.username} さんが「${m.title}」を完了しました`,
+          eventId: p.id, missionId: mid,
+          actorId: userId, actorName: req.user.username,
+        });
+    }
+    if (becamePendingCheck) {
+      await notifStore.notifyAll(
+        _getManagerIds(p).filter(uid => uid !== userId),
+        {
+          type: 'pending_leader_check',
+          message: `${req.user.username} さんが「${m.title}」を提出しました。確認をお願いします`,
+          eventId: p.id, missionId: mid,
+          actorId: userId, actorName: req.user.username,
+        });
+    }
+
+    res.json({ ok: true, mission: _missionToFlat(p.missions[mid], mid) });
+  } catch (e) {
+    console.error('complete error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
 // メンバー脱退・除名
 app.delete('/api/events/:id/members/:userId', requireAuth, async (req, res) => {
   try {

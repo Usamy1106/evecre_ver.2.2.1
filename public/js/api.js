@@ -112,6 +112,12 @@ export const api = {
     return json || { ok: false };
   },
 
+  // ----- ミッション完了（メンバー可・サーバーで永続化）-----
+  async completeMission(eventId, missionId, { content = '', format = 'text' } = {}) {
+    const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/complete`, { content, format });
+    return json || { ok: false };
+  },
+
   // ----- ミッション自己申告 -----
   async claimMission(eventId, missionId) {
     const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/claim`);
