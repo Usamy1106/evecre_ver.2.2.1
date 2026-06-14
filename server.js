@@ -75,7 +75,7 @@ const _skipInDev = () => IS_DEV;
 /** ログイン・登録・Google サインイン：10回 / 15分 / IP */
 const authLimiter = rateLimit({
   windowMs:       15 * 60 * 1000,
-  max:            10,
+  max:            30,
   standardHeaders: true,   // RateLimit-* ヘッダを返す（RFC 6585）
   legacyHeaders:  false,   // X-RateLimit-* は返さない
   skip:           _skipInDev,
