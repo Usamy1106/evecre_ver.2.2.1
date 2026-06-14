@@ -65,6 +65,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' })); // iOS 向け Google サインインのフォーム POST 用
 app.use(cookieParser(COOKIE_SECRET));
 
 // ── レート制限 ─────────────────────────────────────────────
@@ -507,13 +508,21 @@ app.get('/api/config', (req, res) => {
 });
 
 // Google サインイン
+// iOS(WebKit/ITP) では XHR レスポンスの Set-Cookie が保存されないため、クライアントは
+// トップレベルのフォーム POST（application/x-www-form-urlencoded）で送ってくる。その場合は
+// JSON ではなくリダイレクトで応答し、Cookie を first-party のトップレベル遷移で保存させる。
 app.post('/api/auth/google', authLimiter, async (req, res) => {
+  const isFormPost = !!req.is('application/x-www-form-urlencoded');
+  const fail = (status, code, jsonError) => {
+    if (isFormPost) return res.redirect(`/?gerror=${code}`);
+    return res.status(status).json({ ok: false, error: jsonError });
+  };
   try {
     if (!googleAuthClient) {
-      return res.status(503).json({ ok: false, error: 'Google サインインは設定されていません' });
+      return fail(503, 'config', 'Google サインインは設定されていません');
     }
     const credential = String(req.body?.credential || '');
-    if (!credential) return res.status(400).json({ ok: false, error: 'credential が必要です' });
+    if (!credential) return fail(400, 'nocred', 'credential が必要です');
 
     let payload = null;
     try {
@@ -523,11 +532,11 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
       payload = ticket.getPayload();
     } catch (e) {
       console.error('[google-signin] ID トークン検証失敗:', e?.message);
-      return res.status(401).json({ ok: false, error: 'Google ID トークンの検証に失敗しました' });
+      return fail(401, 'verify', 'Google ID トークンの検証に失敗しました');
     }
 
-    if (!payload?.email) return res.status(400).json({ ok: false, error: 'Google アカウントのメールアドレスが取得できませんでした' });
-    if (payload.email_verified === false) return res.status(400).json({ ok: false, error: 'Google アカウントのメールアドレスが未認証です' });
+    if (!payload?.email) return fail(400, 'email', 'Google アカウントのメールアドレスが取得できませんでした');
+    if (payload.email_verified === false) return fail(400, 'email', 'Google アカウントのメールアドレスが未認証です');
 
     const email     = String(payload.email).toLowerCase().trim();
     const googleSub = String(payload.sub);
@@ -583,6 +592,13 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 
     await attachSession(res, user.id);
     const inv = await consumeInviteCookieIfAny(req, res, user);
+
+    // iOS(フォーム POST): トップレベル遷移なので Cookie が first-party で保存される。
+    // アプリ(/)に戻すと init→/api/auth/me が Cookie を読み、招待の保留状態も復元される。
+    if (isFormPost) {
+      return res.redirect('/');
+    }
+
     res.json({
       ok: true,
       user:             userPublic(user),
@@ -594,6 +610,7 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     });
   } catch (e) {
     console.error('google-signin error:', e);
+    if (isFormPost) return res.redirect('/?gerror=server');
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });

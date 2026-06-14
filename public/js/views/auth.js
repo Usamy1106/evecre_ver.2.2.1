@@ -303,6 +303,14 @@ function _esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// iOS 判定（iPhone/iPad。iPadOS は MacIntel + タッチで判定）。
+// iOS は全ブラウザが WebKit のため、Google サインインで XHR ではなくフォーム POST を使う。
+function _isIOS() {
+  const ua = navigator.userAgent || '';
+  return /iP(hone|ad|od)/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 function _setSubmitting(id, on, label) {
   const btn = document.getElementById(id);
   if (!btn) return;
@@ -376,6 +384,24 @@ async function _setupGoogleSignIn(mode) {
       client_id: config.googleClientId,
       callback: async (resp) => {
         if (!resp?.credential) return;
+
+        // iOS(iPhone/iPad) は全ブラウザが WebKit で、ITP により XHR レスポンスの
+        // Set-Cookie が保存されない。トップレベルのフォーム POST で送ると Cookie が
+        // first-party 文脈で保存されるため、サーバーが Cookie をセットして / にリダイレクトする。
+        if (_isIOS()) {
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = '/api/auth/google';
+          const input = document.createElement('input');
+          input.type  = 'hidden';
+          input.name  = 'credential';
+          input.value = resp.credential;
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+          return;
+        }
+
         try {
           const r = await api.googleSignIn(resp.credential);
           console.log('[google-signin] レスポンス:', r);

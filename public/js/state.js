@@ -68,6 +68,15 @@ export const state = {
   async init() {
     console.log('[init] 開始');
 
+    // iOS の Google サインイン（フォーム POST → リダイレクト）失敗時のフィードバック
+    const gerr = new URLSearchParams(window.location.search).get('gerror');
+    if (gerr) {
+      window.history.replaceState(null, '', window.location.pathname);
+      setTimeout(() => window._app?.showToast?.(
+        gerr === 'verify' ? 'Google 認証に失敗しました。もう一度お試しください'
+          : 'Google サインインに失敗しました', 'error'), 600);
+    }
+
     // パスワードリセットリンク（/reset-password/<token>）の検出
     // 検出したら、トークン検証 → 結果に応じて画面遷移して return（招待や me() の処理はスキップ）
     const prm = window.location.pathname.match(/^\/reset-password\/([a-f0-9]{32,})\/?$/);
