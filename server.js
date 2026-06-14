@@ -165,6 +165,8 @@ async function attachSession(res, userId) {
     secure: isProd,
     signed: true, maxAge: SESSION_TTL_MS, path: '/',
   });
+  // 【一時診断ログ】Cookie を発行した瞬間を記録（修正のデプロイ確認＋サインイン直後の追跡用）。切り分け後に削除。
+  console.log(`[auth][diag] attachSession SET eve_sess userId=${userId} sameSite=${isProd ? 'none' : 'lax'} secure=${isProd}`);
 }
 
 async function requireAuth(req, res, next) {
