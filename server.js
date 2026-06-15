@@ -112,17 +112,27 @@ app.get('/healthz', async (_req, res) => {
   }
 });
 
-// 開発時：JS/HTML/CSS のキャッシュを無効化
-app.use((req, res, next) => {
-  if (IS_DEV && req.path.match(/\.(js|html|css)$/)) {
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-  }
-  next();
-});
-
-app.use(require('express').static(require('path').join(__dirname, 'public')));
+// 静的配信。JS/HTML/CSS のキャッシュは setHeaders で権威的に制御する
+// （express.static はデフォルトで Cache-Control: public, max-age=0 を自分でセットするため、
+//  別ミドルウェアで設定しても上書きされうる。ここで一元管理する）。
+// 本番は no-cache（ETag で必ず再検証 → 変更時のみ再取得、未変更なら 304）。
+// これをしないとデプロイ後も古い JS がキャッシュされ続ける（特に iOS WebKit は強力にキャッシュ）。
+// ES モジュールは import 先のファイルも個別にキャッシュされるため、ファイル単位で再検証させるのが要点。
+app.use(require('express').static(require('path').join(__dirname, 'public'), {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (/\.(js|html|css)$/.test(filePath)) {
+      if (IS_DEV) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      } else {
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+    }
+  },
+}));
 
 // ===== バリデーション =====
 
@@ -2282,7 +2292,10 @@ app.post('/api/auth/password-reset/confirm', strictLimiter, async (req, res) => 
 // ===== SPA フォールバック =====
 
 app.get('*', (_req, res) => {
-  res.sendFile(require('path').join(__dirname, 'public', 'index.html'));
+  // エントリ HTML は常に再検証させる（古い HTML が JS の古い参照を読み込むのを防ぐ）。
+  // sendFile(send) は既定で Cache-Control を上書きするため cacheControl:false にして自前指定を効かせる。
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(require('path').join(__dirname, 'public', 'index.html'), { cacheControl: false });
 });
 
 // ===== 起動 =====
