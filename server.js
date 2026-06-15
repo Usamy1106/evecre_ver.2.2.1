@@ -166,25 +166,17 @@ async function attachSession(res, userId) {
     secure: isProd,
     signed: true, maxAge: SESSION_TTL_MS, path: '/',
   });
-  // 【一時診断ログ】Cookie を発行した瞬間を記録（修正のデプロイ確認＋サインイン直後の追跡用）。切り分け後に削除。
-  console.log(`[auth][diag] attachSession SET eve_sess userId=${userId} sameSite=${isProd ? 'none' : 'lax'} secure=${isProd}`);
 }
 
 async function requireAuth(req, res, next) {
   try {
     const raw = req.signedCookies[SESSION_COOKIE];
     if (!raw || typeof raw !== 'string' || !raw.includes('.')) {
-      // 【一時診断ログ】Chrome で Google サインイン後にログインできない問題の切り分け。
-      // ブラウザが eve_sess Cookie を送ってきたか／署名が有効かを記録する。切り分け後に削除。
-      const sentHeader = (req.headers.cookie || '').includes(SESSION_COOKIE + '=');
-      const sig = raw === false ? 'sig-fail' : 'absent';
-      console.log(`[auth][diag] 401 ${req.method} ${req.path} eve_sess-header=${sentHeader ? 'SENT' : 'NOT-sent'} signed=${sig}`);
       return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
     const [userId, token] = raw.split('.');
     const sess = await sessionStore.findByToken(token);
     if (!sess || sess.userId !== userId || sess.expiresAt < Date.now()) {
-      console.log(`[auth][diag] 401 session-not-found ${req.method} ${req.path} userId=${userId} reason=${!sess ? 'no-session' : (sess.userId !== userId ? 'user-mismatch' : 'expired')}`);
       res.clearCookie(SESSION_COOKIE, { path: '/' });
       return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
@@ -546,17 +538,6 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 
     let user = await userStore.findByEmailOrGoogleSub(email, googleSub);
 
-    // 【一時診断ログ】どの認証情報が来て、どのユーザーに解決されたかを記録する。
-    // 「別アカウントでログインしたのに前のアカウントに入る」問題の切り分け用。
-    // 切り分け完了後に削除すること。
-    {
-      const matchReason = !user
-        ? 'new'
-        : (user.emailLower === email ? 'email-match'
-          : (user.googleSub === googleSub ? 'sub-match' : 'unknown'));
-      console.log(`[google-signin][diag] credential email=${email} sub=${googleSub} -> resolved user id=${user?.id || '(new)'} username=${user?.username || '-'} userEmail=${user?.emailLower || '-'} matchedBy=${matchReason}`);
-    }
-
     if (user) {
       const updates = {};
       if (!user.googleSub) updates.googleSub = googleSub;
@@ -636,18 +617,11 @@ app.post('/api/auth/logout', async (req, res) => {
 app.get('/api/auth/me', async (req, res) => {
   try {
     const raw = req.signedCookies[SESSION_COOKIE];
-    if (!raw || !raw.includes('.')) {
-      // 【一時診断ログ】Google サインイン後にログイン状態が維持されない問題の切り分け。
-      // ページ再読み込み時の init は /api/auth/me 経由なのでここにも記録する。切り分け後に削除。
-      const sentHeader = (req.headers.cookie || '').includes(SESSION_COOKIE + '=');
-      console.log(`[auth][diag] /me user=null eve_sess-header=${sentHeader ? 'SENT' : 'NOT-sent'} signed=${raw === false ? 'sig-fail' : 'absent'}`);
-      return res.json({ ok: true, user: null });
-    }
+    if (!raw || !raw.includes('.')) return res.json({ ok: true, user: null });
 
     const [userId, token] = raw.split('.');
     const sess = await sessionStore.findByToken(token);
     if (!sess || sess.userId !== userId || sess.expiresAt < Date.now()) {
-      console.log(`[auth][diag] /me session-not-found userId=${userId} reason=${!sess ? 'no-session' : (sess.userId !== userId ? 'user-mismatch' : 'expired')}`);
       res.clearCookie(SESSION_COOKIE, { path: '/' });
       return res.json({ ok: true, user: null });
     }
