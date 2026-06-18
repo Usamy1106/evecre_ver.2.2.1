@@ -535,8 +535,10 @@ window._app = {
     state.render();
   },
   markAllNotificationsRead: async () => {
-    await api.markAllNotificationsRead();
-    state.notifications.forEach(n => n.read = true);
+    // 表示中のイベントの通知だけ既読にする（一覧の表示と整合）
+    const evId = state.selectedEventId;
+    await api.markAllNotificationsRead(evId);
+    state.notifications.forEach(n => { if (n.eventId === evId) n.read = true; });
     state.render();
   },
   deleteNotification: async (notifId) => {

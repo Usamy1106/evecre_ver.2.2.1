@@ -835,7 +835,9 @@ app.get('/api/notifications', requireAuth, async (req, res) => {
 
 app.post('/api/notifications/read-all', requireAuth, async (req, res) => {
   try {
-    await notifStore.markAllRead(req.user.id);
+    // eventId 指定時はそのイベントの通知だけ既読にする（未指定なら全件・後方互換）
+    const eventId = req.body?.eventId || null;
+    await notifStore.markAllRead(req.user.id, eventId);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });

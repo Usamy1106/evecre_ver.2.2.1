@@ -173,8 +173,8 @@ export const api = {
     const { json } = await _send('GET', '/api/notifications');
     return json || { ok: false, notifications: [] };
   },
-  async markAllNotificationsRead() {
-    const { json } = await _send('POST', '/api/notifications/read-all');
+  async markAllNotificationsRead(eventId = null) {
+    const { json } = await _send('POST', '/api/notifications/read-all', eventId ? { eventId } : {});
     return json || { ok: false };
   },
   async markNotificationRead(id) {

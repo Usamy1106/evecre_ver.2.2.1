@@ -93,9 +93,10 @@ export const Components = {
    * @param {'MAIN'|'NOTIFICATIONS'|'ARCHIVE'} active
    */
   Tabs(active) {
-    // 未読通知数（state.notifications から計算）
+    // 未読通知数（表示中のイベントに紐づくものだけ。他イベントの通知は数えない）
+    const evId = window.state?.selectedEventId;
     const unread = Array.isArray(window.state?.notifications)
-      ? window.state.notifications.filter(n => !n.read).length
+      ? window.state.notifications.filter(n => !n.read && n.eventId === evId).length
       : 0;
     return `
       <div class="px-6 flex border-b border-[#D3D6D8] bg-[#FDFBF8]">

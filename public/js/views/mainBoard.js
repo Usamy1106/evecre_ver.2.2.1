@@ -996,8 +996,9 @@ function _renderNotificationsTab(p) {
       </div>
     </section>`;
 
-  // 通知一覧
-  const notifs = Array.isArray(state.notifications) ? state.notifications : [];
+  // 通知一覧（このイベントに紐づく通知のみ。他イベントの通知は表示しない）
+  const allNotifs = Array.isArray(state.notifications) ? state.notifications : [];
+  const notifs = allNotifs.filter(n => n.eventId === p.id);
   const unreadCount = notifs.filter(n => !n.read).length;
 
   const notifsHtml = notifs.length === 0 ? `
