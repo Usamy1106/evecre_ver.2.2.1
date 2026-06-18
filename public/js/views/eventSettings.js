@@ -393,12 +393,20 @@ function _bindEvents(p, sec) {
     state.render();
   });
 
-  // フェーズ変更（管理者権限が必要）
+  // フェーズ変更（管理者権限が必要・確認ダイアログを表示）
   document.querySelectorAll('[data-ps-phase]').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const phase = btn.dataset.psPhase;
       const ev = state.events.find(x => x.id === p.id);
       if (!ev) return;
+      // 既に同じフェーズなら何もしない
+      if ((ev.eventPhase || '企画準備') === phase) return;
+      const ok = await showConfirmDialog({
+        message: `フェーズを「${phase}」に変更しますか？`,
+        confirmLabel: '変更する',
+        cancelLabel: 'キャンセル',
+      });
+      if (!ok) return;
       ev.eventPhase  = phase;
       ev.isCompleted = (phase === '完了');
       state.save();
