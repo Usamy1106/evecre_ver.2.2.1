@@ -71,11 +71,11 @@ function _render(overlay, ctx) {
   const isCalendar = ctx.view === 'calendar';
 
   overlay.innerHTML = `
-    <div class="absolute bottom-0 left-0 right-0 bg-[#FDFBF8] rounded-t-3xl shadow-2xl flex flex-col"
+    <div data-sheet class="absolute bottom-0 left-0 right-0 bg-[#FDFBF8] rounded-t-3xl shadow-2xl flex flex-col"
          style="max-height: 90vh; animation: slideUp .25s ease-out;">
 
       <!-- ドラッグハンドル -->
-      <div class="flex justify-center pt-3 pb-2 flex-shrink-0">
+      <div data-sheet-handle class="flex justify-center pt-3 pb-2 flex-shrink-0">
         <div class="w-12 h-1.5 bg-[#D3D6D8] rounded-full"></div>
       </div>
 
@@ -105,6 +105,10 @@ function _render(overlay, ctx) {
       @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
     </style>`;
+
+  // 下スワイプで閉じる（sheet.js）→ _close 経由で state.render() を確実に呼ぶ
+  const _sheetEl = overlay.querySelector('[data-sheet]');
+  if (_sheetEl) _sheetEl.__sheetClose = () => _close(overlay);
 
   _bindAllEvents(overlay, ctx);
 }

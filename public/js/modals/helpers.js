@@ -955,11 +955,11 @@ export function openIndividualClearListModal(missionId) {
   // fixed inset-0 → 背景全体をカバー。上部タップで閉じられる。
   overlay.className = 'fixed inset-0 bg-black/50 z-[150] flex items-end justify-center';
   overlay.innerHTML = `
-    <div data-indiv-sheet
+    <div data-indiv-sheet data-sheet
       class="bg-white rounded-t-3xl w-full max-w-lg flex flex-col"
       style="max-height:82vh">
       <!-- ドラッグハンドル -->
-      <div id="indiv-sheet-handle"
+      <div id="indiv-sheet-handle" data-sheet-handle
         class="flex-shrink-0 flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
         <div class="w-10 h-1 bg-[#D3D6D8] rounded-full"></div>
       </div>
@@ -986,39 +986,5 @@ export function openIndividualClearListModal(missionId) {
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 
   document.body.appendChild(overlay);
-
-  // 下スワイプで閉じる（ドラッグハンドル + シート全体）
-  const sheet = overlay.querySelector('[data-indiv-sheet]');
-  const handle = overlay.querySelector('#indiv-sheet-handle');
-  let _swStartY = 0;
-  let _swActive = false;
-
-  const onTouchStart = (e) => {
-    _swStartY = e.touches[0].clientY;
-    _swActive = true;
-    sheet.style.transition = 'none';
-  };
-  const onTouchMove = (e) => {
-    if (!_swActive) return;
-    const dy = e.touches[0].clientY - _swStartY;
-    if (dy > 0) {
-      sheet.style.transform = `translateY(${dy}px)`;
-    }
-  };
-  const onTouchEnd = (e) => {
-    if (!_swActive) return;
-    _swActive = false;
-    const dy = e.changedTouches[0].clientY - _swStartY;
-    sheet.style.transition = 'transform 0.25s ease';
-    if (dy > 60) {
-      sheet.style.transform = 'translateY(100%)';
-      setTimeout(() => overlay.remove(), 240);
-    } else {
-      sheet.style.transform = 'translateY(0)';
-    }
-  };
-
-  handle.addEventListener('touchstart', onTouchStart, { passive: true });
-  handle.addEventListener('touchmove', onTouchMove, { passive: true });
-  handle.addEventListener('touchend', onTouchEnd, { passive: true });
+  // 下スワイプで閉じる → sheet.js（data-sheet / data-sheet-handle）が処理
 }

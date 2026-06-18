@@ -334,7 +334,7 @@ function _renderDetailTab(isEdit) {
         <!-- 完了のみ -->
         <div>
           <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">完了のみ</label>
+            <label class="heading-rs text-[#484545] font-bold">完了ボタンのみ</label>
             <button onclick="window._app.toggleMissionNoInput()" type="button"
               class="relative w-12 h-7 rounded-full transition-colors ${noInput ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
               <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${noInput ? 'translate-x-5' : ''}"></span>
@@ -766,10 +766,10 @@ export function openAssigneeSheet() {
   overlay.onclick = (e) => { if (e.target === overlay) closeAssigneeSheet(); };
 
   overlay.innerHTML = `
-    <div id="assignee-sheet-panel"
+    <div id="assignee-sheet-panel" data-sheet
       class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transition-transform transform translate-y-full"
       style="height: 85vh; display: flex; flex-direction: column;">
-      <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mt-3 mb-1 flex-shrink-0"></div>
+      <div data-sheet-handle class="flex justify-center pt-3 pb-1 flex-shrink-0"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
       <h3 class="text-[15px] font-bold text-[#484545] text-center pt-2 pb-3 flex-shrink-0">担当者を選択</h3>
 
       <!-- タブ -->
@@ -963,10 +963,10 @@ export function openTagCreator() {
   overlay.onclick = (e) => { if (e.target === overlay) closeTagCreator(); };
 
   overlay.innerHTML = `
-    <div id="tag-creator-panel"
+    <div id="tag-creator-panel" data-sheet
       class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl p-6 transition-transform transform translate-y-full"
       style="max-height: 85vh; overflow-y: auto;">
-      <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-4"></div>
+      <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
       <h3 class="text-[15px] font-bold text-[#484545] text-center mb-5">新しいタグを作成</h3>
 
       <div class="mb-5">
@@ -1167,8 +1167,8 @@ export function openSelectClaimModal(missionId) {
   const modeLabel = '選定あり';
 
   overlay.innerHTML = `
-    <div class="bg-white w-full rounded-t-3xl shadow-2xl flex flex-col" style="max-height: 85vh">
-      <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mt-3 mb-1"></div>
+    <div data-sheet class="bg-white w-full rounded-t-3xl shadow-2xl flex flex-col" style="max-height: 85vh">
+      <div data-sheet-handle class="flex justify-center pt-3 pb-1"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
       <h3 class="text-[15px] font-bold text-[#484545] text-center pt-2 pb-1">担当者を選定</h3>
       <div class="flex justify-center pb-2">
         <span class="text-[9px] text-[#9b7700] font-bold border border-[#FFC300] px-2 py-0.5 rounded bg-[#FFF8E1]">申告制（${modeLabel}）</span>

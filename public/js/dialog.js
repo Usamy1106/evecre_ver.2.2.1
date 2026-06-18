@@ -23,8 +23,8 @@ export function showConfirmDialog({ message, confirmLabel = '確認', cancelLabe
     overlay.id = 'confirm-dialog-overlay';
     overlay.className = 'fixed inset-0 bg-black/50 z-[300] flex items-end justify-center';
     overlay.innerHTML = `
-      <div class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-5 pb-10 animate-fadeIn">
-        <div class="w-10 h-1 bg-[#D3D6D8] rounded-full mx-auto mb-5"></div>
+      <div data-sheet class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-5 pb-10 animate-fadeIn">
+        <div data-sheet-handle class="flex justify-center pt-1 pb-4 -mt-2"><div class="w-10 h-1 bg-[#D3D6D8] rounded-full"></div></div>
         ${title ? `<h3 class="text-[15px] font-bold text-[#484545] text-center mb-2">${_esc(title)}</h3>` : ''}
         <p class="text-[13px] text-[#484545] text-center leading-relaxed mb-6 whitespace-pre-wrap">${_esc(message)}</p>
         <div class="flex flex-col gap-3">
@@ -43,6 +43,8 @@ export function showConfirmDialog({ message, confirmLabel = '確認', cancelLabe
     document.body.appendChild(overlay);
 
     const close = (result) => { overlay.remove(); resolve(result); };
+    // 下スワイプで閉じる（sheet.js）→ キャンセル扱い
+    overlay.querySelector('[data-sheet]').__sheetClose = () => close(false);
     document.getElementById('cd-ok').onclick = () => close(true);
     document.getElementById('cd-cancel')?.addEventListener('click', () => close(false));
     overlay.addEventListener('click', e => { if (e.target === overlay) close(false); });

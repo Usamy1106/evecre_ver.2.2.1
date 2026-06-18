@@ -38,6 +38,7 @@ import { openVerifyEmailModal } from './modals/verifyEmailModal.js';
 import { openJoinByCodeModal } from './modals/joinByCodeModal.js';
 import { openEventCalendarSheet } from './modals/eventCalendarSheet.js';
 import { showConfirmDialog } from './dialog.js';
+import { initSheetDragClose } from './sheet.js';
 
 // ===== ビューレンダラーの登録 =====
 registerRenderer('CREATE_ACCOUNT_INFO',   renderCreateAccountInfo);
@@ -747,8 +748,8 @@ window._app = {
       </div>`).join('');
 
     overlay.innerHTML = `
-      <div class="bg-white rounded-t-3xl w-full shadow-2xl max-h-[70vh] flex flex-col animate-fadeIn">
-        <div id="pending-sheet-header" class="shrink-0 px-6 pt-5 pb-4 cursor-grab active:cursor-grabbing">
+      <div data-sheet class="bg-white rounded-t-3xl w-full shadow-2xl max-h-[70vh] flex flex-col animate-fadeIn">
+        <div id="pending-sheet-header" data-sheet-handle class="shrink-0 px-6 pt-5 pb-4 cursor-grab active:cursor-grabbing">
           <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-5"></div>
           <h3 id="pending-members-count" class="heading-m text-[#484545]">参加申請（${pending.length}件）</h3>
         </div>
@@ -758,11 +759,7 @@ window._app = {
       </div>`;
     document.body.appendChild(overlay);
 
-    // ヘッダー部分の下スワイプで閉じる
-    let _sy = 0;
-    const _hdr = overlay.querySelector('#pending-sheet-header');
-    _hdr.addEventListener('touchstart', e => { _sy = e.touches[0].clientY; }, { passive: true });
-    _hdr.addEventListener('touchend',   e => { if (e.changedTouches[0].clientY - _sy > 60) overlay.remove(); });
+    // 下スワイプで閉じる → sheet.js（data-sheet / data-sheet-handle）が処理
 
     // カードを1枚削除してカウントを更新。残りゼロならシートを閉じる
     function _removeCard(uid) {
@@ -812,8 +809,8 @@ window._app = {
     overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-end';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div class="bg-white rounded-t-3xl w-full p-6 shadow-2xl animate-fadeIn">
-        <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-5"></div>
+      <div data-sheet class="bg-white rounded-t-3xl w-full p-6 shadow-2xl animate-fadeIn">
+        <div data-sheet-handle class="flex justify-center pt-1 pb-4"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
         <h3 class="heading-m text-[#484545] mb-4">ミッションを提案する</h3>
         <textarea id="member-proposal-input" rows="4"
           placeholder="ミッション名を入力してください"
@@ -866,8 +863,8 @@ window._app = {
       </div>`).join('');
 
     overlay.innerHTML = `
-      <div class="bg-white rounded-t-3xl w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-fadeIn">
-        <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-5"></div>
+      <div data-sheet class="bg-white rounded-t-3xl w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-fadeIn">
+        <div data-sheet-handle class="flex justify-center pt-1 pb-4"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
         <h3 class="heading-m text-[#484545] mb-4">ミッションの提案（${proposals.length}件）</h3>
         ${rows || '<p class="text-center text-[#A7AAAC] text-rs py-4">提案はありません</p>'}
       </div>`;
@@ -1042,8 +1039,8 @@ window._app = {
     }).join('');
 
     overlay.innerHTML = `
-      <div class="bg-white rounded-t-3xl w-full shadow-2xl h-[85vh] flex flex-col animate-fadeIn">
-        <div class="shrink-0 px-6 pt-5 pb-4">
+      <div data-sheet class="bg-white rounded-t-3xl w-full shadow-2xl h-[85vh] flex flex-col animate-fadeIn">
+        <div data-sheet-handle class="shrink-0 px-6 pt-5 pb-4">
           <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-5"></div>
           <h3 id="leader-check-count" class="heading-m text-[#484545]">リーダーチェック（${missions.length}件）</h3>
         </div>
@@ -1283,6 +1280,7 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 // ===== アプリ起動 =====
+initSheetDragClose(); // ボトムシートの下スワイプで閉じる（data-sheet / data-sheet-handle）
 state.init().catch(e => {
   console.error('init() で例外:', e);
   // 何が起きてもローディング画面は強制的に消す
@@ -1368,8 +1366,8 @@ function _openProjectMenu(folderId) {
   overlay.className = 'fixed inset-0 bg-black/40 z-[200] flex items-end justify-center page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="bg-white w-full max-w-md rounded-t-[32px] p-4 pb-8 shadow-2xl animate-fadeIn">
-      <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-4"></div>
+    <div data-sheet class="bg-white w-full max-w-md rounded-t-[32px] p-4 pb-8 shadow-2xl animate-fadeIn">
+      <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
       <p class="text-center text-[12px] text-[#A7AAAC] font-bold mb-3 truncate px-6">${_escH(folder.name)}</p>
       <button id="pm-rename"
         class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FDFBF8] text-[15px] font-bold text-[#484545] flex items-center gap-3">

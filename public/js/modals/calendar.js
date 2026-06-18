@@ -149,10 +149,10 @@ function _renderCalendarInner(target) {
            class="text-[10px] text-[#A7AAAC] underline font-bold mt-2 block">期限をクリア</button>`
       : '';
     modal.innerHTML = `
-      <div id="calendar-bottomsheet-panel"
+      <div id="calendar-bottomsheet-panel" data-sheet
         class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl p-6 transition-transform transform translate-y-full"
         style="height: 85vh; overflow-y: auto;">
-        <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-4"></div>
+        <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
         <div class="flex items-center justify-between mb-2">
           <h3 class="heading-r text-[#484545] font-bold">${sheetTitle}</h3>
           <div class="flex gap-2">

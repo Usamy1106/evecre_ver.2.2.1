@@ -96,8 +96,8 @@ function openEventMenu(projectId) {
   overlay.className = 'fixed inset-0 bg-black/40 z-[200] flex items-end justify-center page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="bg-white w-full max-w-md rounded-t-[32px] p-4 pb-8 shadow-2xl animate-fadeIn">
-      <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-4"></div>
+    <div data-sheet class="bg-white w-full max-w-md rounded-t-[32px] p-4 pb-8 shadow-2xl animate-fadeIn">
+      <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
       <p class="text-center text-[12px] text-[#A7AAAC] font-bold mb-3 truncate px-6">${p.name}</p>
       ${canMgr ? `<button id="pa-rename"
         class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FDFBF8] text-[15px] font-bold text-[#484545] flex items-center gap-3">
@@ -251,8 +251,8 @@ export function openAddToProjectModal(eventId) {
     </button>`).join('');
 
   overlay.innerHTML = `
-    <div class="bg-white w-full max-w-md rounded-t-[32px] p-4 pb-8 shadow-2xl animate-fadeIn">
-      <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-4"></div>
+    <div data-sheet class="bg-white w-full max-w-md rounded-t-[32px] p-4 pb-8 shadow-2xl animate-fadeIn">
+      <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
       <p class="text-center text-[13px] font-bold text-[#484545] mb-3">プロジェクトに追加</p>
       <div id="atp-folder-list" class="max-h-64 overflow-y-auto">
         ${folderItems.length ? folderItems : '<p class="text-center text-[13px] text-[#A7AAAC] py-4">プロジェクトがありません</p>'}
