@@ -1,7 +1,7 @@
 // ===== メインボード画面 =====
 import { state } from '../state.js';
 import { Components } from '../components.js';
-import { getSortedMissions } from '../modals/mission.js';
+import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG } from '../constants.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
@@ -148,6 +148,8 @@ export function renderMainBoard(container) {
 
   if (state.mainBoardTab === 'MAIN') {
     _checkMissionDeadlineNotifications(p.missions || []);
+    // ミッションカード：タップ＝完了モーダル（inline onclick）、管理者長押し＝編集/削除メニュー
+    bindMissionInteractions(container, p, { useInlineTap: true });
   }
 }
 
@@ -327,7 +329,7 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
           : '';
 
         return `
-        <div ${cardOnClick}
+        <div ${cardOnClick} data-mission-id="${m.id}"
           class="bg-white border border-[#D3D6D8] rounded-xl p-4 flex flex-col shadow-sm relative animate-fadeIn group ${cursorCls}">
           <div class="flex items-center gap-2 mb-2 flex-wrap">
             ${tagNames.map(t => Components.Tag(t)).join('')}

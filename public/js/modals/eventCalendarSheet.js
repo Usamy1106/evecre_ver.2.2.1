@@ -12,7 +12,7 @@
 //   - バー：ミッションの期限をバーで表示
 
 import { state } from '../state.js';
-import { getSortedMissions } from './mission.js';
+import { getSortedMissions, bindMissionInteractions } from './mission.js';
 import { calculateDaysLeft } from '../utils.js';
 import { LABEL_CONFIG } from '../constants.js';
 
@@ -111,6 +111,9 @@ function _render(overlay, ctx) {
   if (_sheetEl) _sheetEl.__sheetClose = () => _close(overlay);
 
   _bindAllEvents(overlay, ctx);
+
+  // ミッション行：タップ＝完了モーダル（完了可の場合）、管理者長押し＝編集/削除メニュー
+  bindMissionInteractions(overlay, ctx.p, { useInlineTap: false });
 }
 
 // =====================================================
@@ -356,7 +359,7 @@ function _renderGanttView(ctx) {
           ? 'opacity:0.45;text-decoration:line-through;'
           : '';
 
-        return `<div style="display:flex;align-items:stretch;border-bottom:1px solid #E1DFDC;">
+        return `<div data-mission-id="${m.id}" style="display:flex;align-items:stretch;border-bottom:1px solid #E1DFDC;cursor:pointer;">
           <!-- ミッション名（sticky left）-->
           <div style="width:${NAME_W}px;flex-shrink:0;position:sticky;left:0;z-index:10;
             background:#FDFBF8;border-right:1px solid #E1DFDC;
@@ -443,7 +446,7 @@ function _renderSections(ctx) {
 
 function _renderMissionRow(m) {
   return `
-    <div onclick="window._app.openClearMissionModal('${m.id}')"
+    <div data-mission-id="${m.id}"
       class="bg-white border border-[#D3D6D8] rounded-xl px-3 py-2.5 mb-2 flex items-center gap-2.5 active:bg-[#FDFBF8] cursor-pointer transition-colors">
       <span class="inline-block w-1.5 h-1.5 rounded-full ${m.status === 'cleared' ? 'bg-[#9EDF05]' : 'bg-[#FFC300]'}"></span>
       <span class="text-[13px] text-[#484545] font-bold flex-1 truncate ${m.status === 'cleared' ? 'line-through opacity-60' : ''}">${_esc(m.title)}</span>

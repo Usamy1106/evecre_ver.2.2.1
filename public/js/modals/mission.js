@@ -331,10 +331,10 @@ function _renderDetailTab(isEdit) {
             class="input-field w-full px-3 py-2.5 text-[13px] focus:outline-none resize-none">${_esc(description)}</textarea>
         </div>
 
-        <!-- 完了のみ -->
+        <!-- ワンタップ完了 -->
         <div>
           <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">完了ボタンのみ</label>
+            <label class="heading-rs text-[#484545] font-bold">ワンタップ完了</label>
             <button onclick="window._app.toggleMissionNoInput()" type="button"
               class="relative w-12 h-7 rounded-full transition-colors ${noInput ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
               <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${noInput ? 'translate-x-5' : ''}"></span>
@@ -529,6 +529,46 @@ export function showProposalHelp(e, proposalId) {
  * @param {Event} e
  * @param {string} missionId
  */
+// 座標 (x,y) 付近に「編集 / 削除」コンテキストメニューを表示する。
+// 長押し（カレンダー/ガント/メインボード）とミートボール ⋮ の両方から使う。
+// z-index はカレンダーシート（z-200）より上に出すため高めにする。
+export function openMissionMenuAt(missionId, x, y) {
+  document.getElementById('mission-menu')?.remove();
+
+  const menu = document.createElement('div');
+  menu.id = 'mission-menu';
+  menu.dataset.mid = missionId;
+  menu.className = 'fixed bg-white border border-[#D3D6D8] rounded-xl shadow-xl z-[250] overflow-hidden min-w-[120px] animate-fadeIn';
+  menu.style.visibility = 'hidden';
+  menu.innerHTML = `
+    <button id="mm-edit"
+      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">編集</button>
+    <button id="mm-delete"
+      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold text-[#EE3E12]">削除</button>`;
+  document.body.appendChild(menu);
+
+  // 画面内にクランプして配置
+  const mw = menu.offsetWidth, mh = menu.offsetHeight;
+  menu.style.left = `${Math.max(8, Math.min(x, window.innerWidth  - mw - 8))}px`;
+  menu.style.top  = `${Math.max(8, Math.min(y, window.innerHeight - mh - 8))}px`;
+  menu.style.visibility = 'visible';
+
+  menu.querySelector('#mm-edit').onclick = (ev) => {
+    ev.stopPropagation();
+    menu.remove();
+    openMissionModal(missionId);
+  };
+  menu.querySelector('#mm-delete').onclick = (ev) => {
+    ev.stopPropagation();
+    menu.remove();
+    _openMissionDeleteConfirm(missionId);
+  };
+
+  // 外側タップで閉じる（bubble。長押し直後の抑止済みクリックでは閉じない）
+  const close = () => { menu.remove(); document.removeEventListener('click', close); };
+  setTimeout(() => document.addEventListener('click', close), 10);
+}
+
 export function toggleMissionMenu(e, missionId) {
   e.stopPropagation();
   const existingMenu = document.getElementById('mission-menu');
@@ -537,39 +577,74 @@ export function toggleMissionMenu(e, missionId) {
     existingMenu.remove();
     if (same) return;
   }
-
   // currentTarget が null になるモバイル Safari 対策：e.target にフォールバック
   const triggerEl = e.currentTarget ?? e.target;
   const rect      = triggerEl.getBoundingClientRect();
+  openMissionMenuAt(missionId, rect.left, rect.bottom + 4);
+}
 
-  const menu = document.createElement('div');
-  menu.id = 'mission-menu';
-  menu.dataset.mid = missionId;
-  // fixed + getBoundingClientRect で document.body に直マウント
-  // → 親の overflow:hidden や position:relative に依存しない
-  menu.className = 'fixed bg-white border border-[#D3D6D8] rounded-xl shadow-xl z-[60] overflow-hidden min-w-[110px] animate-fadeIn';
-  menu.style.top   = `${rect.bottom + 4}px`;
-  menu.style.right = `${window.innerWidth - rect.right}px`;
-  menu.innerHTML = `
-    <button id="mm-edit"
-      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">編集</button>
-    <button id="mm-delete"
-      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold text-[#EE3E12]">削除</button>`;
-  document.body.appendChild(menu);
+// ミッションのタップ時アクションを返す（完了できない場合は null）。
+// 個別完了 → 完了者リスト、通常で完了可 → 完了モーダル。
+export function missionTapAction(m) {
+  if (!m) return null;
+  if (m.individualClear) return () => window._app.openIndividualClearListModal(m.id);
+  if (m.status === 'cleared' || m.status === 'pending_leader_check') return null;
+  const meId = state.currentUser?.id;
+  const assignees = Array.isArray(m.assignees) ? m.assignees : [];
+  const myMission = (m.assignee?.type === 'user' && m.assignee.userId === meId) || assignees.includes(meId);
+  // 申告制で自分の担当でなければ完了不可
+  if (m.selfClaim && !myMission) return null;
+  return () => window._app.openClearMissionModal(m.id);
+}
 
-  document.getElementById('mm-edit').onclick = (ev) => {
-    ev.stopPropagation();
-    menu.remove();
-    window._app.openMissionModal(missionId);
-  };
-  document.getElementById('mm-delete').onclick = (ev) => {
-    ev.stopPropagation();
-    menu.remove();
-    _openMissionDeleteConfirm(missionId);
-  };
+// root 内の [data-mission-id] にタップ＋（管理者の）長押しメニューを束ねる。
+// useInlineTap=true の場合は要素側の inline onclick をタップに使い、ここでは長押しのみ束ねる。
+const _LP_MS = 500, _LP_MOVE_TOL = 10;
+export function bindMissionInteractions(root, p, { useInlineTap = false } = {}) {
+  if (!root) return;
+  const canMgr = state.canManageCurrentEvent();
+  root.querySelectorAll('[data-mission-id]').forEach(el => {
+    if (el.dataset.miBound === '1') return; // 二重バインド防止
+    el.dataset.miBound = '1';
+    const mid = el.dataset.missionId;
+    const m = (p.missions || []).find(x => x.id === mid);
+    if (!m) return;
+    const tap = useInlineTap ? null : missionTapAction(m);
 
-  const close = () => { menu.remove(); document.removeEventListener('click', close); };
-  setTimeout(() => document.addEventListener('click', close), 10);
+    let timer = null, startPt = null, consumed = false;
+    const startLP = (e) => {
+      if (!canMgr) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      consumed = false;
+      startPt = { x: e.clientX, y: e.clientY };
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        consumed = true;
+        if (navigator.vibrate) navigator.vibrate(15);
+        openMissionMenuAt(mid, e.clientX, e.clientY);
+      }, _LP_MS);
+    };
+    const moveLP = (e) => {
+      if (!startPt) return;
+      if (Math.abs(e.clientX - startPt.x) > _LP_MOVE_TOL || Math.abs(e.clientY - startPt.y) > _LP_MOVE_TOL) cancelLP();
+    };
+    const cancelLP = () => { clearTimeout(timer); timer = null; startPt = null; };
+
+    if (canMgr) {
+      el.addEventListener('pointerdown',   startLP);
+      el.addEventListener('pointermove',   moveLP);
+      el.addEventListener('pointerup',     cancelLP);
+      el.addEventListener('pointercancel', cancelLP);
+      el.addEventListener('pointerleave',  cancelLP);
+      el.addEventListener('contextmenu',   (ev) => ev.preventDefault());
+    }
+
+    // capture でクリックを判定：長押し発火後は抑止。inline onclick が無ければタップを実行。
+    el.addEventListener('click', (ev) => {
+      if (consumed) { ev.preventDefault(); ev.stopImmediatePropagation(); consumed = false; return; }
+      if (tap) tap();
+    }, true);
+  });
 }
 
 function _openMissionDeleteConfirm(missionId) {
