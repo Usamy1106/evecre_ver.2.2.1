@@ -678,37 +678,65 @@ export const state = {
   },
 
   // --- 提案の更新サイクル判定 ---
-  // - 動的生成済み（lastProposalGeneratedAt 設定済み）: 8時間ごとに更新（残り数に関わらず）
-  // - 未生成（lastProposalGeneratedAt=null、初期3件のまま）: 使い切って空になったら最初の動的生成
-  //   ※かつて「lastProposalGeneratedAt が truthy」を必須にしていたため、初期3件を
-  //     使い切ったイベントが永遠に「準備中...」のまま固まるバグがあった
+  // 仕様（最大3件）：
+  // - 初期3件（PROPOSAL_POOL.slice(0,3) = id p1/p2/p3）は「凍結」。採用されるまで一切更新せず残す。
+  // - 初期提案が採用されて空いた枠＝「補充枠」。補充枠は 8時間ごとに新提案で更新し続ける（恒久）。
+  //   → 初期が3件とも残っている間は補充枠ゼロなので何もしない。
+  // - 基準時刻：直近の補充 lastProposalGeneratedAt（未補充ならイベント作成 createdAt）から8時間。
+  // 提案カードは管理者UIのみのため、非管理者では走らせない（生成・保存しない）。
   _checkProposalCycle() {
     if (!this.selectedEventId || this._proposalFetching) return;
+    if (!this.canManageCurrentEvent()) return;
     const p = this.events.find(x => x.id === this.selectedEventId);
     if (!p || !Array.isArray(p.proposals)) return;
-    const due = p.lastProposalGeneratedAt
-      ? Date.now() - p.lastProposalGeneratedAt >= 8 * 60 * 60 * 1000
-      : p.proposals.length === 0;
+    const FULL = 3;
+    const initialIds  = new Set(PROPOSAL_POOL.slice(0, 3).map(pr => pr.id));
+    const initialKept = p.proposals.filter(pr => initialIds.has(pr.id)).length;
+    if (initialKept >= FULL) return; // 初期3件が全て残存 → 補充枠なし → 凍結
+    const EIGHT_H = 8 * 60 * 60 * 1000;
+    const ref = p.lastProposalGeneratedAt || p.createdAt || 0;
+    const due = ref ? (Date.now() - ref >= EIGHT_H) : true;
     if (due) this._refreshProposals(p);
   },
 
   // --- 提案リフレッシュ（サーバー側ルールベースエンジンを呼ぶ） ---
+  // 初期提案（非採用で残っているもの）は凍結して保持し、それ以外の「補充枠」だけを
+  // 新しい提案で入れ替える（＝補充枠は8時間ごとに更新される）。結果は save() で永続化。
   async _refreshProposals(p) {
     if (this._proposalFetching) return;
     this._proposalFetching = true;
+    const FULL = 3;
+    const initialIds = new Set(PROPOSAL_POOL.slice(0, 3).map(pr => pr.id));
+    const kept = (p.proposals || []).filter(pr => initialIds.has(pr.id)); // 凍結する初期提案
+    const need = Math.max(0, FULL - kept.length);
+    const pickFresh = (candidates) => {
+      const seenIds    = new Set(kept.map(x => x.id));
+      const seenTitles = new Set(kept.map(x => x.title));
+      const out = [];
+      for (const np of candidates) {
+        if (out.length >= need) break;
+        if (!np || seenIds.has(np.id) || seenTitles.has(np.title)) continue;
+        out.push(np);
+        seenIds.add(np.id); seenTitles.add(np.title);
+      }
+      return out;
+    };
     try {
       const r = await api.generateProposals(p.id);
       if (r.ok && Array.isArray(r.proposals)) {
-        p.proposals = r.proposals;
+        // 初期(凍結) + 新規補充。既存の補充提案は破棄して入れ替える（8時間ごと更新）
+        p.proposals = [...kept, ...pickFresh(r.proposals)].slice(0, FULL);
         p.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
         p.lastProposalClearedTime = null;
+        this.save();
         this.render();
       }
     } catch (_) {
-      // API 失敗時は PROPOSAL_POOL フォールバック
+      // API 失敗時は PROPOSAL_POOL フォールバック（初期idは除外して補充）
       const usedIds = p.missions.map(m => m.originProposalId).filter(Boolean);
-      const available = PROPOSAL_POOL.filter(pr => !usedIds.includes(pr.id));
-      p.proposals = available.sort(() => 0.5 - Math.random()).slice(0, 3);
+      const available = PROPOSAL_POOL.filter(pr => !usedIds.includes(pr.id) && !initialIds.has(pr.id));
+      p.proposals = [...kept, ...pickFresh(available.sort(() => 0.5 - Math.random()))].slice(0, FULL);
+      this.save();
       this.render();
     } finally {
       this._proposalFetching = false;
