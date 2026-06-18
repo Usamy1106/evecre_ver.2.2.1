@@ -1053,6 +1053,8 @@ function _notifIconBg(type) {
     case 'member_joined':         return 'bg-[#9EDF05]/20';
     case 'role_assigned':         return 'bg-[#0CA1E3]/20';
     case 'mission_created':       return 'bg-[#A78BFA]/20';
+    case 'mission_updated':       return 'bg-[#A78BFA]/20';
+    case 'mission_reverted':      return 'bg-[#FFC300]/20';
     case 'self_claimed':          return 'bg-[#FFC300]/20';
     default: return 'bg-[#EBE8E5]';
   }
@@ -1081,6 +1083,10 @@ function _notifIcon(type) {
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#0CA1E3" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7"/><polyline points="15 17 17 19 21 15"/></svg>`;
     case 'mission_created':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
+    case 'mission_updated':
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+    case 'mission_reverted':
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
     case 'self_claimed':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
     default:

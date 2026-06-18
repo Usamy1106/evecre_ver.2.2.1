@@ -331,6 +331,19 @@ function _setMissionField(p, mid, field, value, ts) {
   return true;
 }
 
+// ミッションの「内容変更」とみなすフィールド（管理者が編集モーダルで触る項目）。
+// status / daysLeft / assignee / claimApplicants / individualClearedBy / clearFormat など
+// 自動・完了フロー・専用通知のある項目は除外して、変更通知の誤発火を防ぐ。
+const _MISSION_CONTENT_FIELDS = [
+  'title', 'description', 'dates', 'tag', 'tags', 'priority', 'checklist',
+  'selfClaim', 'leaderCheck', 'claimMode', 'claimDeadline',
+  'noInput', 'individualClear', 'announce', 'announceText',
+];
+function _missionContentChanged(prev, m) {
+  return _MISSION_CONTENT_FIELDS.some(k =>
+    JSON.stringify(prev[k] ?? null) !== JSON.stringify(m[k] ?? null));
+}
+
 /**
  * flat イベントの clearedData を submissions コレクションに分離して保存する。
  * - format === 'image' かつ content が dataURL の場合、R2 にアップロードして URL に置換。
@@ -1103,22 +1116,46 @@ app.put('/api/data', requireAuth, async (req, res) => {
           });
         }
 
-        // (D) 新規ミッション作成
+        // (E) アーカイブから未完了に戻された（cleared → cleared 以外）→ 全メンバー（実行者除く）
+        if (prevStatus === 'cleared' && newStatus !== 'cleared') {
+          notifications.push({
+            userIds: projectMembers.filter(uid => uid !== req.user.id),
+            notif: {
+              type:      'mission_reverted',
+              message:   `${req.user.username} さんが「${m.title}」を未完了に戻しました`,
+              eventId: incomingP.id,
+              missionId: m.id,
+              actorId:   req.user.id,
+              actorName: req.user.username,
+            },
+          });
+        }
+
+        // (D) 新規ミッション作成 / (F) 既存ミッションの内容変更 → 全メンバー（実行者除く）
         if (!prev) {
-          const managerIds = _getManagerIds(existing).filter(uid => uid !== req.user.id);
-          if (managerIds.length > 0) {
-            notifications.push({
-              userIds: managerIds,
-              notif: {
-                type:      'mission_created',
-                message:   `${req.user.username} さんが「${m.title}」を作成しました`,
-                eventId: incomingP.id,
-                missionId: m.id,
-                actorId:   req.user.id,
-                actorName: req.user.username,
-              },
-            });
-          }
+          notifications.push({
+            userIds: projectMembers.filter(uid => uid !== req.user.id),
+            notif: {
+              type:      'mission_created',
+              message:   `${req.user.username} さんが「${m.title}」を作成しました`,
+              eventId: incomingP.id,
+              missionId: m.id,
+              actorId:   req.user.id,
+              actorName: req.user.username,
+            },
+          });
+        } else if (_missionContentChanged(prev, m)) {
+          notifications.push({
+            userIds: projectMembers.filter(uid => uid !== req.user.id),
+            notif: {
+              type:      'mission_updated',
+              message:   `${req.user.username} さんが「${m.title}」を変更しました`,
+              eventId: incomingP.id,
+              missionId: m.id,
+              actorId:   req.user.id,
+              actorName: req.user.username,
+            },
+          });
         }
       }
 
