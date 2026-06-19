@@ -75,6 +75,33 @@ export function bindEventLongPress() {
   });
 }
 
+/**
+ * ホーム画面のプロジェクト（フォルダ）カードに長押しを紐付ける。
+ * - 通常タップ → カードの onclick（プロジェクト詳細へ遷移）が動く
+ * - 長押し    → 既存のフォルダメニュー（名前変更 / 削除）を表示（main.js の openProjectMenu を再利用）
+ */
+export function bindFolderLongPress() {
+  document.querySelectorAll('[data-folder-card]').forEach(card => {
+    const folderId = card.dataset.folderId;
+    if (!folderId) return;
+
+    attachLongPress(card, (e) => {
+      e.preventDefault();
+      if (navigator.vibrate) navigator.vibrate(15);
+      window._app?.openProjectMenu(folderId);
+    });
+
+    // 長押し直後のclickを無効化する（タップとの誤爆防止）
+    card.addEventListener('click', (e) => {
+      if (pressConsumed) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        pressConsumed = false;
+      }
+    }, true);
+  });
+}
+
 // ---- メニュー（名前変更 / 削除） ----
 
 /**

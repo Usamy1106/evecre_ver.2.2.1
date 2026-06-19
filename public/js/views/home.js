@@ -1,7 +1,7 @@
 // ===== ホーム画面 =====
 import { state } from '../state.js';
 import { Components } from '../components.js';
-import { bindEventLongPress } from '../modals/eventActions.js';
+import { bindEventLongPress, bindFolderLongPress } from '../modals/eventActions.js';
 
 /**
  * ホーム画面をレンダリングする
@@ -61,6 +61,7 @@ export function renderHome(container) {
     </div>`;
 
   bindEventLongPress();
+  bindFolderLongPress();
 }
 
 function _renderEventsTab() {
@@ -114,8 +115,10 @@ function _renderProjectsTab() {
     </div>`;
 
   return folders.map(f => `
-    <div onclick="window._app.setView('PROJECT_DETAIL', '${f.id}')"
-      class="flex items-center gap-4 px-4 py-4 bg-white rounded-2xl shadow-sm mb-3 active:scale-[0.98] transition-transform cursor-pointer border border-[#E1DFDC]">
+    <div data-folder-card data-folder-id="${f.id}"
+      onclick="window._app.setView('PROJECT_DETAIL', '${f.id}')"
+      style="touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"
+      class="flex items-center gap-4 px-4 py-4 bg-white rounded-2xl shadow-sm mb-3 active:scale-[0.98] transition-transform cursor-pointer border border-[#E1DFDC] select-none">
       <div class="w-11 h-11 rounded-xl bg-[#EBE8E5] flex items-center justify-center flex-shrink-0">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#484545" stroke-width="2">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>

@@ -190,7 +190,7 @@ export function openClearMissionModal(missionId, _overrideFormat = null) {
   if (m?.noInput) {
     const noInputOverlay = document.createElement('div');
     noInputOverlay.id = 'clear-mission-modal';
-    noInputOverlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-6 page-transition';
+    noInputOverlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[210] flex items-center justify-center p-6 page-transition';
     noInputOverlay.innerHTML = `
       <div class="bg-white rounded-3xl w-full max-sm:w-[90%] max-w-sm p-8 shadow-2xl relative animate-fadeIn">
         <button onclick="document.getElementById('clear-mission-modal').remove()" class="absolute top-4 right-4 p-2 opacity-40">
@@ -240,7 +240,7 @@ export function openClearMissionModal(missionId, _overrideFormat = null) {
 
   const overlay = document.createElement('div');
   overlay.id = 'clear-mission-modal';
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-6 page-transition';
+  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[210] flex items-center justify-center p-6 page-transition';
   overlay.innerHTML = `
     <div class="bg-white rounded-3xl w-full max-sm:w-[90%] max-w-sm p-8 shadow-2xl relative animate-fadeIn max-h-[90vh] overflow-y-auto">
       <button onclick="document.getElementById('clear-mission-modal').remove()" class="absolute top-4 right-4 p-2 opacity-40">
@@ -953,7 +953,7 @@ export function openIndividualClearListModal(missionId) {
   const overlay = document.createElement('div');
   overlay.id = 'indiv-clear-list-modal';
   // fixed inset-0 → 背景全体をカバー。上部タップで閉じられる。
-  overlay.className = 'fixed inset-0 bg-black/50 z-[150] flex items-end justify-center';
+  overlay.className = 'fixed inset-0 bg-black/50 z-[210] flex items-end justify-center';
   overlay.innerHTML = `
     <div data-indiv-sheet data-sheet
       class="bg-white rounded-t-3xl w-full max-w-lg flex flex-col"

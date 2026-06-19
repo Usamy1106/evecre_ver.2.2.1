@@ -457,17 +457,17 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
             </button>
           </div>
         </div>
-        <!-- 表示モード切替（全て / 私のみ）-->
+        <!-- 表示モード切替（私のみ / 全て）-->
         <div class="flex gap-1 bg-[#EBE8E5] rounded-xl p-1 mb-3">
-          <button onclick="window._app.setMissionViewMode('all')"
-            class="flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all
-            ${viewMode === 'all' ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
-            全てのミッション
-          </button>
           <button onclick="window._app.setMissionViewMode('mine')"
             class="flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all
             ${viewMode === 'mine' ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
             私のミッション
+          </button>
+          <button onclick="window._app.setMissionViewMode('all')"
+            class="flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all
+            ${viewMode === 'all' ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
+            全てのミッション
           </button>
         </div>
         ${tagFilterHtml}
@@ -570,21 +570,6 @@ function _renderAnnounceCards(p, meId) {
 
   if (active.length === 0) return '';
 
-  const _assigneeLabel = (m) => {
-    if (Array.isArray(m.assignees) && m.assignees.length > 0) {
-      return _resolveUsernames(p, m.assignees);
-    }
-    if (m.assignee?.type === 'user') {
-      const mem = (p.members || []).find(x => x.userId === m.assignee.userId);
-      return mem?.username || '不明';
-    }
-    if (m.assignee?.type === 'role') {
-      const role = (p.roles || []).find(r => r.id === m.assignee.roleId);
-      return role?.name || '不明なロール';
-    }
-    return '全員';
-  };
-
   const _deadlineLabel = (m) => {
     if (!Array.isArray(m.dates) || m.dates.length === 0) return '';
     const end = [...m.dates].sort().at(-1);
@@ -596,8 +581,14 @@ function _renderAnnounceCards(p, meId) {
     return `<span class="text-[10px] font-bold text-[#A7AAAC]">残り${diff}日</span>`;
   };
 
+  // タップでミッション完了モーダルを開く（個別完了は完了者リスト、通常は完了モーダル。ミッションカードと同挙動）
+  const _cardClick = (m) => m.individualClear
+    ? `onclick="window._app.openIndividualClearListModal('${m.id}')"`
+    : `onclick="window._app.openClearMissionModal('${m.id}')"`;
+
   const cardHtml = (m) => `
-    <div class="bg-[#EAF6FF] border border-[#0CA1E3]/40 rounded-2xl px-4 py-3">
+    <div ${_cardClick(m)}
+      class="bg-[#EAF6FF] border border-[#0CA1E3]/40 rounded-2xl px-4 py-3 cursor-pointer active:bg-[#D4EFFF] transition-colors">
       <div class="flex items-start gap-2">
         <svg class="flex-shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0CA1E3" stroke-width="2.5">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -605,9 +596,9 @@ function _renderAnnounceCards(p, meId) {
         </svg>
         <div class="flex-1 min-w-0">
           <p class="text-[12px] font-bold text-[#484545] mb-1 truncate">${_esc(m.title)}</p>
+          ${m.description ? `<p class="text-[11px] text-[#6b6b6b] mb-1 whitespace-pre-wrap break-words">${_esc(m.description)}</p>` : ''}
           <div class="flex items-center gap-3 flex-wrap">
             ${_deadlineLabel(m)}
-            <span class="text-[10px] text-[#A7AAAC]">担当：${_esc(_assigneeLabel(m))}</span>
           </div>
         </div>
       </div>
@@ -1191,11 +1182,15 @@ function _fmtDate(ts) {
 }
 
 // userId 配列 → ユーザー名カンマ区切り
-function _resolveUsernames(p, userIds) {
+function _resolveUsernames(p, userIds, max = 3) {
   if (!Array.isArray(userIds) || userIds.length === 0) return '未確定';
   const names = userIds.map(uid => {
     const member = (p.members || []).find(m => m.userId === uid);
     return member ? `@${member.username}` : '不明なユーザー';
   });
+  // ミッション欄では担当者は max（既定3）人まで表示し、超過分は「他N人」に集約
+  if (names.length > max) {
+    return names.slice(0, max).join('、') + ` 他${names.length - max}人`;
+  }
   return names.join('、');
 }
