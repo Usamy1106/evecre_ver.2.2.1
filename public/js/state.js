@@ -678,40 +678,41 @@ export const state = {
   },
 
   // --- 提案の更新サイクル判定 ---
-  // 仕様（最大3件）：
-  // - 初期3件（PROPOSAL_POOL.slice(0,3) = id p1/p2/p3）は「凍結」。採用されるまで一切更新せず残す。
-  // - 初期提案が採用されて空いた枠＝「補充枠」。補充枠は 8時間ごとに新提案で更新し続ける（恒久）。
-  //   → 初期が3件とも残っている間は補充枠ゼロなので何もしない。
-  // - 基準時刻：直近の補充 lastProposalGeneratedAt（未補充ならイベント作成 createdAt）から8時間。
+  // スロット構成（最大3件）：
+  // - 固定枠2件（FIXED_IDS = p1 開催場所を決める / p2 メインビジュアルを作成する）。
+  //   採用されるまで不変。エンジンでは置き換えない。
+  // - 動的枠（残り＝最大1件、表示は末尾＝p3 の位置）。エンジン生成で
+  //   イベント内容・進捗・フェーズに合わせ、8時間ごとに更新する。
+  //   固定枠が採用で空けば、その枠も動的になる。
+  // - 基準時刻：直近生成 lastProposalGeneratedAt から8時間。未生成なら即時生成
+  //   （作成直後にイベント適合の動的枠を出すため。createdAt は基準に使わない）。
   // 提案カードは管理者UIのみのため、非管理者では走らせない（生成・保存しない）。
   _checkProposalCycle() {
     if (!this.selectedEventId || this._proposalFetching) return;
     if (!this.canManageCurrentEvent()) return;
     const p = this.events.find(x => x.id === this.selectedEventId);
     if (!p || !Array.isArray(p.proposals)) return;
-    const FULL = 3;
-    const initialIds  = new Set(PROPOSAL_POOL.slice(0, 3).map(pr => pr.id));
-    const initialKept = p.proposals.filter(pr => initialIds.has(pr.id)).length;
-    if (initialKept >= FULL) return; // 初期3件が全て残存 → 補充枠なし → 凍結
     const EIGHT_H = 8 * 60 * 60 * 1000;
-    const ref = p.lastProposalGeneratedAt || p.createdAt || 0;
-    const due = ref ? (Date.now() - ref >= EIGHT_H) : true;
+    const last = p.lastProposalGeneratedAt;
+    const due  = !last || (Date.now() - last >= EIGHT_H);
     if (due) this._refreshProposals(p);
   },
 
   // --- 提案リフレッシュ（サーバー側ルールベースエンジンを呼ぶ） ---
-  // 初期提案（非採用で残っているもの）は凍結して保持し、それ以外の「補充枠」だけを
-  // 新しい提案で入れ替える（＝補充枠は8時間ごとに更新される）。結果は save() で永続化。
+  // 固定枠（p1/p2、非採用で残っているもの）は保持し、それ以外の「動的枠」だけを
+  // 新しい提案で入れ替える（＝動的枠は8時間ごとに更新される）。固定枠が採用で空けば
+  // その枠も動的枠として埋まる。表示順は p1 → p2 → 動的枠（末尾＝p3 の位置）。結果は save() で永続化。
   async _refreshProposals(p) {
     if (this._proposalFetching) return;
     this._proposalFetching = true;
     const FULL = 3;
-    const initialIds = new Set(PROPOSAL_POOL.slice(0, 3).map(pr => pr.id));
-    const kept = (p.proposals || []).filter(pr => initialIds.has(pr.id)); // 凍結する初期提案
-    const need = Math.max(0, FULL - kept.length);
+    const FIXED_IDS = new Set(['p1', 'p2']); // 固定枠（開催場所を決める / メインビジュアルを作成する）
+    // 現在残っている固定提案（採用済みは消えている＝その枠も動的になる）
+    const fixed = (p.proposals || []).filter(pr => FIXED_IDS.has(pr.id));
+    const need  = Math.max(0, FULL - fixed.length); // 動的枠の数
     const pickFresh = (candidates) => {
-      const seenIds    = new Set(kept.map(x => x.id));
-      const seenTitles = new Set(kept.map(x => x.title));
+      const seenIds    = new Set(fixed.map(x => x.id));
+      const seenTitles = new Set(fixed.map(x => x.title));
       const out = [];
       for (const np of candidates) {
         if (out.length >= need) break;
@@ -721,21 +722,27 @@ export const state = {
       }
       return out;
     };
+    // 固定枠を先頭（p1 → p2）に置き、動的枠を末尾（p3 の位置）に並べる
+    const compose = (dynamic) => {
+      const p1 = fixed.find(x => x.id === 'p1');
+      const p2 = fixed.find(x => x.id === 'p2');
+      return [p1, p2, ...dynamic].filter(Boolean).slice(0, FULL);
+    };
     try {
       const r = await api.generateProposals(p.id);
       if (r.ok && Array.isArray(r.proposals)) {
-        // 初期(凍結) + 新規補充。既存の補充提案は破棄して入れ替える（8時間ごと更新）
-        p.proposals = [...kept, ...pickFresh(r.proposals)].slice(0, FULL);
+        // 固定枠 + 新規動的枠。既存の動的提案は破棄して入れ替える（8時間ごと更新）
+        p.proposals = compose(pickFresh(r.proposals));
         p.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
         p.lastProposalClearedTime = null;
         this.save();
         this.render();
       }
     } catch (_) {
-      // API 失敗時は PROPOSAL_POOL フォールバック（初期idは除外して補充）
+      // API 失敗時は PROPOSAL_POOL フォールバック（固定id・使用済みは除外して動的枠を補充）
       const usedIds = p.missions.map(m => m.originProposalId).filter(Boolean);
-      const available = PROPOSAL_POOL.filter(pr => !usedIds.includes(pr.id) && !initialIds.has(pr.id));
-      p.proposals = [...kept, ...pickFresh(available.sort(() => 0.5 - Math.random()))].slice(0, FULL);
+      const available = PROPOSAL_POOL.filter(pr => !usedIds.includes(pr.id) && !FIXED_IDS.has(pr.id));
+      p.proposals = compose(pickFresh(available.sort(() => 0.5 - Math.random())));
       this.save();
       this.render();
     } finally {

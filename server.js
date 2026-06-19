@@ -995,6 +995,8 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       // 進捗連動: 開催日・残り日数からフェーズ判定、既存ミッションのタグ×完了状況からギャップ検出
       eventDates:     Array.isArray(flat.dates) ? flat.dates : [],
       daysLeft:       typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
+      // イベント設定の明示フェーズ（カレンダー優先＋補助加点 / 序盤フェーズで気づき枠を確保）
+      eventPhase:     typeof flat.eventPhase === 'string' ? flat.eventPhase : null,
       missions:       flat.missions.map(m => ({
         tag: m.tag, tags: m.tags, status: m.status, dates: m.dates,
         originProposalId: m.originProposalId,

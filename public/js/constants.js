@@ -24,10 +24,10 @@ export const MISSION_DESCRIPTIONS = {
 export const PROPOSAL_POOL = [
   { id: 'p1', title: '開催場所を決める',         tag: '企画', format: 'text',  priority: 5,
     description: 'イベントをどこで行うか決めましょう。オンラインの場合はツール名を、対面の場合は施設名を入力します。' },
-  { id: 'p2', title: '広報リンクを挿入する',      tag: '広報', format: 'link',  priority: 5,
-    description: 'SNSやWebサイトなど、参加者が詳細を確認できるURLを準備しましょう。' },
-  { id: 'p3', title: 'メインビジュアルを作成する', tag: '制作', format: 'image', priority: 5,
+  { id: 'p2', title: 'メインビジュアルを作成する', tag: '制作', format: 'image', priority: 5,
     description: 'イベントの顔となる画像を作成します。テーマカラーやロゴを含めると効果的です。' },
+  { id: 'p3', title: '広報リンクを挿入する',      tag: '広報', format: 'link',  priority: 5,
+    description: 'SNSやWebサイトなど、参加者が詳細を確認できるURLを準備しましょう。' },
   { id: 'p4', title: '数値目標（KPI）を設定する', tag: '企画', format: 'text', priority: 5,
     description: 'イベントの成功を測るための指標を設定します。来場者数・満足度・SNSシェア数など具体的に記述しましょう。' },
   { id: 'p5', title: '予算配分を決める',          tag: '運営', format: 'text',  priority: 5,
