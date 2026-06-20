@@ -2072,7 +2072,9 @@ app.post('/api/log', logLimiter, async (req, res) => {
           clientTs:  e.clientTs ? new Date(e.clientTs) : new Date(),
           userId,
           sessionId: e.sessionId ? String(e.sessionId).slice(0, 64) : null,
-          projectId: e.eventId ? String(e.eventId).slice(0, 64) : null,
+          // クライアント(logger.js)は projectId フィールドで選択中イベントIDを送る。
+          // 旧 eventId も後方互換で受ける（過去は eventId を読んでおり常に null になっていた）。
+          projectId: (e.projectId || e.eventId) ? String(e.projectId || e.eventId).slice(0, 64) : null,
           props:     (e.props && typeof e.props === 'object' && !Array.isArray(e.props)) ? e.props : {},
           ctx:       (e.ctx   && typeof e.ctx   === 'object' && !Array.isArray(e.ctx))   ? e.ctx   : {},
         }));
