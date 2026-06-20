@@ -1207,6 +1207,38 @@ app.put('/api/data', requireAuth, async (req, res) => {
   }
 });
 
+// ===== 操作履歴（行動ログ） =====
+
+// イベントの操作履歴を取得（管理者権限必須）。event_logs を projectId で絞って新しい順に返す。
+app.get('/api/events/:id/logs', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (!eventStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const limit = parseInt(req.query.limit, 10) || 200;
+    const docs  = await eventLogStore.findByProject(req.params.id, limit);
+
+    // userId → username 解決（ログに残る非メンバー/退会者も拾えるよう userStore で引く）
+    const ids   = [...new Set(docs.map(d => d.userId).filter(Boolean))];
+    const users = await userStore.findManyByIds(ids);
+    const nameById = new Map(users.map(u => [u.id, u.username]));
+
+    const logs = docs.map(d => ({
+      event:    d.event,
+      ts:       d.ts,
+      userId:   d.userId || null,
+      username: d.userId ? (nameById.get(d.userId) || '不明なユーザー') : 'ゲスト',
+      props:    (d.props && typeof d.props === 'object') ? d.props : {},
+    }));
+    res.json({ ok: true, logs });
+  } catch (e) {
+    console.error('events/:id/logs error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ===== メンバー =====
 
 app.get('/api/events/:id/members', requireAuth, async (req, res) => {

@@ -1120,6 +1120,7 @@ window._app = {
   openNewProjectModal: (pendingEventId = null) => _openNewProjectModal(pendingEventId),
   openNewProjectModalForEvent: (eventId) => _openNewProjectModal(eventId),
   openProjectMenu: (folderId) => _openProjectMenu(folderId),
+  openEventLogSheet: () => _openEventLogSheet(),
 
   // プロジェクト詳細から「+ 新規イベント作成」
   createEventInFolder: (folderId) => {
@@ -1446,4 +1447,97 @@ function _openProjectRenameDialog(folderId) {
     if (e.key === 'Enter') document.getElementById('pr-save').click();
     if (e.key === 'Escape') overlay.remove();
   });
+}
+
+// ===== 操作履歴シート（管理者のみ）=====
+// イベントの event_logs を「誰が・いつ・何を」の時系列で表示する。
+const _LOG_LABELS = {
+  session_started:        'アプリを開いた',
+  session_ended:          'アプリを閉じた',
+  login_completed:        'ログインした',
+  signup_completed:       '新規登録した',
+  logout:                 'ログアウトした',
+  event_create_started:   'イベント作成を開始',
+  project_info_completed: 'イベント情報を入力',
+  event_created:          'イベントを作成した',
+  mission_created:        'ミッションを作成した',
+  mission_edited:         'ミッションを編集した',
+  mission_completed:      'ミッションを完了した',
+  mission_deleted:        'ミッションを削除した',
+  proposal_accepted:      'AI提案を採用した',
+  proposal_help_viewed:   'AI提案の詳細を見た',
+  like_given:             'いいねした',
+  invite_issued:          '招待リンクを発行した',
+  invite_code_copied:     '招待コードをコピー',
+  invite_shared:          '招待を共有した',
+  board_tab_switched:     'タブを切替',
+  archive_viewed:         'アーカイブを表示',
+  view_changed:           '画面を移動',
+  // サーバー側監査ログ（後述の拡充分）
+  role_changed:           'ロールを変更した',
+  member_joined:          'メンバーが参加した',
+  member_approved:        'メンバーを承認した',
+  member_removed:         'メンバーを除名した',
+  member_left:            'イベントを脱退した',
+  claim_applied:          '担当に応募した',
+  claim_unapplied:        '応募を取り消した',
+  claim_selected:         '担当を選定した',
+  leader_approved:        'リーダー承認した',
+  leader_rejected:        'リーダー差し戻し',
+};
+
+function _logLabel(ev) { return _LOG_LABELS[ev] || ev; }
+
+function _fmtLogTime(ts) {
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  const yearPrefix = d.getFullYear() === now.getFullYear() ? '' : `${d.getFullYear()}/`;
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${yearPrefix}${d.getMonth() + 1}/${d.getDate()} ${hh}:${mi}`;
+}
+
+async function _openEventLogSheet() {
+  const eventId = state.selectedEventId;
+  if (!eventId) return;
+
+  document.getElementById('event-log-sheet')?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'event-log-sheet';
+  overlay.className = 'fixed inset-0 bg-black/40 z-[200] flex items-end justify-center page-transition';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div data-sheet class="bg-white w-full max-w-md rounded-t-[32px] shadow-2xl animate-fadeIn flex flex-col" style="max-height:80vh">
+      <div data-sheet-handle class="flex justify-center pt-3 pb-2 flex-shrink-0"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
+      <p class="text-center text-[15px] font-bold text-[#484545] pb-3 flex-shrink-0">操作履歴</p>
+      <div id="event-log-body" class="flex-1 overflow-y-auto px-5 pb-8">
+        <p class="text-center text-[13px] text-[#A7AAAC] py-10">読み込み中...</p>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const body = overlay.querySelector('#event-log-body');
+  try {
+    const r = await api.getEventLogs(eventId, 300);
+    if (!r.ok) {
+      body.innerHTML = `<p class="text-center text-[13px] text-[#EE3E12] py-10">${_escH(r.error || '取得に失敗しました')}</p>`;
+      return;
+    }
+    const logs = Array.isArray(r.logs) ? r.logs : [];
+    if (logs.length === 0) {
+      body.innerHTML = `<p class="text-center text-[13px] text-[#A7AAAC] py-10">まだ履歴がありません</p>`;
+      return;
+    }
+    body.innerHTML = logs.map(l => `
+      <div class="flex items-start gap-3 py-2.5 border-b border-[#F0EEEC]">
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-bold text-[#484545]">${_escH(_logLabel(l.event))}</p>
+          <p class="text-[11px] text-[#A7AAAC] mt-0.5 truncate">${_escH(l.username || 'ゲスト')}</p>
+        </div>
+        <span class="text-[11px] text-[#A7AAAC] flex-shrink-0 whitespace-nowrap">${_fmtLogTime(l.ts)}</span>
+      </div>`).join('');
+  } catch (_) {
+    body.innerHTML = `<p class="text-center text-[13px] text-[#EE3E12] py-10">通信エラー</p>`;
+  }
 }

@@ -138,6 +138,12 @@ export const api = {
     return json || { ok: false };
   },
 
+  // ----- 操作履歴（行動ログ／管理者のみ） -----
+  async getEventLogs(eventId, limit = 200) {
+    const { json } = await _send('GET', `/api/events/${eventId}/logs?limit=${limit}`);
+    return json || { ok: false, error: 'ネットワークエラー' };
+  },
+
   // ----- 承認待ちメンバー -----
   async approvePendingMember(eventId, userId, roleIds) {
     const { json } = await _send('POST', `/api/events/${eventId}/pending-members/${userId}/approve`, { roleIds });

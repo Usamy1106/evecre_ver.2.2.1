@@ -168,6 +168,17 @@ function _eventManagementSection(p, sec) {
           `}
         </div>
 
+        <!-- 操作履歴（管理者のみ） -->
+        ${canMgr ? `
+        <button onclick="window._app.openEventLogSheet()"
+          class="w-full p-4 flex items-center justify-between text-left active:bg-[#FDFBF8] transition-colors">
+          <div>
+            <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">操作履歴</p>
+            <span class="text-[14px] text-[#484545] font-bold">誰がいつ何をしたか</span>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>` : ''}
+
       </div>
     </section>`;
 }
