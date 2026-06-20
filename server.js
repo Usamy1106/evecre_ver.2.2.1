@@ -1197,6 +1197,7 @@ app.put('/api/data', requireAuth, async (req, res) => {
         p.members = p.members.filter(m => m.userId !== req.user.id);
         await eventStore.saveEvent(p);
         eventBus.broadcast(p.id, 'memberLeft', { eventId: p.id, userId: req.user.id });
+        logServerEvent(p.id, req.user.id, 'member_left', {});
       }
     }
 
@@ -1208,6 +1209,22 @@ app.put('/api/data', requireAuth, async (req, res) => {
 });
 
 // ===== 操作履歴（行動ログ） =====
+
+// サーバー側の権威ある操作を event_logs に記録する（fire-and-forget）。
+// クライアントの logger.js（同意制・任意）では取りこぼす重要操作の監査用。
+// ログ失敗で本処理を妨げないよう必ず catch する。
+function logServerEvent(eventId, userId, event, props = {}) {
+  eventLogStore.insertEvents([{
+    event:     String(event).slice(0, 64),
+    ts:        new Date(),
+    clientTs:  new Date(),
+    userId:    userId || null,
+    sessionId: null,
+    projectId: eventId ? String(eventId).slice(0, 64) : null,
+    props:     (props && typeof props === 'object' && !Array.isArray(props)) ? props : {},
+    ctx:       { source: 'server' },
+  }]).catch(e => console.error('[logServerEvent]', e.message));
+}
 
 // イベントの操作履歴を取得（管理者権限必須）。event_logs を projectId で絞って新しい順に返す。
 app.get('/api/events/:id/logs', requireAuth, async (req, res) => {
@@ -1294,6 +1311,7 @@ app.put('/api/events/:id/members/:userId/role', requireAuth, async (req, res) =>
     eventStore.setMemberRoleIds(p, targetId, [newRole]);
     await eventStore.saveEvent(p);
     eventBus.broadcast(p.id, 'memberRoleChanged', { eventId: p.id, userId: targetId, role: newRole });
+    logServerEvent(p.id, req.user.id, 'role_changed', { targetUserId: targetId, roles: [newRole] });
     res.json({ ok: true });
   } catch (e) {
     console.error('PUT /api/events/:id/members/:userId/role error:', e);
@@ -1332,6 +1350,7 @@ app.put('/api/events/:id/members/:userId/roles', requireAuth, async (req, res) =
     eventStore.setMemberRoleIds(p, targetId, newRoles);
     await eventStore.saveEvent(p);
     eventBus.broadcast(p.id, 'memberRolesChanged', { eventId: p.id, userId: targetId, roles: newRoles });
+    logServerEvent(p.id, req.user.id, 'role_changed', { targetUserId: targetId, roles: newRoles });
 
     if (targetId !== req.user.id) {
       const roleNames = newRoles.map(rid => allRoles.find(r => r.id === rid)?.name || rid);
@@ -1477,6 +1496,7 @@ app.post('/api/events/:id/missions/:mid/claim', requireAuth, async (req, res) =>
     _setMissionField(p, req.params.mid, 'claimApplicants', applicants);
     await eventStore.saveEvent(p);
     eventBus.broadcast(p.id, 'missionApplicantAdded', { eventId: p.id, missionId: req.params.mid, userId: req.user.id });
+    logServerEvent(p.id, req.user.id, 'claim_applied', { missionId: req.params.mid, title: m.title });
 
     const managerIds = _getManagerIds(p).filter(uid => uid !== req.user.id);
     await notifStore.notifyAll(managerIds, {
@@ -1519,6 +1539,7 @@ app.delete('/api/events/:id/missions/:mid/claim', requireAuth, async (req, res) 
 
     await eventStore.saveEvent(p);
     eventBus.broadcast(p.id, 'missionUnclaimed', { eventId: p.id, missionId: req.params.mid });
+    logServerEvent(p.id, req.user.id, 'claim_unapplied', { missionId: req.params.mid, title: m.title });
     res.json({ ok: true });
   } catch (e) {
     console.error('DELETE claim error:', e);
@@ -1554,6 +1575,7 @@ app.post('/api/events/:id/missions/:mid/select-claims', requireAuth, async (req,
     _setMissionField(p, req.params.mid, 'assignee',  { type: 'user', userId: selected[0] });
     await eventStore.saveEvent(p);
     eventBus.broadcast(p.id, 'missionSelected', { eventId: p.id, missionId: req.params.mid });
+    logServerEvent(p.id, req.user.id, 'claim_selected', { missionId: req.params.mid, title: m.title, assignees: selected });
     await _notifyAssignmentDecided(p, req.params.mid, m, selected, req.user);
     res.json({ ok: true, assignees: selected });
   } catch (e) {
@@ -1577,6 +1599,7 @@ app.post('/api/events/:id/missions/:mid/approve', requireAuth, async (req, res) 
     _setMissionField(p, req.params.mid, 'status', 'cleared');
     await eventStore.saveEvent(p);
     eventBus.broadcast(p.id, 'missionApproved', { eventId: p.id, missionId: req.params.mid });
+    logServerEvent(p.id, req.user.id, 'leader_approved', { missionId: req.params.mid, title: m.title });
 
     const submitterId = m.assignee?.type === 'user' ? m.assignee.userId : null;
     if (submitterId && submitterId !== req.user.id) {
@@ -1609,6 +1632,7 @@ app.post('/api/events/:id/missions/:mid/reject', requireAuth, async (req, res) =
     // 提出物を削除（submissions コレクションで管理）
     await submissionStore.deleteSubmission(req.params.id, req.params.mid);
     eventBus.broadcast(p.id, 'missionRejected', { eventId: p.id, missionId: req.params.mid });
+    logServerEvent(p.id, req.user.id, 'leader_rejected', { missionId: req.params.mid, title: m.title });
 
     const submitterId = m.assignee?.type === 'user' ? m.assignee.userId : null;
     if (submitterId && submitterId !== req.user.id) {
@@ -1749,6 +1773,10 @@ app.delete('/api/events/:id/members/:userId', requireAuth, async (req, res) => {
     p.members = (p.members || []).filter(m => m.userId !== targetId);
     await eventStore.saveEvent(p);
     eventBus.broadcast(p.id, 'memberLeft', { eventId: p.id, userId: targetId });
+    // 本人なら脱退、他者なら除名として記録
+    logServerEvent(p.id, req.user.id,
+      req.user.id === targetId ? 'member_left' : 'member_removed',
+      { targetUserId: targetId });
     res.json({ ok: true });
   } catch (e) {
     console.error('DELETE member error:', e);
@@ -1980,6 +2008,7 @@ app.post('/api/events/:id/pending-members/:uid/approve', requireAuth, async (req
     eventBus.broadcast(p.id, 'eventUpdated', { eventId: p.id, event: flatP });
     // 新メンバーにリアルタイムで「承認されました」を通知
     eventBus.broadcastToUser(req.params.uid, 'memberApproved', { eventId: p.id });
+    logServerEvent(p.id, req.user.id, 'member_approved', { targetUserId: req.params.uid });
 
     res.json({ ok: true });
   } catch (e) {
