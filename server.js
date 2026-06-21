@@ -1235,8 +1235,25 @@ app.put('/api/data', requireAuth, async (req, res) => {
       if (incomingIds.has(p.id)) continue;
       const role = eventStore.getRole(p, req.user.id);
       if (role === 'owner') {
+        // R2 の提出画像を削除（Mongo docs を消す前にURLからキーを逆引きする）。
+        // 失敗してもイベント削除自体は止めない（fire-and-forget）。
+        try {
+          const subs = await submissionStore.getSubmissionsForProject(p.id);
+          for (const mid of Object.keys(subs)) {
+            const s = subs[mid];
+            if (s && s.format === 'image' && s.content) {
+              const key = r2.urlToKey(s.content);
+              if (key) r2.deleteObject(key).catch(e => console.warn('[r2] submission image delete warn:', e.message));
+            }
+          }
+        } catch (e) { console.warn('[delete] R2 cleanup warn:', e.message); }
+
+        // 関連データを即時・完全に消去（残骸を残さない）
         await eventStore.deleteEvent(p.id);
         await submissionStore.deleteAllForProject(p.id);
+        await notifStore.deleteByEventId(p.id);
+        await eventLogStore.deleteByProject(p.id);
+        await inviteStore.deleteForProject(p.id);
         eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
       } else if (role === 'member') {
         p.members = p.members.filter(m => m.userId !== req.user.id);
