@@ -34,9 +34,26 @@ cp .env.example .env
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | SMTP 設定（MAIL_TRANSPORT=smtp 時）| - |
 | `GMAIL_USER`, `GMAIL_PASS` | Gmail 用（MAIL_TRANSPORT=gmail 時）| - |
 | `GOOGLE_CLIENT_ID`   | Google サインイン有効化       | 未設定なら無効 |
+| `CF_ACCOUNT_ID`      | Cloudflare アカウントID（AI提案生成）| 未設定なら `R2_ACCOUNT_ID` を流用 |
+| `CF_AI_API_TOKEN`    | Cloudflare Workers AI トークン | 未設定ならテンプレ提案にフォールバック |
+| `CF_AI_MODEL`        | 提案生成モデル                | `@cf/qwen/qwen3-30b-a3b-fp8` |
 
 `MAIL_TRANSPORT=console`（デフォルト）の場合、メール本文がサーバーログに出るだけです。
 本番運用ではSMTP設定をお願いします。
+
+### AI ミッション提案（Cloudflare Workers AI）
+
+イベントを開くと、前回生成から **12時間** 経過していれば、イベントのタイトル・説明・既存ミッション・
+フェーズを踏まえた **そのイベント固有のミッション提案**（タイトル＋説明）を Cloudflare Workers AI が生成します。
+
+セットアップ:
+1. Cloudflare ダッシュボード → **AI → Workers AI**。アカウントIDを控える（R2 と同じ）。
+2. **My Profile → API Tokens** で、権限 `Account › Workers AI › Edit` を持つトークンを発行。
+3. `.env` に `CF_AI_API_TOKEN`（＋必要なら `CF_ACCOUNT_ID`）を設定。
+
+未設定でも動作します（その場合は内蔵のテンプレートエンジンが提案を生成）。LLM 失敗・タイムアウト時も
+自動でテンプレにフォールバックするため、提案が空になることはありません。無料枠（10,000 Neurons/日）の範囲で
+小規模運用（同時20イベント程度・1イベント1日2回まで）はほぼ $0 で収まります。
 
 ## 主な機能
 

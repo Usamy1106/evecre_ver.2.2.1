@@ -498,7 +498,7 @@ export const state = {
       daysLeft: safeDates.length > 0 ? calculateDaysLeft(safeDates[0]) : null,
       missions: defaultMissions,
       clearedData: {},
-      proposals: PROPOSAL_POOL.slice(0, 3),
+      proposals: PROPOSAL_POOL.slice(0, 2), // 固定枠 p1/p2 のみ。3枠目(動的)は作成後に AI 生成（静的提案は出さない）
       lastProposalClearedTime: null,
       likes: 0,
       hasLiked: false,
@@ -681,10 +681,10 @@ export const state = {
   // スロット構成（最大3件）：
   // - 固定枠2件（FIXED_IDS = p1 開催場所を決める / p2 メインビジュアルを作成する）。
   //   採用されるまで不変。エンジンでは置き換えない。
-  // - 動的枠（残り＝最大1件、表示は末尾＝p3 の位置）。エンジン生成で
-  //   イベント内容・進捗・フェーズに合わせ、8時間ごとに更新する。
+  // - 動的枠（残り＝最大1件、表示は末尾＝p3 の位置）。Cloudflare Workers AI 生成で
+  //   イベント内容・進捗・フェーズに合わせ、12時間ごとに更新する。
   //   固定枠が採用で空けば、その枠も動的になる。
-  // - 基準時刻：直近生成 lastProposalGeneratedAt から8時間。未生成なら即時生成
+  // - 基準時刻：直近生成 lastProposalGeneratedAt から12時間。未生成なら即時生成
   //   （作成直後にイベント適合の動的枠を出すため。createdAt は基準に使わない）。
   // 提案カードは管理者UIのみのため、非管理者では走らせない（生成・保存しない）。
   _checkProposalCycle() {
@@ -692,15 +692,15 @@ export const state = {
     if (!this.canManageCurrentEvent()) return;
     const p = this.events.find(x => x.id === this.selectedEventId);
     if (!p || !Array.isArray(p.proposals)) return;
-    const EIGHT_H = 8 * 60 * 60 * 1000;
+    const TWELVE_H = 12 * 60 * 60 * 1000;
     const last = p.lastProposalGeneratedAt;
-    const due  = !last || (Date.now() - last >= EIGHT_H);
+    const due  = !last || (Date.now() - last >= TWELVE_H);
     if (due) this._refreshProposals(p);
   },
 
-  // --- 提案リフレッシュ（サーバー側ルールベースエンジンを呼ぶ） ---
+  // --- 提案リフレッシュ（サーバーの AI 生成エンドポイントを呼ぶ） ---
   // 固定枠（p1/p2、非採用で残っているもの）は保持し、それ以外の「動的枠」だけを
-  // 新しい提案で入れ替える（＝動的枠は8時間ごとに更新される）。固定枠が採用で空けば
+  // 新しい提案で入れ替える（＝動的枠は12時間ごとに更新される）。固定枠が採用で空けば
   // その枠も動的枠として埋まる。表示順は p1 → p2 → 動的枠（末尾＝p3 の位置）。結果は save() で永続化。
   async _refreshProposals(p) {
     if (this._proposalFetching) return;
@@ -731,7 +731,7 @@ export const state = {
     try {
       const r = await api.generateProposals(p.id);
       if (r.ok && Array.isArray(r.proposals)) {
-        // 固定枠 + 新規動的枠。既存の動的提案は破棄して入れ替える（8時間ごと更新）
+        // 固定枠 + 新規動的枠。既存の動的提案は破棄して入れ替える（12時間ごと更新）
         p.proposals = compose(pickFresh(r.proposals));
         p.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
         p.lastProposalClearedTime = null;

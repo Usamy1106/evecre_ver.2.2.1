@@ -24,6 +24,7 @@ const submissionStore  = require('./lib/submissionStore');
 const eventLogStore    = require('./lib/eventLogStore');
 const r2               = require('./lib/r2');
 const proposalEngine   = require('./lib/proposalEngine');
+const aiProposalClient = require('./lib/aiProposalClient');
 const eventBus        = require('./lib/eventBus');
 const crdt            = require('./lib/crdt');
 const { sendOtpEmail, sendPasswordResetEmail, generateOtp, IS_DEV, logTransportStatus } = require('./lib/email');
@@ -983,31 +984,75 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
     if (!eventStore.isMember(p, req.user.id))
       return res.status(403).json({ ok: false, error: 'forbidden' });
 
-    const flat           = crdt.crdtToFlat(p);
-    const existingTitles = flat.missions.map(m => m.title).filter(Boolean);
+    const flat            = crdt.crdtToFlat(p);
+    const missions        = Array.isArray(flat.missions) ? flat.missions : [];
+    const existingTitles  = missions.map(m => m.title).filter(Boolean);
     const usedProposalIds = p.usedProposalIds || [];
 
-    const { proposals, newUsedIds } = proposalEngine.generateProposals({
-      name:           flat.name        || '',
-      description:    flat.description || '',
-      existingTitles,
-      usedProposalIds,
-      // 進捗連動: 開催日・残り日数からフェーズ判定、既存ミッションのタグ×完了状況からギャップ検出
-      eventDates:     Array.isArray(flat.dates) ? flat.dates : [],
-      daysLeft:       typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
-      // イベント設定の明示フェーズ（カレンダー優先＋補助加点 / 序盤フェーズで気づき枠を確保）
-      eventPhase:     typeof flat.eventPhase === 'string' ? flat.eventPhase : null,
-      missions:       flat.missions.map(m => ({
-        tag: m.tag, tags: m.tags, status: m.status, dates: m.dates,
-        originProposalId: m.originProposalId,
-      })),
-    });
+    let proposals;
+    let newUsedIds; // テンプレ経由のときだけ更新する（AI 経由では触らない）
 
-    // usedProposalIds と lastProposalGeneratedAt を直接更新（CRDT外フィールド）
+    try {
+      // ── Cloudflare Workers AI で生成（イベント固有の文脈から動的生成） ──
+      const existingMissions = missions
+        .filter(m => m.title)
+        .map(m => ({
+          title:  m.title,
+          tag:    (Array.isArray(m.tags) && m.tags[0]) || m.tag || '企画',
+          status: m.status === 'cleared' ? '完了' : '未完了',
+        }));
+      const currentProposalTitles = (Array.isArray(flat.proposals) ? flat.proposals : [])
+        .map(pr => pr.title).filter(Boolean);
+
+      const aiProps = await aiProposalClient.generateMissionProposals({
+        name:        flat.name || '',
+        description: flat.description || '',
+        phase:       proposalEngine.detectPhase({
+                       eventDates: Array.isArray(flat.dates) ? flat.dates : [],
+                       daysLeft:   typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
+                     }),
+        eventPhase:  typeof flat.eventPhase === 'string' ? flat.eventPhase : null,
+        daysLeft:    typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
+        existingMissions,
+        avoidTitles: [...existingTitles, ...currentProposalTitles],
+      });
+
+      proposals = aiProps.map(pr => ({
+        id:          `ai_${crypto.randomBytes(6).toString('hex')}`,
+        title:       pr.title,
+        description: pr.description,
+        tag:         pr.tag,
+        format:      pr.format,
+        priority:    5,
+      }));
+    } catch (e) {
+      // ── フォールバック: LLM 失敗・タイムアウト・未設定時は既存テンプレエンジンへ退避 ──
+      // 提案を絶対に空にしない（提案カードが消えるとUIが破綻するため）。
+      console.error('[proposal] fell back to template engine:', e.message);
+      const r = proposalEngine.generateProposals({
+        name:           flat.name        || '',
+        description:    flat.description || '',
+        existingTitles,
+        usedProposalIds,
+        eventDates:     Array.isArray(flat.dates) ? flat.dates : [],
+        daysLeft:       typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
+        eventPhase:     typeof flat.eventPhase === 'string' ? flat.eventPhase : null,
+        missions:       missions.map(m => ({
+          tag: m.tag, tags: m.tags, status: m.status, dates: m.dates,
+          originProposalId: m.originProposalId,
+        })),
+      });
+      proposals  = r.proposals;
+      newUsedIds = r.newUsedIds;
+    }
+
+    // lastProposalGeneratedAt（常に更新）と usedProposalIds（テンプレ時のみ）を直接更新（CRDT外フィールド）
     const now = Date.now();
+    const setFields = { lastProposalGeneratedAt: now };
+    if (typeof newUsedIds !== 'undefined') setFields.usedProposalIds = newUsedIds;
     await getDb().collection('events').updateOne(
       { _id: req.params.id },
-      { $set: { usedProposalIds: newUsedIds, lastProposalGeneratedAt: now } }
+      { $set: setFields }
     );
 
     res.json({ ok: true, proposals, lastProposalGeneratedAt: now });

@@ -438,13 +438,20 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
       ${canMgr ? `
         <div class="grid grid-cols-3 gap-2">
           ${proposalCards}
-          ${p.proposals.length === 0 ? (() => {
-            const nextAt  = (p.lastProposalGeneratedAt || 0) + 8 * 60 * 60 * 1000;
-            const remMs   = Math.max(0, nextAt - Date.now());
-            const remHr   = Math.ceil(remMs / (1000 * 60 * 60));
-            const label   = remMs <= 0 ? '準備中...' : `${remHr}時間後に新しい提案が届きます`;
-            return `<div class="col-span-3 py-4 text-center text-[#A7AAAC] text-[10px] font-bold animate-pulse">${label}</div>`;
-          })() : ''}
+          ${(p.proposals.length < 3 && (!p.lastProposalGeneratedAt || state._proposalFetching))
+            // 動的枠を AI 生成中：空きスロットにローディングカードを出す（静的提案は出さない）
+            ? Array.from({ length: 3 - p.proposals.length }).map(() => `
+                <div class="bg-white border border-[#D3D6D8] rounded-2xl p-2.5 shadow-sm flex flex-col items-center justify-center gap-2 min-h-[120px]">
+                  <div class="w-6 h-6 border-2 border-[#0CA1E3] border-t-transparent rounded-full animate-spin"></div>
+                  <span class="text-[9px] text-[#A7AAAC] font-bold text-center leading-tight">AIが提案を<br>生成中</span>
+                </div>`).join('')
+            : (p.proposals.length === 0 ? (() => {
+                const nextAt  = (p.lastProposalGeneratedAt || 0) + 12 * 60 * 60 * 1000;
+                const remMs   = Math.max(0, nextAt - Date.now());
+                const remHr   = Math.ceil(remMs / (1000 * 60 * 60));
+                const label   = remMs <= 0 ? '準備中...' : `${remHr}時間後に新しい提案が届きます`;
+                return `<div class="col-span-3 py-4 text-center text-[#A7AAAC] text-[10px] font-bold animate-pulse">${label}</div>`;
+              })() : '')}
         </div>` : ''}
 
       <!-- ミッション一覧 -->
