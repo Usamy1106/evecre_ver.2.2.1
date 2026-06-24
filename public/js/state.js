@@ -706,24 +706,28 @@ export const state = {
     if (this._proposalFetching) return;
     this._proposalFetching = true;
     const FULL = 3;
-    const FIXED_IDS = new Set(['p1', 'p2']); // 固定枠（開催場所を決める / メインビジュアルを作成する）
-    // 現在残っている固定提案（採用済みは消えている＝その枠も動的になる）
-    const fixed = (p.proposals || []).filter(pr => FIXED_IDS.has(pr.id));
-    const need  = Math.max(0, FULL - fixed.length); // 動的枠の数
-    const pickFresh = (candidates) => {
+    const FIXED_IDS = new Set(['p1', 'p2']); // 固定枠
+    // ★レース対策：固定枠・除外集合・並びは「必ず await の後」に最新の p.proposals / p.missions
+    //   から計算する。生成を待つ間にユーザーが採用（提案削除＋ミッション追加）しても、
+    //   古いスナップショットで採用済みの固定提案を復活させない（＝ミッションと重複しない）。
+    //   除外：採用済みid（originProposalId）／既存ミッション名／既に残す固定提案。
+    const buildResult = (candidates) => {
+      const adoptedIds    = new Set((p.missions || []).map(m => m.originProposalId).filter(Boolean));
+      const missionTitles = new Set((p.missions || []).map(m => m.title));
+      const fixed = (p.proposals || []).filter(pr => FIXED_IDS.has(pr.id) && !adoptedIds.has(pr.id));
+      const need  = Math.max(0, FULL - fixed.length); // 動的枠の数
       const seenIds    = new Set(fixed.map(x => x.id));
       const seenTitles = new Set(fixed.map(x => x.title));
-      const out = [];
+      const dynamic = [];
       for (const np of candidates) {
-        if (out.length >= need) break;
-        if (!np || seenIds.has(np.id) || seenTitles.has(np.title)) continue;
-        out.push(np);
+        if (dynamic.length >= need) break;
+        if (!np) continue;
+        if (seenIds.has(np.id) || adoptedIds.has(np.id)) continue;
+        if (seenTitles.has(np.title) || missionTitles.has(np.title)) continue;
+        dynamic.push(np);
         seenIds.add(np.id); seenTitles.add(np.title);
       }
-      return out;
-    };
-    // 固定枠を先頭（p1 → p2）に置き、動的枠を末尾（p3 の位置）に並べる
-    const compose = (dynamic) => {
+      // 固定枠を先頭（p1 → p2）に置き、動的枠を末尾（p3 の位置）に並べる
       const p1 = fixed.find(x => x.id === 'p1');
       const p2 = fixed.find(x => x.id === 'p2');
       return [p1, p2, ...dynamic].filter(Boolean).slice(0, FULL);
@@ -732,7 +736,7 @@ export const state = {
       const r = await api.generateProposals(p.id);
       if (r.ok && Array.isArray(r.proposals)) {
         // 固定枠 + 新規動的枠。既存の動的提案は破棄して入れ替える（12時間ごと更新）
-        p.proposals = compose(pickFresh(r.proposals));
+        p.proposals = buildResult(r.proposals);
         p.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
         p.lastProposalClearedTime = null;
         this.save();
@@ -740,9 +744,9 @@ export const state = {
       }
     } catch (_) {
       // API 失敗時は PROPOSAL_POOL フォールバック（固定id・使用済みは除外して動的枠を補充）
-      const usedIds = p.missions.map(m => m.originProposalId).filter(Boolean);
-      const available = PROPOSAL_POOL.filter(pr => !usedIds.includes(pr.id) && !FIXED_IDS.has(pr.id));
-      p.proposals = compose(pickFresh(available.sort(() => 0.5 - Math.random())));
+      const usedIds = new Set((p.missions || []).map(m => m.originProposalId).filter(Boolean));
+      const available = PROPOSAL_POOL.filter(pr => !usedIds.has(pr.id) && !FIXED_IDS.has(pr.id));
+      p.proposals = buildResult(available.sort(() => 0.5 - Math.random()));
       this.save();
       this.render();
     } finally {
