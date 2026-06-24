@@ -9,7 +9,7 @@ import { logEvent } from '../logger.js';
  * ミッション作成/編集モーダルを開く
  * @param {string|null} missionId - 編集時はID、新規作成時はnull
  */
-export function openMissionModal(missionId = null) {
+export function openMissionModal(missionId = null, prefill = null) {
   // 一般ユーザーは編集禁止
   if (!state.canManageCurrentEvent()) {
     window._app?.showToast('このイベントを編集する権限がありません', 'error');
@@ -49,6 +49,8 @@ export function openMissionModal(missionId = null) {
       announce: false, announceText: '',
       noInput: false,
       individualClear: false,
+      // 提案からの事前入力（title/labels/description/priority と採用元マーカー）
+      ...(prefill || {}),
     };
   }
 
@@ -459,31 +461,24 @@ function _renderDetailTab(isEdit) {
  * 提案をミッションとして追加する
  * @param {string} proposalId
  */
+// 提案カードのタップ：即時追加ではなく、提案内容を事前入力したミッション作成シートを開く。
+// 実際の作成（採用）は createOrUpdateMission で行い、そのとき採用元の提案を消す。
+// AI提案の description はそのままミッションの説明として引き継ぐ。
 export function addProposalToMission(proposalId) {
   const project  = state.events.find(p => p.id === state.selectedEventId);
   const proposal = project?.proposals.find(x => x.id === proposalId);
   if (!proposal) return;
 
-  logEvent('proposal_accepted', { tag: proposal.tag, proposalId: proposal.id });
-  project.missions.push({
-    id: Date.now().toString(),
-    originProposalId: proposal.id,
-    title: proposal.title,
-    tag: proposal.tag,
-    daysLeft: 7,
-    dates: [],
-    clearFormat: proposal.format,
-    status: 'yet',
-    isDeletable: true,
-    createdAt: Date.now(),
-    priority: proposal.priority,
+  logEvent('proposal_opened', { tag: proposal.tag, proposalId: proposal.id });
+  openMissionModal(null, {
+    title:       proposal.title || '',
+    labels:      proposal.tag ? [proposal.tag] : [],
+    description: proposal.description || '',
+    priority:    proposal.priority || 0,
+    // 採用元マーカー（createOrUpdateMission で originProposalId / clearFormat に反映し提案を削除）
+    _fromProposalId:  proposal.id,
+    _fromProposalFmt: proposal.format || 'text',
   });
-
-  project.proposals = project.proposals.filter(x => x.id !== proposalId);
-  if (project.proposals.length === 0) project.lastProposalClearedTime = Date.now();
-
-  state.save();
-  state.render();
 }
 
 /**

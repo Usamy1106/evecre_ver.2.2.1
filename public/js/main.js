@@ -584,7 +584,9 @@ window._app = {
         };
       }
     } else {
-      event.missions.push({
+      // 提案から開いた場合は採用元の id / 完了フォーマットを引き継ぐ（説明は draft.description 経由で反映済み）
+      const fromPid = state.draftMission._fromProposalId || null;
+      const newMission = {
         id: Date.now().toString(),
         title: state.draftMission.title,
         tag: state.draftMission.labels[0],
@@ -611,7 +613,18 @@ window._app = {
         noInput: !!state.draftMission.noInput,
         individualClear: !!state.draftMission.individualClear,
         individualClearedBy: [],
-      });
+      };
+      if (fromPid) {
+        newMission.originProposalId = fromPid;
+        newMission.clearFormat = state.draftMission._fromProposalFmt || 'text';
+      }
+      event.missions.push(newMission);
+      // 採用元の提案を消す（作成が確定したときのみ。キャンセル時は残る）
+      if (fromPid) {
+        event.proposals = (event.proposals || []).filter(x => x.id !== fromPid);
+        if (event.proposals.length === 0) event.lastProposalClearedTime = Date.now();
+        logEvent('proposal_accepted', { proposalId: fromPid, tag: state.draftMission.labels?.[0] });
+      }
     }
     if (state.editingMissionId) {
       logEvent('mission_edited', { tag: state.draftMission.labels?.[0] });
