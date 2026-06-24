@@ -473,12 +473,26 @@ export function addProposalToMission(proposalId) {
   openMissionModal(null, {
     title:       proposal.title || '',
     labels:      proposal.tag ? [proposal.tag] : [],
-    description: proposal.description || '',
+    // 採用後の説明文は「提案のヒント（ヘルプ）」と同じ文をそのまま引き継ぐ
+    description: _proposalHelpText(proposal),
     priority:    proposal.priority || 0,
     // 採用元マーカー（createOrUpdateMission で originProposalId / clearFormat に反映し提案を削除）
     _fromProposalId:  proposal.id,
     _fromProposalFmt: proposal.format || 'text',
   });
+}
+
+/**
+ * 提案のヒント（ヘルプ）に表示する説明文を求める。
+ * 採用時の prefill（addProposalToMission）と表示（showProposalHelp）で
+ * 同じ文になるよう、フォールバック連鎖をここに一元化している。
+ * @param {object} proposal  提案オブジェクト（id / description を持つ）
+ * @returns {string}
+ */
+function _proposalHelpText(proposal) {
+  return proposal?.description
+    || MISSION_DESCRIPTIONS[proposal?.id]
+    || 'ミッションを完了してイベントを進めましょう。';
 }
 
 /**
@@ -492,9 +506,7 @@ export function showProposalHelp(e, proposalId) {
   // proposal オブジェクト自身が description を持っていればそれを優先
   const project  = state.events.find(p => p.id === state.selectedEventId);
   const proposal = project?.proposals?.find(pr => pr.id === proposalId);
-  const desc = proposal?.description
-    || MISSION_DESCRIPTIONS[proposalId]
-    || 'ミッションを完了してイベントを進めましょう。';
+  const desc = _proposalHelpText(proposal);
 
   const overlay = document.createElement('div');
   overlay.id = 'help-modal';
