@@ -3,15 +3,22 @@
 // 読み取り専用ビュー event_logs_enriched を作成する（Atlas Charts 用）。
 //
 // 使い方:
-//   node scripts/createLogView.js
+//   node scripts/createLogView.js            # .env の MONGODB_DB に作成（既定）
+//   node scripts/createLogView.js evecre     # DB名を指定して作成（本番=evecre 等）
+//   node scripts/createLogView.js evecre_dev # 開発DBに作成
 //
-// .env の MONGODB_URI / MONGODB_DB をそのまま使う（アプリと同じ接続）。
+// .env の MONGODB_URI（同一クラスタ）をそのまま使う。第1引数で対象DB名を上書きできる。
 // 冪等: 既にビューがあれば一度削除して作り直す。何度実行してもOK。
-// 取り消したいとき:  node -e "require('dotenv').config();const{connectDb,getDb,closeDb}=require('./lib/db');(async()=>{await connectDb();await getDb().collection('event_logs_enriched').drop().catch(()=>{});await closeDb();})()"
+// 取り消したいとき:  MONGODB_DB=evecre node -e "require('dotenv').config();const{connectDb,getDb,closeDb}=require('./lib/db');(async()=>{await connectDb();await getDb().collection('event_logs_enriched').drop().catch(()=>{});await closeDb();})()"
 
 'use strict';
 
 try { require('dotenv').config(); } catch (_) {}
+
+// 第1引数があれば対象DB名を上書き（lib/db を require する前に設定する必要がある）
+const argDb = process.argv[2];
+if (argDb) process.env.MONGODB_DB = argDb;
+
 const { connectDb, getDb, closeDb } = require('../lib/db');
 
 const VIEW_NAME   = 'event_logs_enriched';
@@ -33,6 +40,7 @@ const PIPELINE = [
 (async () => {
   await connectDb();
   const db = getDb();
+  console.log(`[createLogView] 対象データベース: ${db.databaseName}`);
 
   // 既存の同名ビュー/コレクションがあれば削除（冪等化）
   const existing = await db.listCollections({ name: VIEW_NAME }).toArray();
