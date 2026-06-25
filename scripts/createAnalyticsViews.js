@@ -100,9 +100,134 @@ const MISSION_PIPELINE = [
   { $project: { f: 0, _cu: 0, _sub: 0, _su: 0 } },
 ];
 
+// ── ビュー3: セッションの時系列フロー ─────────────────────────
+// 1ドキュメント=1セッション。誰が・いつ・何を順番にしたかを steps/flowText に持つ。
+// サーバー監査ログ(sessionId=null)は除外され、UI操作のフローのみが残る。
+const SESSION_FLOW_PIPELINE = [
+  { $match: { sessionId: { $ne: null } } },
+  { $sort: { ts: 1 } },
+  { $group: {
+      _id:        '$sessionId',
+      userId:     { $first: '$userId' },
+      startTs:    { $min: '$ts' },
+      endTs:      { $max: '$ts' },
+      eventCount: { $sum: 1 },
+      steps:      { $push: { event: '$event', ts: '$ts', projectId: '$projectId', name: '$props.name' } },
+      eventNames: { $push: '$event' },
+  } },
+  { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: '_u' } },
+  { $set: {
+      username:    { $ifNull: [ { $first: '$_u.username' }, '(匿名/未ログイン)' ] },
+      durationSec: { $round: [ { $divide: [ { $subtract: [ '$endTs', '$startTs' ] }, 1000 ] }, 0 ] },
+      startJST:    { $dateToString: { date: '$startTs', format: '%Y-%m-%d %H:%M', timezone: 'Asia/Tokyo' } },
+      day:         { $dateTrunc: { date: '$startTs', unit: 'day', timezone: 'Asia/Tokyo' } },
+      // 操作の流れを1行のテキストで（Charts のテーブル表示用）
+      flowText: { $reduce: {
+          input: '$eventNames',
+          initialValue: '',
+          in: { $cond: [ { $eq: [ '$$value', '' ] }, '$$this', { $concat: [ '$$value', ' → ', '$$this' ] } ] },
+      } },
+  } },
+  { $project: { _u: 0, eventNames: 0 } },
+];
+
+// ── ビュー4: イベント別 行動×成果 ────────────────────────────
+// 1ドキュメント=1イベント。行動ログ指標とミッション成果を1行に合成。
+const EVENT_SUMMARY_PIPELINE = [
+  { $project: { eventName: '$name' } },
+  { $lookup: {
+      from: 'event_logs',
+      let: { eid: '$_id' },
+      pipeline: [
+        { $match: { $expr: { $eq: [ '$projectId', '$$eid' ] } } },
+        { $group: {
+            _id: null,
+            opens:            { $sum: { $cond: [ { $eq: [ '$event', 'session_started' ] }, 1, 0 ] } },
+            buttonTaps:       { $sum: { $cond: [ { $eq: [ '$event', 'button_tapped' ] }, 1, 0 ] } },
+            proposalAccepted: { $sum: { $cond: [ { $eq: [ '$event', 'proposal_accepted' ] }, 1, 0 ] } },
+            users:            { $addToSet: '$userId' },
+        } },
+      ],
+      as: '_b',
+  } },
+  { $lookup: {
+      from: 'mission_analytics',
+      let: { eid: '$_id' },
+      pipeline: [
+        { $match: { $expr: { $eq: [ '$eventId', '$$eid' ] } } },
+        { $group: { _id: null, total: { $sum: 1 }, completed: { $sum: { $cond: [ '$isCompleted', 1, 0 ] } } } },
+      ],
+      as: '_m',
+  } },
+  { $set: {
+      opens:            { $ifNull: [ { $first: '$_b.opens' }, 0 ] },
+      buttonTaps:       { $ifNull: [ { $first: '$_b.buttonTaps' }, 0 ] },
+      proposalAccepted: { $ifNull: [ { $first: '$_b.proposalAccepted' }, 0 ] },
+      activeUsers:      { $size: { $filter: { input: { $ifNull: [ { $first: '$_b.users' }, [] ] }, cond: { $ne: [ '$$this', null ] } } } },
+      missionsTotal:     { $ifNull: [ { $first: '$_m.total' }, 0 ] },
+      missionsCompleted: { $ifNull: [ { $first: '$_m.completed' }, 0 ] },
+  } },
+  { $set: { missionsIncomplete: { $subtract: [ '$missionsTotal', '$missionsCompleted' ] } } },
+  { $project: { _b: 0, _m: 0 } },
+];
+
+// ── ビュー5: ユーザー別 活動量×成果 ──────────────────────────
+// 1ドキュメント=1ユーザー。利用状況と作成/完了ミッション数を1行に合成。
+const USER_SUMMARY_PIPELINE = [
+  { $project: { username: 1 } },
+  { $lookup: {
+      from: 'event_logs',
+      let: { uid: '$_id' },
+      pipeline: [
+        { $match: { $expr: { $eq: [ '$userId', '$$uid' ] } } },
+        { $group: {
+            _id: null,
+            opens:    { $sum: { $cond: [ { $eq: [ '$event', 'session_started' ] }, 1, 0 ] } },
+            totalSec: { $sum: { $cond: [ { $eq: [ '$event', 'session_ended' ] }, { $ifNull: [ '$props.durationSec', 0 ] }, 0 ] } },
+            days:     { $addToSet: { $dateTrunc: { date: '$ts', unit: 'day', timezone: 'Asia/Tokyo' } } },
+            lastSeen: { $max: '$ts' },
+        } },
+      ],
+      as: '_b',
+  } },
+  { $lookup: {
+      from: 'mission_analytics',
+      let: { uid: '$_id' },
+      pipeline: [
+        { $match: { $expr: { $eq: [ '$createdBy', '$$uid' ] } } },
+        { $count: 'n' },
+      ],
+      as: '_created',
+  } },
+  { $lookup: {
+      from: 'mission_analytics',
+      let: { uid: '$_id' },
+      pipeline: [
+        { $match: { $expr: { $eq: [ '$submittedBy', '$$uid' ] } } },
+        { $count: 'n' },
+      ],
+      as: '_completed',
+  } },
+  { $set: {
+      opens:             { $ifNull: [ { $first: '$_b.opens' }, 0 ] },
+      totalMin:          { $round: [ { $divide: [ { $ifNull: [ { $first: '$_b.totalSec' }, 0 ] }, 60 ] }, 0 ] },
+      activeDays:        { $size: { $ifNull: [ { $first: '$_b.days' }, [] ] } },
+      missionsCreated:   { $ifNull: [ { $first: '$_created.n' }, 0 ] },
+      missionsCompleted: { $ifNull: [ { $first: '$_completed.n' }, 0 ] },
+      lastSeen: { $let: {
+          vars: { ls: { $first: '$_b.lastSeen' } },
+          in: { $cond: [ { $ifNull: [ '$$ls', false ] }, { $dateToString: { date: '$$ls', format: '%Y-%m-%d %H:%M', timezone: 'Asia/Tokyo' } }, null ] },
+      } },
+  } },
+  { $project: { _b: 0, _created: 0, _completed: 0 } },
+];
+
 const VIEWS = [
   { name: 'event_logs_enriched', on: 'event_logs', pipeline: ENRICHED_PIPELINE },
   { name: 'mission_analytics',   on: 'events',     pipeline: MISSION_PIPELINE },
+  { name: 'session_flow',        on: 'event_logs', pipeline: SESSION_FLOW_PIPELINE },
+  { name: 'event_summary',       on: 'events',     pipeline: EVENT_SUMMARY_PIPELINE },
+  { name: 'user_summary',        on: 'users',      pipeline: USER_SUMMARY_PIPELINE },
 ];
 
 async function recreateView(db, { name, on, pipeline }) {
