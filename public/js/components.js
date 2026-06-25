@@ -64,7 +64,7 @@ export const Components = {
     return `
       <header class="flex justify-between items-center px-6 py-4 bg-[#FDFBF8]">
         <div class="flex items-center gap-3">
-          <button onclick="window._app.setView('HOME')"
+          <button onclick="window._app.setView('HOME')" data-log="header_back_home"
             class="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center">
             <img src="/images/icon/iocn-Chevron.svg" class="w-4 h-4 brightness-0 opacity-50">
           </button>
@@ -75,13 +75,13 @@ export const Components = {
         </div>
         <div class="flex items-center gap-1">
           <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
-            class="p-1 active:opacity-50" aria-label="フィードバックを送る">
+            data-log="header_feedback" class="p-1 active:opacity-50" aria-label="フィードバックを送る">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="opacity-40">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
           </a>
-          <button onclick="window._app.toggleProjectMenu(event)" id="project-menu-btn" class="p-1 active:opacity-50">
+          <button onclick="window._app.toggleProjectMenu(event)" id="project-menu-btn" data-log="header_project_menu" class="p-1 active:opacity-50">
             <img src="/images/icon/icon-Setting.svg" class="w-6 h-6">
           </button>
         </div>

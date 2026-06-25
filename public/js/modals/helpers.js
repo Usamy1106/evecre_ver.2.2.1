@@ -396,6 +396,7 @@ export async function submitMissionClear(missionId) {
   }
 
   logEvent('mission_completed', {
+    missionId,
     tag:      m.tag || (Array.isArray(m.tags) ? m.tags[0] : null),
     format:   detectedFormat,
     priority: m.priority,

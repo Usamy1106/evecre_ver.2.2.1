@@ -1286,6 +1286,16 @@ function _showToast(msg, durationMs = 2500) {
 setProjectIdGetter(() => state.selectedEventId);
 initLogger();
 
+// ===== ボタンタップの宣言的ログ（委譲） =====
+// data-log="<name>" を持つ要素のタップを一括で記録する。
+// 個別に logEvent を散らさず、HTML 側に data-log を付けるだけで網羅できる。
+// 既存の専用ログ（board_tab_switched 等）と二重にならないよう、それらの要素には付けない。
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-log]');
+  if (!el) return;
+  logEvent('button_tapped', { name: el.dataset.log });
+}, true);
+
 // ===== 提案の8時間サイクル監視 =====
 // render() はユーザー操作時にしか走らないため、画面を開いたまま放置しても
 // 8時間経過で新しい提案が出現するよう定期チェックする（生成判定は state 側）

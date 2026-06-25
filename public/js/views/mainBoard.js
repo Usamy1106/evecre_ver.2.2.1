@@ -128,7 +128,7 @@ export function renderMainBoard(container) {
         ${state.mainBoardTab === 'NOTIFICATIONS' ? _renderNotificationsTab(p) : ''}
       </main>
       ${state.mainBoardTab === 'MAIN' && state.canManageCurrentEvent() ? `
-        <button onclick="window._app.openMissionModal()"
+        <button onclick="window._app.openMissionModal()" data-log="mission_add_open"
           class="fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
           flex items-center justify-center text-white active:scale-90 transition-transform z-40">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -395,7 +395,7 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
   })();
   return `
     <div class="px-6 pt-4 space-y-6 page-transition">
-      <div onclick="window._app.openEventCalendarSheet()"
+      <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
         class="cursor-pointer bg-white border border-[#D3D6D8] rounded-full px-4 py-2 flex items-center justify-center gap-3 shadow-sm mx-auto w-fit active:scale-95 transition-transform">
         <img src="/images/icon/icon-Calender.svg" class="w-4 h-4">
         ${_dateChip}
@@ -752,7 +752,7 @@ function _renderArchiveTab(p) {
   return `
     <div class="pb-20 page-transition space-y-6">
       <div class="px-6 pt-6 flex items-center justify-between">
-        <div onclick="window._app.openEventCalendarSheet()"
+        <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
           class="flex items-center gap-2 bg-white border border-[#D3D6D8] rounded-full px-3 py-1.5 shadow-sm active:scale-95 transition-transform cursor-pointer">
           <img src="/images/icon/icon-Calender.svg" class="w-3.5 h-3.5">
           ${hasDatesA
