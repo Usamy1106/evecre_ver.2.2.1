@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG } from '../constants.js';
+import { calculateDaysLeft } from '../utils.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
 // モジュールロード時に一度だけ登録。document 全体にデリゲート。
@@ -391,7 +392,8 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
         : `${fmt(firstDate)}〜${fmt(lastDate)}開催`;
       return `<span class="text-[12px] font-bold text-[#A7AAAC]">${range}</span>`;
     }
-    return `<span class="text-[12px] font-bold">開催まで残り <span class="text-[18px] font-mono">${p.daysLeft}</span> 日</span>`;
+    // 開催前：保存値 p.daysLeft は stale になるので firstDate から当日基準で再計算する
+    return `<span class="text-[12px] font-bold">開催まで残り <span class="text-[18px] font-mono">${calculateDaysLeft(firstDate)}</span> 日</span>`;
   })();
   return `
     <div class="px-6 pt-4 space-y-6 page-transition">
@@ -756,7 +758,7 @@ function _renderArchiveTab(p) {
           class="flex items-center gap-2 bg-white border border-[#D3D6D8] rounded-full px-3 py-1.5 shadow-sm active:scale-95 transition-transform cursor-pointer">
           <img src="/images/icon/icon-Calender.svg" class="w-3.5 h-3.5">
           ${hasDatesA
-            ? `<span class="text-[11px] font-bold text-[#484545]">残り <span class="text-[15px] font-mono">${p.daysLeft}</span> 日</span>`
+            ? `<span class="text-[11px] font-bold text-[#484545]">残り <span class="text-[15px] font-mono">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
             : `<span class="text-[10px] font-bold text-[#A7AAAC]">未設定</span>`}
         </div>
         <button onclick="window._app.handleGoodClick(event)"
