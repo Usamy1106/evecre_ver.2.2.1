@@ -204,12 +204,12 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
   )];
   let displayMissions = ongoingMissions;
   if (state.missionFilterTag && allTags.includes(state.missionFilterTag)) {
-    displayMissions = ongoingMissions
-      .filter(m => {
-        const tags = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
-        return tags.includes(state.missionFilterTag);
-      })
-      .sort((a, b) => (a.daysLeft ?? 9999) - (b.daysLeft ?? 9999));
+    // タグで絞り込むだけ。並び順は getSortedMissions（ユーザー選択のソート）を維持する。
+    // （以前は stale な mission.daysLeft で再ソートし、選択したソートを上書きしていた）
+    displayMissions = ongoingMissions.filter(m => {
+      const tags = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
+      return tags.includes(state.missionFilterTag);
+    });
   }
   const tagFilterHtml = allTags.length > 1 ? `
     <div class="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6 mb-3" style="scrollbar-width:none;-webkit-overflow-scrolling:touch">

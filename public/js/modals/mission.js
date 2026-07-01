@@ -1201,8 +1201,10 @@ export function getSortedMissions(missions) {
   return [...missions].sort((a, b) => {
     if (state.missionSortMode === 'priority') return (b.priority || 0) - (a.priority || 0);
     if (state.missionSortMode === 'deadline') {
-      const dateA = a.dates?.length > 0 ? new Date(a.dates[0]).getTime() : Infinity;
-      const dateB = b.dates?.length > 0 ? new Date(b.dates[0]).getTime() : Infinity;
+      // 締切 = スケジュール期間の最終日基準（_missionDeadlineText の表示と揃える。
+      //  m.dates は未ソート保存なのでソートしてから最終日を取る）
+      const dateA = a.dates?.length > 0 ? new Date([...a.dates].sort().at(-1)).getTime() : Infinity;
+      const dateB = b.dates?.length > 0 ? new Date([...b.dates].sort().at(-1)).getTime() : Infinity;
       return dateA - dateB;
     }
     return (a.createdAt || 0) - (b.createdAt || 0);
