@@ -1296,13 +1296,6 @@ document.addEventListener('click', (e) => {
   logEvent('button_tapped', { name: el.dataset.log });
 }, true);
 
-// ===== 提案の8時間サイクル監視 =====
-// render() はユーザー操作時にしか走らないため、画面を開いたまま放置しても
-// 8時間経過で新しい提案が出現するよう定期チェックする（生成判定は state 側）
-setInterval(() => {
-  if (document.visibilityState === 'visible') state._checkProposalCycle?.();
-}, 5 * 60 * 1000);
-
 // ===== アプリ起動 =====
 initSheetDragClose(); // ボトムシートの下スワイプで閉じる（data-sheet / data-sheet-handle）
 state.init().catch(e => {

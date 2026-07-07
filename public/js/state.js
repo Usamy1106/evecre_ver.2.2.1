@@ -687,6 +687,11 @@ export const state = {
   // - 基準時刻：直近生成 lastProposalGeneratedAt から12時間。未生成なら即時生成
   //   （作成直後にイベント適合の動的枠を出すため。createdAt は基準に使わない）。
   // 提案カードは管理者UIのみのため、非管理者では走らせない（生成・保存しない）。
+  //
+  // ★重要：この判定は render()（＝管理者が実際にイベントページへアクセス/操作した時）からのみ呼ぶこと。
+  // バックグラウンドの setInterval 等でタイマー駆動にしてはいけない（誰もアクセスしていなくても
+  // 12時間経過のたびに AI 生成が走り、Cloudflare Workers AI のクレジットを浪費するため）。
+  // 過去に main.js の5分間隔タイマーで駆動していたが、この理由により削除済み。
   _checkProposalCycle() {
     if (!this.selectedEventId || this._proposalFetching) return;
     if (!this.canManageCurrentEvent()) return;
