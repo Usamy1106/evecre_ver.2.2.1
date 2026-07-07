@@ -72,7 +72,7 @@ function _render(overlay, ctx) {
 
   overlay.innerHTML = `
     <div data-sheet class="absolute bottom-0 left-0 right-0 bg-[#FDFBF8] rounded-t-3xl shadow-2xl flex flex-col"
-         style="max-height: 90vh; animation: slideUp .25s ease-out;">
+         style="max-height: 82vh; animation: slideUp .25s ease-out;">
 
       <!-- ドラッグハンドル -->
       <div data-sheet-handle class="flex justify-center pt-3 pb-2 flex-shrink-0">
