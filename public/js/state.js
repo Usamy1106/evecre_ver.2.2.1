@@ -798,21 +798,23 @@ export const state = {
     //   から計算する。生成を待つ間にユーザーが採用（提案削除＋ミッション追加）しても、
     //   古いスナップショットで採用済みの固定提案を復活させない（＝ミッションと重複しない）。
     //   除外：採用済みid（originProposalId）／既存ミッション名／既に残す固定提案。
+    // タイトル比較は正規化して行う（表記ゆれ・空白差で重複がすり抜けるのを防ぐ）
+    const normTitle = (t) => String(t || '').normalize('NFKC').toLowerCase().replace(/[\s　]/g, '');
     const buildResult = (candidates) => {
       const adoptedIds    = new Set((p.missions || []).map(m => m.originProposalId).filter(Boolean));
-      const missionTitles = new Set((p.missions || []).map(m => m.title));
+      const missionTitles = new Set((p.missions || []).map(m => normTitle(m.title)));
       const fixed = (p.proposals || []).filter(pr => FIXED_IDS.has(pr.id) && !adoptedIds.has(pr.id));
       const need  = Math.max(0, FULL - fixed.length); // 動的枠の数
       const seenIds    = new Set(fixed.map(x => x.id));
-      const seenTitles = new Set(fixed.map(x => x.title));
+      const seenTitles = new Set(fixed.map(x => normTitle(x.title)));
       const dynamic = [];
       for (const np of candidates) {
         if (dynamic.length >= need) break;
         if (!np) continue;
         if (seenIds.has(np.id) || adoptedIds.has(np.id)) continue;
-        if (seenTitles.has(np.title) || missionTitles.has(np.title)) continue;
+        if (seenTitles.has(normTitle(np.title)) || missionTitles.has(normTitle(np.title))) continue;
         dynamic.push(np);
-        seenIds.add(np.id); seenTitles.add(np.title);
+        seenIds.add(np.id); seenTitles.add(normTitle(np.title));
       }
       // 固定枠を先頭（p1 → p2）に置き、動的枠を末尾（p3 の位置）に並べる
       const p1 = fixed.find(x => x.id === 'p1');

@@ -989,6 +989,9 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
     const missions        = Array.isArray(flat.missions) ? flat.missions : [];
     const existingTitles  = missions.map(m => m.title).filter(Boolean);
     const usedProposalIds = p.usedProposalIds || [];
+    // 過去に生成した提案タイトルの履歴（CRDT外 $set フィールド、直近30件）。
+    // 動的枠は12時間ごとに入れ替わるため、これが無いと「前回と同じ提案」が再登場する。
+    const recentProposalTitles = Array.isArray(p.recentProposalTitles) ? p.recentProposalTitles : [];
 
     let proposals;
     let newUsedIds; // テンプレ経由のときだけ更新する（AI 経由では触らない）
@@ -1015,7 +1018,7 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
         eventPhase:  typeof flat.eventPhase === 'string' ? flat.eventPhase : null,
         daysLeft:    typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
         existingMissions,
-        avoidTitles: [...existingTitles, ...currentProposalTitles],
+        avoidTitles: [...existingTitles, ...currentProposalTitles, ...recentProposalTitles],
       });
 
       proposals = aiProps.map(pr => ({
@@ -1030,10 +1033,16 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       // ── フォールバック: LLM 失敗・タイムアウト・未設定時は既存テンプレエンジンへ退避 ──
       // 提案を絶対に空にしない（提案カードが消えるとUIが破綻するため）。
       console.error('[proposal] fell back to template engine:', e.message);
+      // タイトル除外に「現在の提案」「過去の提案履歴」も含める（AI経路の avoidTitles と同等）
+      const fallbackAvoid = [
+        ...existingTitles,
+        ...(Array.isArray(flat.proposals) ? flat.proposals : []).map(x => x.title).filter(Boolean),
+        ...recentProposalTitles,
+      ];
       const r = proposalEngine.generateProposals({
         name:           flat.name        || '',
         description:    flat.description || '',
-        existingTitles,
+        existingTitles: fallbackAvoid,
         usedProposalIds,
         eventDates:     Array.isArray(flat.dates) ? flat.dates : [],
         daysLeft:       typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
@@ -1051,6 +1060,19 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
     const now = Date.now();
     const setFields = { lastProposalGeneratedAt: now };
     if (typeof newUsedIds !== 'undefined') setFields.usedProposalIds = newUsedIds;
+
+    // 提案タイトル履歴を更新（重複を除いて直近30件を保持。次回生成時の禁止リストに使う）
+    const RECENT_TITLE_MAX = 30;
+    const mergedRecent = [...recentProposalTitles, ...proposals.map(x => x?.title).filter(Boolean)];
+    const seenRecent = new Set();
+    const recentDedup = [];
+    for (let i = mergedRecent.length - 1; i >= 0 && recentDedup.length < RECENT_TITLE_MAX; i--) {
+      if (!seenRecent.has(mergedRecent[i])) {
+        seenRecent.add(mergedRecent[i]);
+        recentDedup.unshift(mergedRecent[i]);
+      }
+    }
+    setFields.recentProposalTitles = recentDedup;
     await getDb().collection('events').updateOne(
       { _id: req.params.id },
       { $set: setFields }
