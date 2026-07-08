@@ -29,7 +29,7 @@ const DAYS_AFTER  = 75;  // 今日より後に表示する日数
 /**
  * ボトムシートを開く
  */
-export function openEventCalendarSheet() {
+export function openEventCalendarSheet(initialView = 'calendar') {
   if (document.getElementById(OVERLAY_ID)) return;
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p) return;
@@ -39,7 +39,7 @@ export function openEventCalendarSheet() {
     p,
     calDate: new Date(today.getFullYear(), today.getMonth(), 1),
     selectedDate: _ymd(today),
-    view: 'calendar', // 'calendar' | 'gantt'
+    view: initialView === 'gantt' ? 'gantt' : 'calendar', // 'calendar' | 'gantt'
   };
 
   const overlay = document.createElement('div');
@@ -69,6 +69,8 @@ function _close(overlay) {
 // =====================================================
 function _render(overlay, ctx) {
   const isCalendar = ctx.view === 'calendar';
+  // ミッション詳細ページへの遷移時に「どのビューから開いたか」を参照できるようにする
+  overlay.dataset.calView = ctx.view;
 
   overlay.innerHTML = `
     <div data-sheet class="absolute bottom-0 left-0 right-0 bg-[#FDFBF8] rounded-t-3xl shadow-2xl flex flex-col"

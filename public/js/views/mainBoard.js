@@ -308,15 +308,9 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
         const indivClearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
         const iIndivDone = m.individualClear && indivClearedBy.includes(meId);
 
-        // 個別完了ミッション：常に完了者リストモーダルを開く
-        // 通常ミッション：申告制で自分の担当でない場合は反応しない
-        const isClickable = m.individualClear ? true : (!m.selfClaim || myMission);
-        const cardOnClick = isClickable
-          ? (m.individualClear
-              ? `onclick="window._app.openIndividualClearListModal('${m.id}')"`
-              : `onclick="window._app.openClearMissionModal('${m.id}')"`)
-          : '';
-        const cursorCls = isClickable ? 'cursor-pointer active:bg-[#FDFBF8]' : 'cursor-default';
+        // 全カードタップ可：ミッション詳細ページへ遷移（完了入力欄はページ側で出し分け）
+        const cardOnClick = `onclick="window._app.openMissionDetail('${m.id}')"`;
+        const cursorCls = 'cursor-pointer active:bg-[#FDFBF8]';
 
         const _indivHasAssignees = (Array.isArray(m.assignees) && m.assignees.length > 0) || m.assignee?.type === 'user';
         const _indivTotal = Array.isArray(m.assignees) && m.assignees.length > 0
@@ -347,7 +341,16 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
               </svg>
-            </div>` : ''}
+            </div>` : `
+            <div onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
+              class="absolute right-4 top-4 opacity-40 p-2 cursor-pointer hover:opacity-100 transition-opacity"
+              aria-label="ミッションリンクをコピー">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+            </div>`}
         </div>`;}).join('');
 
   // 申告待ちミッション（selfClaim=true かつ applicants あり かつ未確定）
@@ -590,10 +593,8 @@ function _renderAnnounceCards(p, meId) {
     return `<span class="text-[10px] font-bold text-[#A7AAAC]">残り${diff}日</span>`;
   };
 
-  // タップでミッション完了モーダルを開く（個別完了は完了者リスト、通常は完了モーダル。ミッションカードと同挙動）
-  const _cardClick = (m) => m.individualClear
-    ? `onclick="window._app.openIndividualClearListModal('${m.id}')"`
-    : `onclick="window._app.openClearMissionModal('${m.id}')"`;
+  // タップでミッション詳細ページを開く（ミッションカードと同挙動）
+  const _cardClick = (m) => `onclick="window._app.openMissionDetail('${m.id}')"`;
 
   const cardHtml = (m) => `
     <div ${_cardClick(m)}
@@ -886,10 +887,8 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
   const indivSummary = m.individualClear
     ? `<span class="text-[10px] text-[#5b8104] font-bold bg-[#F0FCD4] px-2 py-0.5 rounded-full">${clearedBy.length}/${Math.max(1,totalAssignees)}人完了</span>`
     : '';
-  const archiveClick = m.individualClear
-    ? `onclick="window._app.openIndividualClearListModal('${m.id}')"`
-    : '';
-  const archiveCursor = m.individualClear ? 'cursor-pointer active:bg-[#FDFBF8]' : '';
+  const archiveClick = `onclick="window._app.openMissionDetail('${m.id}')"`;
+  const archiveCursor = 'cursor-pointer active:bg-[#FDFBF8]';
 
   const meatballBtn = canMgr ? `
     <button onclick="event.stopPropagation(); window._app.openArchiveMissionMenu(event, '${m.id}')"
@@ -897,18 +896,27 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
       </svg>
-    </button>` : '';
+    </button>` : `
+    <button onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
+      class="absolute top-3 right-3 p-2 opacity-40 hover:opacity-100 transition-opacity active:scale-90"
+      aria-label="ミッションリンクをコピー">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+    </button>`;
 
   return `
     <div ${archiveClick} class="bg-white border border-[#D3D6D8] rounded-xl p-4 shadow-sm relative ${archiveCursor}">
-      <div class="flex items-center justify-between mb-1.5 ${canMgr ? 'pr-7' : ''}">
+      <div class="flex items-center justify-between mb-1.5 pr-7">
         <div class="flex items-center gap-1.5 flex-wrap">
           ${tagNames.map(t => Components.Tag(t)).join('')}
           ${indivSummary}
         </div>
         ${completedAt ? `<span class="text-[10px] text-[#A7AAAC] flex-shrink-0">${completedAt}完了</span>` : ''}
       </div>
-      <h3 class="text-[13px] font-bold text-[#484545] ${canMgr ? 'pr-6' : ''}">${_esc(m.title)}</h3>
+      <h3 class="text-[13px] font-bold text-[#484545] pr-6">${_esc(m.title)}</h3>
       ${contentHtml}
       ${meatballBtn}
     </div>`;

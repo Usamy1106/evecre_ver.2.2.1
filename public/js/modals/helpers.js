@@ -285,7 +285,19 @@ export function openClearMissionModal(missionId, _overrideFormat = null) {
     </div>`;
   document.body.appendChild(overlay);
 
-  // === ドラフト復元 ===
+  // === ドラフト復元 + 自動保存 ===
+  initClearDraft(missionId, overlay);
+}
+
+/**
+ * 完了入力欄（#clear-input / #img-chip / #preview-img / [data-clear-checklist]）に
+ * ローカルドラフトの復元と自動保存を配線する。
+ * 完了モーダルとミッション詳細ページの両方から使う共通処理。
+ * @param {string} missionId
+ * @param {HTMLElement} container - _snapshot を生やす要素（handleImageSelect /
+ *   clearImagePreview が #clear-mission-modal 経由で参照する）
+ */
+export function initClearDraft(missionId, container) {
   const draft = _clearDraft.load(missionId);
   const inputEl = document.getElementById('clear-input');
   if (draft) {
@@ -324,7 +336,7 @@ export function openClearMissionModal(missionId, _overrideFormat = null) {
   document.querySelectorAll('[data-clear-checklist]').forEach(cb => {
     cb.addEventListener('change', snapshot);
   });
-  overlay._snapshot = snapshot;
+  if (container) container._snapshot = snapshot;
 }
 
 /**
@@ -464,6 +476,19 @@ export function handleGoodClick(e) {
 }
 
 // ===== 招待機能 =====
+
+/**
+ * ミッションのディープリンク（/m/<eventId>/<missionId>）をクリップボードにコピーする。
+ * 管理者はミートボールメニュー、一般ユーザーはリンクアイコンから呼ばれる。
+ * @param {string} missionId
+ */
+export function copyMissionLink(missionId) {
+  const url = `${location.origin}/m/${state.selectedEventId}/${missionId}`;
+  logEvent('mission_link_copied', { missionId });
+  navigator.clipboard.writeText(url)
+    .then(() => window._app?.showToast('ミッションリンクをコピーしました'))
+    .catch(() => window._app?.showToast('コピーに失敗しました: ' + url, 'error'));
+}
 
 /**
  * 招待コードをクリップボードにコピーする

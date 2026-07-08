@@ -21,6 +21,7 @@ const eventStore      = require('./lib/eventStore');
 const projectStore    = require('./lib/projectStore');
 const notifStore      = require('./lib/notificationStore');
 const submissionStore  = require('./lib/submissionStore');
+const chatStore        = require('./lib/chatStore');
 const eventLogStore    = require('./lib/eventLogStore');
 const r2               = require('./lib/r2');
 const proposalEngine   = require('./lib/proposalEngine');
@@ -1254,6 +1255,7 @@ app.put('/api/data', requireAuth, async (req, res) => {
         await notifStore.deleteByEventId(p.id);
         await eventLogStore.deleteByProject(p.id);
         await inviteStore.deleteForProject(p.id);
+        await chatStore.deleteAllForEvent(p.id);
         eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
       } else if (role === 'member') {
         p.members = p.members.filter(m => m.userId !== req.user.id);
@@ -1812,6 +1814,156 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     res.json({ ok: true, mission: _missionToFlat(p.missions[mid], mid) });
   } catch (e) {
     console.error('complete error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== ミッションチャット =====
+// ミッション詳細ページのチャット。mission_chats コレクション（chatStore）で永続化。
+// SSE: chatMessage / chatDeleted / chatReaction（送信元クライアントは除外）。
+
+// メッセージに送信者の username/avatarUrl を合成（/api/data の members 合成と同じ発想）
+async function _enrichChatMessages(messages) {
+  const ids = [...new Set(messages.map(m => m.userId))];
+  const users = await userStore.findManyByIds(ids);
+  const byId = {};
+  for (const u of users) byId[u.id] = u;
+  return messages.map(m => ({
+    ...m,
+    username:  byId[m.userId]?.username  || '不明なユーザー',
+    avatarUrl: byId[m.userId]?.avatarUrl || null,
+  }));
+}
+
+// メッセージ一覧
+app.get('/api/events/:id/missions/:mid/chat', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const messages = await chatStore.listForMission(req.params.id, req.params.mid);
+    res.json({ ok: true, messages: await _enrichChatMessages(messages) });
+  } catch (e) {
+    console.error('chat list error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メッセージ送信
+app.post('/api/events/:id/missions/:mid/chat', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const mid = req.params.mid;
+    const m = _missionToFlat(p.missions?.[mid], mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+
+    const text = String(req.body?.text ?? '').trim();
+    if (!text) return res.status(400).json({ ok: false, error: 'メッセージを入力してください' });
+    if (text.length > 2000) return res.status(400).json({ ok: false, error: 'メッセージが長すぎます' });
+
+    // 返信（引用）：返信元のスナップショットをサーバー側で確定（クライアントの引用文は信用しない）
+    let replyTo = null;
+    const replyToId = req.body?.replyTo ? String(req.body.replyTo) : '';
+    if (replyToId) {
+      const orig = await chatStore.getMessage(replyToId);
+      if (orig && orig.eventId === p.id && orig.missionId === mid) {
+        const [origEnriched] = await _enrichChatMessages([orig]);
+        replyTo = {
+          id:       orig.id,
+          userId:   orig.userId,
+          username: origEnriched.username,
+          text:     orig.text.length > 100 ? orig.text.slice(0, 100) + '…' : orig.text,
+        };
+      }
+    }
+
+    // 参加者は送信「前」に取得（通知対象＝これまでにチャットした人。自分の初回発言で自分に通知しないため）
+    const participants = await chatStore.participantIds(p.id, mid);
+    const saved = await chatStore.addMessage(p.id, mid, req.user.id, text, replyTo);
+    const [enriched] = await _enrichChatMessages([saved]);
+
+    eventBus.broadcast(p.id, 'chatMessage', {
+      eventId: p.id, missionId: mid, message: enriched,
+    }, req.get('X-Client-Id') || null);
+
+    // 通知：担当者 + 管理者権限 + チャット参加者（送信者自身は除外、メンバー限定）
+    const assigneeIds = Array.isArray(m.assignees) && m.assignees.length > 0
+      ? m.assignees
+      : (m.assignee?.type === 'user' ? [m.assignee.userId] : []);
+    const memberIds = new Set((p.members || []).map(x => x.userId));
+    const targets = [...new Set([..._getManagerIds(p), ...assigneeIds, ...participants])]
+      .filter(uid => uid !== req.user.id && memberIds.has(uid));
+    if (targets.length > 0) {
+      const snippet = text.length > 30 ? text.slice(0, 30) + '…' : text;
+      await notifStore.notifyAll(targets, {
+        type:      'chat_message',
+        message:   `${req.user.username} さんが「${m.title}」にコメントしました：${snippet}`,
+        eventId: p.id, missionId: mid,
+        actorId:   req.user.id, actorName: req.user.username,
+      });
+    }
+
+    res.json({ ok: true, message: enriched });
+  } catch (e) {
+    console.error('chat post error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// メッセージ削除（本人 or 管理者権限）
+app.delete('/api/events/:id/missions/:mid/chat/:msgId', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const msg = await chatStore.getMessage(req.params.msgId);
+    if (!msg || msg.eventId !== p.id || msg.missionId !== req.params.mid) {
+      return res.status(404).json({ ok: false, error: 'message not found' });
+    }
+    if (msg.userId !== req.user.id && !eventStore.canManage(p, req.user.id)) {
+      return res.status(403).json({ ok: false, error: '削除できるのは本人か管理者のみです' });
+    }
+
+    await chatStore.deleteMessage(msg.id);
+    eventBus.broadcast(p.id, 'chatDeleted', {
+      eventId: p.id, missionId: req.params.mid, messageId: msg.id,
+    }, req.get('X-Client-Id') || null);
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('chat delete error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// リアクションのトグル
+app.post('/api/events/:id/missions/:mid/chat/:msgId/reactions', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const emoji = String(req.body?.emoji ?? '').trim();
+    if (!emoji || emoji.length > 16) return res.status(400).json({ ok: false, error: '絵文字が不正です' });
+
+    const msg = await chatStore.getMessage(req.params.msgId);
+    if (!msg || msg.eventId !== p.id || msg.missionId !== req.params.mid) {
+      return res.status(404).json({ ok: false, error: 'message not found' });
+    }
+
+    const updated = await chatStore.toggleReaction(msg.id, emoji, req.user.id);
+    eventBus.broadcast(p.id, 'chatReaction', {
+      eventId: p.id, missionId: req.params.mid, messageId: msg.id, reactions: updated?.reactions || {},
+    }, req.get('X-Client-Id') || null);
+
+    res.json({ ok: true, reactions: updated?.reactions || {} });
+  } catch (e) {
+    console.error('chat reaction error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });

@@ -118,6 +118,24 @@ export const api = {
     return json || { ok: false };
   },
 
+  // ----- ミッションチャット -----
+  async listMissionChat(eventId, missionId) {
+    const { json } = await _send('GET', `/api/events/${eventId}/missions/${missionId}/chat`);
+    return json || { ok: false };
+  },
+  async postMissionChat(eventId, missionId, text, replyTo = null) {
+    const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/chat`, { text, replyTo });
+    return json || { ok: false };
+  },
+  async deleteMissionChat(eventId, missionId, messageId) {
+    const { json } = await _send('DELETE', `/api/events/${eventId}/missions/${missionId}/chat/${messageId}`);
+    return json || { ok: false };
+  },
+  async toggleChatReaction(eventId, missionId, messageId, emoji) {
+    const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/chat/${messageId}/reactions`, { emoji });
+    return json || { ok: false };
+  },
+
   // ----- ミッション自己申告 -----
   async claimMission(eventId, missionId) {
     const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/claim`);

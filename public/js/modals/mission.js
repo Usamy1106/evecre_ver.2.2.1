@@ -548,6 +548,8 @@ export function openMissionMenuAt(missionId, x, y) {
   menu.className = 'fixed bg-white border border-[#D3D6D8] rounded-xl shadow-xl z-[250] overflow-hidden min-w-[120px] animate-fadeIn';
   menu.style.visibility = 'hidden';
   menu.innerHTML = `
+    <button id="mm-copy-link"
+      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">リンクをコピー</button>
     <button id="mm-edit"
       class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">編集</button>
     <button id="mm-delete"
@@ -560,6 +562,11 @@ export function openMissionMenuAt(missionId, x, y) {
   menu.style.top  = `${Math.max(8, Math.min(y, window.innerHeight - mh - 8))}px`;
   menu.style.visibility = 'visible';
 
+  menu.querySelector('#mm-copy-link').onclick = (ev) => {
+    ev.stopPropagation();
+    menu.remove();
+    window._app.copyMissionLink(missionId);
+  };
   menu.querySelector('#mm-edit').onclick = (ev) => {
     ev.stopPropagation();
     menu.remove();
@@ -590,18 +597,13 @@ export function toggleMissionMenu(e, missionId) {
   openMissionMenuAt(missionId, rect.left, rect.bottom + 4);
 }
 
-// ミッションのタップ時アクションを返す（完了できない場合は null）。
-// 個別完了 → 完了者リスト、通常で完了可 → 完了モーダル。
+// ミッションのタップ時アクションを返す。
+// 全ミッションでミッション詳細ページを開く（完了入力欄はページ側で従来条件のまま出し分け）。
+// カレンダー/ガントシートから開いた場合は openMissionDetail がシートを閉じ、
+// 戻るボタンで同じビューを再オープンする。
 export function missionTapAction(m) {
   if (!m) return null;
-  if (m.individualClear) return () => window._app.openIndividualClearListModal(m.id);
-  if (m.status === 'cleared' || m.status === 'pending_leader_check') return null;
-  const meId = state.currentUser?.id;
-  const assignees = Array.isArray(m.assignees) ? m.assignees : [];
-  const myMission = (m.assignee?.type === 'user' && m.assignee.userId === meId) || assignees.includes(meId);
-  // 申告制で自分の担当でなければ完了不可
-  if (m.selfClaim && !myMission) return null;
-  return () => window._app.openClearMissionModal(m.id);
+  return () => window._app.openMissionDetail(m.id);
 }
 
 // root 内の [data-mission-id] にタップ＋（管理者の）長押しメニューを束ねる。

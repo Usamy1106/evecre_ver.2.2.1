@@ -89,6 +89,40 @@ export function syncRealtime() {
     });
   });
 
+  // ミッションチャット：開いているミッション詳細ページに即時反映 + 通知タブ更新
+  _es.addEventListener('chatMessage', (e) => {
+    try {
+      const { missionId, message } = JSON.parse(e.data);
+      const chat = state.missionChat;
+      if (chat && chat.missionId === missionId && !chat.loading &&
+          !chat.messages.some(x => x.id === message.id)) {
+        chat.messages.push(message);
+        state.render();
+      }
+    } catch (_) {}
+    // チャット通知（chat_message）をバッジ・通知タブへ反映
+    state.loadNotifications?.().then(() => state.render());
+  });
+  _es.addEventListener('chatDeleted', (e) => {
+    try {
+      const { missionId, messageId } = JSON.parse(e.data);
+      const chat = state.missionChat;
+      if (!chat || chat.missionId !== missionId) return;
+      chat.messages = chat.messages.filter(x => x.id !== messageId);
+      state.render();
+    } catch (_) {}
+  });
+  _es.addEventListener('chatReaction', (e) => {
+    try {
+      const { missionId, messageId, reactions } = JSON.parse(e.data);
+      const chat = state.missionChat;
+      if (!chat || chat.missionId !== missionId) return;
+      const msg = chat.messages.find(x => x.id === messageId);
+      if (!msg) return;
+      msg.reactions = reactions || {};
+      state.render();
+    } catch (_) {}
+  });
   _es.onerror = () => {
     // EventSource は自動で再接続するので何もしない
   };

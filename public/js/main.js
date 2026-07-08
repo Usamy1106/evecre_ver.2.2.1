@@ -14,6 +14,11 @@ import { renderMainBoard }          from './views/mainBoard.js';
 import { renderCreateAccountInfo, renderLogin } from './views/auth.js';
 import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
+import {
+  renderMissionDetail,
+  sendChatMessage, deleteChatMessage, toggleChatReaction, openChatEmojiPicker,
+  cancelChatReply,
+} from './views/missionDetail.js';
 
 // モーダル
 import { openCalendarModal, moveCalendarMonth } from './modals/calendar.js';
@@ -33,6 +38,7 @@ import {
   handleGoodClick,
   updateDraftInfo,
   openIndividualClearListModal,
+  copyMissionLink,
 } from './modals/helpers.js';
 import { openVerifyEmailModal } from './modals/verifyEmailModal.js';
 import { openJoinByCodeModal } from './modals/joinByCodeModal.js';
@@ -53,6 +59,7 @@ registerRenderer('CREATE_EVENT_INVITE', renderCreateEventInvite);
 registerRenderer('MAIN_BOARD',            renderMainBoard);
 registerRenderer('EVENT_SETTINGS',      renderEventSettings);
 registerRenderer('PROJECT_DETAIL',      renderProjectDetail);
+registerRenderer('MISSION_DETAIL',      renderMissionDetail);
 
 // ===== 参加承認ロール設定モーダル（共通ヘルパー）=====
 // uid: 承認対象userId, username: 表示名, roles: イベントのロール配列（破壊的に追加される）
@@ -294,9 +301,14 @@ window._app = {
     menu.style.top   = `${rect.bottom + 4}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
     menu.innerHTML = `
+      <button id="amm-copy-link" class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">リンクをコピー</button>
       <button id="amm-revert" class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">未完了に戻す</button>
       <button id="amm-delete" class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold text-[#EE3E12]">削除する</button>`;
     document.body.appendChild(menu);
+    document.getElementById('amm-copy-link').onclick = (ev) => {
+      ev.stopPropagation(); menu.remove();
+      window._app.copyMissionLink(missionId);
+    };
     document.getElementById('amm-revert').onclick = (ev) => {
       ev.stopPropagation(); menu.remove();
       window._app.revertMissionToIncomplete(missionId);
@@ -531,6 +543,14 @@ window._app = {
     api.markNotificationRead(notifId);
     const n = state.notifications.find(x => x.id === notifId);
     if (n) n.read = true;
+    // チャット通知はミッション詳細ページへ（戻るで通知タブに復帰）
+    if (n?.type === 'chat_message' && missionId) {
+      const p = state.events.find(x => x.id === state.selectedEventId);
+      if (p?.missions?.some(m => m.id === missionId)) {
+        state.openMissionDetail(missionId);
+        return;
+      }
+    }
     // ミッションがあるならメインタブへ
     if (missionId) state.mainBoardTab = 'MAIN';
     state.render();
@@ -651,6 +671,16 @@ window._app = {
   toggleSortMenu: (e) => toggleSortMenu(e),
   showMissionListModal: () => showMissionListModal(),
   changeMissionSort: (mode) => changeMissionSort(mode),
+
+  // --- ミッション詳細ページ ---
+  openMissionDetail:  (mid) => state.openMissionDetail(mid),
+  closeMissionDetail: ()    => state.closeMissionDetail(),
+  copyMissionLink:    (mid) => copyMissionLink(mid),
+  sendChatMessage:    ()    => sendChatMessage(),
+  deleteChatMessage:  (msgId) => deleteChatMessage(msgId),
+  toggleChatReaction: (msgId, emoji) => toggleChatReaction(msgId, emoji),
+  openChatEmojiPicker: (msgId) => openChatEmojiPicker(msgId),
+  cancelChatReply: () => cancelChatReply(),
 
   // --- ミッション完了 ---
   openClearMissionModal: (mid, fmt) => openClearMissionModal(mid, fmt),
@@ -1489,6 +1519,8 @@ const _LOG_LABELS = {
   board_tab_switched:     'タブを切替',
   archive_viewed:         'アーカイブを表示',
   view_changed:           '画面を移動',
+  chat_message_sent:      'チャットを送信した',
+  mission_link_copied:    'ミッションリンクをコピー',
   // サーバー側監査ログ（後述の拡充分）
   role_changed:           'ロールを変更した',
   member_joined:          'メンバーが参加した',

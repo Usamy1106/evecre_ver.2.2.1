@@ -52,6 +52,13 @@ export const state = {
   missionSortMode: 'createdAt',
   notifications: [],   // [{id, type, message, eventId, missionId, read, createdAt}]
 
+  // --- ミッション詳細ページ ---
+  selectedMissionId: null,     // MISSION_DETAIL で表示中のミッションID
+  missionDetailReturn: null,   // 戻り先 { tab, calendarSheetView } （view は常に MAIN_BOARD）
+  missionChat: null,           // { missionId, messages, loading } チャットのキャッシュ
+  pendingMissionLink: null,    // ディープリンク /m/<eventId>/<missionId> の保留分
+                               // （init で検出 → loadAfterAuth で消費。未ログインならログイン後に消費）
+
   // --- 通知を取得 ---
   async loadNotifications() {
     try {
@@ -123,6 +130,15 @@ export const state = {
       }
       this.render();
       return;
+    }
+
+    // ミッションのディープリンク（/m/<eventId>/<missionId>）の検出。
+    // ここでは保留にだけして通常フロー（me() → loadAfterAuth）に乗せ、loadAfterAuth で消費する。
+    const mlm = window.location.pathname.match(/^\/m\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/?$/);
+    if (mlm) {
+      this.pendingMissionLink = { eventId: mlm[1], missionId: mlm[2] };
+      console.log('[init] ミッションリンク検出:', this.pendingMissionLink);
+      window.history.replaceState(null, '', '/'); // URL をきれいに
     }
 
     // 招待トークンを取得：
@@ -305,6 +321,29 @@ export const state = {
       return;
     }
 
+    // ミッションのディープリンク（/m/<eventId>/<missionId>）から来た場合：
+    // メンバーかつミッションが存在すれば直接ミッション詳細ページへ。
+    // 招待フローと同時の場合は上の pendingInviteToken ブロックが先に return する（招待優先）。
+    if (this.pendingMissionLink) {
+      const { eventId, missionId } = this.pendingMissionLink;
+      this.pendingMissionLink = null;
+      const p = this.events.find(x => x.id === eventId);
+      const mission = p?.missions?.find(x => x.id === missionId);
+      syncRealtime();
+      if (p && mission) {
+        this.selectedEventId = eventId;
+        this.openMissionDetail(missionId); // 戻るは MAIN_BOARD(MAIN) へ
+        this._hideLoading();
+        return;
+      }
+      this.currentView = 'HOME';
+      if (!skipRender) this.render();
+      setTimeout(() => window._app?.showToast?.(
+        p ? 'ミッションが見つかりません（削除された可能性があります）'
+          : 'このミッションにアクセスできる権限がありません', 'error'), 300);
+      return;
+    }
+
     console.log('[loadAfterAuth] HOME へ遷移');
     this.currentView = 'HOME';
     syncRealtime();
@@ -460,6 +499,49 @@ export const state = {
     this.missionFilterTag = null;
     this.render();
     window.scrollTo(0, 0);
+  },
+
+  // --- ミッション詳細ページへ遷移 ---
+  // 完了モーダルの後継。遷移元コンテキストを記録し、戻るボタンで元の画面へ復元する。
+  // カレンダー/ガントシートから開いた場合はシートを閉じ、戻り時に同じビューで再オープン。
+  openMissionDetail(missionId, opts = {}) {
+    const calSheet = document.getElementById('event-cal-sheet');
+    const calendarSheetView = opts.calendarSheetView
+      ?? (calSheet ? (calSheet.dataset.calView || 'calendar') : null);
+    calSheet?.remove();
+    // ページの上に出ているモーダル類を掃除
+    document.getElementById('indiv-clear-list-modal')?.remove();
+    document.getElementById('clear-mission-modal')?.remove();
+
+    this.missionDetailReturn = {
+      tab: opts.tab ?? this.mainBoardTab,
+      calendarSheetView,
+    };
+    this.selectedMissionId = missionId;
+    this.missionChat = { missionId, messages: [], loading: true };
+    logEvent('view_changed', { from: this.currentView, to: 'MISSION_DETAIL' });
+    this.currentView = 'MISSION_DETAIL';
+    this.render();
+    window.scrollTo(0, 0);
+  },
+
+  // --- ミッション詳細ページから戻る ---
+  closeMissionDetail() {
+    const ret = this.missionDetailReturn || {};
+    this.selectedMissionId = null;
+    this.missionDetailReturn = null;
+    this.missionChat = null;
+    logEvent('view_changed', { from: 'MISSION_DETAIL', to: 'MAIN_BOARD' });
+    this.currentView = 'MAIN_BOARD';
+    this.mainBoardTab = ret.tab || 'MAIN';
+    this.render();
+    window.scrollTo(0, 0);
+    // カレンダー/ガントシートから来ていた場合は同じビューで再オープン
+    if (ret.calendarSheetView) {
+      import('./modals/eventCalendarSheet.js').then(mod => {
+        mod.openEventCalendarSheet(ret.calendarSheetView);
+      }).catch(() => {});
+    }
   },
 
   // --- イベント作成（旧フロー、HOME から呼ばれる用、互換）---
