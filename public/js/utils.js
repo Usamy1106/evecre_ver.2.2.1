@@ -27,6 +27,51 @@ export function getConsecutiveGroups(dateStrings) {
   return groups;
 }
 
+const _WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
+
+/**
+ * 1日分の「開催日（＋時刻）」を人間可読な文字列にする。
+ * 例: '2026-07-10' + {start:'10:00',end:'17:00'} → '7/10（金） 10:00〜17:00'
+ *     時刻なし → '7/10（金）' / 開始のみ → '7/10（金） 10:00〜' / 終了のみ → '7/10（金） 〜17:00'
+ * @param {string} dateStr 'YYYY-MM-DD'
+ * @param {{start?:string,end?:string}} [time]
+ * @returns {string}
+ */
+export function formatDateWithTime(dateStr, time) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const wd = (!isNaN(y) && !isNaN(m) && !isNaN(d))
+    ? _WEEKDAYS_JA[new Date(y, m - 1, d).getDay()] : '';
+  const base = `${m}/${d}${wd ? `（${wd}）` : ''}`;
+  const start = time?.start || '';
+  const end   = time?.end   || '';
+  if (!start && !end) return base;
+  return `${base} ${start}〜${end}`;
+}
+
+/**
+ * 開催日の配列＋時刻マップを、表示用の「行の配列」に整形する。
+ * 各行 = formatDateWithTime()。呼び出し側で改行やカンマで結合する。
+ * 時刻が1日も設定されていない場合は、従来どおり範囲表記（例 '7/10（金） 〜 7/12（日）'）1行に圧縮する。
+ * @param {string[]} dates 'YYYY-MM-DD' の配列（未ソート可）
+ * @param {{[date:string]:{start?:string,end?:string}}} [dateTimes]
+ * @returns {string[]} 表示行（0件なら空配列）
+ */
+export function formatEventPeriodLines(dates, dateTimes) {
+  const list = Array.isArray(dates) ? [...dates].filter(Boolean).sort() : [];
+  if (list.length === 0) return [];
+  const dt = dateTimes || {};
+  const hasAnyTime = list.some(d => dt[d] && (dt[d].start || dt[d].end));
+
+  // 時刻が一切なければ従来どおり範囲1行に圧縮
+  if (!hasAnyTime) {
+    if (list.length === 1) return [formatDateWithTime(list[0])];
+    return [`${formatDateWithTime(list[0])} 〜 ${formatDateWithTime(list[list.length - 1])}`];
+  }
+  // 時刻ありは日ごとに1行（Googleカレンダー風）
+  return list.map(d => formatDateWithTime(d, dt[d]));
+}
+
 /**
  * 今日から対象日までの残り日数を計算する
  * @param {string} dateStr - 'YYYY-MM-DD' 形式

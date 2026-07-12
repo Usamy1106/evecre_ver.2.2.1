@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG } from '../constants.js';
-import { calculateDaysLeft } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines } from '../utils.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
 // モジュールロード時に一度だけ登録。document 全体にデリゲート。
@@ -673,9 +673,9 @@ function _renderArchiveTab(p) {
     ?? null;
   const url        = _getClearedByOrigin(p, 'p2')?.content ?? '未設定';
   const venue      = _getClearedByOrigin(p, 'p1')?.content ?? '未設定';
-  // p.dates を優先し、旧 period-temp は後方互換フォールバック
+  // p.dates を優先し、旧 period-temp は後方互換フォールバック。時刻ありは日ごとに改行表示
   const period     = p.dates?.length > 0
-    ? `${p.dates[0]} 〜 ${p.dates[p.dates.length - 1]}`
+    ? formatEventPeriodLines(p.dates, p.dateTimes).join('<br>')
     : (p.clearedData?.['period-temp']?.content || '未設定');
 
   // ── Layer 2 データ取得（概要スロット以外の完了ミッション）──────
@@ -798,7 +798,7 @@ function _renderArchiveTab(p) {
           </section>
           <section class="grid grid-cols-[80px_1fr_40px] gap-y-6 text-[13px]">
             <div class="font-bold text-[#A7AAAC]">期間</div>
-            <div class="font-bold text-[#484545] flex items-center gap-2">${period} ${_pen('period')}</div>
+            <div class="font-bold text-[#484545] flex items-start gap-2"><span class="leading-relaxed">${period}</span> ${_pen('period')}</div>
             <div></div>
             <div class="font-bold text-[#A7AAAC]">URL</div>
             <div class="font-bold text-[#0CA1E3] underline truncate">${url}</div>

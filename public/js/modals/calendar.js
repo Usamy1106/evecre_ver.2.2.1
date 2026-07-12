@@ -1,6 +1,59 @@
 // ===== カレンダーモーダル =====
 import { state } from '../state.js';
 
+const _WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
+
+/**
+ * projectEdit 用：選択中の日付ごとに開始/終了の時刻入力を並べたリストを返す（Googleカレンダー風）。
+ * 時刻は project.dateTimes[dateStr] = { start, end } に保持する（任意入力）。
+ * @param {object} project
+ * @returns {string}
+ */
+function _renderDateTimeList(project) {
+  const dates = [...(project?.dates || [])].filter(Boolean).sort();
+  if (dates.length === 0) return '';
+  const dt = project.dateTimes || {};
+  const rows = dates.map(dateStr => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const wd = _WEEKDAYS_JA[new Date(y, m - 1, d).getDay()] || '';
+    const t = dt[dateStr] || {};
+    return `
+      <div class="flex items-center gap-2 py-1.5">
+        <span class="text-[12px] font-bold text-[#484545] w-16 flex-shrink-0">${m}/${d}（${wd}）</span>
+        <input type="time" data-dt-date="${dateStr}" data-dt-kind="start" value="${t.start || ''}"
+          class="flex-1 min-w-0 text-[13px] bg-[#FDFBF8] border border-[#E1DFDC] rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#0CA1E3]">
+        <span class="text-[11px] text-[#A7AAAC]">〜</span>
+        <input type="time" data-dt-date="${dateStr}" data-dt-kind="end" value="${t.end || ''}"
+          class="flex-1 min-w-0 text-[13px] bg-[#FDFBF8] border border-[#E1DFDC] rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#0CA1E3]">
+      </div>`;
+  }).join('');
+  return `
+    <div class="mt-4 mb-6">
+      <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">時間（任意・日ごとに設定できます）</p>
+      <div class="max-h-40 overflow-y-auto pr-1">${rows}</div>
+    </div>`;
+}
+
+/**
+ * 時刻入力の onchange を紐付ける（projectEdit のみ）。
+ * @param {object} project
+ */
+function _bindDateTimeInputs(project) {
+  const modal = document.getElementById('calendar-modal');
+  if (!modal || !project) return;
+  modal.querySelectorAll('input[data-dt-date]').forEach(input => {
+    input.addEventListener('change', () => {
+      const dateStr = input.dataset.dtDate;
+      const kind    = input.dataset.dtKind; // 'start' | 'end'
+      if (!project.dateTimes) project.dateTimes = {};
+      const cur = project.dateTimes[dateStr] || { start: '', end: '' };
+      cur[kind] = input.value || '';
+      if (!cur.start && !cur.end) delete project.dateTimes[dateStr];
+      else project.dateTimes[dateStr] = cur;
+    });
+  });
+}
+
 // サポートする target:
 // - 'project'       : イベント作成中のドラフトの開催日を編集（state.draftEvent.dates）
 // - 'projectEdit'   : 確定済みイベントの開催日（実施日）を編集（project.dates）
@@ -195,7 +248,8 @@ function _renderCalendarInner(target) {
         <div class="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] text-[#A7AAAC] font-bold">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
         </div>
-        <div id="calendar-grid" class="grid grid-cols-7 gap-1 mb-8" style="touch-action:none;">${daysHtml}</div>
+        <div id="calendar-grid" class="grid grid-cols-7 gap-1 ${target === 'projectEdit' ? 'mb-2' : 'mb-8'}" style="touch-action:none;">${daysHtml}</div>
+        ${target === 'projectEdit' ? _renderDateTimeList(project) : ''}
         <button id="calendar-confirm-btn"
           class="btn-primary w-full py-3 heading-rs font-bold">決定</button>
       </div>`;
@@ -204,6 +258,9 @@ function _renderCalendarInner(target) {
   // 決定ボタン（ミッション用は存在しない）
   const confirmBtn = document.getElementById('calendar-confirm-btn');
   if (confirmBtn) confirmBtn.onclick = () => _closeCalendar(target);
+
+  // 時刻入力（projectEdit のみ）
+  if (target === 'projectEdit') _bindDateTimeInputs(project);
 }
 
 /**
@@ -294,6 +351,11 @@ function _bindDragSelection(target) {
     _dragState = null;
     // イベント作成中の場合、裏側の画面も追従させる
     if (t === 'project') state.render();
+    // projectEdit は選択日が変わったので時刻リストを再構築（新規日に時刻入力を出す）
+    if (t === 'projectEdit') {
+      _renderCalendarInner(t);
+      _bindDragSelection(t);
+    }
   };
   grid.addEventListener('pointerup',     endDrag);
   grid.addEventListener('pointercancel', endDrag);

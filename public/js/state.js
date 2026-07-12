@@ -679,6 +679,13 @@ export const state = {
     if (!p) return;
     p.dates.sort();
     p.daysLeft = p.dates.length > 0 ? calculateDaysLeft(p.dates[0]) : 99;
+    // 開催日から外れた日付の時刻設定を破棄（dateTimes は dates と整合させる）
+    if (p.dateTimes && typeof p.dateTimes === 'object') {
+      const valid = new Set(p.dates);
+      for (const k of Object.keys(p.dateTimes)) {
+        if (!valid.has(k)) delete p.dateTimes[k];
+      }
+    }
     this.save();
   },
 

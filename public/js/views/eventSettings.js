@@ -9,6 +9,7 @@ import { api }   from '../api.js';
 import { Components } from '../components.js';
 import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
 import { showConfirmDialog } from '../dialog.js';
+import { formatEventPeriodLines } from '../utils.js';
 
 export function renderEventSettings(container) {
   const p = state.events.find(x => x.id === state.selectedEventId);
@@ -136,9 +137,9 @@ function _eventManagementSection(p, sec) {
         <!-- 開催日時 -->
         <div class="p-4">
           <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">開催日時</p>
-          <div class="flex items-center justify-between">
-            <span class="text-[14px] text-[#484545] font-bold">${_formatDates(p.dates)}</span>
-            ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50">変更</button>` : ''}
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[14px] text-[#484545] font-bold whitespace-pre-wrap">${_formatDates(p.dates, p.dateTimes)}</span>
+            ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 flex-shrink-0 self-start">変更</button>` : ''}
           </div>
         </div>
 
@@ -583,10 +584,9 @@ function _bindEvents(p, sec) {
 // =====================================================
 // ヘルパ
 // =====================================================
-function _formatDates(dates) {
-  if (!dates || dates.length === 0) return '未設定';
-  if (dates.length === 1) return dates[0];
-  return `${dates[0]} 〜 ${dates[dates.length - 1]}`;
+function _formatDates(dates, dateTimes) {
+  const lines = formatEventPeriodLines(dates, dateTimes);
+  return lines.length === 0 ? '未設定' : lines.join('\n');
 }
 
 function _roleLabel(role) {
