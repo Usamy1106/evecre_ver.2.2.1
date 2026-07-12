@@ -43,7 +43,7 @@ export function renderHome(container) {
       </main>
       ${tab === 'EVENTS' && !!state.currentUser?.isVerified ? `
         <button onclick="window._app.setView('CREATE_EVENT_INFO')"
-          class="fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
+          class="fixed bottom-24 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
           flex items-center justify-center text-white active:scale-90 transition-transform z-40">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
@@ -51,13 +51,14 @@ export function renderHome(container) {
         </button>` : ''}
       ${tab === 'PROJECTS' ? `
         <button onclick="window._app.openNewProjectModal()"
-          class="fixed bottom-10 right-6 w-14 h-14 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.15)]
+          class="fixed bottom-24 right-6 w-14 h-14 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.15)]
           flex items-center justify-center text-white active:scale-90 transition-transform z-40"
           style="background-color:#484545">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>` : ''}
+      ${Components.BottomNav('HOME')}
     </div>`;
 
   bindEventLongPress();

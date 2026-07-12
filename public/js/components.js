@@ -123,6 +123,35 @@ export const Components = {
   },
 
   /**
+   * ホーム系画面のボトムナビゲーション（HOME / COLLECTION で表示）
+   * @param {'HOME'|'COLLECTION'} active
+   */
+  BottomNav(active) {
+    const item = (view, label, icon, handler) => `
+      <button onclick="${handler}" data-log="bottomnav_${view.toLowerCase()}"
+        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 ${active === view ? 'text-[#0CA1E3]' : 'text-[#A7AAAC]'}">
+        ${icon}
+        <span class="text-[10px] font-bold">${label}</span>
+      </button>`;
+    const homeIcon = `
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>`;
+    // 図鑑（本）アイコン
+    const bookIcon = `
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>`;
+    return `
+      <nav class="fixed bottom-0 left-0 right-0 z-40 bg-[#FDFBF8] border-t border-[#E1DFDC] flex"
+        style="padding-bottom:env(safe-area-inset-bottom)">
+        ${item('HOME', 'ホーム', homeIcon, "window._app.setView('HOME')")}
+        ${item('COLLECTION', '図鑑', bookIcon, "window._app.openCollection()")}
+      </nav>`;
+  },
+
+  /**
    * ラベルタグ
    * @param {string} text
    */

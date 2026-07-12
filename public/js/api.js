@@ -118,6 +118,12 @@ export const api = {
     return json || { ok: false };
   },
 
+  // ----- 図鑑（山登りオブジェクトコレクション）-----
+  async getCollection() {
+    const { json } = await _send('GET', '/api/collection');
+    return json || { ok: false };
+  },
+
   // ----- ミッションチャット -----
   async listMissionChat(eventId, missionId) {
     const { json } = await _send('GET', `/api/events/${eventId}/missions/${missionId}/chat`);

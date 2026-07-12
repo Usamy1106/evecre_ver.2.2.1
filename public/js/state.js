@@ -54,6 +54,7 @@ export const state = {
   calendarDate: new Date(),
   missionSortMode: 'createdAt',
   notifications: [],   // [{id, type, message, eventId, missionId, read, createdAt}]
+  myCollection: null,  // 図鑑：{ [objectId]: {count, firstAt, ...} } | null（未取得）
 
   // --- ミッション詳細ページ ---
   selectedMissionId: null,     // MISSION_DETAIL で表示中のミッションID
@@ -436,6 +437,17 @@ export const state = {
       const def = roles.find(r => r.id === rid);
       return !!(def && def.canManage);
     });
+  },
+
+  // --- 図鑑ページを開く ---
+  // 先にビューを出してから取得（キャッシュがあれば即表示 → 取得完了で再描画）
+  async openCollection() {
+    this.setView('COLLECTION');
+    const r = await api.getCollection();
+    if (r.ok && this.currentView === 'COLLECTION') {
+      this.myCollection = r.objects || {};
+      this.render();
+    }
   },
 
   // --- ビュー遷移 ---

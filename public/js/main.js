@@ -7,6 +7,7 @@ import { logEvent, initLogger, setProjectIdGetter } from './logger.js';
 
 // ビュー
 import { renderHome }               from './views/home.js';
+import { renderCollection }         from './views/collection.js';
 import { renderCreateEventInfo, renderCreateEventDates, renderCreateEventInvite } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
@@ -57,6 +58,7 @@ registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);
 registerRenderer('ACCOUNT',               renderAccount);
 registerRenderer('HOME',                  renderHome);
+registerRenderer('COLLECTION',            renderCollection);
 registerRenderer('CREATE_EVENT_INFO',   renderCreateEventInfo);
 registerRenderer('CREATE_EVENT_DATES',  renderCreateEventDates);
 registerRenderer('CREATE_EVENT_INVITE', renderCreateEventInvite);
@@ -1174,6 +1176,9 @@ window._app = {
     state.homeTab = tab;
     state.render();
   },
+
+  // --- 図鑑（ボトムナビ）---
+  openCollection: () => state.openCollection(),
 
   // --- プロジェクト（フォルダ）操作 ---
   openNewProjectModal: (pendingEventId = null) => _openNewProjectModal(pendingEventId),
