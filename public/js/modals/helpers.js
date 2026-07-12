@@ -5,6 +5,7 @@ import { MISSION_DESCRIPTIONS } from '../constants.js';
 import { logEvent } from '../logger.js';
 import { openCalendarModal } from './calendar.js';
 import { showConfirmDialog } from '../dialog.js';
+import { MOUNTAIN_OBJECTS } from '../mountainObjects.js';
 
 // ===== アーカイブ直接編集 =====
 
@@ -431,6 +432,14 @@ export async function submitMissionClear(missionId) {
     window._app?.showToast('完了を記録しました');
   } else {
     window._app?.showToast(m.leaderCheck ? 'リーダーチェック提出完了' : 'ミッション完了');
+  }
+
+  // 山登りオブジェクトの出会い演出（cleared 確定時のみ。旧ミッションはサーバーが
+  // フォールバック抽選するので r.mission 側を優先して参照する）
+  if (newStatus === 'cleared') {
+    const ro = r.mission?.rewardObject || m.rewardObject;
+    const obj = ro?.id ? MOUNTAIN_OBJECTS.find(o => o.id === ro.id) : null;
+    if (obj) setTimeout(() => window._app?.showToast(`「${obj.name}」に出会った！図鑑に追加されました`), 1200);
   }
 }
 

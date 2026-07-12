@@ -1,6 +1,7 @@
 // ===== UIコンポーネント =====
 import { state } from './state.js';
 import { LABEL_CONFIG } from './constants.js';
+import { MOUNTAIN_OBJECTS, RARITY_CONFIG } from './mountainObjects.js';
 
 function _initial(name) {
   return String(name || '?').trim().charAt(0).toUpperCase() || '?';
@@ -165,6 +166,26 @@ export const Components = {
       <div class="flex items-center justify-center gap-3 mb-10">
         ${[1, 2, 3].map(s => `<div class="w-2.5 h-2.5 rounded-full transition-colors duration-300 ${s === step ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}"></div>`).join('')}
       </div>`;
+  },
+
+  /**
+   * 山登りオブジェクトのアイコン（当面は正方形プレースホルダー。画像支給後に img へ差し替える）
+   * @param {string} objectId  MOUNTAIN_OBJECTS の id
+   * @param {{size?:number, silhouette?:boolean, className?:string}} opts
+   *   silhouette=true はミッション未完了時の「薄らとしたシルエット」表示
+   */
+  MountainObjectIcon(objectId, opts = {}) {
+    const obj = MOUNTAIN_OBJECTS.find(o => o.id === objectId);
+    if (!obj) return '';
+    const size  = opts.size || 32;
+    const extra = opts.className || '';
+    if (opts.silhouette) {
+      return `<div class="rounded-lg flex-shrink-0 ${extra}" title="？？？"
+        style="width:${size}px;height:${size}px;background-color:#484545;opacity:0.15"></div>`;
+    }
+    const color = RARITY_CONFIG[obj.rarity]?.color || '#D3D6D8';
+    return `<div class="rounded-lg flex-shrink-0 shadow-sm ${extra}" title="${_escText(obj.name)}"
+      style="width:${size}px;height:${size}px;background-color:${color}"></div>`;
   },
 
   /**

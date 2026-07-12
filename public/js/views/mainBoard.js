@@ -4,6 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG } from '../constants.js';
 import { calculateDaysLeft, formatEventPeriodLines } from '../utils.js';
+import { renderMountainPath, renderTrailBackdrop } from '../mountainPath.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
 // モジュールロード時に一度だけ登録。document 全体にデリゲート。
@@ -106,15 +107,9 @@ export function renderMainBoard(container) {
   // イベントが見つかったらフラグをクリア
   state._mainBoardReloadAttempted = false;
 
-  const points        = state.getEventPoints(p);
-  const currentPlant  = state.getPlantImagePath(p);
-  const stageProgress = state.getStageProgress(points);
-  const overallProgress = state.getOverallProgress(points);
-
-  const circleRadius  = 90;
-  const circumference = 2 * Math.PI * circleRadius;
-  const overallOffset = circumference - (overallProgress / 100) * circumference;
-  const stageOffset   = circumference - (stageProgress / 100) * circumference;
+  // 山登りパスのスクロール位置を再レンダリングをまたいで保持（SSE 再描画で飛ばさない。
+  // 初回は null → 最上部＝最新ノードのまま）
+  const _mountainScrollTop = document.getElementById('mountain-path-scroll')?.scrollTop ?? null;
 
   container.innerHTML = `
     <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
@@ -124,7 +119,7 @@ export function renderMainBoard(container) {
       </div>
       ${Components.VerifyBanner()}
       <main class="flex-1 overflow-y-auto no-scrollbar pb-32">
-        ${state.mainBoardTab === 'MAIN'    ? _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffset) : ''}
+        ${state.mainBoardTab === 'MAIN'    ? _renderMainTab(p) : ''}
         ${state.mainBoardTab === 'ARCHIVE' ? _renderArchiveTab(p) : ''}
         ${state.mainBoardTab === 'NOTIFICATIONS' ? _renderNotificationsTab(p) : ''}
       </main>
@@ -148,6 +143,11 @@ export function renderMainBoard(container) {
     </div>`;
 
   if (state.mainBoardTab === 'MAIN') {
+    // 山登りパスのスクロール位置を復元（初回レンダリングは最上部＝最新ノード）
+    if (_mountainScrollTop !== null) {
+      const sc = document.getElementById('mountain-path-scroll');
+      if (sc) sc.scrollTop = _mountainScrollTop;
+    }
     _checkMissionDeadlineNotifications(p.missions || []);
     // ミッションカード：タップ＝完了モーダル（inline onclick）、管理者長押し＝編集/削除メニュー
     bindMissionInteractions(container, p, { useInlineTap: true });
@@ -155,7 +155,7 @@ export function renderMainBoard(container) {
 }
 
 // ===== メインタブ =====
-function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffset) {
+function _renderMainTab(p) {
   const canMgr = state.canManageCurrentEvent();
   const meId   = state.currentUser?.id;
 
@@ -335,6 +335,10 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
           <h3 class="text-[14px] font-bold text-[#484545] pr-8" style="text-overflow:ellipsis;-webkit-line-clamp: 2;overflow: hidden;">${m.title}</h3>
           ${assigneeLine}
           ${claimLine}
+          ${m.rewardObject?.id ? `
+            <div class="absolute right-4 bottom-3 pointer-events-none">
+              ${Components.MountainObjectIcon(m.rewardObject.id, { silhouette: true, size: 26 })}
+            </div>` : ''}
           ${canMgr ? `
             <div onclick="event.stopPropagation(); window._app.toggleMissionMenu(event, '${m.id}')"
               class="absolute right-4 top-4 opacity-40 p-2 cursor-pointer hover:opacity-100 transition-opacity">
@@ -421,22 +425,9 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
       <!-- 申告待ちアナウンスバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}
 
-      <!-- 成長インジケーター -->
-      <div class="flex justify-center -mt-2">
-        <div class="relative w-52 h-52 flex items-center justify-center">
-          <svg class="absolute w-full h-full transform -rotate-90" viewBox="0 0 200 200">
-            <circle cx="100" cy="100" r="90" stroke="#EBE8E5" stroke-width="12" fill="none"/>
-            <circle cx="100" cy="100" r="90" stroke="#0CA1E3" stroke-width="8" fill="none"
-              stroke-dasharray="${circumference}" stroke-dashoffset="${overallOffset}"
-              stroke-linecap="round" class="opacity-20" style="transition: stroke-dashoffset 1s ease-out"/>
-            <circle cx="100" cy="100" r="90" stroke="#0CA1E3" stroke-width="12" fill="none"
-              stroke-dasharray="${circumference}" stroke-dashoffset="${stageOffset}"
-              stroke-linecap="round" style="transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)"/>
-          </svg>
-          <div class="w-40 h-40 bg-[#CFD8FF] rounded-full flex items-center justify-center overflow-hidden z-10 shadow-inner">
-            <img src="${currentPlant}" class="w-28 h-32 object-contain mt-2 transition-all duration-500 transform hover:scale-110">
-          </div>
-        </div>
+      <!-- 山登りパス（旧・成長インジケーター）：固定高・内部スクロールで道を遡れる -->
+      <div class="-mt-2">
+        ${renderMountainPath(p)}
       </div>
 
       <!-- 提案カード（管理者権限のあるユーザーのみ表示）-->
@@ -459,8 +450,9 @@ function _renderMainTab(p, currentPlant, circumference, overallOffset, stageOffs
               })() : '')}
         </div>` : ''}
 
-      <!-- ミッション一覧 -->
-      <section>
+      <!-- ミッション一覧（裏側にも山登りの道が続いている装飾） -->
+      <section class="relative">
+        ${renderTrailBackdrop()}
         <div class="flex items-center justify-between mb-3">
           <h2 class="heading-m">ミッション</h2>
           <div class="relative">
