@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG } from '../constants.js';
 import { calculateDaysLeft, formatEventPeriodLines } from '../utils.js';
-import { renderMountainPath, renderTrailBackdrop } from '../mountainPath.js';
+import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync } from '../mountainPath.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
 // モジュールロード時に一度だけ登録。document 全体にデリゲート。
@@ -117,8 +117,10 @@ export function renderMainBoard(container) {
         ${Components.Header(p)}
         ${Components.Tabs(state.mainBoardTab)}
       </div>
-      ${Components.VerifyBanner()}
-      <main class="flex-1 overflow-y-auto no-scrollbar pb-32">
+      <!-- 山ビジュアルの背景レイヤー（ヘッダー下〜画面全体。コンテンツ(z-10)の裏側） -->
+      ${state.mainBoardTab === 'MAIN' ? renderMountainBg(p) : ''}
+      ${Components.VerifyBanner() ? `<div class="relative z-10">${Components.VerifyBanner()}</div>` : ''}
+      <main class="relative z-10 flex-1 overflow-y-auto no-scrollbar pb-32">
         ${state.mainBoardTab === 'MAIN'    ? _renderMainTab(p) : ''}
         ${state.mainBoardTab === 'ARCHIVE' ? _renderArchiveTab(p) : ''}
         ${state.mainBoardTab === 'NOTIFICATIONS' ? _renderNotificationsTab(p) : ''}
@@ -143,11 +145,9 @@ export function renderMainBoard(container) {
     </div>`;
 
   if (state.mainBoardTab === 'MAIN') {
-    // 山登りパスのスクロール位置を復元（初回レンダリングは最上部＝最新ノード）
-    if (_mountainScrollTop !== null) {
-      const sc = document.getElementById('mountain-path-scroll');
-      if (sc) sc.scrollTop = _mountainScrollTop;
-    }
+    // 背景レイヤーの位置合わせ・スクロール同期・タップのヒットテストを配線
+    // （スクロール位置も復元。初回=null なら最上部＝最新ノード）
+    initMountainPathSync(p, _mountainScrollTop);
     _checkMissionDeadlineNotifications(p.missions || []);
     // ミッションカード：タップ＝完了モーダル（inline onclick）、管理者長押し＝編集/削除メニュー
     bindMissionInteractions(container, p, { useInlineTap: true });
@@ -425,9 +425,10 @@ function _renderMainTab(p) {
       <!-- 申告待ちアナウンスバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}
 
-      <!-- 山登りパス（旧・成長インジケーター）：固定高・内部スクロールで道を遡れる -->
+      <!-- 山登りパスのスクロール窓（透明）：ビジュアル本体は背景レイヤー #mountain-bg。
+           この領域内のスクロールでのみ道を遡れる -->
       <div class="-mt-2">
-        ${renderMountainPath(p)}
+        ${renderMountainScrollWindow(p)}
       </div>
 
       <!-- 提案カード（管理者権限のあるユーザーのみ表示）-->
@@ -450,9 +451,8 @@ function _renderMainTab(p) {
               })() : '')}
         </div>` : ''}
 
-      <!-- ミッション一覧（裏側にも山登りの道が続いている装飾） -->
-      <section class="relative">
-        ${renderTrailBackdrop()}
+      <!-- ミッション一覧（裏側には背景レイヤーの道がそのまま見えている） -->
+      <section>
         <div class="flex items-center justify-between mb-3">
           <h2 class="heading-m">ミッション</h2>
           <div class="relative">
