@@ -48,6 +48,7 @@ import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js'
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
+import { rollMountainObject } from './mountainObjects.js';
 
 // ===== ビューレンダラーの登録 =====
 registerRenderer('CREATE_ACCOUNT_INFO',   renderCreateAccountInfo);
@@ -636,6 +637,9 @@ window._app = {
         noInput: !!state.draftMission.noInput,
         individualClear: !!state.draftMission.individualClear,
         individualClearedBy: [],
+        // 山登りオブジェクト：作成時に priority に応じて抽選（編集では再抽選しない）。
+        // カードにシルエット表示 → 完了で道の横に出現＋全メンバーの図鑑に登録される。
+        rewardObject: rollMountainObject(state.draftMission.priority),
       };
       if (fromPid) {
         newMission.originProposalId = fromPid;
