@@ -43,6 +43,9 @@ import {
 import { openVerifyEmailModal } from './modals/verifyEmailModal.js';
 import { openJoinByCodeModal } from './modals/joinByCodeModal.js';
 import { openEventCalendarSheet } from './modals/eventCalendarSheet.js';
+import { checkPurposeReminderModal } from './modals/purposeReminderModal.js';
+import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
+import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
 
@@ -1044,6 +1047,15 @@ window._app = {
       config.onAction();
     };
   },
+
+  // --- 目的リマインドモーダル（全メンバー向け）---
+  checkPurposeReminderModal: () => checkPurposeReminderModal(),
+
+  // --- 開催日リマインドモーダル（全メンバー向け・初日/最終日翌日）---
+  checkEventDateReminderModal: () => checkEventDateReminderModal(),
+
+  // --- 開発者からのお知らせモーダル（全ユーザー向け）---
+  checkDeveloperAnnouncementModal: () => checkDeveloperAnnouncementModal(),
 
   // --- リーダーチェック：確認ボトムシート（管理者）---
   openLeaderCheckSheet: () => {

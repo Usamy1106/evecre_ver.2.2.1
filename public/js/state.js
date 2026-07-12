@@ -41,6 +41,9 @@ export const state = {
   inviteLinkError: null,               // 無効な招待リンクで来た時のエラーメッセージ
   mainBoardTab: 'MAIN',
   _infoModalShownForEvent: null,
+  _purposeReminderCheckedForEvent: null, // 目的リマインドモーダルのチェックをこのイベントで実施済みか（セッション1回）
+  _eventDateReminderCheckedForEvent: null, // 開催日リマインドモーダル（初日/翌日）のチェック実施済みか（セッション1回）
+  _devAnnouncementChecked: false, // 開発者からのお知らせモーダルのチェックを実施済みか（セッション1回、イベント非依存）
   missionViewMode: 'all',      // 'all' | 'mine'  ミッション表示モード
   missionFilterTag: null,      // ミッション絞り込みタグ（null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority' | 'assignee'
@@ -706,6 +709,36 @@ export const state = {
         this._infoModalShownForEvent !== this.selectedEventId &&
         this.canManageCurrentEvent()) {
       setTimeout(() => window._app?.checkAndShowInfoModal?.(), 500);
+    }
+
+    // MAIN_BOARD 初回表示時に目的リマインドモーダルをチェック（全メンバー・セッション1回）。
+    // 実際の表示可否・頻度は localStorage フラグ側で判定するため、ここでのチェック自体は
+    // セッションにつき1回で十分（条件は日〜週単位でしか変化しないため）。
+    // インフォモーダルより後に判定させ、重なった場合は表示を譲る（500ms → 700ms）。
+    if (this.currentView === 'MAIN_BOARD' &&
+        this.selectedEventId &&
+        this._purposeReminderCheckedForEvent !== this.selectedEventId) {
+      this._purposeReminderCheckedForEvent = this.selectedEventId;
+      setTimeout(() => window._app?.checkPurposeReminderModal?.(), 700);
+    }
+
+    // MAIN_BOARD 初回表示時に開催日リマインドモーダル（初日/最終日翌日）をチェック（全メンバー・セッション1回）。
+    // 他のモーダルと時間差をつけて重なりを避ける（500 → 700 → 900ms）。
+    if (this.currentView === 'MAIN_BOARD' &&
+        this.selectedEventId &&
+        this._eventDateReminderCheckedForEvent !== this.selectedEventId) {
+      this._eventDateReminderCheckedForEvent = this.selectedEventId;
+      setTimeout(() => window._app?.checkEventDateReminderModal?.(), 900);
+    }
+
+    // 開発者からのお知らせモーダル（全ユーザー・セッション1回、イベント非依存）。
+    // HOME/MAIN_BOARD どちらでも表示しうるため selectedEventId は問わない。
+    // 他のイベント固有モーダルより後に判定させ、重なった場合は表示を譲る。
+    if ((this.currentView === 'HOME' || this.currentView === 'MAIN_BOARD') &&
+        this.currentUser &&
+        !this._devAnnouncementChecked) {
+      this._devAnnouncementChecked = true;
+      setTimeout(() => window._app?.checkDeveloperAnnouncementModal?.(), 1100);
     }
 
     // 招待→アカウント作成→イベント画面 の直後に認証モーダルを自動オープン
