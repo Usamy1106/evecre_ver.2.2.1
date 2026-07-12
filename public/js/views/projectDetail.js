@@ -67,12 +67,11 @@ export function renderProjectDetail(container) {
 
 function _renderEventList(list) {
   return list.map(p => {
-    const currentPlant = state.getPlantImagePath(p);
     return `
       <div onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
         class="flex items-center gap-4 px-4 py-4 bg-white rounded-2xl shadow-sm mb-3 active:scale-[0.98] transition-transform cursor-pointer border border-[#E1DFDC]">
         <div class="w-12 h-12 flex items-end justify-center flex-shrink-0">
-          <img src="${currentPlant}" class="max-h-full object-contain" draggable="false">
+          ${Components.MountainMini(p, { size: 46 })}
         </div>
         <div class="flex-1 min-w-0">
           <p class="text-[14px] font-bold text-[#484545] truncate">${_esc(p.name)}</p>

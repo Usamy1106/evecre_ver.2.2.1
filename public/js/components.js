@@ -61,7 +61,6 @@ export const Components = {
         </header>`;
     }
 
-    const currentPlant = state.getPlantImagePath(project);
     return `
       <header class="flex justify-between items-center px-6 py-4 bg-[#FDFBF8]">
         <div class="flex items-center gap-3">
@@ -70,7 +69,7 @@ export const Components = {
             <img src="/images/icon/iocn-Chevron.svg" class="w-4 h-4 brightness-0 opacity-50">
           </button>
           <div class="flex items-center gap-2">
-            <img src="${currentPlant}" class="w-5 h-5 object-contain">
+            ${this.MountainMini(project, { size: 22 })}
             <span class="text-[14px] font-bold truncate max-w-[180px]">${project.name}</span>
           </div>
         </div>
@@ -166,6 +165,36 @@ export const Components = {
       <div class="flex items-center justify-center gap-3 mb-10">
         ${[1, 2, 3].map(s => `<div class="w-2.5 h-2.5 rounded-full transition-colors duration-300 ${s === step ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}"></div>`).join('')}
       </div>`;
+  },
+
+  /**
+   * 簡易山ビジュアル（プラント画像の後継。ホームのイベントカード・ヘッダー・
+   * プロジェクト詳細で使用）。完了ミッションの割合に応じて登山者ドットが山頂へ近づく。
+   * 後日画像が支給されたら差し替え予定のプレースホルダー実装。
+   * @param {object} project イベント（flat 形式）
+   * @param {{size?:number}} opts
+   */
+  MountainMini(project, opts = {}) {
+    const size = opts.size || 80;
+    const missions = project?.missions || [];
+    const total = missions.length;
+    const done  = missions.filter(m => m.status === 'cleared').length;
+    const ratio = total > 0 ? done / total : 0;
+    // 登山者：山裾(16,84) → 山頂(50,26) を進捗で補間
+    const cx = 16 + (50 - 16) * ratio;
+    const cy = 84 - (84 - 26) * ratio;
+    const summited = total > 0 && done === total;
+    return `
+      <svg width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+        <path d="M8 88 L50 18 L92 88 Z" fill="#8A9BB8"/>
+        <path d="M50 18 L59 33 L54 29 L50 34 L46 29 L41 33 Z" fill="#FDFBF8"/>
+        <line x1="16" y1="84" x2="50" y2="26" stroke="#FDFBF8" stroke-width="2.5"
+          stroke-dasharray="1 5" stroke-linecap="round" opacity="0.9"/>
+        ${summited ? `
+          <line x1="50" y1="18" x2="50" y2="4" stroke="#484545" stroke-width="2.5"/>
+          <path d="M50 4 L62 8 L50 12 Z" fill="#EE3E12"/>` : `
+          <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5" fill="#EE3E12" stroke="#FDFBF8" stroke-width="2"/>`}
+      </svg>`;
   },
 
   /**

@@ -46,4 +46,3 @@ export const LABEL_CONFIG = {
   '広報': { color: '#9EDF05', bg: 'bg-[#9EDF05]/10', border: 'border-[#9EDF05]', text: 'text-[#9EDF05]' },
 };
 
-export const GROWTH_THRESHOLDS = [0, 30, 90, 210, 450, 930, 1890, 3810, 7650, 15330];

@@ -1,6 +1,6 @@
 // ===== 状態管理 =====
 import { api } from './api.js';
-import { SEED_TYPES, GROWTH_THRESHOLDS, PROPOSAL_POOL } from './constants.js';
+import { SEED_TYPES, PROPOSAL_POOL } from './constants.js';
 import { logEvent } from './logger.js';
 import { calculateDaysLeft } from './utils.js';
 import { syncRealtime, disconnectRealtime } from './realtime.js';
@@ -436,48 +436,6 @@ export const state = {
       const def = roles.find(r => r.id === rid);
       return !!(def && def.canManage);
     });
-  },
-
-  // --- ポイント計算（星5 = 10点）---
-  getEventPoints(project) {
-    return project.missions
-      .filter(m => m.status === 'cleared')
-      .reduce((sum, m) => sum + ((m.priority || 1) * 2), 0);
-  },
-
-  // --- 成長段階計算（1〜10段階）---
-  getGrowthStage(points) {
-    for (let i = GROWTH_THRESHOLDS.length - 1; i >= 0; i--) {
-      if (points >= GROWTH_THRESHOLDS[i]) return i + 1;
-    }
-    return 1;
-  },
-
-  // --- 次の段階への進捗率（0〜100）---
-  getStageProgress(points) {
-    const stage = this.getGrowthStage(points);
-    const idx = stage - 1;
-    if (idx >= GROWTH_THRESHOLDS.length - 1) return 100;
-    const currentMin = GROWTH_THRESHOLDS[idx];
-    const nextMin = GROWTH_THRESHOLDS[idx + 1];
-    const range = nextMin - currentMin;
-    if (range <= 0) return 0;
-    return Math.min(100, Math.max(0, ((points - currentMin) / range) * 100));
-  },
-
-  // --- 全体の進捗率（滑らか：0〜100）---
-  getOverallProgress(points) {
-    const stage = this.getGrowthStage(points);
-    const stageProgress = this.getStageProgress(points);
-    return ((stage - 1) + (stageProgress / 100)) * 10;
-  },
-
-  // --- 現在のプラント画像パスを取得 ---
-  getPlantImagePath(project) {
-    const points = this.getEventPoints(project);
-    const stage = this.getGrowthStage(points);
-    const seed = SEED_TYPES.find(s => s.id === project.seedType);
-    return `${seed.plantPrefix}${stage}.svg`;
   },
 
   // --- ビュー遷移 ---
