@@ -754,18 +754,25 @@ export const state = {
   },
 
   async setEventFolder(eventId, folderId) {
+    const ev = this.events.find(e => e.id === eventId);
+    const prevFolderId = ev?.folderId || null;
     if (folderId) {
       const r = await api.addEventToProject(folderId, eventId);
       if (!r.ok) { window._app?.showToast(r.error || 'イベントの追加に失敗しました', 'error'); return; }
-    } else {
-      const ev = this.events.find(e => e.id === eventId);
-      if (ev?.folderId) {
-        const r = await api.removeEventFromProject(ev.folderId, eventId);
-        if (!r.ok) { window._app?.showToast(r.error || 'イベントの除外に失敗しました', 'error'); return; }
-      }
+    } else if (prevFolderId) {
+      const r = await api.removeEventFromProject(prevFolderId, eventId);
+      if (!r.ok) { window._app?.showToast(r.error || 'イベントの除外に失敗しました', 'error'); return; }
     }
-    const ev = this.events.find(e => e.id === eventId);
     if (ev) ev.folderId = folderId || null;
+    // eventCount はサーバーでは動的計算のため、次の loadFolders() を待たずにここで即時反映する
+    if (prevFolderId && prevFolderId !== folderId) {
+      const prevFolder = this.folders.find(f => f.id === prevFolderId);
+      if (prevFolder) prevFolder.eventCount = Math.max(0, (prevFolder.eventCount || 0) - 1);
+    }
+    if (folderId && folderId !== prevFolderId) {
+      const nextFolder = this.folders.find(f => f.id === folderId);
+      if (nextFolder) nextFolder.eventCount = (nextFolder.eventCount || 0) + 1;
+    }
     this.render();
   },
 
