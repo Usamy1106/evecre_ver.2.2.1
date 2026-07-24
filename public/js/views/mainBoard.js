@@ -108,23 +108,43 @@ export function renderMainBoard(container) {
   state._mainBoardReloadAttempted = false;
 
   // 山登りパスのスクロール位置を再レンダリングをまたいで保持（SSE 再描画で飛ばさない。
-  // 初回は null → 最上部＝最新ノードのまま）
+  // 初回は null → 最上部＝道の先端のまま）
   const _mountainScrollTop = document.getElementById('mountain-path-scroll')?.scrollTop ?? null;
 
+  const isMain = state.mainBoardTab === 'MAIN';
+  // MAIN タブはページ自体をスクロールさせない（上部＝山スクロール／下部＝提案・ミッションパネル）。
+  // ARCHIVE / NOTIFICATIONS は従来どおり <main> のページスクロール。
+  const mainLayout = isMain ? _renderMainTab(p) : null;
+
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
+    <div class="flex flex-col ${isMain ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#FDFBF8]">
       <div class="sticky top-0 bg-[#FDFBF8] z-30 shadow-sm">
         ${Components.Header(p)}
         ${Components.Tabs(state.mainBoardTab)}
       </div>
       <!-- 山ビジュアルの背景レイヤー（ヘッダー下〜画面全体。コンテンツ(z-10)の裏側） -->
-      ${state.mainBoardTab === 'MAIN' ? renderMountainBg(p) : ''}
-      ${Components.VerifyBanner() ? `<div class="relative z-10">${Components.VerifyBanner()}</div>` : ''}
-      <main class="relative z-10 flex-1 overflow-y-auto no-scrollbar pb-32">
-        ${state.mainBoardTab === 'MAIN'    ? _renderMainTab(p) : ''}
-        ${state.mainBoardTab === 'ARCHIVE' ? _renderArchiveTab(p) : ''}
-        ${state.mainBoardTab === 'NOTIFICATIONS' ? _renderNotificationsTab(p) : ''}
-      </main>
+      ${isMain ? renderMountainBg(p) : ''}
+      ${Components.VerifyBanner() ? `<div class="relative z-10 flex-shrink-0">${Components.VerifyBanner()}</div>` : ''}
+      ${isMain ? `
+        <!-- 上部固定：日付チップ・お知らせ・各バナー（スクロールしない） -->
+        <div class="relative z-10 flex-shrink-0">${mainLayout.pinnedAux}</div>
+        <!-- 山スクロール窓（透明・上部領域を占める）。ここのスクロールで山を遡れる -->
+        ${renderMountainScrollWindow(p)}
+        <!-- 下部パネル：提案＋ミッション一覧（独立スクロール・上ドラッグで拡大） -->
+        <div id="mission-panel" class="fixed left-0 right-0 bottom-0 mx-auto max-w-md z-20 flex flex-col bg-[#FDFBF8] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] rounded-t-2xl" style="top:56vh">
+          <div data-mpanel-handle class="flex-shrink-0 flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing rounded-t-2xl" style="touch-action:none">
+            <div class="w-10 h-1.5 rounded-full bg-[#C9CDD1]"></div>
+          </div>
+          <div class="flex-1 overflow-y-auto no-scrollbar px-6 pt-1 pb-32 space-y-6">
+            ${mainLayout.bottomPanelInner}
+          </div>
+        </div>
+      ` : `
+        <main class="relative z-10 flex-1 overflow-y-auto no-scrollbar pb-32">
+          ${state.mainBoardTab === 'ARCHIVE' ? _renderArchiveTab(p) : ''}
+          ${state.mainBoardTab === 'NOTIFICATIONS' ? _renderNotificationsTab(p) : ''}
+        </main>
+      `}
       ${state.mainBoardTab === 'MAIN' && state.canManageCurrentEvent() ? `
         <button onclick="window._app.openMissionModal()" data-log="mission_add_open"
           class="fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
@@ -145,13 +165,58 @@ export function renderMainBoard(container) {
     </div>`;
 
   if (state.mainBoardTab === 'MAIN') {
-    // 背景レイヤーの位置合わせ・スクロール同期・タップのヒットテストを配線
-    // （スクロール位置も復元。初回=null なら最上部＝最新ノード）
-    initMountainPathSync(p, _mountainScrollTop);
+    // 背景レイヤーの位置合わせ・スクロール同期を配線（スクロール位置も復元。
+    // 初回=null なら最上部＝道の先端）
+    initMountainPathSync(_mountainScrollTop);
+    // 下部パネルのドラッグ（上に広げる）を配線＋前回の開閉状態を復元
+    _initMissionPanelDrag();
     _checkMissionDeadlineNotifications(p.missions || []);
     // ミッションカード：タップ＝完了モーダル（inline onclick）、管理者長押し＝編集/削除メニュー
     bindMissionInteractions(container, p, { useInlineTap: true });
   }
+}
+
+// 下部パネル（提案＋ミッション一覧）の開閉状態。再レンダリングをまたいで保持する。
+let _missionPanelExpanded = false;
+
+// 下部パネルのドラッグ配線（ハンドルのみ・上下2スナップ）。app の他シートと同様、
+// ハンドル限定にしてパネル本体のスクロールとジェスチャが競合しないようにする。
+function _initMissionPanelDrag() {
+  const panel  = document.getElementById('mission-panel');
+  const handle = panel?.querySelector('[data-mpanel-handle]');
+  if (!panel || !handle) return;
+
+  const vh = window.innerHeight || 640;
+  const collapsedTop = Math.round(vh * 0.56); // 通常：画面下 44%
+  const expandedTop  = Math.round(vh * 0.22); // 拡大：山を 22% 残して広げる
+  panel.style.top = (_missionPanelExpanded ? expandedTop : collapsedTop) + 'px';
+
+  let startY = 0, startTop = 0, dragging = false;
+  const down = (y) => { startY = y; startTop = parseFloat(panel.style.top) || collapsedTop; dragging = true; panel.style.transition = 'none'; };
+  const move = (y) => {
+    if (!dragging) return;
+    const nt = Math.max(expandedTop, Math.min(collapsedTop, startTop + (y - startY)));
+    panel.style.top = nt + 'px';
+  };
+  const up = () => {
+    if (!dragging) return;
+    dragging = false;
+    panel.style.transition = 'top 0.25s ease';
+    const cur = parseFloat(panel.style.top) || collapsedTop;
+    _missionPanelExpanded = cur < (collapsedTop + expandedTop) / 2;
+    panel.style.top = (_missionPanelExpanded ? expandedTop : collapsedTop) + 'px';
+  };
+
+  handle.addEventListener('touchstart', e => down(e.touches[0].clientY), { passive: true });
+  handle.addEventListener('touchmove',  e => { move(e.touches[0].clientY); e.preventDefault(); }, { passive: false });
+  handle.addEventListener('touchend', up);
+  handle.addEventListener('mousedown', e => {
+    down(e.clientY);
+    const mm = ev => move(ev.clientY);
+    const mu = () => { up(); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
+    document.addEventListener('mousemove', mm);
+    document.addEventListener('mouseup', mu);
+  });
 }
 
 // ===== メインタブ =====
@@ -402,8 +467,9 @@ function _renderMainTab(p) {
     // 開催前：保存値 p.daysLeft は stale になるので firstDate から当日基準で再計算する
     return `<span class="text-[12px] font-bold">開催まで残り <span class="text-[18px] font-mono">${calculateDaysLeft(firstDate)}</span> 日</span>`;
   })();
-  return `
-    <div class="px-6 pt-4 space-y-6 page-transition">
+  // 上部固定領域：日付チップ・お知らせ・各バナー（スクロールしない）
+  const pinnedAux = `
+    <div class="px-6 pt-3 pb-2 space-y-3">
       <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
         class="cursor-pointer bg-white border border-[#D3D6D8] rounded-full px-4 py-2 flex items-center justify-center gap-3 shadow-sm mx-auto w-fit active:scale-95 transition-transform">
         <img src="/images/icon/icon-Calender.svg" class="w-4 h-4">
@@ -424,13 +490,10 @@ function _renderMainTab(p) {
 
       <!-- 申告待ちアナウンスバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}
+    </div>`;
 
-      <!-- 山登りパスのスクロール窓（透明）：ビジュアル本体は背景レイヤー #mountain-bg。
-           この領域内のスクロールでのみ道を遡れる -->
-      <div class="-mt-2">
-        ${renderMountainScrollWindow(p)}
-      </div>
-
+  // 下部パネルの中身：提案カード＋ミッション一覧（背景レイヤーの山がカードの隙間から見える）
+  const bottomPanelInner = `
       <!-- 提案カード（管理者権限のあるユーザーのみ表示）-->
       ${canMgr ? `
         <div class="grid grid-cols-3 gap-2">
@@ -451,7 +514,7 @@ function _renderMainTab(p) {
               })() : '')}
         </div>` : ''}
 
-      <!-- ミッション一覧（裏側には背景レイヤーの道がそのまま見えている） -->
+      <!-- ミッション一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
       <section>
         <div class="flex items-center justify-between mb-3">
           <h2 class="heading-m">ミッション</h2>
@@ -476,8 +539,9 @@ function _renderMainTab(p) {
         </div>
         ${tagFilterHtml}
         <div class="space-y-3 pb-10">${missionCards}</div>
-      </section>
-    </div>`;
+      </section>`;
+
+  return { pinnedAux, bottomPanelInner };
 }
 
 // ===== 承認待ちメンバーバナー（管理者向け）=====

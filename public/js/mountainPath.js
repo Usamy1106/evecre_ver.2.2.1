@@ -1,33 +1,35 @@
 // ===== 山登りパスビジュアル（メインボード）=====
-// プラント成長表示の後継。デュオリンゴの道UIを参考に、下から上へミッションごとに
-// 円形マスがジグザグに増えていく「山登りの道」を描く。
+// プラント成長表示の後継。デュオリンゴの道UIを参考に、下から上へ円形マスがジグザグに
+// 増えていく「山登りの道」を描く。
 //
-// 構成（★ビジュアルは画面全体・スクロール操作は固定領域のみ）：
+// 構成（★ビジュアルは画面全体・スクロール操作は上部領域のみ）：
 // - 背景レイヤー `#mountain-bg`（position:fixed、ヘッダー/タブの下〜画面下端、z-0）に
-//   道キャンバス `#mountain-canvas`（全ミッション分の縦長）を描画。メインタブの
-//   コンテンツ（z-10）の裏側で画面全体に見える。
-// - スクロール窓 `#mountain-path-scroll`（従来の円形インジケーター位置・固定高・透明）は
-//   キャンバスと同じ高さのスペーサーを持つだけの「スクロール操作の受け皿」。
-//   scroll イベントで背景キャンバスを translateY 同期する（ネイティブ慣性がそのまま効く）。
-// - ノードタップ：背景レイヤー上は各ノードの onclick、スクロール窓の上は座標ヒットテストで
-//   openMissionDetail を呼ぶ（窓が上に被さるため直接タップできない領域の代替）。
-// - 初期表示は最上部（山頂＝最新ノード）。再レンダリングをまたぐスクロール位置保持は
-//   mainBoard.js が capture → initMountainPathSync(restoreTop) で復元する。
+//   道キャンバス `#mountain-canvas`（全マス分の縦長）を描画。メインタブのコンテンツ
+//   （日付/お知らせ=上部固定、提案/ミッション=下部パネル、いずれも z-10 以上）の裏側で
+//   画面全体に見える。
+// - スクロール窓 `#mountain-path-scroll`（上部の透明領域）＝キャンバスと同じ高さのスペーサーを
+//   持つだけの「スクロール操作の受け皿」。scroll イベントで背景キャンバスを translateY 同期する
+//   （ネイティブ慣性がそのまま効く）。下部パネルが被さった領域はパネル側のスクロールになる。
+//
+// ★円形マスはミッションと連動しない装飾：タップ不可・タイトル無し。ただしマス数はミッション数に
+//   応じて増え、完了ミッションのマスは塗りつぶし＋道の横に rewardObject が現れる（図鑑の入手演出）。
+//
+// 初期表示は最上部（山頂＝道の先端）。再レンダリングをまたぐスクロール位置保持は
+// mainBoard.js が capture → initMountainPathSync(restoreTop) で復元する。
 
 import { Components } from './components.js';
 
-const NODE_GAP   = 88;  // ノード間の縦間隔(px)
+const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
 const BOTTOM_PAD = 56;  // スタート地点の下余白(px)
 const X_LEFT     = 32;  // ジグザグの左側 x（%）
 const X_RIGHT    = 68;  // ジグザグの右側 x（%）
-const HIT_RADIUS = 34;  // スクロール窓上のタップをノードとみなす半径(px)
 
 function _esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ミッション一覧とキャンバス寸法（背景・スクロール窓・ヒットテストで共有）
+// マス列とキャンバス寸法（背景・スクロール窓で共有）
 function _layout(p) {
   const missions = [...(p.missions || [])]
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -60,7 +62,7 @@ function _summitSvg(size = 44) {
 export function renderMountainBg(p) {
   const { missions, n, canvasH, xFor, yFor } = _layout(p);
 
-  // 道（ノードを結ぶ破線。ノードが無い場合はスタート→山頂の直線）
+  // 道（マスを結ぶ破線。マスが無い場合はスタート→山頂の直線）
   const points = n > 0
     ? missions.map((m, i) => `${xFor(i)},${yFor(i)}`)
     : [`50,${canvasH - BOTTOM_PAD}`];
@@ -71,7 +73,7 @@ export function renderMountainBg(p) {
         stroke-dasharray="1 7" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     </svg>`;
 
-  // ノード＋完了オブジェクト
+  // マス＋完了オブジェクト（★装飾のみ。タップ不可・タイトル無し）
   const nodes = missions.map((m, i) => {
     const x = xFor(i);
     const y = yFor(i);
@@ -96,14 +98,11 @@ export function renderMountainBg(p) {
       : '';
 
     return `
-      <div class="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer active:scale-90 transition-transform"
-        style="left:${x}%;top:${y}px"
-        onclick="window._app.openMissionDetail('${m.id}')" data-log="mountain_node_tap">
+      <div class="absolute -translate-x-1/2 -translate-y-1/2" style="left:${x}%;top:${y}px;pointer-events:none">
         <div class="relative">
           ${circle}
           ${objHtml}
         </div>
-        <p class="absolute top-full left-1/2 -translate-x-1/2 mt-1 text-[9px] font-bold text-[#A7AAAC] whitespace-nowrap max-w-[110px] overflow-hidden text-center" style="text-overflow:ellipsis">${_esc(m.title)}</p>
       </div>`;
   }).join('');
 
@@ -121,7 +120,7 @@ export function renderMountainBg(p) {
     : '';
 
   return `
-    <div id="mountain-bg" class="fixed left-0 right-0 bottom-0 z-0 overflow-hidden bg-gradient-to-b from-[#EAF6FD] to-[#FDFBF8]" style="top:110px">
+    <div id="mountain-bg" class="fixed left-0 right-0 bottom-0 mx-auto max-w-md z-0 overflow-hidden bg-gradient-to-b from-[#EAF6FD] to-[#FDFBF8]" style="top:110px">
       <div id="mountain-canvas" class="relative will-change-transform" style="height:${canvasH}px">
         ${trail}
         ${summit}
@@ -133,14 +132,13 @@ export function renderMountainBg(p) {
 }
 
 /**
- * スクロール窓（透明・固定高）。従来の円形インジケーター位置に置く。
- * 中身はキャンバスと同じ高さのスペーサーのみ＝スクロール操作の受け皿。
+ * スクロール窓（透明・上部領域を埋める flex-1）。中身はキャンバスと同じ高さのスペーサーのみ。
+ * このウィンドウ内のスクロールで山を遡れる（下部パネルが被さった領域はパネル側のスクロール）。
  */
-export function renderMountainScrollWindow(p, opts = {}) {
-  const height = opts.height || 320;
+export function renderMountainScrollWindow(p) {
   const { canvasH } = _layout(p);
   return `
-    <div id="mountain-path-scroll" class="overflow-y-auto no-scrollbar" style="height:${height}px">
+    <div id="mountain-path-scroll" class="relative z-10 flex-1 overflow-y-auto no-scrollbar">
       <div style="height:${canvasH}px"></div>
     </div>`;
 }
@@ -149,11 +147,9 @@ export function renderMountainScrollWindow(p, opts = {}) {
  * レンダリング後の配線（mainBoard.js から呼ぶ）：
  * - 背景レイヤーの top をヘッダー/タブの実測高に合わせる
  * - スクロール窓の scroll → 背景キャンバスの translateY 同期
- * - スクロール窓上のタップをヒットテストしてノードタップ相当にする
- * @param {object} p イベント（flat 形式）
- * @param {number|null} restoreTop 再レンダリング前のスクロール位置（null なら最上部＝最新）
+ * @param {number|null} restoreTop 再レンダリング前のスクロール位置（null なら最上部＝道の先端）
  */
-export function initMountainPathSync(p, restoreTop = null) {
+export function initMountainPathSync(restoreTop = null) {
   const bg     = document.getElementById('mountain-bg');
   const canvas = document.getElementById('mountain-canvas');
   const win    = document.getElementById('mountain-path-scroll');
@@ -168,20 +164,4 @@ export function initMountainPathSync(p, restoreTop = null) {
 
   if (restoreTop !== null) win.scrollTop = restoreTop;
   sync();
-
-  // スクロール窓の上のタップ：座標→キャンバス座標に変換して最寄りノードを開く
-  const { missions, xFor, yFor } = _layout(p);
-  win.addEventListener('click', (e) => {
-    const rect = bg.getBoundingClientRect();
-    const cx = ((e.clientX - rect.left) / rect.width) * 100;   // %（キャンバスは背景と同幅）
-    const cy = (e.clientY - rect.top) + win.scrollTop;          // px
-    for (let i = 0; i < missions.length; i++) {
-      const dxPx = ((xFor(i) - cx) / 100) * rect.width;
-      const dyPx = yFor(i) - cy;
-      if (dxPx * dxPx + dyPx * dyPx <= HIT_RADIUS * HIT_RADIUS) {
-        window._app?.openMissionDetail(missions[i].id);
-        return;
-      }
-    }
-  });
 }
