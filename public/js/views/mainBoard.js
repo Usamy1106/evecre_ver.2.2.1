@@ -824,8 +824,8 @@ function _renderArchiveTab(p) {
         </button>
       </div>
 
-      <!-- Layer 1: メインビジュアル -->
-      <div class="relative group w-full aspect-[2/1] overflow-hidden bg-[#EBE8E5] flex items-center justify-center shadow-inner">
+      <!-- Layer 1: メインビジュアル（3:2。ホームのサムネイルと同じ比率に揃える）-->
+      <div class="relative group w-full aspect-[3/2] overflow-hidden bg-[#EBE8E5] flex items-center justify-center shadow-inner">
         ${mainVisual
           ? `<img src="${mainVisual}" class="w-full h-full object-cover">`
           : `<img src="/images/icon/icon-image.svg" class="w-12 h-12 opacity-20">`}

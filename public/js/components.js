@@ -9,6 +9,20 @@ function _escText(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// イベントのメインビジュアル（アーカイブで設定する画像）のパスを返す。無ければ null。
+// 保存先は clearedData['archive-image']。旧データは提案 p3 由来のミッション完了画像を見る
+// （mainBoard.js の _getClearedByOrigin と同じ後方互換）。
+export function getEventMainVisual(project) {
+  const direct = project?.clearedData?.['archive-image']?.content;
+  if (direct) return direct;
+  const m = (project?.missions || []).find(x => x.originProposalId === 'p3' && x.status === 'cleared');
+  return m ? (project?.clearedData?.[m.id]?.content ?? null) : null;
+}
+
+// サムネイルのエンプティーステート。avif → webp → png の順に並べ、
+// ブラウザが対応する最も軽い形式を選ぶ（avif 2.7KB / webp 7KB / png 26KB）。
+const THUMB_EMPTY_BASE = '/images/emptystate/thumbnail-image-emptystate';
+
 export const Components = {
   /**
    * メール認証バナー（未認証ユーザーのみ表示。HOMEとイベント画面の両方で使う）
@@ -194,6 +208,32 @@ export const Components = {
           <path d="M50 4 L62 8 L50 12 Z" fill="#EE3E12"/>` : `
           <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5" fill="#EE3E12" stroke="#FDFBF8" stroke-width="2"/>`}
       </svg>`;
+  },
+
+  /**
+   * イベントのサムネイル（aspect-ratio 3/2）。
+   * メインビジュアルが設定されていればそれを、無ければエンプティーステート画像を表示する。
+   * エンプティーステートは <picture> で avif → webp → png の順に指定し、
+   * ブラウザが対応する最も軽い形式を選ぶ。
+   * @param {object} project
+   * @param {{className?: string, rounded?: string}} opts
+   */
+  EventThumbnail(project, opts = {}) {
+    const extra   = opts.className || '';
+    const rounded = opts.rounded ?? 'rounded-xl';
+    const visual  = getEventMainVisual(project);
+    const inner = visual
+      ? `<img src="${visual}" alt="" class="w-full h-full object-cover" loading="lazy">`
+      // picture は inline 要素なので block + w/h を明示しないと img のサイズ指定が効かない
+      : `<picture class="block w-full h-full">
+           <source srcset="${THUMB_EMPTY_BASE}.avif" type="image/avif">
+           <source srcset="${THUMB_EMPTY_BASE}.webp" type="image/webp">
+           <img src="${THUMB_EMPTY_BASE}.png" alt="" class="w-full h-full object-cover" loading="lazy">
+         </picture>`;
+    return `
+      <div class="w-full overflow-hidden bg-[#EBE8E5] ${rounded} ${extra}" style="aspect-ratio:3/2">
+        ${inner}
+      </div>`;
   },
 
   /**

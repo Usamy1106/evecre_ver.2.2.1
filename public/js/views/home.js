@@ -153,18 +153,17 @@ function _renderGrid(list) {
   for (let i = 0; i < list.length; i += 3) {
     const row = list.slice(i, i + 3);
     html += `
-      <div class="grid grid-cols-3 gap-x-2 px-1 mb-2 items-end">
+      <div class="grid grid-cols-3 gap-x-2 px-1 mb-2 items-start">
         ${row.map(p => `
             <div data-event-card data-event-id="${p.id}"
               class="flex flex-col items-center cursor-pointer group select-none"
               style="touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"
               onclick="window._app.setView('MAIN_BOARD', '${p.id}')">
-              <span class="text-[10px] text-[#484545] mb-2 truncate w-full text-center px-1 font-bold pointer-events-none">${p.name}</span>
-              <div class="h-24 w-full flex items-end justify-center mb-1 pointer-events-none">
-                ${Components.MountainMini(p, { size: 88 })}
+              <div class="w-full mb-2 pointer-events-none">
+                ${Components.EventThumbnail(p)}
               </div>
+              <span class="text-[10px] text-[#484545] truncate w-full text-center px-1 font-bold pointer-events-none">${p.name}</span>
             </div>`).join('')}
-        ${Array(3 - row.length).fill('<div class="h-28"></div>').join('')}
       </div>
       <div class="w-full h-[1.5px] bg-[#D3D6D8] mt-1 mb-8"></div>`;
   }

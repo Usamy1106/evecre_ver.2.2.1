@@ -148,6 +148,10 @@ app.use(require('express').static(require('path').join(__dirname, 'public'), {
       } else {
         res.setHeader('Cache-Control', 'no-cache');
       }
+    } else if (/\.avif$/.test(filePath)) {
+      // この express/mime のバージョンは avif を知らず application/octet-stream になる。
+      // <picture> の type 属性で表示はできるが、正しい MIME を明示しておく。
+      res.setHeader('Content-Type', 'image/avif');
     }
   },
 }));
