@@ -408,6 +408,7 @@ function _bindEvents() {
   document.getElementById('acc-username-input')?.addEventListener('input', e => sec.newValue = e.target.value);
   document.getElementById('acc-username-cancel')?.addEventListener('click', () => { state.accountScreen = {}; state.render(); });
   document.getElementById('acc-username-save')?.addEventListener('click', async () => {
+    _syncSecFromDom({ 'acc-username-input': 'newValue' }, sec);
     const r = await api.changeUsername((sec.newValue || '').trim());
     if (r.ok) {
       state.currentUser = r.user || state.currentUser;
@@ -429,6 +430,7 @@ function _bindEvents() {
   document.getElementById('acc-email-cancel')?.addEventListener('click', () => { state.accountScreen = {}; state.render(); });
   document.getElementById('acc-email-send')?.addEventListener('click', async () => {
     sec.errors = {};
+    _syncSecFromDom({ 'acc-email-input': 'newValue', 'acc-email-pw': 'currentPassword' }, sec);
     const r = await api.requestEmailChange((sec.newValue || '').trim(), sec.currentPassword || '');
     if (r.ok) { sec.step = 'verify'; sec.otp = ''; sec.devCode = r.devCode; sec.mailError = r.mailError || null; sec.error = ''; state.render(); }
     else     { sec.errors = r.errors || { email: r.error || '送信に失敗しました' }; state.render(); }
@@ -461,6 +463,7 @@ function _bindEvents() {
   document.getElementById('acc-pw-cancel')?.addEventListener('click', () => { state.accountScreen = {}; state.render(); });
   document.getElementById('acc-pw-send')?.addEventListener('click', async () => {
     sec.errors = {};
+    _syncSecFromDom({ 'acc-pw-current': 'currentPassword', 'acc-pw-new': 'newPassword' }, sec);
     const r = await api.requestPasswordChange(sec.currentPassword || '', sec.newPassword || '');
     if (r.ok) { sec.step = 'verify'; sec.otp = ''; sec.devCode = r.devCode; sec.mailError = r.mailError || null; sec.error = ''; state.render(); }
     else     { sec.errors = r.errors || { newPassword: r.error || '送信に失敗しました' }; state.render(); }
@@ -499,6 +502,17 @@ function _toast(msg) {
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2500);
+}
+
+// ★入力欄の値を DOM から読み取って sec に同期する（送信直前に必ず呼ぶ）。
+// ブラウザのパスワード自動入力は value を入れるだけで input イベントを出さないことがあり
+// （特に Safari）、リスナー任せだと「入力しているのに空扱い」になる。
+// views/auth.js の _syncDraftFromDom と同じ対策。
+function _syncSecFromDom(idToKey, sec) {
+  for (const [id, key] of Object.entries(idToKey)) {
+    const el = document.getElementById(id);
+    if (el && typeof el.value === 'string') sec[key] = el.value;
+  }
 }
 
 function _esc(s) {

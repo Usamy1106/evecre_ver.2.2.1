@@ -3,6 +3,28 @@ import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 
+/**
+ * ★入力欄の値を DOM から読み取って draft に同期する（送信直前に必ず呼ぶ）。
+ *
+ * ブラウザのパスワード自動入力（オートフィル）やパスワードマネージャーは、
+ * 値を DOM に流し込むだけで `input` イベントを発火しないことがある（特に Safari）。
+ * その場合 `input` リスナーだけに頼っていると draft が空のままになり、
+ * 「入力しているのに『メールアドレスとパスワードを入力してください』が出る」
+ * 「別アカウントに切り替えられない（前回の値のまま送信される）」という不具合になる。
+ * → 送信時は draft ではなく DOM の値を正とし、読んだ値を draft にも書き戻す
+ *   （書き戻すことで、バリデーション失敗後の再描画で入力が消えるのも防ぐ）。
+ *
+ * @param {Record<string, string>} idToKey  { 入力欄のid: draftのキー }
+ * @param {object} draft
+ */
+function _syncDraftFromDom(idToKey, draft) {
+  for (const [id, key] of Object.entries(idToKey)) {
+    const el = document.getElementById(id);
+    if (el && typeof el.value === 'string') draft[key] = el.value;
+  }
+  return draft;
+}
+
 // ----- アカウント作成画面 -----
 
 /**
@@ -76,9 +98,11 @@ export function renderCreateAccountInfo(container) {
     </div>`;
 
   // ----- 入力同期 -----
-  document.getElementById('ca-username').addEventListener('input', e => draft.username = e.target.value);
-  document.getElementById('ca-email').addEventListener('input',    e => draft.email    = e.target.value);
-  document.getElementById('ca-password').addEventListener('input', e => draft.password = e.target.value);
+  // input だけでなく change も拾う（自動入力はフォーカスアウト時に change を出すことがある）
+  for (const [id, key] of Object.entries({ 'ca-username': 'username', 'ca-email': 'email', 'ca-password': 'password' })) {
+    const el = document.getElementById(id);
+    for (const ev of ['input', 'change']) el?.addEventListener(ev, e => draft[key] = e.target.value);
+  }
 
   // パスワード表示切替
   const pwInput = document.getElementById('ca-password');
@@ -92,6 +116,10 @@ export function renderCreateAccountInfo(container) {
   // 送信
   document.getElementById('ca-submit').onclick = async () => {
     state.authErrors = {};
+    // 自動入力で input イベントが飛ばない場合に備え、DOM の値を正として取り込む
+    _syncDraftFromDom({
+      'ca-username': 'username', 'ca-email': 'email', 'ca-password': 'password',
+    }, draft);
 
     const errs = {};
     if (!draft.username.trim()) errs.username = 'ユーザー名を入力してください';
@@ -206,8 +234,11 @@ export function renderLogin(container) {
       </main>
     </div>`;
 
-  document.getElementById('lg-id').addEventListener('input',       e => draft.identifier = e.target.value);
-  document.getElementById('lg-password').addEventListener('input', e => draft.password   = e.target.value);
+  // input だけでなく change も拾う（自動入力はフォーカスアウト時に change を出すことがある）
+  for (const [id, key] of Object.entries({ 'lg-id': 'identifier', 'lg-password': 'password' })) {
+    const el = document.getElementById(id);
+    for (const ev of ['input', 'change']) el?.addEventListener(ev, e => draft[key] = e.target.value);
+  }
 
   const pwInput = document.getElementById('lg-password');
   const pwToggle = document.getElementById('lg-pw-toggle');
@@ -219,6 +250,8 @@ export function renderLogin(container) {
 
   document.getElementById('lg-submit').onclick = async () => {
     state.authErrors = {};
+    // 自動入力で input イベントが飛ばない場合に備え、DOM の値を正として取り込む
+    _syncDraftFromDom({ 'lg-id': 'identifier', 'lg-password': 'password' }, draft);
 
     const email = draft.identifier.trim();
     if (!email || !draft.password) {

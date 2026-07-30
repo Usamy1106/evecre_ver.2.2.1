@@ -84,6 +84,7 @@ function _sentBlock(sec) {
 }
 
 async function _submitRequest() {
+  _syncSecFromDom({ 'pr-email': 'email' }, state.passwordResetReqScreen || {});
   const sec = state.passwordResetReqScreen;
   const email = String(sec.email || '').trim();
   if (!email) {
@@ -221,6 +222,7 @@ function _confirmForm(sec) {
 }
 
 async function _submitConfirm() {
+  _syncSecFromDom({ 'pc-pw': 'newPassword', 'pc-pw2': 'newPassword2' }, state.passwordResetConfirmScreen || {});
   const sec = state.passwordResetConfirmScreen;
   const errors = {};
   const pw1 = String(sec.newPassword || '');
@@ -267,6 +269,16 @@ async function _submitConfirm() {
 // =====================================================
 // ヘルパ
 // =====================================================
+// ★入力欄の値を DOM から読み取って sec に同期する（送信直前に必ず呼ぶ）。
+// 自動入力は value を入れるだけで input イベントを出さないことがあるため
+// （views/auth.js の _syncDraftFromDom と同じ対策）。
+function _syncSecFromDom(idToKey, sec) {
+  for (const [id, key] of Object.entries(idToKey)) {
+    const el = document.getElementById(id);
+    if (el && typeof el.value === 'string') sec[key] = el.value;
+  }
+}
+
 function _esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
