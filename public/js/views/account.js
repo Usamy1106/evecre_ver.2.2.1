@@ -3,6 +3,10 @@ import { state } from '../state.js';
 import { api }   from '../api.js';
 import { Components } from '../components.js';
 import { showConfirmDialog } from '../dialog.js';
+import { logEvent } from '../logger.js';
+import {
+  getPushState, hasSubscription, enablePush, disablePush, isStandalone, isIOS,
+} from '../push.js';
 
 /**
  * アカウント設定画面
@@ -14,7 +18,7 @@ export function renderAccount(container) {
 
   container.innerHTML = `
     <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <header class="flex items-center px-6 py-4 bg-[#FDFBF8] sticky top-0 z-20">
+      <header class="flex items-center px-6 py-4 bg-[#FDFBF8] sticky top-0 z-20" style="padding-top:calc(1rem + env(safe-area-inset-top))">
         <button onclick="window._app.setView('HOME')"
           class="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center mr-3">
           <img src="/images/icon/iocn-Chevron.svg" class="w-4 h-4 brightness-0 opacity-50">
@@ -37,8 +41,12 @@ export function renderAccount(container) {
           ${_emailSection(u, sec)}
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-5 mb-6">
+        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-5 mb-4">
           ${_passwordSection(sec)}
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-5 mb-6">
+          ${_notificationSection()}
         </div>
 
         <button id="acc-logout" class="w-full py-3 rounded-xl text-[14px] font-bold text-[#EE3E12] bg-white border border-[#E1DFDC]">
@@ -193,6 +201,67 @@ function _passwordSection(sec) {
     ` : ''}`;
 }
 
+// ----- セクション: 通知（Web Push）-----
+// ★状態は state.accountScreen ではなくモジュール変数に持つ。
+//   accountScreen はユーザー名/メール変更のキャンセル等で {} にリセットされるため、
+//   そこに置くとリセットのたびに購読状態の再取得と余分な再描画が走る。
+// ★iOS はホーム画面に追加した PWA でないと購読できないため、その場合は案内だけ出す。
+let _pushState = undefined;      // 'ios-needs-install' | 'unsupported' | 'denied' | 'granted' | 'available'
+let _pushSubscribed = false;     // この端末が購読済みか
+
+function _notificationSection() {
+  const st = _pushState || getPushState();
+  const on = _pushSubscribed;
+
+  const heading = `<h2 class="text-[14px] font-bold text-[#484545] mb-1">通知</h2>
+    <p class="text-[11px] text-[#A7AAAC] mb-3 leading-relaxed">
+      ミッションの割り当てや締め切り、完了のお知らせをアプリを閉じている間も受け取れます。
+    </p>`;
+
+  // iOS でブラウザのまま開いている：ホーム画面への追加を案内する（購読ボタンは出さない）
+  if (st === 'ios-needs-install') {
+    return `${heading}
+      <div class="bg-[#EBF7FE] border border-[#0CA1E3]/40 rounded-xl p-4">
+        <p class="text-[12px] font-bold text-[#0CA1E3] mb-2">ホーム画面に追加すると使えます</p>
+        <ol class="text-[11px] text-[#484545] leading-relaxed list-decimal pl-4 space-y-1">
+          <li>画面下の「共有」ボタンをタップ</li>
+          <li>「ホーム画面に追加」を選ぶ</li>
+          <li>追加されたアイコンからイベクリを開く</li>
+        </ol>
+        <p class="text-[10px] text-[#A7AAAC] mt-2">iPhone / iPad では Safari の仕様上、この手順が必要です。</p>
+      </div>`;
+  }
+
+  if (st === 'unsupported') {
+    return `${heading}
+      <p class="text-[12px] text-[#A7AAAC]">このブラウザは通知に対応していません。</p>`;
+  }
+
+  if (st === 'denied') {
+    return `${heading}
+      <div class="bg-[#FFF7E6] border border-[#FFC300] rounded-xl p-4">
+        <p class="text-[12px] font-bold text-[#484545] mb-1">通知がブロックされています</p>
+        <p class="text-[11px] text-[#484545] leading-relaxed">
+          ブラウザ（または端末）の設定でこのサイトの通知を「許可」に変更してから、もう一度お試しください。
+        </p>
+      </div>`;
+  }
+
+  // 購読可能（granted / available）
+  return `${heading}
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-[12px] font-bold ${on ? 'text-[#5b8104]' : 'text-[#A7AAAC]'}">
+        ${on ? 'この端末で通知はオンです' : 'この端末では通知はオフです'}
+      </p>
+      <button id="acc-push-toggle" data-log="${on ? 'push_disable_tap' : 'push_enable_tap'}"
+        class="flex-shrink-0 px-4 py-2 rounded-xl text-[12px] font-bold transition-colors
+        ${on ? 'bg-white border border-[#D3D6D8] text-[#484545]' : 'text-white bg-[#0CA1E3]'}">
+        ${on ? 'オフにする' : '通知をオンにする'}
+      </button>
+    </div>
+    <p class="text-[10px] text-[#A7AAAC] mt-2">通知の設定は端末ごとに保存されます。</p>`;
+}
+
 // ----- OTP入力欄 -----
 
 function _otpInput(id, value) {
@@ -207,6 +276,49 @@ function _bindEvents() {
   const sec = state.accountScreen;
 
   document.getElementById('acc-logout')?.addEventListener('click', () => state.logout());
+
+  // --- 通知（Web Push）---
+  // 購読状態の取得は非同期なので、初回は未取得のまま描画し、判明したら再描画する。
+  if (_pushState === undefined) {
+    _pushState = getPushState();
+    if (_pushState === 'ios-needs-install') {
+      logEvent('push_ios_guide_shown');
+    } else if (_pushState !== 'unsupported') {
+      logEvent('push_prompt_shown', { standalone: isStandalone(), ios: isIOS() });
+    }
+    hasSubscription().then(subscribed => {
+      // 別画面に移っていたら再描画しない
+      if (state.currentView !== 'ACCOUNT') return;
+      if (_pushSubscribed === subscribed) return;
+      _pushSubscribed = subscribed;
+      state.render();
+    });
+  }
+
+  document.getElementById('acc-push-toggle')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const wasOn = _pushSubscribed;
+    const r = wasOn ? await disablePush() : await enablePush();
+    btn.disabled = false;
+
+    if (!r.ok) {
+      const msg = {
+        denied:         '通知が許可されませんでした',
+        not_configured: 'サーバー側の通知設定が未完了です',
+        unsupported:    'この環境では通知を使えません',
+      }[r.error] || '通知の設定に失敗しました';
+      _toast(msg);
+      // 許可ダイアログで拒否された場合は表示状態も更新する
+      _pushState = getPushState();
+      state.render();
+      return;
+    }
+    _pushSubscribed = !wasOn;
+    _pushState = getPushState();
+    _toast(wasOn ? '通知をオフにしました' : '通知をオンにしました');
+    state.render();
+  });
 
   // --- アバター画像 ---
   const pickBtn  = document.getElementById('acc-avatar-pick');

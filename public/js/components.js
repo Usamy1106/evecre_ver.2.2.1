@@ -54,7 +54,7 @@ export const Components = {
       const username = state.currentUser?.username || '';
       const verified = !!state.currentUser?.isVerified;
       return `
-        <header class="flex justify-between items-center px-6 py-4 bg-[#FDFBF8] sticky top-0 z-20">
+        <header class="flex justify-between items-center px-6 py-4 bg-[#FDFBF8] sticky top-0 z-20" style="padding-top:calc(1rem + env(safe-area-inset-top))">
           <div class="flex-1">
             ${username ? `
               <button id="user-menu-btn" onclick="window._app.toggleUserMenu(event)"

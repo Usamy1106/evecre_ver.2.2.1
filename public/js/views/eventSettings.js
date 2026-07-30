@@ -38,7 +38,7 @@ export function renderEventSettings(container) {
 
   container.innerHTML = `
     <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <header class="flex items-center px-6 py-4 bg-[#FDFBF8] sticky top-0 z-20 border-b border-[#E1DFDC]">
+      <header class="flex items-center px-6 py-4 bg-[#FDFBF8] sticky top-0 z-20 border-b border-[#E1DFDC]" style="padding-top:calc(1rem + env(safe-area-inset-top))">
         <button onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
           class="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center mr-3">
           <img src="/images/icon/iocn-Chevron.svg" class="w-4 h-4 brightness-0 opacity-50">

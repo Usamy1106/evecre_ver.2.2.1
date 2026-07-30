@@ -70,7 +70,7 @@ export function renderMissionDetail(appEl) {
   appEl.innerHTML = `
     <div id="mission-detail-page" class="min-h-screen bg-[#FDFBF8] flex flex-col">
       <!-- ヘッダー -->
-      <header class="sticky top-0 z-30 flex items-center justify-between px-5 py-4 bg-[#FDFBF8]/95 backdrop-blur border-b border-[#E1DFDC]">
+      <header class="sticky top-0 z-30 flex items-center justify-between px-5 py-4 bg-[#FDFBF8]/95 backdrop-blur border-b border-[#E1DFDC]" style="padding-top:calc(1rem + env(safe-area-inset-top))">
         <button onclick="window._app.closeMissionDetail()" data-log="mission_detail_back"
           class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"

@@ -89,6 +89,13 @@
       transition: opacity 0.4s ease;
     }
     #loading-screen.hide { opacity: 0; pointer-events: none; }
+
+    /* standalone（ホーム画面から起動した PWA）のホームインジケータを避ける。
+       ブラウザ表示では env() が 0 なので Tailwind の bottom-10 と同じ見た目になる。
+       Tailwind のユーティリティに勝たせるため !important を付けている。 */
+    .fab-safe { bottom: calc(2.5rem + env(safe-area-inset-bottom)) !important; }
+    /* 画面下端に貼り付く固定パネルの内側下余白（コンテンツがインジケータに隠れないように） */
+    .pb-safe { padding-bottom: calc(8rem + env(safe-area-inset-bottom)) !important; }
   </style>
 </head>
 <body class="min-h-screen">

@@ -142,9 +142,12 @@ export function initMountainPathSync(restoreTop = null) {
   const win    = document.getElementById('mountain-path-scroll');
   if (!bg || !canvas || !win) return;
 
-  // ヘッダー＋タブ（sticky ラッパー）の直下から画面全体に敷く
+  // ヘッダー＋タブ（sticky ラッパー）の直下から画面全体に敷く。
+  // ★offsetHeight（要素の高さ）ではなく getBoundingClientRect().bottom（画面上の実位置）を使う。
+  //   standalone では viewport-fit=cover によりステータスバー領域が加わるため、
+  //   「高さ」と「下端の位置」が一致しない場合がある。
   const sticky = document.querySelector('#app .sticky') || document.querySelector('.sticky');
-  if (sticky) bg.style.top = `${sticky.offsetHeight}px`;
+  if (sticky) bg.style.top = `${Math.round(sticky.getBoundingClientRect().bottom)}px`;
 
   const sync = () => { canvas.style.transform = `translateY(${-win.scrollTop}px)`; };
   win.addEventListener('scroll', sync, { passive: true });
