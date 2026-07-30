@@ -1,7 +1,6 @@
 // ===== UIコンポーネント =====
 import { state } from './state.js';
 import { LABEL_CONFIG } from './constants.js';
-import { MOUNTAIN_OBJECTS, RARITY_CONFIG } from './mountainObjects.js';
 
 function _initial(name) {
   return String(name || '?').trim().charAt(0).toUpperCase() || '?';
@@ -123,35 +122,6 @@ export const Components = {
   },
 
   /**
-   * ホーム系画面のボトムナビゲーション（HOME / COLLECTION で表示）
-   * @param {'HOME'|'COLLECTION'} active
-   */
-  BottomNav(active) {
-    const item = (view, label, icon, handler) => `
-      <button onclick="${handler}" data-log="bottomnav_${view.toLowerCase()}"
-        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 ${active === view ? 'text-[#0CA1E3]' : 'text-[#A7AAAC]'}">
-        ${icon}
-        <span class="text-[10px] font-bold">${label}</span>
-      </button>`;
-    const homeIcon = `
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>`;
-    // 図鑑（本）アイコン
-    const bookIcon = `
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-      </svg>`;
-    return `
-      <nav class="fixed bottom-0 left-0 right-0 z-40 bg-[#FDFBF8] border-t border-[#E1DFDC] flex"
-        style="padding-bottom:env(safe-area-inset-bottom)">
-        ${item('HOME', 'ホーム', homeIcon, "window._app.setView('HOME')")}
-        ${item('COLLECTION', '図鑑', bookIcon, "window._app.openCollection()")}
-      </nav>`;
-  },
-
-  /**
    * ラベルタグ
    * @param {string} text
    */
@@ -224,26 +194,6 @@ export const Components = {
           <path d="M50 4 L62 8 L50 12 Z" fill="#EE3E12"/>` : `
           <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5" fill="#EE3E12" stroke="#FDFBF8" stroke-width="2"/>`}
       </svg>`;
-  },
-
-  /**
-   * 山登りオブジェクトのアイコン（当面は正方形プレースホルダー。画像支給後に img へ差し替える）
-   * @param {string} objectId  MOUNTAIN_OBJECTS の id
-   * @param {{size?:number, silhouette?:boolean, className?:string}} opts
-   *   silhouette=true はミッション未完了時の「薄らとしたシルエット」表示
-   */
-  MountainObjectIcon(objectId, opts = {}) {
-    const obj = MOUNTAIN_OBJECTS.find(o => o.id === objectId);
-    if (!obj) return '';
-    const size  = opts.size || 32;
-    const extra = opts.className || '';
-    if (opts.silhouette) {
-      return `<div class="rounded-lg flex-shrink-0 ${extra}" title="？？？"
-        style="width:${size}px;height:${size}px;background-color:#484545;opacity:0.15"></div>`;
-    }
-    const color = RARITY_CONFIG[obj.rarity]?.color || '#D3D6D8';
-    return `<div class="rounded-lg flex-shrink-0 shadow-sm ${extra}" title="${_escText(obj.name)}"
-      style="width:${size}px;height:${size}px;background-color:${color}"></div>`;
   },
 
   /**

@@ -12,12 +12,10 @@
 //   （ネイティブ慣性がそのまま効く）。下部パネルが被さった領域はパネル側のスクロールになる。
 //
 // ★円形マスはミッションと連動しない装飾：タップ不可・タイトル無し。ただしマス数はミッション数に
-//   応じて増え、完了ミッションのマスは塗りつぶし＋道の横に rewardObject が現れる（図鑑の入手演出）。
+//   応じて増え、完了ミッション相当のマスは塗りつぶしで進捗が分かる。
 //
 // 初期表示は最上部（山頂＝道の先端）。再レンダリングをまたぐスクロール位置保持は
 // mainBoard.js が capture → initMountainPathSync(restoreTop) で復元する。
-
-import { Components } from './components.js';
 
 const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
@@ -89,20 +87,9 @@ export function renderMountainBg(p) {
            </div>`
         : `<div class="w-11 h-11 rounded-full bg-white border-[3px] border-[#C9CDD1] shadow-sm"></div>`;
 
-    // 完了で道の横にオブジェクトが現れる（ジグザグの外側に置く）
-    const objSide = x <= 50 ? 'left:-44px' : 'right:-44px';
-    const objHtml = cleared && m.rewardObject?.id
-      ? `<div class="absolute top-1/2 -translate-y-1/2 animate-fadeIn" style="${objSide}">
-           ${Components.MountainObjectIcon(m.rewardObject.id, { size: 30 })}
-         </div>`
-      : '';
-
     return `
       <div class="absolute -translate-x-1/2 -translate-y-1/2" style="left:${x}%;top:${y}px;pointer-events:none">
-        <div class="relative">
-          ${circle}
-          ${objHtml}
-        </div>
+        ${circle}
       </div>`;
   }).join('');
 

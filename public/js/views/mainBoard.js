@@ -402,10 +402,6 @@ function _renderMainTab(p) {
           <h3 class="text-[14px] font-bold text-[#484545] pr-8" style="text-overflow:ellipsis;-webkit-line-clamp: 2;overflow: hidden;">${m.title}</h3>
           ${assigneeLine}
           ${claimLine}
-          ${m.rewardObject?.id ? `
-            <div class="absolute right-4 bottom-3 pointer-events-none">
-              ${Components.MountainObjectIcon(m.rewardObject.id, { silhouette: true, size: 26 })}
-            </div>` : ''}
           ${canMgr ? `
             <div onclick="event.stopPropagation(); window._app.toggleMissionMenu(event, '${m.id}')"
               class="absolute right-4 top-4 opacity-40 p-2 cursor-pointer hover:opacity-100 transition-opacity">

@@ -22,7 +22,6 @@ const projectStore    = require('./lib/projectStore');
 const notifStore      = require('./lib/notificationStore');
 const submissionStore  = require('./lib/submissionStore');
 const chatStore        = require('./lib/chatStore');
-const collectionStore  = require('./lib/collectionStore');
 const pushStore        = require('./lib/pushStore');
 const pushClient       = require('./lib/pushClient');
 const eventLogStore    = require('./lib/eventLogStore');
@@ -32,17 +31,6 @@ const aiProposalClient = require('./lib/aiProposalClient');
 const eventBus        = require('./lib/eventBus');
 const crdt            = require('./lib/crdt');
 const { sendOtpEmail, sendPasswordResetEmail, generateOtp, IS_DEV, logTransportStatus } = require('./lib/email');
-
-// 山登りオブジェクトカタログ（クライアントと単一ソース共有のため public/js の ESM を動的 import）
-// 読み込み完了前に完了処理が走った場合、旧ミッションのフォールバック抽選だけがスキップされる（許容）。
-let mountainObjects = null;
-{
-  const { pathToFileURL } = require('url');
-  const path = require('path');
-  import(pathToFileURL(path.join(__dirname, 'public/js/mountainObjects.js')).href)
-    .then(m => { mountainObjects = m; })
-    .catch(e => console.error('[mountain] catalog load error:', e.message));
-}
 
 // Google サインイン用（オプショナル）
 let googleAuthClient = null;
@@ -384,23 +372,6 @@ function _validateIncomingSubmissions(incoming) {
     }
   }
   return null;
-}
-
-// ===== 山登りオブジェクト（図鑑）ヘルパ =====
-// ミッションが cleared になった時に呼ぶ。rewardObject が未設定の旧ミッションは
-// ここでフォールバック抽選する（カタログ未ロード時は null ＝ 登録スキップ）。
-function _ensureRewardObject(m) {
-  if (m.rewardObject?.id) return m.rewardObject;
-  if (!mountainObjects) return null;
-  return mountainObjects.rollMountainObject(m.priority || 1);
-}
-
-// イベント全メンバーの図鑑に登録（fire-and-forget。失敗しても完了処理は止めない）
-function _registerRewardToCollections(p, missionId, rewardObject) {
-  if (!rewardObject?.id) return;
-  const memberIds = (p.members || []).map(x => x.userId);
-  collectionStore.addToUsers(memberIds, rewardObject.id, { eventId: p.id, missionId })
-    .catch(e => console.error('[collection] register error:', e.message));
 }
 
 // ミッションの「内容変更」とみなすフィールド（管理者が編集モーダルで触る項目）。
@@ -906,18 +877,6 @@ app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
   }
 });
 
-// ===== 図鑑（山登りオブジェクトコレクション）=====
-
-app.get('/api/collection', requireAuth, async (req, res) => {
-  try {
-    const objects = await collectionStore.getForUser(req.user.id);
-    res.json({ ok: true, objects });
-  } catch (e) {
-    console.error('GET /api/collection error:', e);
-    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
-  }
-});
-
 // ===== Web Push（購読管理）=====
 // SSE（/api/events）は「開いている間のリアルタイム同期」、push は「閉じている間の呼び戻し」。
 // 役割が違うので両方併存させる。SSE 側には手を入れない。
@@ -1290,7 +1249,6 @@ app.put('/api/data', requireAuth, async (req, res) => {
       }
 
       const notifications = [];
-      const clearedRewards = []; // cleared 遷移したミッションの図鑑登録（applyPatch 成功後に実行）
       for (const m of (incomingP.missions || [])) {
         const prev = prevMissionsMap[m.id];
         const projectMembers = (existing.members || []).map(x => x.userId);
@@ -1318,12 +1276,6 @@ app.put('/api/data', requireAuth, async (req, res) => {
         const prevStatus = prev?.status || 'yet';
         const newStatus  = m.status     || 'yet';
         if (prevStatus !== 'cleared' && newStatus === 'cleared') {
-          // 図鑑：rewardObject 未設定の旧ミッションはここで抽選し、incoming に注入して永続化
-          if (!m.rewardObject?.id) {
-            const ro = _ensureRewardObject(m);
-            if (ro) m.rewardObject = ro;
-          }
-          if (m.rewardObject?.id) clearedRewards.push({ missionId: m.id, rewardObject: m.rewardObject });
           notifications.push({
             userIds: projectMembers.filter(uid => uid !== req.user.id),
             notif: {
@@ -1418,11 +1370,6 @@ app.put('/api/data', requireAuth, async (req, res) => {
       }, clientId);
 
       await Promise.all(notifications.map(n => notifStore.notifyAll(n.userIds, n.notif)));
-
-      // 図鑑登録（イベント全メンバー。保存成功後にのみ実行）
-      for (const cr of clearedRewards) {
-        _registerRewardToCollections(existing, cr.missionId, cr.rewardObject);
-      }
     }
 
     // --- 削除 ---
@@ -1861,14 +1808,7 @@ app.post('/api/events/:id/missions/:mid/approve', requireAuth, async (req, res) 
     if (m.status !== 'pending_leader_check') return res.status(400).json({ ok: false, error: '確認待ち状態ではありません' });
 
     _setMissionField(p, req.params.mid, 'status', 'cleared');
-    // 図鑑：承認＝cleared 確定なのでここで登録（旧ミッションはフォールバック抽選）
-    let rewardObject = m.rewardObject;
-    if (!rewardObject?.id) {
-      rewardObject = _ensureRewardObject(m);
-      if (rewardObject) _setMissionField(p, req.params.mid, 'rewardObject', rewardObject);
-    }
     await eventStore.saveEvent(p);
-    _registerRewardToCollections(p, req.params.mid, rewardObject);
     eventBus.broadcast(p.id, 'missionApproved', { eventId: p.id, missionId: req.params.mid });
     logServerEvent(p.id, req.user.id, 'leader_approved', { missionId: req.params.mid, title: m.title });
 
@@ -1992,13 +1932,6 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       becamePendingCheck = next === 'pending_leader_check';
     }
 
-    // 図鑑：cleared 確定時に rewardObject を確定（旧ミッションはフォールバック抽選して永続化）
-    let rewardObject = m.rewardObject;
-    if (becameCleared && !rewardObject?.id) {
-      rewardObject = _ensureRewardObject(m);
-      if (rewardObject) _setMissionField(p, mid, 'rewardObject', rewardObject, now);
-    }
-
     await eventStore.saveEvent(p);
 
     const flat = crdt.crdtToFlat(p);
@@ -2006,9 +1939,6 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     eventBus.broadcast(p.id, 'eventUpdated', {
       eventId: p.id, rev: p.rev, event: flat,
     }, req.get('X-Client-Id') || null);
-
-    // 図鑑登録（イベント全メンバー）
-    if (becameCleared) _registerRewardToCollections(p, mid, rewardObject);
 
     // 通知（PUT /api/data の (B)(C) と同じ条件）
     if (becameCleared) {

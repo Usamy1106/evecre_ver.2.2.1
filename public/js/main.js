@@ -7,7 +7,6 @@ import { logEvent, initLogger, setProjectIdGetter } from './logger.js';
 
 // ビュー
 import { renderHome }               from './views/home.js';
-import { renderCollection }         from './views/collection.js';
 import { renderCreateEventInfo, renderCreateEventDates, renderCreateEventInvite } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
@@ -49,7 +48,6 @@ import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js'
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
-import { rollMountainObject } from './mountainObjects.js';
 import {
   registerServiceWorker, initPushNavigation,
   enablePush, disablePush, getPushState, hasSubscription,
@@ -62,7 +60,6 @@ registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);
 registerRenderer('ACCOUNT',               renderAccount);
 registerRenderer('HOME',                  renderHome);
-registerRenderer('COLLECTION',            renderCollection);
 registerRenderer('CREATE_EVENT_INFO',   renderCreateEventInfo);
 registerRenderer('CREATE_EVENT_DATES',  renderCreateEventDates);
 registerRenderer('CREATE_EVENT_INVITE', renderCreateEventInvite);
@@ -643,9 +640,6 @@ window._app = {
         noInput: !!state.draftMission.noInput,
         individualClear: !!state.draftMission.individualClear,
         individualClearedBy: [],
-        // 山登りオブジェクト：作成時に priority に応じて抽選（編集では再抽選しない）。
-        // カードにシルエット表示 → 完了で道の横に出現＋全メンバーの図鑑に登録される。
-        rewardObject: rollMountainObject(state.draftMission.priority),
       };
       if (fromPid) {
         newMission.originProposalId = fromPid;
@@ -1180,9 +1174,6 @@ window._app = {
     state.homeTab = tab;
     state.render();
   },
-
-  // --- 図鑑（ボトムナビ）---
-  openCollection: () => state.openCollection(),
 
   // --- Web Push（アカウント画面の通知設定から呼ぶ）---
   // enablePush は必ずユーザーのタップ起点で呼ぶこと（iOS で無反応になる）
