@@ -1347,6 +1347,14 @@ document.addEventListener('click', (e) => {
   logEvent('button_tapped', { name: el.dataset.log });
 }, true);
 
+// ===== 保留中の保存を離脱時に確定させる =====
+// state.save() はデバウンスされるため、タブを閉じる・バックグラウンドに回すと
+// 待機中の変更が失われる。logger.js の _onVisibilityChange / _onBeforeUnload と同じ方式。
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') state.flushPendingSave();
+});
+window.addEventListener('beforeunload', () => state.flushPendingSave());
+
 // ===== アプリ起動 =====
 initSheetDragClose(); // ボトムシートの下スワイプで閉じる（data-sheet / data-sheet-handle）
 state.init().catch(e => {

@@ -7,6 +7,11 @@ import { syncRealtime, disconnectRealtime } from './realtime.js';
 import { showConfirmDialog } from './dialog.js';
 
 
+// 保存のデバウンス待ち時間(ms)。save() は全イベント全文を PUT し、サーバは
+// 更新後にイベント全文を SSE 購読者全員へブロードキャストするため、連続操作で
+// 毎回走らせると負荷が大きい。
+const SAVE_DEBOUNCE_MS = 400;
+
 // ビューレンダラーの登録テーブル（循環依存を避けるため）
 const _renderers = {};
 
@@ -55,6 +60,7 @@ export const state = {
   missionSortMode: 'createdAt',
   notifications: [],   // [{id, type, message, eventId, missionId, read, createdAt}]
   myCollection: null,  // 図鑑：{ [objectId]: {count, firstAt, ...} } | null（未取得）
+  _saveTimer: null,    // save() のデバウンスタイマー（flushPendingSave で確定させる）
 
   // --- ミッション詳細ページ ---
   selectedMissionId: null,     // MISSION_DETAIL で表示中のミッションID
@@ -383,8 +389,23 @@ export const state = {
   },
 
   // --- 保存（楽観的更新：バックグラウンドで保存）---
+  // save() は 400ms のトレーリングデバウンス。チェックリストの連続チェックなど
+  // 短時間に何度も呼ばれる操作で、毎回「全イベント全文の PUT + SSE 全文ブロードキャスト」が
+  // 走るのを防ぐ。UI の反映は従来どおり即座（楽観的更新は変えない）。
+  // ★保存の完了を待ちたい場合は saveNow() を使うこと（save() の await は無意味）。
   save() {
-    api.save({ events: this.events })
+    if (this._saveTimer) clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      this.saveNow();
+    }, SAVE_DEBOUNCE_MS);
+  },
+
+  // --- 即時保存（await 可能）---
+  // 保存完了後に続けて処理したい場合（イベント設定の保存後リロードなど）はこちらを使う。
+  saveNow() {
+    if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+    return api.save({ events: this.events })
       .then(() => {
         // 新規イベントが追加されている可能性 → 購読対象を更新
         syncRealtime();
@@ -402,6 +423,16 @@ export const state = {
           window._app?.showToast('このイベントを編集する権限がありません。ロール設定をご確認ください。', 'error');
         }
       });
+  },
+
+  // --- 保留中の保存を確定させる（ページ離脱・バックグラウンド遷移時）---
+  // これが無いとデバウンス待ちの変更が失われる。main.js のエントリで
+  // visibilitychange / beforeunload に配線している（logger.js と同じ方式）。
+  flushPendingSave() {
+    if (!this._saveTimer) return;
+    clearTimeout(this._saveTimer);
+    this._saveTimer = null;
+    this.saveNow();
   },
 
   // --- 自分が現在のイベントで管理者権限を持つかどうか ---
@@ -642,7 +673,9 @@ export const state = {
       this.selectedEventId = null;
       this.currentView = 'HOME';
     }
-    this.save();
+    // 削除は不可逆（サーバー側で submissions / notifications / チャット / R2画像まで消える）。
+    // デバウンスで遅延させず即時に確定させる。
+    this.saveNow();
     this.render();
   },
 
@@ -845,7 +878,8 @@ export const state = {
         p.proposals = buildResult(r.proposals);
         p.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
         p.lastProposalClearedTime = null;
-        this.save();
+        // AI 生成結果は失うと再生成でクレジットを消費するため即時保存
+        this.saveNow();
         this.render();
       }
     } catch (_) {

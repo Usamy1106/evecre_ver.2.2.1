@@ -388,7 +388,7 @@ function _bindEvents(p, sec) {
     const v = String(sec.draftValue || '').trim();
     if (!v) { window._app?.showToast('イベント名を入力してください', 'error'); return; }
     p.name = v;
-    await state.save();
+    await state.saveNow();
     sec.editing = null;
     sec.draftValue = null;
     state.render();
@@ -399,7 +399,7 @@ function _bindEvents(p, sec) {
   document.getElementById('ps-desc-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
   document.getElementById('ps-desc-save')?.addEventListener('click', async () => {
     p.description = String(sec.draftValue || '').trim();
-    await state.save();
+    await state.saveNow();
     sec.editing = null;
     sec.draftValue = null;
     state.render();

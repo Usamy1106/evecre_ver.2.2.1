@@ -447,16 +447,69 @@ export async function submitMissionClear(missionId) {
  * 画像ファイル選択を処理する
  * @param {HTMLInputElement} input
  */
+// 提出物画像の上限。server.js の SUBMISSION_MAX_BYTES と揃えること（2MB）。
+const SUBMISSION_MAX_BYTES = 2 * 1024 * 1024;
+const RESIZE_MAX_EDGE      = 1600;  // 長辺の上限(px)
+const RESIZE_QUALITY       = 0.8;   // JPEG 品質
+
+/**
+ * dataURL を canvas で縮小する。スマホの写真は 3〜8MB あり、そのままでは
+ * サーバの上限（2MB）に引っかかるため送信前に必ず通す。
+ * 既に上限内かつ小さい画像は再エンコードせず元のまま返す（無駄な劣化を避ける）。
+ * @param {string} dataUrl
+ * @returns {Promise<string>} 縮小後の dataURL（失敗時は元の dataURL）
+ */
+function _resizeImageDataUrl(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const longEdge = Math.max(img.width, img.height);
+        // 十分小さく、かつ上限内ならそのまま使う
+        if (longEdge <= RESIZE_MAX_EDGE && dataUrl.length <= SUBMISSION_MAX_BYTES) {
+          return resolve(dataUrl);
+        }
+        const scale = Math.min(1, RESIZE_MAX_EDGE / longEdge);
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        // JPEG は透過を持てないので白で下地を塗る（PNG の透過部分が黒くなるのを防ぐ）
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        let out = canvas.toDataURL('image/jpeg', RESIZE_QUALITY);
+        // まだ大きい場合は品質を段階的に落とす
+        for (let q = 0.6; out.length > SUBMISSION_MAX_BYTES && q >= 0.4; q -= 0.2) {
+          out = canvas.toDataURL('image/jpeg', q);
+        }
+        resolve(out);
+      } catch (_) {
+        resolve(dataUrl);   // 失敗しても送信は止めない（サーバ側で弾かれる）
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 export function handleImageSelect(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
+    const resized = await _resizeImageDataUrl(e.target.result);
+    if (resized.length > SUBMISSION_MAX_BYTES) {
+      window._app?.showToast('画像サイズが大きすぎます。別の画像を選んでください', 'error');
+      input.value = '';
+      return;
+    }
     const chip    = document.getElementById('img-chip');
     const preview = document.getElementById('preview-img');
     if (chip && preview) {
-      preview.src = e.target.result;
-      preview.dataset.base64 = e.target.result;
+      preview.src = resized;
+      preview.dataset.base64 = resized;
       chip.classList.remove('hidden');
     }
     // ドラフト保存

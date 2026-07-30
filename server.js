@@ -70,6 +70,18 @@ const INVITE_COOKIE  = 'invite_token';
 const INVITE_COOKIE_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7日
 const RESET_TTL_MS   = 30 * 60 * 1000; // 30分
 
+// ── 画像アップロード上限（512MB インスタンスでの OOM 対策）────────────────
+// dataURL の文字列長で判定する（base64 は元バイナリの約 4/3 に膨らむ）。
+// 上限を超えた dataURL はサーバ内で「生ボディ → JS 文字列 → Buffer デコード」と
+// 多重に展開されるため、1 リクエストで上限の数倍のメモリを一時的に消費する。
+// クライアント側でも送信前にリサイズしている（modals/helpers.js の handleImageSelect）。
+const AVATAR_MAX_BYTES     = 600 * 1024;       // 600KB（従来からの値）
+const SUBMISSION_MAX_BYTES = 2 * 1024 * 1024;  // 2MB（ミッション提出物）
+const IMAGE_DATA_URL_RE    = /^data:image\/(png|jpeg|jpg|webp);base64,/;
+
+// PUT /api/data の処理時間がこれを超えたら警告ログを出す（接続待ち・スロークエリの検知用）
+const SLOW_SAVE_WARN_MS = 500;
+
 const rateLimit = require('express-rate-limit');
 
 const app = express();
@@ -78,7 +90,9 @@ const app = express();
 // req.ip が正しいクライアント IP を返すようになる（rate limiting に必要）
 app.set('trust proxy', 1);
 
-app.use(express.json({ limit: '20mb' }));
+// 5MB：提出物画像の上限 2MB（base64 で約 2.7MB）＋余裕。
+// PUT /api/data の実測ボディは最大 146KB（全イベント全文送信でも）なので影響しない。
+app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' })); // iOS 向け Google サインインのフォーム POST 用
 app.use(cookieParser(COOKIE_SECRET));
 
@@ -343,6 +357,31 @@ function _setMissionField(p, mid, field, value, ts) {
   if (!p.missions[mid].fields) p.missions[mid].fields = {};
   p.missions[mid].fields[field] = { v: value, t: ts || Date.now() };
   return true;
+}
+
+// ===== 提出物画像のバリデーション =====
+// 提出物は format==='image' でも、実体が dataURL とは限らない（R2 アップロード後の
+// URL や、テキスト/リンク形式の完了データも通る）。dataURL のときだけ検証する。
+// @returns {string|null} エラーコード（'invalid_image' | 'image_too_large'）。問題なければ null
+function _validateSubmissionImage(content, format) {
+  if (format !== 'image') return null;
+  if (typeof content !== 'string' || !content.startsWith('data:')) return null; // URL 等は対象外
+  if (!IMAGE_DATA_URL_RE.test(content)) return 'invalid_image';
+  if (content.length > SUBMISSION_MAX_BYTES) return 'image_too_large';
+  return null;
+}
+
+// PUT /api/data の clearedData に含まれる画像を一括検証する。
+// applyPatch を走らせる前に弾く（途中まで保存されるのを防ぐ）。
+// @returns {string|null} 最初に見つかったエラーコード
+function _validateIncomingSubmissions(incoming) {
+  for (const p of incoming || []) {
+    for (const sub of Object.values(p?.clearedData || {})) {
+      const err = _validateSubmissionImage(sub?.content, sub?.format);
+      if (err) return err;
+    }
+  }
+  return null;
 }
 
 // ===== 山登りオブジェクト（図鑑）ヘルパ =====
@@ -841,7 +880,7 @@ app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
     if (!/^data:image\/(png|jpeg|jpg|webp);base64,/.test(dataUrl)) {
       return res.status(400).json({ ok: false, error: 'invalid_image' });
     }
-    if (dataUrl.length > 600 * 1024) {
+    if (dataUrl.length > AVATAR_MAX_BYTES) {
       return res.status(400).json({ ok: false, error: 'image_too_large' });
     }
 
@@ -1128,8 +1167,14 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
 
 // 旧 PUT /api/data（後方互換）
 app.put('/api/data', requireAuth, async (req, res) => {
+  const _t0 = Date.now();
   try {
     const incoming  = req.body?.events || req.body?.projects || [];  // eventsが新名、projectsは後方互換
+
+    // 提出物画像の検証は保存を始める前に行う（途中まで書き込まれるのを防ぐ）
+    const submissionErr = _validateIncomingSubmissions(incoming);
+    if (submissionErr) return res.status(400).json({ ok: false, error: submissionErr });
+
     const current   = await eventStore.listEventsForUser(req.user.id);
     const currentIds  = new Set(current.map(p => p.id));
     const incomingIds = new Set(incoming.map(p => p.id));
@@ -1340,6 +1385,12 @@ app.put('/api/data', requireAuth, async (req, res) => {
       }
     }
 
+    // 遅い保存だけを記録する（常時ログは Hobby のログ保持を圧迫するため閾値付き）。
+    // maxPoolSize=10 の接続待ちや Atlas M0 のスロークエリを検知する目的。
+    const _ms = Date.now() - _t0;
+    if (_ms > SLOW_SAVE_WARN_MS) {
+      console.warn(`[slow] PUT /api/data ${_ms}ms events=${incoming.length} user=${req.user.id}`);
+    }
     res.json({ ok: true });
   } catch (e) {
     console.error('PUT /api/data error:', e);
@@ -1815,6 +1866,10 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     let content   = String(req.body?.content ?? '');
     const format  = ['text', 'image', 'link'].includes(req.body?.format) ? req.body.format : 'text';
     const now     = Date.now();
+
+    // 画像の形式・サイズを検証（R2 へ送る前に弾く。OOM 対策）
+    const imgErr = _validateSubmissionImage(content, format);
+    if (imgErr) return res.status(400).json({ ok: false, error: imgErr });
 
     // 画像 dataURL → R2 アップロード（_extractClearedData と同じ扱い）
     if (format === 'image' && content.startsWith('data:') && r2.isConfigured()) {
