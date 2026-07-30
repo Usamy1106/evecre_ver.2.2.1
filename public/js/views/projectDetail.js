@@ -70,8 +70,9 @@ function _renderEventList(list) {
     return `
       <div onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
         class="flex items-center gap-4 px-4 py-4 bg-white rounded-2xl shadow-sm mb-3 active:scale-[0.98] transition-transform cursor-pointer border border-[#E1DFDC]">
-        <div class="w-12 h-12 flex items-end justify-center flex-shrink-0">
-          ${Components.MountainMini(p, { size: 46 })}
+        <!-- サムネイル（3:2）。横並びリストなので幅基準で置く -->
+        <div class="w-20 flex-shrink-0">
+          ${Components.EventThumbnail(p, { rounded: 'rounded-lg' })}
         </div>
         <div class="flex-1 min-w-0">
           <p class="text-[14px] font-bold text-[#484545] truncate">${_esc(p.name)}</p>

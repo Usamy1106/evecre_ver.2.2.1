@@ -828,7 +828,8 @@ function _renderArchiveTab(p) {
       <div class="relative group w-full aspect-[3/2] overflow-hidden bg-[#EBE8E5] flex items-center justify-center shadow-inner">
         ${mainVisual
           ? `<img src="${mainVisual}" class="w-full h-full object-cover">`
-          : `<img src="/images/icon/icon-image.svg" class="w-12 h-12 opacity-20">`}
+          // 未設定時はホームのサムネイルと同じエンプティーステート画像
+          : Components.ThumbnailEmptyState()}
         ${canMgr ? `<div class="absolute bottom-4 right-4 bg-white/80 p-2 rounded-full shadow-lg">
           ${_pen('image')}
         </div>` : ''}

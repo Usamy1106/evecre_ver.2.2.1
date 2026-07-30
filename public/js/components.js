@@ -211,10 +211,23 @@ export const Components = {
   },
 
   /**
+   * サムネイルのエンプティーステート画像。avif → webp → png の順に並べ、
+   * ブラウザが対応する最も軽い形式を選ぶ。親要素の大きさに合わせて object-cover で埋める。
+   * ★画像パスをここ1箇所に集約している（ホーム・プロジェクト詳細・アーカイブで共用）。
+   */
+  ThumbnailEmptyState() {
+    // picture は inline 要素なので block + w/h を明示しないと img のサイズ指定が効かない
+    return `
+      <picture class="block w-full h-full">
+        <source srcset="${THUMB_EMPTY_BASE}.avif" type="image/avif">
+        <source srcset="${THUMB_EMPTY_BASE}.webp" type="image/webp">
+        <img src="${THUMB_EMPTY_BASE}.png" alt="" class="w-full h-full object-cover" loading="lazy">
+      </picture>`;
+  },
+
+  /**
    * イベントのサムネイル（aspect-ratio 3/2）。
    * メインビジュアルが設定されていればそれを、無ければエンプティーステート画像を表示する。
-   * エンプティーステートは <picture> で avif → webp → png の順に指定し、
-   * ブラウザが対応する最も軽い形式を選ぶ。
    * @param {object} project
    * @param {{className?: string, rounded?: string}} opts
    */
@@ -224,12 +237,7 @@ export const Components = {
     const visual  = getEventMainVisual(project);
     const inner = visual
       ? `<img src="${visual}" alt="" class="w-full h-full object-cover" loading="lazy">`
-      // picture は inline 要素なので block + w/h を明示しないと img のサイズ指定が効かない
-      : `<picture class="block w-full h-full">
-           <source srcset="${THUMB_EMPTY_BASE}.avif" type="image/avif">
-           <source srcset="${THUMB_EMPTY_BASE}.webp" type="image/webp">
-           <img src="${THUMB_EMPTY_BASE}.png" alt="" class="w-full h-full object-cover" loading="lazy">
-         </picture>`;
+      : this.ThumbnailEmptyState();
     return `
       <div class="w-full overflow-hidden bg-[#EBE8E5] ${rounded} ${extra}" style="aspect-ratio:3/2">
         ${inner}
