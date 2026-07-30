@@ -131,7 +131,9 @@ export function renderMainBoard(container) {
         <!-- 山スクロール窓（透明・上部領域を占める）。ここのスクロールで山を遡れる -->
         ${renderMountainScrollWindow(p)}
         <!-- 下部パネル：提案＋ミッション一覧（独立スクロール・上ドラッグで拡大） -->
-        <div id="mission-panel" class="fixed left-0 right-0 bottom-0 mx-auto max-w-md z-20 flex flex-col bg-[#FDFBF8] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] rounded-t-2xl" style="top:56vh">
+        <!-- id は mission-panel と衝突させないこと（modals/mission.js の作成モーダル内部パネルが
+             その id を使っており、被せるとモーダルのスライドインが壊れて白画面になる） -->
+        <div id="mainboard-bottom-panel" class="fixed left-0 right-0 bottom-0 mx-auto max-w-md z-20 flex flex-col bg-[#FDFBF8] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] rounded-t-2xl" style="top:56vh">
           <div data-mpanel-handle class="flex-shrink-0 flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing rounded-t-2xl" style="touch-action:none">
             <div class="w-10 h-1.5 rounded-full bg-[#C9CDD1]"></div>
           </div>
@@ -182,7 +184,7 @@ let _missionPanelExpanded = false;
 // 下部パネルのドラッグ配線（ハンドルのみ・上下2スナップ）。app の他シートと同様、
 // ハンドル限定にしてパネル本体のスクロールとジェスチャが競合しないようにする。
 function _initMissionPanelDrag() {
-  const panel  = document.getElementById('mission-panel');
+  const panel  = document.getElementById('mainboard-bottom-panel');
   const handle = panel?.querySelector('[data-mpanel-handle]');
   if (!panel || !handle) return;
 
