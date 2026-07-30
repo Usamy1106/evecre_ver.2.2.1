@@ -24,6 +24,7 @@ const submissionStore  = require('./lib/submissionStore');
 const chatStore        = require('./lib/chatStore');
 const collectionStore  = require('./lib/collectionStore');
 const pushStore        = require('./lib/pushStore');
+const pushClient       = require('./lib/pushClient');
 const eventLogStore    = require('./lib/eventLogStore');
 const r2               = require('./lib/r2');
 const proposalEngine   = require('./lib/proposalEngine');
@@ -949,6 +950,42 @@ app.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('POST /api/push/unsubscribe error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 手動テスト送信（自分自身へ）。実機疎通の確認用。
+// 併せてサーバ側の診断情報を返す（TZ が JST になっているかはここで確認できる。
+// 定期通知の 13:00 / 21:45 判定は JST 前提なので Phase 6 の前提条件になる）。
+app.post('/api/push/test', requireAuth, async (req, res) => {
+  try {
+    const now  = new Date();
+    const subs = await pushStore.findByUserId(req.user.id);
+    const diag = {
+      pushConfigured: pushClient.isConfigured(),
+      subscriptions:  subs.length,
+      serverTime:     now.toString(),
+      tzOffsetMin:    now.getTimezoneOffset(), // JST なら -540
+      tz:             process.env.TZ || '(未設定)',
+      isJst:          now.getTimezoneOffset() === -540,
+    };
+
+    if (!diag.pushConfigured) {
+      return res.status(503).json({ ok: false, error: 'push_not_configured', diag });
+    }
+    if (subs.length === 0) {
+      return res.status(400).json({ ok: false, error: 'no_subscription', diag });
+    }
+
+    const result = await pushClient.sendPushToUser(req.user.id, {
+      title: 'イベクリ',
+      body:  'テスト通知が届きました！',
+      url:   '/',
+      tag:   'push-test',
+    });
+    res.json({ ok: true, result, diag });
+  } catch (e) {
+    console.error('POST /api/push/test error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });
@@ -2816,6 +2853,10 @@ async function start() {
     } else {
       console.log(`🔵 Google サインイン: 無効（GOOGLE_CLIENT_ID 未設定）`);
     }
+    // 通知（Web Push）とタイムゾーンの状態。定期通知は JST 前提なので TZ も出す。
+    console.log(`🔔 Web Push: ${pushClient.isConfigured() ? '有効' : '無効（VAPID_* 未設定）'}`);
+    const _tzOff = new Date().getTimezoneOffset();
+    console.log(`🕐 タイムゾーン: ${process.env.TZ || '(TZ 未設定)'} / offset ${_tzOff}分${_tzOff === -540 ? ' [JST]' : ' ★JSTではない'}`);
     if (IS_DEV) console.log(`   開発モード: OTPはサーバーログ＆画面にも表示されます\n`);
   });
 
