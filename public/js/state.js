@@ -470,6 +470,35 @@ export const state = {
     });
   },
 
+  // --- 通知タップからの遷移（ウォームスタート専用）---
+  // アプリが既に開いている状態で通知をタップしたときに sw.js から
+  // postMessage(PUSH_NAVIGATE) 経由で呼ばれる。URL は既存のディープリンク形式。
+  // コールドスタート（アプリが閉じていた場合）は init() が pathname を読んで
+  // pendingMissionLink に積み、loadAfterAuth が消費する既存経路を通る。
+  handlePushNavigation(url) {
+    // 未ログインなら何もしない（勝手に画面を飛ばさない）
+    if (!this.currentUser) return;
+
+    let path;
+    try { path = new URL(url, window.location.origin).pathname; } catch (_) { return; }
+
+    // init() と同じ正規表現（形式を1箇所に揃える）
+    const mlm = path.match(/^\/m\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/?$/);
+    if (!mlm) { this.setView('HOME'); return; }
+
+    const [, eventId, missionId] = mlm;
+    const p = this.events.find(x => x.id === eventId);
+    const mission = p?.missions?.find(x => x.id === missionId);
+    // 非メンバー・削除済みは白画面にせず HOME へ退避（ディープリンクと同じ扱い）
+    if (!p || !mission) {
+      window._app?.showToast('ミッションが見つかりませんでした');
+      this.setView('HOME');
+      return;
+    }
+    this.selectedEventId = eventId;
+    this.openMissionDetail(missionId);
+  },
+
   // --- 図鑑ページを開く ---
   // 先にビューを出してから取得（キャッシュがあれば即表示 → 取得完了で再描画）
   async openCollection() {

@@ -50,6 +50,10 @@ import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.j
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
 import { rollMountainObject } from './mountainObjects.js';
+import {
+  registerServiceWorker, initPushNavigation,
+  enablePush, disablePush, getPushState, hasSubscription,
+} from './push.js';
 
 // ===== ビューレンダラーの登録 =====
 registerRenderer('CREATE_ACCOUNT_INFO',   renderCreateAccountInfo);
@@ -1180,6 +1184,13 @@ window._app = {
   // --- 図鑑（ボトムナビ）---
   openCollection: () => state.openCollection(),
 
+  // --- Web Push（アカウント画面の通知設定から呼ぶ）---
+  // enablePush は必ずユーザーのタップ起点で呼ぶこと（iOS で無反応になる）
+  enablePush:     () => enablePush(),
+  disablePush:    () => disablePush(),
+  getPushState:   () => getPushState(),
+  hasSubscription: () => hasSubscription(),
+
   // --- プロジェクト（フォルダ）操作 ---
   openNewProjectModal: (pendingEventId = null) => _openNewProjectModal(pendingEventId),
   openNewProjectModalForEvent: (eventId) => _openNewProjectModal(eventId),
@@ -1354,6 +1365,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') state.flushPendingSave();
 });
 window.addEventListener('beforeunload', () => state.flushPendingSave());
+
+// ===== Web Push =====
+// SW を登録し、通知タップ（アプリが開いている場合）の遷移を配線する。
+// 購読そのものはユーザーのタップから enablePush() を呼ぶ（iOS の必須条件）。
+registerServiceWorker();
+initPushNavigation((url) => state.handlePushNavigation(url));
 
 // ===== アプリ起動 =====
 initSheetDragClose(); // ボトムシートの下スワイプで閉じる（data-sheet / data-sheet-handle）
@@ -1550,6 +1567,12 @@ const _LOG_LABELS = {
   view_changed:           '画面を移動',
   chat_message_sent:      'チャットを送信した',
   mission_link_copied:    'ミッションリンクをコピー',
+  // Web Push（iOS はホーム画面追加が必須なので、どこで脱落するかを追う）
+  push_prompt_shown:      '通知の案内を表示',
+  push_ios_guide_shown:   'iOSのホーム画面追加案内を表示',
+  push_enabled:           '通知をオンにした',
+  push_denied:            '通知を拒否した',
+  push_disabled:          '通知をオフにした',
   // サーバー側監査ログ（後述の拡充分）
   role_changed:           'ロールを変更した',
   member_joined:          'メンバーが参加した',

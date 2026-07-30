@@ -23,6 +23,7 @@ const notifStore      = require('./lib/notificationStore');
 const submissionStore  = require('./lib/submissionStore');
 const chatStore        = require('./lib/chatStore');
 const collectionStore  = require('./lib/collectionStore');
+const pushStore        = require('./lib/pushStore');
 const eventLogStore    = require('./lib/eventLogStore');
 const r2               = require('./lib/r2');
 const proposalEngine   = require('./lib/proposalEngine');
@@ -912,6 +913,42 @@ app.get('/api/collection', requireAuth, async (req, res) => {
     res.json({ ok: true, objects });
   } catch (e) {
     console.error('GET /api/collection error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== Web Push（購読管理）=====
+// SSE（/api/events）は「開いている間のリアルタイム同期」、push は「閉じている間の呼び戻し」。
+// 役割が違うので両方併存させる。SSE 側には手を入れない。
+
+// 公開鍵の配布。クライアントに鍵をハードコードしないためのエンドポイント。
+// 認証不要（公開鍵なので秘密ではない）。未設定なら enabled:false を返す。
+app.get('/api/push/vapid-public-key', (_req, res) => {
+  const publicKey = process.env.VAPID_PUBLIC_KEY || null;
+  res.json({ ok: true, enabled: !!publicKey, publicKey });
+});
+
+app.post('/api/push/subscribe', requireAuth, async (req, res) => {
+  try {
+    const saved = await pushStore.saveSubscription(
+      req.user.id, req.body, req.get('User-Agent') || '',
+    );
+    if (!saved) return res.status(400).json({ ok: false, error: 'invalid_subscription' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('POST /api/push/subscribe error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
+  try {
+    const endpoint = req.body?.endpoint;
+    if (!endpoint) return res.status(400).json({ ok: false, error: 'endpoint required' });
+    await pushStore.deleteByEndpoint(endpoint);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('POST /api/push/unsubscribe error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });
