@@ -9,6 +9,14 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
+// 開いているページ全部にメッセージを送る（診断用）
+async function _postToClients(msg) {
+  const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const c of list) {
+    try { c.postMessage(msg); } catch (_) {}
+  }
+}
+
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) {}
@@ -19,10 +27,28 @@ self.addEventListener('push', (event) => {
     icon:  '/images/icon/app-icon-192.png',
     badge: '/images/icon/app-badge-72.png',
     data:  { url: data.url || '/' },
-    tag:   data.tag || undefined,
-    renotify: Boolean(data.tag),
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  // ★renotify は tag とセットでないと TypeError になる（仕様）。tag があるときだけ付ける。
+  if (data.tag) {
+    options.tag = data.tag;
+    options.renotify = true;
+  }
+
+  event.waitUntil((async () => {
+    // 「push は届いたか」をページ側で確認できるようにする（OS が表示しないだけなのか、
+    //  そもそも push が届いていないのかを切り分けるため）。アプリを閉じていれば誰も受け取らない。
+    await _postToClients({ type: 'PUSH_RECEIVED', title, body: options.body });
+    try {
+      await self.registration.showNotification(title, options);
+    } catch (err) {
+      // 表示に失敗した場合でも握りつぶさず、最小構成で再試行する
+      // （icon/badge のパス不正やオプション不整合で落ちるケースがある）
+      await _postToClients({ type: 'PUSH_SHOW_FAILED', error: String(err && err.message || err) });
+      try {
+        await self.registration.showNotification(title, { body: options.body });
+      } catch (_) { /* これでも駄目なら OS 側の問題 */ }
+    }
+  })());
 });
 
 self.addEventListener('notificationclick', (event) => {

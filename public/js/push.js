@@ -163,11 +163,49 @@ export function initPushNavigation(onNavigate) {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.addEventListener('message', (event) => {
     const data = event.data;
-    if (data?.type !== 'PUSH_NAVIGATE' || !data.url) return;
+    if (!data?.type) return;
+
+    // 診断：push は届いているのに OS が通知を出さないケースを切り分ける。
+    // アプリを開いたままテスト送信するとこれが飛ぶ（閉じていれば誰も受け取らない）。
+    if (data.type === 'PUSH_RECEIVED') {
+      console.log('[push] 受信しました:', data.title, data.body);
+      window._app?.showToast?.('通知を受信しました（OSの表示は端末設定によります）');
+      return;
+    }
+    if (data.type === 'PUSH_SHOW_FAILED') {
+      console.error('[push] 通知の表示に失敗:', data.error);
+      window._app?.showToast?.('通知の表示に失敗しました', 'error');
+      return;
+    }
+
+    if (data.type !== 'PUSH_NAVIGATE' || !data.url) return;
     try {
       onNavigate(data.url);
     } catch (e) {
       console.error('[push] 遷移に失敗:', e);
     }
   });
+}
+
+/**
+ * 通知まわりの診断情報（届かない原因の切り分け用）。
+ * @returns {Promise<object>}
+ */
+export async function getPushDiagnostics() {
+  const diag = {
+    state:        getPushState(),
+    permission:   (typeof Notification !== 'undefined') ? Notification.permission : '(なし)',
+    standalone:   isStandalone(),
+    ios:          isIOS(),
+    swSupported:  'serviceWorker' in navigator,
+    swController: !!navigator.serviceWorker?.controller,
+    swActive:     false,
+    subscribed:   false,
+  };
+  try {
+    const reg = await navigator.serviceWorker?.ready;
+    diag.swActive   = !!reg?.active;
+    diag.subscribed = !!(await reg?.pushManager?.getSubscription());
+  } catch (_) {}
+  return diag;
 }

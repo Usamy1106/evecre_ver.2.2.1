@@ -224,7 +224,7 @@ function _notificationSection() {
       <div class="bg-[#EBF7FE] border border-[#0CA1E3]/40 rounded-xl p-4">
         <p class="text-[12px] font-bold text-[#0CA1E3] mb-2">ホーム画面に追加すると使えます</p>
         <ol class="text-[11px] text-[#484545] leading-relaxed list-decimal pl-4 space-y-1">
-          <li>画面下の「共有」ボタンをタップ</li>
+          <li>画面下の ⋯ の「共有」ボタンをタップ</li>
           <li>「ホーム画面に追加」を選ぶ</li>
           <li>追加されたアイコンからイベクリを開く</li>
         </ol>
@@ -268,7 +268,20 @@ function _notificationSection() {
       <p class="text-[10px] text-[#A7AAAC] mt-1.5 leading-relaxed">
         この端末に届くか確認できます。アプリを閉じた状態でも届くかを試す場合は、
         送信後すぐにアプリを閉じてください。
-      </p>` : ''}`;
+      </p>
+      <details class="mt-2">
+        <summary class="text-[11px] font-bold text-[#0CA1E3] cursor-pointer">通知が届かないときは</summary>
+        <div class="text-[10px] text-[#484545] leading-relaxed mt-2 space-y-1.5">
+          <p>アプリ側で「送信しました」と出ても、端末側の設定で表示が止められていることがあります。</p>
+          <p class="font-bold">Mac / Windows の場合</p>
+          <p>OS の設定でブラウザ自体の通知が許可されているか確認してください。<br>
+            Mac：システム設定 → 通知 → お使いのブラウザ（Chrome など）を「通知を許可」に</p>
+          <p class="font-bold">iPhone / iPad の場合</p>
+          <p>設定 → 通知 → イベクリ が「通知を許可」になっているか確認してください。</p>
+          <p class="font-bold">共通</p>
+          <p>集中モード（おやすみモード）が有効だと通知は表示されません。</p>
+        </div>
+      </details>` : ''}`;
 }
 
 // ----- OTP入力欄 -----
