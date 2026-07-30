@@ -238,8 +238,11 @@ export const Components = {
     const inner = visual
       ? `<img src="${visual}" alt="" class="w-full h-full object-cover" loading="lazy">`
       : this.ThumbnailEmptyState();
+    // 影はコンテナ側に付ける。画像の内容（白背景・透過など）に関わらず常に落ちる。
+    // overflow-hidden は内側の画像を角丸で切るためで、影は外に出るので干渉しない。
     return `
-      <div class="w-full overflow-hidden bg-[#EBE8E5] ${rounded} ${extra}" style="aspect-ratio:3/2">
+      <div class="w-full overflow-hidden bg-[#EBE8E5] ${rounded} ${extra}"
+        style="aspect-ratio:3/2;box-shadow:0 2px 8px rgba(72,69,69,0.12)">
         ${inner}
       </div>`;
   },

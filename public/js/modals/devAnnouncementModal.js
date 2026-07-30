@@ -94,9 +94,6 @@ function _renderPage(overlay, pages, index) {
       style="max-height:92vh">
       ${image}
       <div class="p-6 pt-5 overflow-y-auto flex-1">
-        <p class="text-[10px] text-[#0CA1E3] font-bold mb-2 tracking-wide">
-          イベクリ開発者からのお知らせ${multi ? `（${index + 1}/${pages.length}）` : ''}
-        </p>
         ${page.title ? `<h3 class="heading-m text-[#484545] mb-3 font-bold">${_esc(page.title)}</h3>` : ''}
         ${page.body ? `<p class="text-rs text-[#484545] font-medium leading-relaxed whitespace-pre-wrap text-left">${_esc(page.body)}</p>` : ''}
       </div>
