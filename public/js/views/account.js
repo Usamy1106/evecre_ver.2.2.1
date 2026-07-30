@@ -5,7 +5,7 @@ import { Components } from '../components.js';
 import { showConfirmDialog } from '../dialog.js';
 import { logEvent } from '../logger.js';
 import {
-  getPushState, hasSubscription, enablePush, disablePush, isStandalone, isIOS,
+  getPushState, hasSubscription, enablePush, disablePush, isStandalone, isIOS, isMacDesktop,
 } from '../push.js';
 
 /**
@@ -268,20 +268,32 @@ function _notificationSection() {
       <p class="text-[10px] text-[#A7AAAC] mt-1.5 leading-relaxed">
         この端末に届くか確認できます。アプリを閉じた状態でも届くかを試す場合は、
         送信後すぐにアプリを閉じてください。
+      </p>` : ''}
+    ${on && isMacDesktop() ? _macNotificationNotice() : ''}`;
+}
+
+// ----- Mac 向けの注意書き -----
+// macOS は「ブラウザ内でサイトを許可」と「システム設定でブラウザ自体を許可」の
+// 二段階が必要で、後者が無効だと送信は成功しているのに通知が一切表示されない
+// （通知センターにも残らない）。実際にこれで届かない事例があったため常時表示する。
+function _macNotificationNotice() {
+  return `
+    <div class="mt-3 bg-[#FFF7E6] border border-[#FFC300] rounded-xl p-4">
+      <p class="text-[12px] font-bold text-[#484545] mb-1.5">Mac をお使いの方へ</p>
+      <p class="text-[11px] text-[#484545] leading-relaxed mb-2">
+        Mac では、このアプリで通知をオンにするだけでは表示されません。
+        <span class="font-bold">macOS 側でブラウザの通知を許可する</span>必要があります。
       </p>
-      <details class="mt-2">
-        <summary class="text-[11px] font-bold text-[#0CA1E3] cursor-pointer">通知が届かないときは</summary>
-        <div class="text-[10px] text-[#484545] leading-relaxed mt-2 space-y-1.5">
-          <p>アプリ側で「送信しました」と出ても、端末側の設定で表示が止められていることがあります。</p>
-          <p class="font-bold">Mac / Windows の場合</p>
-          <p>OS の設定でブラウザ自体の通知が許可されているか確認してください。<br>
-            Mac：システム設定 → 通知 → お使いのブラウザ（Chrome など）を「通知を許可」に</p>
-          <p class="font-bold">iPhone / iPad の場合</p>
-          <p>設定 → 通知 → イベクリ が「通知を許可」になっているか確認してください。</p>
-          <p class="font-bold">共通</p>
-          <p>集中モード（おやすみモード）が有効だと通知は表示されません。</p>
-        </div>
-      </details>` : ''}`;
+      <ol class="text-[11px] text-[#484545] leading-relaxed list-decimal pl-4 space-y-0.5">
+        <li>アップルメニュー →「システム設定」を開く</li>
+        <li>「通知」を選ぶ</li>
+        <li>お使いのブラウザ（Google Chrome、Safari など）を選ぶ</li>
+        <li>「通知を許可」をオンにする</li>
+      </ol>
+      <p class="text-[10px] text-[#A7AAAC] mt-2 leading-relaxed">
+        設定後に「テスト通知を送る」で届くか確認できます。
+      </p>
+    </div>`;
 }
 
 // ----- OTP入力欄 -----

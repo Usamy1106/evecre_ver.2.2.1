@@ -21,8 +21,23 @@ export function isStandalone() {
 export function isIOS() {
   const ua = navigator.userAgent || '';
   if (/iphone|ipad|ipod/i.test(ua)) return true;
-  // iPadOS 13+ は Macintosh を騙るのでタッチ有無で見分ける
-  return navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1;
+  // iPadOS 13+ は Macintosh を騙るのでタッチ有無で見分ける。
+  // navigator.platform は非推奨で将来空を返しうるため userAgent も見る
+  // （isMacDesktop と同じ土俵で判定し、Mac デスクトップと排他になるようにする）。
+  const looksMac = navigator.platform === 'MacIntel' || /Macintosh|Mac OS X/i.test(ua);
+  return looksMac && (navigator.maxTouchPoints || 0) > 1;
+}
+
+/**
+ * macOS のデスクトップブラウザか。
+ * macOS はブラウザ内でサイトの通知を許可しても、システム設定側でそのブラウザ自体の
+ * 通知が無効だと表示されない（二段階の許可が必要）。この案内を出すかの判定に使う。
+ * iPadOS は userAgent で Macintosh を騙るため、タッチの有無で除外する。
+ */
+export function isMacDesktop() {
+  const ua = navigator.userAgent || '';
+  if (!/Macintosh|Mac OS X/i.test(ua)) return false;
+  return (navigator.maxTouchPoints || 0) <= 1;
 }
 
 /** この環境で push を購読できる可能性があるか（許可状態は見ない） */
