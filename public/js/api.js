@@ -118,6 +118,13 @@ export const api = {
     return json || { ok: false };
   },
 
+  // ----- 通知（Web Push）のテスト送信 -----
+  // 自分自身に送るだけ。診断情報（サーバ時刻・TZ・購読端末数）も返る。
+  async sendTestPush() {
+    const { json } = await _send('POST', '/api/push/test');
+    return json || { ok: false, error: 'network' };
+  },
+
   // ----- ミッションチャット -----
   async listMissionChat(eventId, missionId) {
     const { json } = await _send('GET', `/api/events/${eventId}/missions/${missionId}/chat`);

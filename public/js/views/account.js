@@ -259,7 +259,16 @@ function _notificationSection() {
         ${on ? 'オフにする' : '通知をオンにする'}
       </button>
     </div>
-    <p class="text-[10px] text-[#A7AAAC] mt-2">通知の設定は端末ごとに保存されます。</p>`;
+    <p class="text-[10px] text-[#A7AAAC] mt-2">通知の設定は端末ごとに保存されます。</p>
+    ${on ? `
+      <button id="acc-push-test"
+        class="mt-3 w-full py-2 rounded-xl text-[12px] font-bold text-[#0CA1E3] bg-[#EBF7FE] border border-[#0CA1E3]/30 active:scale-95 transition-transform">
+        テスト通知を送る
+      </button>
+      <p class="text-[10px] text-[#A7AAAC] mt-1.5 leading-relaxed">
+        この端末に届くか確認できます。アプリを閉じた状態でも届くかを試す場合は、
+        送信後すぐにアプリを閉じてください。
+      </p>` : ''}`;
 }
 
 // ----- OTP入力欄 -----
@@ -318,6 +327,29 @@ function _bindEvents() {
     _pushState = getPushState();
     _toast(wasOn ? '通知をオフにしました' : '通知をオンにしました');
     state.render();
+  });
+
+  // テスト通知（コンソールを開かずに疎通確認できるように）
+  document.getElementById('acc-push-test')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = '送信中…';
+    const r = await api.sendTestPush();
+    btn.disabled = false;
+    btn.textContent = 'テスト通知を送る';
+
+    if (r.ok) {
+      const sent = r.result?.sent ?? 0;
+      _toast(sent > 0 ? `送信しました（${sent}件の端末）` : '送信対象の端末がありませんでした');
+      return;
+    }
+    const msg = {
+      push_not_configured: 'サーバー側の通知設定が未完了です（VAPID 未設定）',
+      no_subscription:     'この端末は通知を購読していません',
+    }[r.error] || '送信に失敗しました';
+    // 診断情報はコンソールに出す（時刻ずれの切り分け用）
+    if (r.diag) console.warn('[push] diag:', r.diag);
+    _toast(msg);
   });
 
   // --- アバター画像 ---
