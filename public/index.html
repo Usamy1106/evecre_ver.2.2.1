@@ -2,8 +2,19 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- viewport-fit=cover：これが無いと env(safe-area-inset-*) が常に 0 を返し、
+       standalone（ホーム画面から起動）でボトムナビがホームインジケータに潜り込む。
+       components.js の BottomNav が padding-bottom: env(safe-area-inset-bottom) を使っている。 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Event Planner - イベント作りをサポート</title>
+
+  <!-- ===== PWA（Web Push は iOS ではホーム画面追加が必須条件）===== -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="イベクリ">
+  <link rel="apple-touch-icon" href="/images/icon/app-icon-192.png">
+  <meta name="theme-color" content="#0CA1E3">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- ミッションチャットのリアクション用絵文字ピッカー（読めない場合は固定セットにフォールバック） -->
