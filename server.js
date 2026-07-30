@@ -378,6 +378,44 @@ function _validateIncomingSubmissions(incoming) {
   return null;
 }
 
+// ===== ミッションの担当者・push ヘルパ =====
+
+/**
+ * ミッションの担当者 userId を解決する。
+ * 実データでは複数担当 `assignees`（配列）が使われ、`assignee`（単数）は後方互換で
+ * 残っているだけだが、どちらも書かれうるので両方見る。
+ * @returns {string[]} 重複なしの userId 配列（担当者不在なら空）
+ */
+function _resolveAssigneeIds(m) {
+  const ids = [];
+  if (Array.isArray(m?.assignees)) ids.push(...m.assignees);
+  if (m?.assignee?.type === 'user' && m.assignee.userId) ids.push(m.assignee.userId);
+  return [...new Set(ids)].filter(Boolean);
+}
+
+/** 通知タップ時の遷移先。既存のディープリンク形式を再利用する */
+function _missionUrl(eventId, missionId) {
+  return `/m/${eventId}/${missionId}`;
+}
+
+/**
+ * ミッション関連の Web Push を送る（fire-and-forget）。
+ * ★アプリ内通知（notifications）とは宛先が異なるため独立した経路にしている。
+ *   例：完了時、アプリ内は全メンバーへ出すが push は管理者だけに鳴らす。
+ * pushClient は VAPID 未設定なら no-op、送信失敗でも例外を投げない。
+ */
+function _sendMissionPush(userIds, eventId, missionId, title, body) {
+  const ids = [...new Set(userIds || [])].filter(Boolean);
+  if (ids.length === 0) return;
+  pushClient.sendPushToUsers(ids, {
+    title,
+    body,
+    url: _missionUrl(eventId, missionId),
+    // 同じミッションの通知は積み上げず置き換える（tag があると renotify で鳴り直す）
+    tag: `mission-${missionId}`,
+  }).catch(e => console.error('[push] mission push error:', e.message));
+}
+
 // ミッションの「内容変更」とみなすフィールド（管理者が編集モーダルで触る項目）。
 // status / daysLeft / assignee / claimApplicants / individualClearedBy / clearFormat など
 // 自動・完了フロー・専用通知のある項目は除外して、変更通知の誤発火を防ぐ。
@@ -1253,6 +1291,8 @@ app.put('/api/data', requireAuth, async (req, res) => {
       }
 
       const notifications = [];
+      // push はアプリ内通知と宛先が異なるため別配列に積み、保存成功後に送る
+      const pushJobs = [];
       for (const m of (incomingP.missions || [])) {
         const prev = prevMissionsMap[m.id];
         const projectMembers = (existing.members || []).map(x => x.userId);
@@ -1280,6 +1320,13 @@ app.put('/api/data', requireAuth, async (req, res) => {
         const prevStatus = prev?.status || 'yet';
         const newStatus  = m.status     || 'yet';
         if (prevStatus !== 'cleared' && newStatus === 'cleared') {
+          // push は管理者だけに鳴らす（アプリ内通知は従来どおり全メンバー）
+          pushJobs.push({
+            userIds: _getManagerIds(existing).filter(uid => uid !== req.user.id),
+            missionId: m.id,
+            title: 'ミッションが完了しました',
+            body:  `${req.user.username}さんが「${m.title}」を完了しました！`,
+          });
           notifications.push({
             userIds: projectMembers.filter(uid => uid !== req.user.id),
             notif: {
@@ -1324,8 +1371,9 @@ app.put('/api/data', requireAuth, async (req, res) => {
           });
         }
 
-        // (D) 新規ミッション作成 / (F) 既存ミッションの内容変更 → 全メンバー（実行者除く）
+        // (D) 新規ミッション作成 / (F) 既存ミッションの内容変更
         if (!prev) {
+          // アプリ内通知は従来どおり全メンバー（実行者除く）
           notifications.push({
             userIds: projectMembers.filter(uid => uid !== req.user.id),
             notif: {
@@ -1337,18 +1385,44 @@ app.put('/api/data', requireAuth, async (req, res) => {
               actorName: req.user.username,
             },
           });
-        } else if (_missionContentChanged(prev, m)) {
-          notifications.push({
-            userIds: projectMembers.filter(uid => uid !== req.user.id),
-            notif: {
-              type:      'mission_updated',
-              message:   `${req.user.username} さんが「${m.title}」を変更しました`,
-              eventId: incomingP.id,
+
+          // ── push（担当者の有無で排他。両方は送らない）──
+          const assignees = _resolveAssigneeIds(m).filter(uid => uid !== req.user.id);
+          if (assignees.length > 0) {
+            pushJobs.push({
+              userIds: assignees,
               missionId: m.id,
-              actorId:   req.user.id,
-              actorName: req.user.username,
-            },
-          });
+              title: 'ミッションが割り当てられました',
+              body:  `「${m.title}」が割り当てられました！`,
+            });
+          } else {
+            pushJobs.push({
+              userIds: projectMembers.filter(uid => uid !== req.user.id),
+              missionId: m.id,
+              title: 'ミッションが作成されました',
+              body:  `「${m.title}」が作成されました！`,
+            });
+          }
+        } else if (_missionContentChanged(prev, m)) {
+          // 内容変更は「担当者 ∪ 管理者」に絞る（従来は全メンバーで、編集のたびに
+          // 無関係なメンバーにも通知が溜まっていた）。担当者がいなければ管理者のみ。
+          const updateTargets = [...new Set([
+            ..._resolveAssigneeIds(m),
+            ..._getManagerIds(existing),
+          ])].filter(uid => uid !== req.user.id);
+          if (updateTargets.length > 0) {
+            notifications.push({
+              userIds: updateTargets,
+              notif: {
+                type:      'mission_updated',
+                message:   `${req.user.username} さんが「${m.title}」を変更しました`,
+                eventId: incomingP.id,
+                missionId: m.id,
+                actorId:   req.user.id,
+                actorName: req.user.username,
+              },
+            });
+          }
         }
       }
 
@@ -1374,6 +1448,11 @@ app.put('/api/data', requireAuth, async (req, res) => {
       }, clientId);
 
       await Promise.all(notifications.map(n => notifStore.notifyAll(n.userIds, n.notif)));
+
+      // push は保存が成功してから送る（失敗しても本処理は止めない）
+      for (const j of pushJobs) {
+        _sendMissionPush(j.userIds, incomingP.id, j.missionId, j.title, j.body);
+      }
     }
 
     // --- 削除 ---
@@ -1825,6 +1904,13 @@ app.post('/api/events/:id/missions/:mid/approve', requireAuth, async (req, res) 
         actorId:   req.user.id, actorName: req.user.username,
       });
     }
+    // 承認＝完了確定なので、他の完了経路と同じく管理者へ push（承認した本人は除く）
+    _sendMissionPush(
+      _getManagerIds(p).filter(uid => uid !== req.user.id),
+      p.id, req.params.mid,
+      'ミッションが完了しました',
+      `「${m.title}」が完了しました！`,
+    );
     res.json({ ok: true });
   } catch (e) {
     console.error('approve error:', e);
@@ -1954,6 +2040,13 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
           eventId: p.id, missionId: mid,
           actorId: userId, actorName: req.user.username,
         });
+      // push は管理者だけに鳴らす（★通常の完了はこの経路を通る）
+      _sendMissionPush(
+        _getManagerIds(p).filter(uid => uid !== userId),
+        p.id, mid,
+        'ミッションが完了しました',
+        `${req.user.username}さんが「${m.title}」を完了しました！`,
+      );
     }
     if (becamePendingCheck) {
       await notifStore.notifyAll(
