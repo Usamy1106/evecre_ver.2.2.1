@@ -24,6 +24,8 @@ const submissionStore  = require('./lib/submissionStore');
 const chatStore        = require('./lib/chatStore');
 const pushStore        = require('./lib/pushStore');
 const pushClient       = require('./lib/pushClient');
+const pushScheduler    = require('./lib/pushScheduler');
+const pushRules        = require('./lib/pushRules');
 const eventLogStore    = require('./lib/eventLogStore');
 const r2               = require('./lib/r2');
 const proposalEngine   = require('./lib/proposalEngine');
@@ -218,10 +220,28 @@ async function requireAuth(req, res, next) {
       return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
     req.user = user; // フル情報（passwordHash 含む）。レスポンスに含めないこと
+    _touchLastSeen(user);
     next();
   } catch (e) {
     next(e);
   }
+}
+
+// 最終アクティビティ（users.lastSeenAt）を記録する。
+// ★「ログイン」ではなく「最後にアプリを使った時刻」。セッション TTL は 30 日あるため、
+//   ログイン日時では「7日使っていない」を判定できない（定期通知の idle_* が誤爆する）。
+// 全リクエストで書き込むと Atlas M0 と 0.5CPU を圧迫するので 1 時間に 1 回だけ更新する。
+// レスポンスを遅らせないよう await しない（失敗しても実害なし）。
+const LAST_SEEN_THROTTLE_MS = 60 * 60 * 1000;
+function _touchLastSeen(user) {
+  const prev = user.lastSeenAt instanceof Date
+    ? user.lastSeenAt.getTime()
+    : (typeof user.lastSeenAt === 'number' ? user.lastSeenAt : 0);
+  if (Date.now() - prev < LAST_SEEN_THROTTLE_MS) return;
+  const now = new Date();
+  user.lastSeenAt = now; // 同一リクエスト内で再度呼ばれても二重更新しない
+  userStore.update(user.id, { lastSeenAt: now })
+    .catch(e => console.warn('[lastSeen] 更新に失敗:', e.message));
 }
 
 function userPublic(u) {
@@ -738,6 +758,11 @@ app.get('/api/auth/me', async (req, res) => {
       res.clearCookie(SESSION_COOKIE, { path: '/' });
       return res.json({ ok: true, user: null });
     }
+    // ★このエンドポイントは requireAuth を通らない（独自にセッションを読む）ため、
+    //   最終アクティビティの記録をここでも行う。アプリ起動時に必ず呼ばれる＝
+    //   「アプリを開いた」ことの最も確実な指標なので、記録から漏らさない。
+    _touchLastSeen(user);
+
     const inv = await consumeInviteCookieIfAny(req, res, user);
     res.json({
       ok: true,
@@ -951,6 +976,38 @@ app.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('POST /api/push/unsubscribe error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 定期通知の手動実行（検証用）。
+// ★無認証で公開しない。requireAuth に加えて、開発環境か「イベントの管理者」に限定する。
+//   dryRun を既定にしてあり、実際に送るには明示的に dryRun:false を渡す必要がある。
+app.post('/api/push/run-slot', requireAuth, async (req, res) => {
+  try {
+    // 管理者権限を持つイベントが1つでもあれば実行を許可（本番での誤爆を避けるための最低限の絞り）
+    let allowed = IS_DEV;
+    if (!allowed) {
+      const mine = await eventStore.listEventsForUser(req.user.id);
+      allowed = mine.some(p => eventStore.canManage(p, req.user.id));
+    }
+    if (!allowed) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const slot = String(req.body?.slot || '');
+    if (!pushRules.activeSlots().includes(slot)) {
+      return res.status(400).json({ ok: false, error: 'invalid_slot', validSlots: pushRules.activeSlots() });
+    }
+    // 既定は dryRun（明示的に false を渡したときだけ実送信）
+    const dryRun = req.body?.dryRun !== false;
+    const dateJst = req.body?.date ? String(req.body.date) : null;
+    if (dateJst && !/^\d{4}-\d{2}-\d{2}$/.test(dateJst)) {
+      return res.status(400).json({ ok: false, error: 'invalid_date' });
+    }
+
+    const summary = await pushScheduler.runSlot(slot, { dryRun, dateJst });
+    res.json({ ok: true, summary });
+  } catch (e) {
+    console.error('POST /api/push/run-slot error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });
@@ -2884,6 +2941,9 @@ async function start() {
     console.log(`🔔 Web Push: ${pushClient.isConfigured() ? '有効' : '無効（VAPID_* 未設定）'}`);
     const _tzOff = new Date().getTimezoneOffset();
     console.log(`🕐 タイムゾーン: ${process.env.TZ || '(TZ 未設定)'} / offset ${_tzOff}分${_tzOff === -540 ? ' [JST]' : ' ★JSTではない'}`);
+    // 定期通知（13:00 / 21:45 JST）。起動時キャッチアップも中で行う。
+    // ★slot 判定はサーバのローカル時刻なので TZ=Asia/Tokyo が前提。
+    pushScheduler.start();
     if (IS_DEV) console.log(`   開発モード: OTPはサーバーログ＆画面にも表示されます\n`);
   });
 
