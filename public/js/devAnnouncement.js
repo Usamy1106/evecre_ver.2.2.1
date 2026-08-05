@@ -19,7 +19,7 @@ export const DEV_ANNOUNCEMENT = {
       imageUrl: '/images/announcements/announcement-image-link.webp',
     },
     {
-      body: 'ミッションの詳細ページでメンバー同士がやり取りできるようになりました。',
+      body: 'ミッションの詳細ページでメンバー同士のやり取りができるようになりました。',
       imageUrl: '/images/announcements/announcement-image-chat.webp',
     },
     {
