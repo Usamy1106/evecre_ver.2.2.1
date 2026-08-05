@@ -90,6 +90,12 @@
     }
     #loading-screen.hide { opacity: 0; pointer-events: none; }
 
+    /* スクロールバーを隠す（スクロール自体は有効のまま）。
+       山スクロール窓（透明なので細いバーだけが宙に浮いて見える）とメインボード本体で使う。
+       Tailwind CDN のユーティリティには無いクラスなのでここで定義している。 */
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+
     /* standalone（ホーム画面から起動した PWA）のホームインジケータを避ける。
        ブラウザ表示では env() が 0 なので Tailwind の bottom-10 と同じ見た目になる。
        Tailwind のユーティリティに勝たせるため !important を付けている。 */
