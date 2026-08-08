@@ -1575,6 +1575,7 @@ const _LOG_LABELS = {
   member_approved:        'メンバーを承認した',
   member_removed:         'メンバーを除名した',
   member_left:            'イベントを脱退した',
+  owner_transferred:      'オーナー権限を引き継いだ',
   claim_applied:          '担当に応募した',
   claim_unapplied:        '応募を取り消した',
   claim_selected:         '担当を選定した',

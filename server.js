@@ -1035,6 +1035,103 @@ app.post('/api/account/change-password/confirm', requireAuth, async (req, res) =
 });
 
 // アバター変更
+// ===== アカウント削除（退会）=====
+//
+// プライバシーポリシー第7項・第10項、利用規約第14条に対応する。
+// 「アカウントの削除は設定画面からも行える」と明記しているため、この導線が実体。
+//
+// ★所属イベントの扱い（ポリシー第7項の記載と揃えること）:
+//   - 自分がオーナーで他にメンバーがいない → イベントごと完全削除（残骸を残さない）
+//   - 自分がオーナーで他にメンバーがいる   → オーナーを引き継いでイベントは残す
+//     （「他のメンバーの利用のために残ることがあります」に対応）
+//   - 自分がオーナーでない                 → members から自分を外すだけ
+//
+// ★新しいコレクションを足したら、ここの消去にも追加すること
+//   （イベント削除の後始末と対になっている。CLAUDE.md「イベント削除時のデータ消去」参照）
+app.delete('/api/account', requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const events = await eventStore.listEventsForUser(userId);
+    const summary = { eventsDeleted: 0, eventsTransferred: 0, eventsLeft: 0 };
+
+    for (const p of events) {
+      const others = (p.members || []).filter(m => m.userId !== userId);
+      const isOwner = p.ownerId === userId;
+
+      if (isOwner && others.length === 0) {
+        // 誰も使っていないイベント → 関連データごと完全に消す
+        // （R2 の提出画像は実体が残るため、submissions を消す前に逆引きして削除する）
+        try {
+          const subs = await submissionStore.getSubmissionsForProject(p.id);
+          for (const mid of Object.keys(subs)) {
+            const s = subs[mid];
+            if (s && s.format === 'image' && s.content) {
+              const key = r2.urlToKey(s.content);
+              if (key) r2.deleteObject(key).catch(e => console.warn('[r2] submission image delete warn:', e.message));
+            }
+          }
+        } catch (e) { console.warn('[account-delete] R2 cleanup warn:', e.message); }
+
+        await eventStore.deleteEvent(p.id);
+        await submissionStore.deleteAllForProject(p.id);
+        await notifStore.deleteByEventId(p.id);
+        await eventLogStore.deleteByProject(p.id);
+        await inviteStore.deleteForProject(p.id);
+        await chatStore.deleteAllForEvent(p.id);
+        eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
+        summary.eventsDeleted++;
+        continue;
+      }
+
+      // 他のメンバーがいる → 自分を外す。オーナーなら引き継ぐ
+      p.members = others;
+      if (isOwner) {
+        // 引き継ぎ先は「管理者権限を持つ最古参」→ いなければ「最古参」
+        const roles = eventStore.getRoles(p);
+        const canManageIds = new Set(roles.filter(r => r.canManage).map(r => r.id));
+        const sorted = [...others].sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+        const heir = sorted.find(m =>
+          (eventStore.getMemberRoleIds(p, m.userId) || []).some(rid => canManageIds.has(rid))
+        ) || sorted[0];
+
+        p.ownerId = heir.userId;
+        // owner ロールも移す（owner は付け外し禁止の特別ロールなので明示的に付け替える）。
+        // ★setMemberRoleIds は roles[0] を後方互換の role にコピーするため、owner を先頭に置く。
+        const heirRoles = (eventStore.getMemberRoleIds(p, heir.userId) || []).filter(r => r !== 'owner');
+        eventStore.setMemberRoleIds(p, heir.userId, ['owner', ...heirRoles]);
+
+        await eventStore.saveEvent(p);
+        eventBus.broadcast(p.id, 'memberLeft', { eventId: p.id, userId });
+        logServerEvent(p.id, heir.userId, 'owner_transferred', { from: userId, reason: 'account_deleted' });
+        summary.eventsTransferred++;
+      } else {
+        await eventStore.saveEvent(p);
+        eventBus.broadcast(p.id, 'memberLeft', { eventId: p.id, userId });
+        logServerEvent(p.id, userId, 'member_left', { reason: 'account_deleted' });
+        summary.eventsLeft++;
+      }
+    }
+
+    // アバター画像（R2 にある場合のみ。data: URL や Google の picture は対象外）
+    const avatarKey = r2.urlToKey(req.user.avatarUrl);
+    if (avatarKey) r2.deleteObject(avatarKey).catch(e => console.warn('[r2] avatar delete warn:', e.message));
+
+    // ユーザーに紐づくデータを消去
+    await pushStore.deleteByUserId(userId);
+    await notifStore.clearAll(userId);
+    await eventLogStore.deleteByUser(userId);
+    await sessionStore.deleteAllForUser(userId);
+    await userStore.remove(userId);
+
+    res.clearCookie(SESSION_COOKIE, { path: '/' });
+    console.log(`[account-delete] user=${userId} ${JSON.stringify(summary)}`);
+    res.json({ ok: true, summary });
+  } catch (e) {
+    console.error('DELETE /api/account error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
 app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
   try {
     const dataUrl = String(req.body?.dataUrl || '');

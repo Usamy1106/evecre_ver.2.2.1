@@ -49,13 +49,87 @@ export function renderAccount(container) {
           ${_notificationSection()}
         </div>
 
-        <button id="acc-logout" class="w-full py-3 rounded-xl text-[14px] font-bold text-[#EE3E12] bg-white border border-[#E1DFDC]">
+        <button id="acc-logout" class="w-full py-3 rounded-xl text-[14px] font-bold text-[#EE3E12] bg-white border border-[#E1DFDC] mb-8">
           ログアウト
         </button>
+
+        ${_dangerZoneSection()}
       </main>
     </div>`;
 
   _bindEvents();
+}
+
+// ----- セクション: アカウント削除（退会）-----
+// 取り消せない操作なので、ログアウトから距離を置いて最下部に置き、
+// 押した先で必ず確認ダイアログを出す（_confirmAndDeleteAccount）。
+
+function _dangerZoneSection() {
+  return `
+    <div class="border-t border-[#E1DFDC] pt-6">
+      <p class="text-[12px] text-[#A7AAAC] font-bold mb-2">アカウントの削除</p>
+      <p class="text-[11px] text-[#A7AAAC] leading-relaxed mb-3">
+        アカウントと、あなたに紐づくデータを削除します。この操作は取り消せません。
+      </p>
+      <button id="acc-delete" class="w-full py-3 rounded-xl text-[13px] font-bold text-[#EE3E12] bg-white border border-[#EE3E12]">
+        アカウントを削除する
+      </button>
+    </div>`;
+}
+
+/**
+ * 削除前に「何が起きるか」を具体的に示してから確認を取る。
+ * 件数は state.events（自分が所属するイベント）から数える。
+ */
+async function _confirmAndDeleteAccount() {
+  const me = state.currentUser?.id;
+  const events = state.events || [];
+  const soloOwned = events.filter(p => p.ownerId === me && (p.members || []).filter(m => m.userId !== me).length === 0);
+  const sharedOwned = events.filter(p => p.ownerId === me && (p.members || []).filter(m => m.userId !== me).length > 0);
+  const joined = events.filter(p => p.ownerId !== me);
+
+  const lines = ['この操作は取り消せません。'];
+  if (soloOwned.length)   lines.push(`・あなただけのイベント ${soloOwned.length} 件は、ミッションやチャットごと完全に削除されます`);
+  if (sharedOwned.length) lines.push(`・他のメンバーがいるイベント ${sharedOwned.length} 件は残り、管理者権限は他のメンバーへ引き継がれます`);
+  if (joined.length)      lines.push(`・参加中のイベント ${joined.length} 件からは退出します`);
+  lines.push('・通知の設定、操作履歴、プロフィール画像も削除されます');
+
+  const ok = await showConfirmDialog({
+    title: 'アカウントを削除しますか？',
+    message: lines.join('\n'),
+    confirmLabel: '削除する',
+    cancelLabel: 'キャンセル',
+    destructive: true,
+  });
+  if (!ok) return;
+
+  // 取り消せないので二段階で確認する
+  const ok2 = await showConfirmDialog({
+    title: '本当によろしいですか？',
+    message: '削除すると元に戻せません。\n同じメールアドレスで登録し直しても、これまでのデータは復元されません。',
+    confirmLabel: '完全に削除する',
+    cancelLabel: 'やめる',
+    destructive: true,
+  });
+  if (!ok2) return;
+
+  const btn = document.getElementById('acc-delete');
+  if (btn) { btn.disabled = true; btn.textContent = '削除中…'; btn.style.opacity = '0.6'; }
+
+  try {
+    const r = await api.deleteAccount();
+    if (!r.ok) {
+      window._app?.showToast(r.error || 'アカウントを削除できませんでした', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'アカウントを削除する'; btn.style.opacity = '1'; }
+      return;
+    }
+    // サーバー側で Cookie は破棄済み。クライアントの状態も完全に初期化して入口へ戻す。
+    state.resetAfterAccountDeleted();
+  } catch (e) {
+    console.error('[account] 削除失敗:', e);
+    window._app?.showToast('ネットワークエラーが発生しました', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'アカウントを削除する'; btn.style.opacity = '1'; }
+  }
 }
 
 // ----- セクション: 未認証バナー -----
@@ -310,6 +384,7 @@ function _bindEvents() {
   const sec = state.accountScreen;
 
   document.getElementById('acc-logout')?.addEventListener('click', () => state.logout());
+  document.getElementById('acc-delete')?.addEventListener('click', () => _confirmAndDeleteAccount());
 
   // --- 通知（Web Push）---
   // 購読状態の取得は非同期なので、初回は未取得のまま描画し、判明したら再描画する。

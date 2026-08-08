@@ -390,6 +390,34 @@ export const state = {
     this.render();
   },
 
+  // --- アカウント削除後の後始末 ---
+  // サーバー側でセッション Cookie は破棄済み。ログアウトと違い「戻る先のアカウントが
+  // 存在しない」ので、下書きやキャッシュも含めて完全に初期化してから入口へ戻す。
+  resetAfterAccountDeleted() {
+    try { window.google?.accounts?.id?.disableAutoSelect?.(); } catch (_) {}
+    disconnectRealtime();
+    this.currentUser = null;
+    this.events = [];
+    this.folders = [];
+    this.notifications = [];
+    this.selectedEventId = null;
+    this.selectedFolderId = null;
+    this.selectedMissionId = null;
+    this.missionChat = null;
+    this.accountScreen = {};
+    this.signup = null;
+    this.authDraft  = { username: '', email: '', password: '' };
+    this.loginDraft = { identifier: '', password: '' };
+    this.authErrors = {};
+    this.pendingInviteToken = null;
+    this.inviteContextForAuth = null;
+    this.pendingApprovalMessage = null;
+    this.pendingMissionLink = null;
+    this.currentView = 'CREATE_ACCOUNT_INFO';
+    this.render();
+    setTimeout(() => window._app?.showToast?.('アカウントを削除しました', 'info'), 100);
+  },
+
   // --- 保存（楽観的更新：バックグラウンドで保存）---
   // save() は 400ms のトレーリングデバウンス。チェックリストの連続チェックなど
   // 短時間に何度も呼ばれる操作で、毎回「全イベント全文の PUT + SSE 全文ブロードキャスト」が

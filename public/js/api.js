@@ -261,6 +261,13 @@ export const api = {
     return json || { ok: false };
   },
 
+  // ----- アカウント削除（退会）-----
+  // 取り消せない操作。呼ぶ前に必ず showConfirmDialog で確認を取ること。
+  async deleteAccount() {
+    const { json } = await _send('DELETE', '/api/account');
+    return json || { ok: false, error: 'ネットワークエラー' };
+  },
+
   // ----- アバター -----
   async changeAvatar(dataUrl) {
     const { json } = await _send('POST', '/api/account/change-avatar', { dataUrl });
