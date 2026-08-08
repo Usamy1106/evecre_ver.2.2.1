@@ -14,6 +14,7 @@ import { renderMainBoard }          from './views/mainBoard.js';
 import { renderCreateAccountInfo, renderLogin } from './views/auth.js';
 import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
+import { renderLegal } from './views/legal.js';
 import {
   renderMissionDetail,
   sendChatMessage, deleteChatMessage, toggleChatReaction, openChatEmojiPicker,
@@ -58,6 +59,7 @@ registerRenderer('CREATE_ACCOUNT_INFO',   renderCreateAccountInfo);
 registerRenderer('LOGIN',                 renderLogin);
 registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);
+registerRenderer('LEGAL',                 renderLegal);
 registerRenderer('ACCOUNT',               renderAccount);
 registerRenderer('HOME',                  renderHome);
 registerRenderer('CREATE_EVENT_INFO',   renderCreateEventInfo);

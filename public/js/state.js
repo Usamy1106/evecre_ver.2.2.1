@@ -44,6 +44,8 @@ export const state = {
   pendingApprovalMessage: null,        // 承認待ち中メッセージ（HOME で表示）
   inviteContextForAuth: null,          // アカウント作成画面で「○○に招待されています」案内表示用
   inviteLinkError: null,               // 無効な招待リンクで来た時のエラーメッセージ
+  legalDoc: null,                      // LEGAL ビューで表示中の文書 'terms' | 'privacy'
+  legalReturnView: null,               // LEGAL を閉じたときに戻るビュー
   mainBoardTab: 'MAIN',
   _infoModalShownForEvent: null,
   _purposeReminderCheckedForEvent: null, // 目的リマインドモーダルのチェックをこのイベントで実施済みか（セッション1回）
@@ -518,6 +520,25 @@ export const state = {
     this.currentView = view;
     this.mainBoardTab = 'MAIN';
     this.missionFilterTag = null;
+    this.render();
+    window.scrollTo(0, 0);
+  },
+
+  // --- 法務ドキュメント（利用規約 / プライバシーポリシー）---
+  // 本文は public/legal/*.md にあり、views/legal.js が fetch して描画する。
+  // 認証前（アカウント作成中）からも開くため、setView の id 引数ではなく専用フィールドで持つ。
+  openLegal(slug) {
+    this.legalDoc = slug;
+    this.legalReturnView = this.currentView;
+    this.currentView = 'LEGAL';
+    this.render();
+    window.scrollTo(0, 0);
+  },
+
+  closeLegal() {
+    this.currentView = this.legalReturnView || 'CREATE_ACCOUNT_INFO';
+    this.legalDoc = null;
+    this.legalReturnView = null;
     this.render();
     window.scrollTo(0, 0);
   },

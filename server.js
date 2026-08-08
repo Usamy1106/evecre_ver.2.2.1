@@ -142,7 +142,9 @@ app.use(require('express').static(require('path').join(__dirname, 'public'), {
   etag: true,
   lastModified: true,
   setHeaders: (res, filePath) => {
-    if (/\.(js|html|css)$/.test(filePath)) {
+    // .md は法務ドキュメント（public/legal/）の実体。改訂したら即座に反映させたいので
+    // JS/HTML/CSS と同じ no-cache 扱いにする（古い規約が配信され続けるのを防ぐ）。
+    if (/\.(js|html|css|md)$/.test(filePath)) {
       if (IS_DEV) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
