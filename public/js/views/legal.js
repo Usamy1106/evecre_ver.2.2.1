@@ -5,7 +5,8 @@
 // 遷移：state.openLegal('terms' | 'privacy') → LEGAL ビュー
 //       戻るボタンで直前のビューへ復帰（state.legalReturnView）
 
-import { state } from '../state.js';
+import { state }    from '../state.js';
+import { mdToHtml } from '../markdown.js';
 
 // slug → { file, title }。増やすときはここと public/legal/ の両方に足す。
 export const LEGAL_DOCS = {
@@ -19,118 +20,6 @@ const _cache = new Map();
 function _esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-/**
- * インライン記法（太字・リンク）を HTML にする。
- * ★必ず _esc 済みの文字列に対して呼ぶこと（HTML を先に無害化してから装飾を足す）。
- */
-function _inline(s) {
-  return s
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-[#484545]">$1</strong>')
-    // リンクは http(s) と / 始まりのみ許可（javascript: 等のスキームを混入させない）
-    .replace(
-      /\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
-      '<a href="$2" class="text-[#0CA1E3] underline" target="_blank" rel="noopener noreferrer">$1</a>',
-    );
-}
-
-/**
- * 最小限の Markdown → HTML 変換。
- * 対応記法は public/legal/README.md に明記したものだけ（外部ライブラリを足さない方針）。
- * @param {string} md
- * @returns {string} HTML
- */
-export function mdToHtml(md) {
-  const lines = String(md || '').replace(/\r\n?/g, '\n').split('\n');
-  const out = [];
-  let i = 0;
-
-  const flushParagraph = (buf) => {
-    if (buf.length === 0) return;
-    out.push(`<p class="text-[13px] text-[#484545] leading-relaxed mb-3">${_inline(buf.join('<br>'))}</p>`);
-    buf.length = 0;
-  };
-
-  let para = [];
-
-  while (i < lines.length) {
-    const raw = lines[i];
-    const line = _esc(raw.trimEnd());
-
-    // 水平線
-    if (/^---+$/.test(line.trim())) {
-      flushParagraph(para);
-      out.push('<hr class="my-5 border-t border-[#E1DFDC]">');
-      i++; continue;
-    }
-
-    // 見出し
-    const h = line.match(/^(#{1,3})\s+(.*)$/);
-    if (h) {
-      flushParagraph(para);
-      const lv = h[1].length;
-      const cls = lv === 1 ? 'heading-l mt-2 mb-4'
-                : lv === 2 ? 'heading-r mt-6 mb-2'
-                :            'heading-rs mt-4 mb-2';
-      out.push(`<h${lv} class="${cls} text-[#484545] font-bold">${_inline(h[2])}</h${lv}>`);
-      i++; continue;
-    }
-
-    // 表：ヘッダ行の次が区切り行（|---|---|）のときだけ表として扱う
-    if (line.trim().startsWith('|') && /^\s*\|[\s:|-]+\|\s*$/.test(_esc(lines[i + 1] || ''))) {
-      flushParagraph(para);
-      const cells = (s) => s.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-      const head = cells(line);
-      i += 2;
-      const rows = [];
-      while (i < lines.length && lines[i].trim().startsWith('|')) {
-        rows.push(cells(_esc(lines[i].trimEnd())));
-        i++;
-      }
-      out.push(`
-        <div class="overflow-x-auto mb-4">
-          <table class="w-full text-[12px] border-collapse">
-            <thead><tr>${head.map(c => `<th class="border border-[#E1DFDC] bg-[#F5F3F0] px-2 py-1.5 text-left font-bold text-[#484545]">${_inline(c)}</th>`).join('')}</tr></thead>
-            <tbody>${rows.map(r => `<tr>${r.map(c => `<td class="border border-[#E1DFDC] px-2 py-1.5 align-top text-[#484545]">${_inline(c)}</td>`).join('')}</tr>`).join('')}</tbody>
-          </table>
-        </div>`);
-      continue;
-    }
-
-    // 箇条書き / 番号付きリスト（連続する行をまとめて1つのリストに）
-    const isUl = /^\s*[-*]\s+/.test(line);
-    const isOl = /^\s*\d+\.\s+/.test(line);
-    if (isUl || isOl) {
-      flushParagraph(para);
-      const tag = isUl ? 'ul' : 'ol';
-      const re  = isUl ? /^\s*[-*]\s+/ : /^\s*\d+\.\s+/;
-      const items = [];
-      while (i < lines.length && re.test(_esc(lines[i]))) {
-        items.push(_inline(_esc(lines[i].trimEnd()).replace(re, '')));
-        i++;
-      }
-      const listCls = isUl ? 'list-disc' : 'list-decimal';
-      out.push(`<${tag} class="${listCls} pl-5 mb-3 space-y-1 text-[13px] text-[#484545] leading-relaxed">${items.map(t => `<li>${t}</li>`).join('')}</${tag}>`);
-      continue;
-    }
-
-    // 空行 → 段落の区切り
-    if (line.trim() === '') { flushParagraph(para); i++; continue; }
-
-    // 引用（> ）は注記として表示
-    const q = line.match(/^&gt;\s?(.*)$/);
-    if (q) {
-      flushParagraph(para);
-      out.push(`<p class="text-[12px] text-[#A7AAAC] leading-relaxed border-l-2 border-[#E1DFDC] pl-3 mb-3">${_inline(q[1])}</p>`);
-      i++; continue;
-    }
-
-    para.push(line);
-    i++;
-  }
-  flushParagraph(para);
-  return out.join('\n');
 }
 
 /**
