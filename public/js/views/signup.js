@@ -45,6 +45,7 @@ function _draft() {
       otp: '',
       otpError: '',
       otpSent: false,
+      otpSending: false,
       devCode: null,
       mailError: null,
       resendLeftSec: 0,
@@ -78,6 +79,28 @@ function _shell(inner, { back = null } = {}) {
         ${inner}
       </main>
     </div>`;
+}
+
+/**
+ * その画面が個別に表示しないエラーを、まとめて必ず出す。
+ *
+ * ★これが無いと「サーバーはエラーを返しているのに画面には何も出ない」状態になり、
+ *   ボタンを押しても無反応にしか見えない。実際にそれで詰まった
+ *   （新クライアントが username を送らない一方、古いサーバーが username 必須で
+ *   `errors.username` を返し、画面がそのキーを描画していなかった）。
+ *   知らないキーが増えても取りこぼさないよう、除外指定した以外は全部出す。
+ *
+ * @param {object} errors
+ * @param {string[]} handled  その画面が個別に描画済みのキー
+ */
+function _otherErrorsHtml(errors, handled = []) {
+  const skip = new Set([...handled, '_toLogin']);
+  const msgs = Object.entries(errors || {})
+    .filter(([k, v]) => !skip.has(k) && typeof v === 'string' && v.trim())
+    .map(([, v]) => v);
+  if (msgs.length === 0) return '';
+  return msgs.map(m =>
+    `<p class="text-[12px] text-[#EE3E12] font-bold mb-2 leading-relaxed">${_esc(m)}</p>`).join('');
 }
 
 // =====================================================
@@ -224,42 +247,77 @@ function _renderEmail(container, d) {
 // STEP 2：パスワード（ここで register とコード送信）
 // =====================================================
 
-/** パスワード強度（0〜3）。要件は8文字以上のみで、これは目安表示に使う。 */
-function _strength(pw) {
-  if (!pw || pw.length < 8) return 0;
-  let score = 1;
-  const kinds = [/[a-z]/, /[A-Z]/, /\d/, /[^\w]/].filter(re => re.test(pw)).length;
-  if (pw.length >= 12 || kinds >= 3) score = 2;
-  if (pw.length >= 12 && kinds >= 3) score = 3;
-  return score;
+// パスワード要件：8文字以上、かつ 英大文字/英小文字/数字/記号 のうち3種類以上。
+// ★server.js の validatePassword と同じ条件にすること（片方だけ変えると
+//   画面は通るのにサーバーで弾かれる、という噛み合わない状態になる）。
+const PW_MIN_LEN   = 8;
+const PW_MIN_KINDS = 3;
+
+/**
+ * パスワードの充足状況を返す。
+ * @returns {{lenOk:boolean, kinds:number, kindsOk:boolean, ok:boolean, score:number}}
+ */
+function _pwCheck(pw) {
+  const s = String(pw || '');
+  const lenOk = s.length >= PW_MIN_LEN;
+  const kinds = [/[A-Z]/, /[a-z]/, /\d/, /[^A-Za-z0-9]/].filter(re => re.test(s)).length;
+  const kindsOk = kinds >= PW_MIN_KINDS;
+  const ok = lenOk && kindsOk;
+  // メーターは「満たしていない=0 / 満たした=1 / 余裕あり=2,3」
+  const score = !ok ? 0 : (s.length >= 12 && kinds === 4) ? 3 : (s.length >= 12 || kinds === 4) ? 2 : 1;
+  return { lenOk, kinds, kindsOk, ok, score };
+}
+
+/** サーバーと同じ文言でエラーを返す（満たしていれば null） */
+function _pwError(pw) {
+  const c = _pwCheck(pw);
+  if (!pw) return 'パスワードを入力してください';
+  if (!c.lenOk)   return `パスワードは${PW_MIN_LEN}文字以上にしてください`;
+  if (!c.kindsOk) return `英大文字・英小文字・数字・記号のうち${PW_MIN_KINDS}種類以上を含めてください`;
+  return null;
 }
 
 function _renderPassword(container, d) {
-  const sc = _strength(d.password);
-  const label = ['8文字以上で入力してください', 'このままでも使えます', 'よい強度です', '強力なパスワードです'][sc];
+  const c  = _pwCheck(d.password);
+  const sc = c.score;
+  const label = ['要件を満たしていません', '使えます', 'よい強度です', '強力なパスワードです'][sc];
   const color = ['#D3D6D8', '#FFC300', '#9EDF05', '#9EDF05'][sc];
+  const mark = (okFlag) => okFlag
+    ? '<span class="text-[#9EDF05]">●</span>'
+    : '<span class="text-[#D3D6D8]">○</span>';
 
   container.innerHTML = _shell(`
     ${_dots(2)}
     <h1 class="heading-l text-[#484545] font-bold mb-2">パスワードを<br>設定してください</h1>
-    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">8文字以上であればOKです</p>
+    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">安全のため、次の条件を満たしてください</p>
 
     <div class="relative mb-2">
       <input id="su-password" type="password" autocomplete="new-password"
         class="input-field w-full px-4 py-3.5 pr-14 focus:outline-none ${d.errors.password ? 'ring-2 ring-[#EE3E12]' : ''}"
-        placeholder="8文字以上" value="${_esc(d.password)}" maxlength="100">
+        placeholder="${PW_MIN_LEN}文字以上" value="${_esc(d.password)}" maxlength="100">
       <button type="button" id="su-pw-toggle"
         class="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-[#A7AAAC] font-bold px-2 py-1">表示</button>
     </div>
 
     <!-- 強度メーター -->
-    <div id="su-pw-bars" class="flex gap-1.5 mb-1.5">
+    <div id="su-pw-bars" class="flex gap-1.5 mb-2">
       ${[1, 2, 3].map(i => `<div class="h-1 flex-1 rounded-full" style="background:${sc >= i ? color : '#E1DFDC'}"></div>`).join('')}
     </div>
-    <p id="su-pw-label" class="text-[11px] font-bold mb-2" style="color:${sc === 0 ? '#A7AAAC' : color}">${label}</p>
+    <p id="su-pw-label" class="text-[11px] font-bold mb-3" style="color:${sc === 0 ? '#A7AAAC' : color}">${label}</p>
+
+    <!-- 要件チェックリスト（何が足りないかを打ちながら分かるように） -->
+    <ul class="mb-3 space-y-1">
+      <li id="su-pw-req-len" class="text-[12px] font-bold ${c.lenOk ? 'text-[#484545]' : 'text-[#A7AAAC]'}">
+        ${mark(c.lenOk)} ${PW_MIN_LEN}文字以上
+      </li>
+      <li id="su-pw-req-kinds" class="text-[12px] font-bold ${c.kindsOk ? 'text-[#484545]' : 'text-[#A7AAAC]'}">
+        ${mark(c.kindsOk)} 英大文字・英小文字・数字・記号のうち${PW_MIN_KINDS}種類以上
+        <span class="text-[11px] text-[#A7AAAC]">（現在 ${c.kinds} 種類）</span>
+      </li>
+    </ul>
 
     ${d.errors.password ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.errors.password)}</p>` : ''}
-    ${d.errors._global ? `<p class="text-[12px] text-[#EE3E12] font-bold mb-2 leading-relaxed">${_esc(d.errors._global)}</p>` : ''}
+    ${_otherErrorsHtml(d.errors, ['password'])}
     ${d.errors._toLogin ? `
       <button id="su-to-login" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold underline mb-2">ログイン画面へ</button>` : ''}
 
@@ -296,21 +354,32 @@ function _renderPassword(container, d) {
 }
 
 function _updateStrength(d) {
-  const sc    = _strength(d.password);
+  const c     = _pwCheck(d.password);
+  const sc    = c.score;
   const color = ['#D3D6D8', '#FFC300', '#9EDF05', '#9EDF05'][sc];
-  const label = ['8文字以上で入力してください', 'このままでも使えます', 'よい強度です', '強力なパスワードです'][sc];
+  const label = ['要件を満たしていません', '使えます', 'よい強度です', '強力なパスワードです'][sc];
   document.querySelectorAll('#su-pw-bars > div').forEach((el, i) => {
     el.style.background = sc >= i + 1 ? color : '#E1DFDC';
   });
   const p = document.getElementById('su-pw-label');
   if (p) { p.textContent = label; p.style.color = sc === 0 ? '#A7AAAC' : color; }
+
+  const paint = (el, okFlag, text) => {
+    if (!el) return;
+    el.className = `text-[12px] font-bold ${okFlag ? 'text-[#484545]' : 'text-[#A7AAAC]'}`;
+    el.innerHTML = `<span class="${okFlag ? 'text-[#9EDF05]' : 'text-[#D3D6D8]'}">${okFlag ? '\u25cf' : '\u25cb'}</span> ${text}`;
+  };
+  paint(document.getElementById('su-pw-req-len'), c.lenOk, `${PW_MIN_LEN}文字以上`);
+  paint(document.getElementById('su-pw-req-kinds'), c.kindsOk,
+    `英大文字・英小文字・数字・記号のうち${PW_MIN_KINDS}種類以上`
+    + ` <span class="text-[11px] text-[#A7AAAC]">（現在 ${c.kinds} 種類）</span>`);
 }
 
 async function _submitRegister(d) {
   _syncDraftFromDom({ 'su-password': 'password' }, d);
   d.errors = {};
-  if (!d.password) { d.errors.password = 'パスワードを入力してください'; state.render(); return; }
-  if (d.password.length < 8) { d.errors.password = 'パスワードは8文字以上にしてください'; state.render(); return; }
+  const pwErr = _pwError(d.password);
+  if (pwErr) { d.errors.password = pwErr; state.render(); return; }
 
   _setSubmitting('su-pw-next', true, '作成中…');
   try {
@@ -337,9 +406,16 @@ async function _submitRegister(d) {
     state.pendingVerifyDevCode = null;
     state.pendingMailError     = null;
 
-    // アカウントが確定したので、続けてコードを送っておく
-    await _sendCode(d, { initial: true });
+    // ★先に STEP 3 へ進めてから、コード送信は背後で走らせる。
+    //   メール送信は外部 API への往復があり、待ってから遷移すると
+    //   「ボタンを押したのに数秒なにも起きない」ように見える。
+    d.otpSending = true;
     _goto(3);
+    _sendCode(d, { initial: true }).finally(() => {
+      d.otpSending = false;
+      // まだ STEP 3 にいるときだけ再描画する（先に進んでいたら触らない）
+      if (state.signup?.step === 3) state.render();
+    });
   } catch (e) {
     console.error('[signup] register 例外:', e);
     d.errors = { _global: 'ネットワークエラーが発生しました' };
@@ -383,7 +459,7 @@ function _renderOtp(container, d) {
     <p class="text-rs text-[#A7AAAC] mb-1 font-bold">
       <span class="text-[#0CA1E3]">${_esc(state.currentUser?.email || d.email)}</span> 宛に
     </p>
-    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">6桁のコードを送信しました</p>
+    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">${d.otpSending ? '6桁のコードを送信しています…' : '6桁のコードを送信しました'}</p>
 
     <!-- ★入力は「1本の input」のまま、見た目だけ6分割にしている。
          input を透明にしてマスの上に重ねることで、iOS のキーボード上部サジェスト

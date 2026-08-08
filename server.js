@@ -224,10 +224,23 @@ function validateEmail(email) {
   if (!EMAIL_RE.test(email)) return 'メールアドレスの形式が正しくありません';
   return null;
 }
+// パスワード要件：8文字以上、かつ 英大文字/英小文字/数字/記号 のうち3種類以上。
+// ★public/js/views/signup.js の _pwCheck と同じ条件にすること
+//   （片方だけ変えると、画面は通るのにサーバーで弾かれる状態になる）。
+const PW_MIN_LEN   = 8;
+const PW_MIN_KINDS = 3;
+
+function passwordKinds(pw) {
+  return [/[A-Z]/, /[a-z]/, /\d/, /[^A-Za-z0-9]/].filter(re => re.test(pw)).length;
+}
+
 function validatePassword(pw) {
   if (!pw) return 'パスワードを入力してください';
-  if (pw.length < 8)   return 'パスワードは8文字以上にしてください';
-  if (pw.length > 100) return 'パスワードが長すぎます';
+  if (pw.length < PW_MIN_LEN) return `パスワードは${PW_MIN_LEN}文字以上にしてください`;
+  if (pw.length > 100)        return 'パスワードが長すぎます';
+  if (passwordKinds(pw) < PW_MIN_KINDS) {
+    return `英大文字・英小文字・数字・記号のうち${PW_MIN_KINDS}種類以上を含めてください`;
+  }
   return null;
 }
 
