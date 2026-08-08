@@ -17,7 +17,7 @@ import { logEvent } from '../logger.js';
  * @param {Record<string, string>} idToKey  { 入力欄のid: draftのキー }
  * @param {object} draft
  */
-function _syncDraftFromDom(idToKey, draft) {
+export function _syncDraftFromDom(idToKey, draft) {
   for (const [id, key] of Object.entries(idToKey)) {
     const el = document.getElementById(id);
     if (el && typeof el.value === 'string') draft[key] = el.value;
@@ -318,7 +318,7 @@ export function renderLogin(container) {
 
 // ----- ヘルパ -----
 
-function _inviteContextBanner() {
+export function _inviteContextBanner() {
   const ctx = state.inviteContextForAuth;
   if (!ctx) return '';
   return `
@@ -332,19 +332,19 @@ function _inviteContextBanner() {
     </div>`;
 }
 
-function _esc(s) {
+export function _esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // iOS 判定（iPhone/iPad。iPadOS は MacIntel + タッチで判定）。
 // iOS は全ブラウザが WebKit のため、Google サインインで XHR ではなくフォーム POST を使う。
-function _isIOS() {
+export function _isIOS() {
   const ua = navigator.userAgent || '';
   return /iP(hone|ad|od)/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-function _setSubmitting(id, on, label) {
+export function _setSubmitting(id, on, label) {
   const btn = document.getElementById(id);
   if (!btn) return;
   btn.disabled = on;
@@ -380,7 +380,7 @@ async function _getGoogleConfig() {
  * Google ボタンを指定セクションにレンダーする
  * @param {'create'|'login'} mode - どちらの画面か
  */
-async function _setupGoogleSignIn(mode) {
+export async function _setupGoogleSignIn(mode, opts = {}) {
   const sectionId = mode === 'create' ? 'ca-google-section' : 'lg-google-section';
   const buttonId  = mode === 'create' ? 'ca-google-btn'     : 'lg-google-btn';
   const sectionEl = document.getElementById(sectionId);
@@ -425,18 +425,24 @@ async function _setupGoogleSignIn(mode) {
           const form = document.createElement('form');
           form.method = 'POST';
           form.action = '/api/auth/google';
-          const input = document.createElement('input');
-          input.type  = 'hidden';
-          input.name  = 'credential';
-          input.value = resp.credential;
-          form.appendChild(input);
+          const addField = (name, value) => {
+            const input = document.createElement('input');
+            input.type  = 'hidden';
+            input.name  = name;
+            input.value = value;
+            form.appendChild(input);
+          };
+          addField('credential', resp.credential);
+          // STEP 0 で同意した規約の版数も一緒に送る（この経路はリダイレクトで
+          // 画面が作り直されるため、あとから記録する術がない）
+          if (state.signup?.consentVersion) addField('consentVersion', state.signup.consentVersion);
           document.body.appendChild(form);
           form.submit();
           return;
         }
 
         try {
-          const r = await api.googleSignIn(resp.credential);
+          const r = await api.googleSignIn(resp.credential, state.signup?.consentVersion);
           console.log('[google-signin] レスポンス:', r);
           if (r.ok) {
             state.currentUser = r.user;
@@ -472,10 +478,13 @@ async function _setupGoogleSignIn(mode) {
       type:    'standard',
       theme:   'outline',
       size:    'large',
-      text:    'continue_with',
+      text:    opts.text || 'continue_with',
       shape:   'pill',
       logo_alignment: 'left',
-      width: 280,
+      // GIS が DOM を作るため自由なカスタムボタンにはできない。
+      // 指定できるのは幅・形・サイズ程度なので、幅だけ呼び出し側から渡せるようにする
+      // （アカウント作成の入口では主導線として広く出す。既定は従来どおり 280）。
+      width: opts.width || 280,
       locale: 'ja',
     });
 

@@ -58,6 +58,7 @@ const SESSION_COOKIE = 'eve_sess';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30日
 const OTP_TTL_MS     = 1000 * 60 * 10;             // 10分
 const OTP_MAX_TRIES  = 5;
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000;          // 再送クールダウン（ユーザー単位）
 const INVITE_COOKIE  = 'invite_token';
 const INVITE_COOKIE_MAX_AGE = 1000 * 60 * 60 * 24 * 7; // 7日
 const RESET_TTL_MS   = 30 * 60 * 1000; // 30分
@@ -112,10 +113,30 @@ const logLimiter = rateLimit({
   message: { ok: true },
 });
 
-/** OTP 検証・再送・パスワードリセット：5回 / 15分 / IP（より厳しく） */
+/** パスワードリセット・メール/パスワード変更：5回 / 15分 / IP（より厳しく） */
 const strictLimiter = rateLimit({
   windowMs:       15 * 60 * 1000,
   max:            5,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  skip:           _skipInDev,
+  message: { ok: false, error: 'リクエストが多すぎます。しばらく待ってから再試行してください。', code: 'rate_limited' },
+});
+
+/**
+ * 新規登録の OTP（送信・検証）専用：30回 / 15分 / IP。
+ *
+ * ★strictLimiter（5回/15分/IP）を使ってはいけない。
+ *   アカウント作成では「自動送信 → 入力ミス → 再送 → 再入力」で1人が容易に5回を超える。
+ *   さらに IP 単位のため、同じ学校の Wi-Fi から複数人が同時に登録すると
+ *   互いのカウントを潰し合い、全員が登録できなくなる（本サービスの主な利用シーン）。
+ *   コードの総当たりは users.otp.tries（OTP_MAX_TRIES=5、ユーザー単位）が、
+ *   再送の連打は OTP_RESEND_COOLDOWN_MS（ユーザー単位）が防ぐ。
+ *   ここは自動化された大量アクセスへの保険として緩く効かせる。
+ */
+const otpLimiter = rateLimit({
+  windowMs:       15 * 60 * 1000,
+  max:            30,
   standardHeaders: true,
   legacyHeaders:  false,
   skip:           _skipInDev,
@@ -162,13 +183,41 @@ app.use(require('express').static(require('path').join(__dirname, 'public'), {
 
 // ===== バリデーション =====
 
-const USERNAME_RE = /^[\p{L}\p{N}_\-]{2,20}$/u;
+// 表示名（ニックネーム）。半角スペースと全角スペースを許可している。
+// ★「山田 太郎」「Rina S」のような入力を弾かないため（アカウント作成では
+//   「みんなに表示される名前」として案内しており、姓名を空けて書く人が必ずいる）。
+// 呼び出し側で trim 済みのため、前後の空白は入り込まない。
+const USERNAME_RE = /^[\p{L}\p{N}_\- 　]{2,20}$/u;
 const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateUsername(name) {
   if (!name) return 'ユーザー名を入力してください';
   if (!USERNAME_RE.test(name)) return '2〜20文字の英数字・日本語・全角文字で入力してください（記号は - と _ のみ可）';
   return null;
+}
+
+/**
+ * 表示名が未指定のときの仮の名前を作る（アカウント作成の STEP 4 で本人が上書きする）。
+ * 新フローでは register の時点でまだ表示名を聞いていないため必要になる。
+ */
+async function generateTempUsername() {
+  for (let i = 0; i < 10; i++) {
+    const name = `ユーザー${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+    const taken = await getDb().collection('users').countDocuments({ username: name }, { limit: 1 });
+    if (!taken) return name;
+  }
+  return `ユーザー${crypto.randomBytes(3).toString('hex')}`;
+}
+
+/**
+ * 規約同意の記録を body から取り出す。
+ * バージョン文字列は画面（constants.js の CONSENT_VERSION）から送られてくるので、
+ * 長さだけ検証してそのまま保存する。同意がなければ null（＝記録しない）。
+ */
+function pickConsent(body) {
+  const v = String(body?.consentVersion ?? '').trim();
+  if (!v || v.length > 20) return null;
+  return { consentVersion: v, consentAcceptedAt: Date.now() };
 }
 function validateEmail(email) {
   if (!email) return 'メールアドレスを入力してください';
@@ -266,22 +315,47 @@ async function setVerificationOtp(user, purpose, extra = {}) {
     codeHash:  await bcrypt.hash(code, 8),
     expiresAt: Date.now() + OTP_TTL_MS,
     tries: 0,
+    lastSentAt: Date.now(),   // 再送クールダウンの判定に使う
     ...extra,
   };
   return code;
 }
 
+/**
+ * 再送クールダウンの残り時間（ミリ秒）。0 なら送ってよい。
+ * ★IP 単位のレート制限ではなくユーザー単位でここを見る（otpLimiter のコメント参照）。
+ */
+function otpResendWaitMs(user) {
+  const last = user?.otp?.lastSentAt;
+  if (!last) return 0;
+  return Math.max(0, OTP_RESEND_COOLDOWN_MS - (Date.now() - last));
+}
+
+/**
+ * OTP を照合する。
+ * error に加えて code を返す（クライアントで「期限切れ」と「不一致」の出し分けに使う）。
+ * @returns {{ok:boolean, otp?:object, error?:string, code?:'not_requested'|'expired'|'locked'|'mismatch'}}
+ */
 async function consumeOtp(user, purpose, inputCode) {
   const otp = user.otp;
-  if (!otp || otp.purpose !== purpose) return { ok: false, error: 'コードが要求されていません' };
-  if (Date.now() > otp.expiresAt)      return { ok: false, error: 'コードの有効期限が切れました。送り直してください' };
-  if (otp.tries >= OTP_MAX_TRIES)      return { ok: false, error: '入力回数の上限を超えました。送り直してください' };
+  if (!otp || otp.purpose !== purpose) {
+    return { ok: false, code: 'not_requested', error: 'コードが要求されていません' };
+  }
+  if (Date.now() > otp.expiresAt) {
+    return { ok: false, code: 'expired', error: 'コードの有効期限が切れました。送り直してください' };
+  }
+  if (otp.tries >= OTP_MAX_TRIES) {
+    return { ok: false, code: 'locked', error: '入力回数の上限を超えました。送り直してください' };
+  }
   otp.tries += 1;
   // tries の更新を即時永続化（失敗試行もカウント）
   await userStore.update(user.id, { otp });
   let ok = false;
   try { ok = await bcrypt.compare(String(inputCode || ''), otp.codeHash); } catch (_) {}
-  if (!ok) return { ok: false, error: 'コードが正しくありません' };
+  if (!ok) {
+    const left = Math.max(0, OTP_MAX_TRIES - otp.tries);
+    return { ok: false, code: 'mismatch', triesLeft: left, error: 'コードが正しくありません' };
+  }
   return { ok: true, otp };
 }
 
@@ -521,22 +595,38 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     const password =  req.body?.password ?? '';
 
     const errors = {};
-    const e1 = validateUsername(username); if (e1) errors.username = e1;
+    // ★username は任意。アカウント作成では表示名を OTP のあと（STEP 4）に聞くため、
+    //   この時点ではまだ受け取っていない。未指定なら仮の名前を入れておき、
+    //   STEP 4 の /api/account/change-username で本人が上書きする。
+    if (username) { const e1 = validateUsername(username); if (e1) errors.username = e1; }
     const e2 = validateEmail(email);       if (e2) errors.email    = e2;
     const e3 = validatePassword(password); if (e3) errors.password = e3;
     if (Object.keys(errors).length) return res.status(400).json({ ok: false, errors });
 
     const emailLower = email.toLowerCase();
     if (await userStore.emailExists(emailLower)) {
-      return res.status(409).json({ ok: false, errors: { email: 'このメールアドレスは既に登録されています' } });
+      const existing = await userStore.findByEmail(emailLower);
+      return res.status(409).json({
+        ok: false,
+        // Google で登録済みの場合はその旨を伝える（「登録できないが理由が分からない」を避ける）
+        code: existing?.googleSub && !existing?.passwordHash ? 'google_account' : 'email_taken',
+        errors: {
+          email: existing?.googleSub && !existing?.passwordHash
+            ? 'このメールアドレスは Google アカウントで登録済みです。「Googleではじめる」からログインしてください'
+            : 'このメールアドレスは既に登録されています',
+        },
+      });
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const id = crypto.randomBytes(8).toString('hex');
     const user = {
-      id, username, emailLower, passwordHash,
+      id,
+      username: username || await generateTempUsername(),
+      emailLower, passwordHash,
       isVerified: false,
       createdAt: Date.now(),
+      ...(pickConsent(req.body) || {}),
     };
     await userStore.insert(user);
 
@@ -549,13 +639,29 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 });
 
 // 認証コード再送
-app.post('/api/auth/resend-verification', strictLimiter, requireAuth, async (req, res) => {
+app.post('/api/auth/resend-verification', otpLimiter, requireAuth, async (req, res) => {
   try {
     if (req.user.isVerified) return res.json({ ok: true, alreadyVerified: true });
+
+    // ユーザー単位の再送クールダウン（連打とメール爆撃の防止）
+    const wait = otpResendWaitMs(req.user);
+    if (wait > 0) {
+      return res.status(429).json({
+        ok: false, code: 'cooldown',
+        retryAfterSec: Math.ceil(wait / 1000),
+        error: `再送はしばらく待ってからお試しください`,
+      });
+    }
+
     const code = await setVerificationOtp(req.user, 'verify');
     await userStore.update(req.user.id, { otp: req.user.otp });
     const mail = await sendOtpEmail(req.user.emailLower, code, '新規登録');
-    res.json({ ok: true, devCode: mail.devCode, mailError: mail.ok ? null : mail.error });
+    res.json({
+      ok: true,
+      devCode: mail.devCode,
+      mailError: mail.ok ? null : mail.error,
+      cooldownSec: Math.ceil(OTP_RESEND_COOLDOWN_MS / 1000),
+    });
   } catch (e) {
     console.error('resend-verification error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
@@ -563,12 +669,13 @@ app.post('/api/auth/resend-verification', strictLimiter, requireAuth, async (req
 });
 
 // メール認証コード照合
-app.post('/api/auth/verify-email', strictLimiter, requireAuth, async (req, res) => {
+app.post('/api/auth/verify-email', otpLimiter, requireAuth, async (req, res) => {
   try {
     const code = String(req.body?.code ?? '').trim();
     if (req.user.isVerified) return res.json({ ok: true, alreadyVerified: true });
     const r = await consumeOtp(req.user, 'verify', code);
-    if (!r.ok) return res.status(400).json({ ok: false, error: r.error });
+    // code を返してクライアントで「期限切れ」と「不一致」を出し分けられるようにする
+    if (!r.ok) return res.status(400).json({ ok: false, error: r.error, code: r.code, triesLeft: r.triesLeft });
     req.user.isVerified = true;
     delete req.user.otp;
     await userStore.update(req.user.id, { isVerified: true, otp: null });
@@ -668,10 +775,16 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
 
     let user = await userStore.findByEmailOrGoogleSub(email, googleSub);
 
+    // 規約同意は STEP 0 で取っている。JSON 経路・iOS のフォーム POST 経路の
+    // どちらも body に consentVersion を載せてくるので、同じ関数で拾う。
+    const consent = pickConsent(req.body);
+
     if (user) {
       const updates = {};
       if (!user.googleSub) updates.googleSub = googleSub;
       updates.isVerified = true;
+      // 既に同意記録があれば上書きしない（初回同意の日時を保つ）
+      if (consent && !user.consentVersion) Object.assign(updates, consent);
       if (pictureUrl && (!user.avatarUrl || !String(user.avatarUrl).startsWith('data:'))) {
         updates.avatarUrl = pictureUrl;
       }
@@ -697,6 +810,7 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
         isVerified: true,
         avatarUrl: pictureUrl,
         createdAt: Date.now(),
+        ...(consent || {}),
       };
       await userStore.insert(user);
     }

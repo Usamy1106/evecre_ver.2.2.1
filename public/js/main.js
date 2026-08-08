@@ -11,7 +11,8 @@ import { renderCreateEventInfo, renderCreateEventDates, renderCreateEventInvite 
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
 import { renderMainBoard }          from './views/mainBoard.js';
-import { renderCreateAccountInfo, renderLogin } from './views/auth.js';
+import { renderLogin } from './views/auth.js';
+import { renderSignup } from './views/signup.js';
 import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
 import { renderLegal } from './views/legal.js';
@@ -55,7 +56,9 @@ import {
 } from './push.js';
 
 // ===== ビューレンダラーの登録 =====
-registerRenderer('CREATE_ACCOUNT_INFO',   renderCreateAccountInfo);
+// アカウント作成は STEP 0〜3 の段階フロー（views/signup.js）。
+// 旧1画面版 renderCreateAccountInfo は auth.js に残っているが未使用。
+registerRenderer('CREATE_ACCOUNT_INFO',   renderSignup);
 registerRenderer('LOGIN',                 renderLogin);
 registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);

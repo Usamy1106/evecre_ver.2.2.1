@@ -254,8 +254,10 @@ export const api = {
     const { json } = await _send('GET', '/api/config');
     return json || { ok: false };
   },
-  async googleSignIn(credential) {
-    const { json } = await _send('POST', '/api/auth/google', { credential });
+  // consentVersion はアカウント作成の STEP 0 で同意した規約の版数。
+  // 既存ユーザーのログイン時は undefined でよい（サーバー側で無視される）。
+  async googleSignIn(credential, consentVersion) {
+    const { json } = await _send('POST', '/api/auth/google', { credential, consentVersion });
     return json || { ok: false };
   },
 

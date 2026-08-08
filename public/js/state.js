@@ -44,6 +44,7 @@ export const state = {
   pendingApprovalMessage: null,        // 承認待ち中メッセージ（HOME で表示）
   inviteContextForAuth: null,          // アカウント作成画面で「○○に招待されています」案内表示用
   inviteLinkError: null,               // 無効な招待リンクで来た時のエラーメッセージ
+  signup: null,                        // アカウント作成フロー（views/signup.js）の下書き
   legalDoc: null,                      // LEGAL ビューで表示中の文書 'terms' | 'privacy'
   legalReturnView: null,               // LEGAL を閉じたときに戻るビュー
   mainBoardTab: 'MAIN',
