@@ -128,14 +128,20 @@ export function pushSetupContentHtml(phase) {
   const st = getPushState();
   if (st === 'denied') {
     return `
-      <p class="text-[28px] text-center mb-2">🔔</p>
+      <p class="text-[28px] text-center mb-2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg></p>
       <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知がブロックされています</h3>
       <p class="text-[12px] text-[#484545] font-bold text-center mb-5 leading-relaxed">
         ブラウザ（または端末）の設定で、<br>このサイトの通知を「許可」に変更すると受け取れます。
       </p>`;
   }
   return `
-    <p class="text-[28px] text-center mb-2">🔔</p>
+    <p class="text-[28px] text-center mb-2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg></p>
     <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知を受け取りますか？</h3>
     <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
       ミッションを割り当てられたときや<br>締め切りが近いときにお知らせします
@@ -281,7 +287,10 @@ export function pushBannerHtml() {
   if (!shouldShowPushBanner()) return '';
   return `
     <div class="bg-[#EBF7FE] border border-[#0CA1E3]/40 rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
-      <span class="text-[20px] flex-shrink-0">🔔</span>
+      <span class="text-[20px] flex-shrink-0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg></span>
       <button id="push-banner-open" class="flex-1 text-left">
         <p class="text-[13px] font-bold text-[#0CA1E3] leading-snug">通知をオンにしませんか？</p>
         <p class="text-[11px] text-[#484545] font-bold leading-snug mt-0.5">
