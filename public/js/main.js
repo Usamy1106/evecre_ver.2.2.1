@@ -1551,6 +1551,19 @@ const _LOG_LABELS = {
   // ★signup_completed は register 直後のまま据え置き（既存の集計との互換のため）。
   //   オンボーディングの完走はこちらで測る。両方あると「登録したが完走しなかった人」も分かる。
   onboarding_completed:   'アカウント作成を完了した',
+
+  // アカウント作成フロー（views/signup.js）。どのステップで落ちるかを追うため、
+  // 画面表示・完了・スキップを別イベントにしている。
+  // props の step は 'step1'〜'step9' / 'complete'（サーバーの ONBOARDING_STEPS と同じ値域）。
+  signup_started:         'アカウント作成を開始',
+  signup_step_viewed:     'アカウント作成の画面を表示',
+  signup_step_completed:  'アカウント作成の項目を入力',
+  signup_step_skipped:    'アカウント作成の項目をスキップ',
+  signup_email_changed:   'アカウント作成中にメールを変更',
+  otp_sent:               '確認コードを送信',
+  otp_verified:           '確認コードを認証',
+  otp_failed:             '確認コードの入力に失敗',
+  otp_deferred:           'メール認証をあとまわしにした',
   logout:                 'ログアウトした',
   event_create_started:   'イベント作成を開始',
   project_info_completed: 'イベント情報を入力',
@@ -1573,6 +1586,8 @@ const _LOG_LABELS = {
   // Web Push（iOS はホーム画面追加が必須なので、どこで脱落するかを追う）
   push_prompt_shown:      '通知の案内を表示',
   push_ios_guide_shown:   'iOSのホーム画面追加案内を表示',
+  push_enable_tap:        '通知をオンにするを押した',
+  push_disable_tap:       '通知をオフにするを押した',
   push_enabled:           '通知をオンにした',
   push_denied:            '通知を拒否した',
   push_disabled:          '通知をオフにした',

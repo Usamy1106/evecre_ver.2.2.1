@@ -174,7 +174,29 @@ const EVENT_SUMMARY_PIPELINE = [
 // ── ビュー5: ユーザー別 活動量×成果 ──────────────────────────
 // 1ドキュメント=1ユーザー。利用状況と作成/完了ミッション数を1行に合成。
 const USER_SUMMARY_PIPELINE = [
-  { $project: { username: 1 } },
+  // ★$project で絞るので、users に列を足したらここにも足すこと。
+  //   足し忘れるとビューに出てこない（アカウント作成のアンケート項目で実際にあった）。
+  { $project: {
+      username: 1,
+      createdAt: 1,
+      isVerified: 1,
+      // 認証方法は googleSub の有無から導出する（authProvider は保存していない。
+      // 「Google 登録後にパスワードも設定した人」でどちらを入れるか曖昧になるため）
+      authProvider: { $cond: [ { $ifNull: [ '$googleSub', false ] }, 'google', 'password' ] },
+      // アカウント作成時のアンケート
+      acquisitionChannel:      1,
+      acquisitionChannelOther: 1,
+      acquisitionInviteEventId: 1,
+      eventExperience:         1,
+      workStylePlanning:       1,
+      workStyleSocial:         1,
+      notificationPreference:  1,
+      consentVersion:          1,
+      // オンボーディングの到達状況
+      onboardingStep:      { $ifNull: [ '$onboarding.currentStep', null ] },
+      onboardingCompleted: { $cond: [ { $ifNull: [ '$onboarding.completedAt', false ] }, true, false ] },
+      onboardingAnswered:  { $size: { $ifNull: [ '$onboarding.completedSteps', [] ] } },
+  } },
   { $lookup: {
       from: 'event_logs',
       let: { uid: '$_id' },
@@ -222,12 +244,53 @@ const USER_SUMMARY_PIPELINE = [
   { $project: { _b: 0, _created: 0, _completed: 0 } },
 ];
 
+// ── signup_funnel（1行 = 1サインアップ試行）───────────────────────────
+// 「どのステップで落ちるか」「Google 経由とメール経由の完走率差」を測るためのビュー。
+//
+// ★userId ではなく sessionId で束ねる。signup_started はアカウント作成前に
+//   発火するので userId が null になるため（登録後のログには userId が入る）。
+const SIGNUP_FUNNEL_PIPELINE = [
+  { $match: { event: { $in: [
+    'signup_started', 'signup_step_viewed', 'signup_step_completed', 'signup_step_skipped',
+    'signup_email_changed', 'otp_sent', 'otp_verified', 'otp_failed', 'otp_deferred',
+    'signup_completed', 'onboarding_completed',
+  ] } } },
+  { $group: {
+      _id: '$sessionId',
+      startedAt: { $min: '$ts' },
+      lastAt:    { $max: '$ts' },
+      // 登録後のログには userId が入るので、非 null の最大値を採用する
+      userId:    { $max: '$userId' },
+      method:    { $max: { $cond: [ { $eq: [ '$event', 'signup_started' ] }, '$props.method', null ] } },
+      stepsViewed:  { $addToSet: { $cond: [ { $eq: [ '$event', 'signup_step_viewed' ] },    '$props.step', '$$REMOVE' ] } },
+      stepsDone:    { $addToSet: { $cond: [ { $eq: [ '$event', 'signup_step_completed' ] }, '$props.step', '$$REMOVE' ] } },
+      stepsSkipped: { $addToSet: { $cond: [ { $eq: [ '$event', 'signup_step_skipped' ] },   '$props.step', '$$REMOVE' ] } },
+      otpSent:      { $sum: { $cond: [ { $eq: [ '$event', 'otp_sent' ] }, 1, 0 ] } },
+      otpFailed:    { $sum: { $cond: [ { $eq: [ '$event', 'otp_failed' ] }, 1, 0 ] } },
+      otpVerified:  { $max: { $cond: [ { $eq: [ '$event', 'otp_verified' ] }, true, false ] } },
+      otpDeferred:  { $max: { $cond: [ { $eq: [ '$event', 'otp_deferred' ] }, true, false ] } },
+      emailChanged: { $max: { $cond: [ { $eq: [ '$event', 'signup_email_changed' ] }, true, false ] } },
+      registered:   { $max: { $cond: [ { $eq: [ '$event', 'signup_completed' ] }, true, false ] } },
+      completed:    { $max: { $cond: [ { $eq: [ '$event', 'onboarding_completed' ] }, true, false ] } },
+  } },
+  { $set: {
+      sessionId: '$_id',
+      // 到達した一番先のステップ（'step1'…'step9'）。落ちた場所の目安になる
+      furthestStep: { $max: '$stepsViewed' },
+      stepsViewedCount: { $size: '$stepsViewed' },
+      durationSec: { $round: [ { $divide: [ { $subtract: [ '$lastAt', '$startedAt' ] }, 1000 ] }, 0 ] },
+      day: { $dateToString: { date: '$startedAt', format: '%Y-%m-%d', timezone: 'Asia/Tokyo' } },
+  } },
+  { $sort: { startedAt: -1 } },
+];
+
 const VIEWS = [
   { name: 'event_logs_enriched', on: 'event_logs', pipeline: ENRICHED_PIPELINE },
   { name: 'mission_analytics',   on: 'events',     pipeline: MISSION_PIPELINE },
   { name: 'session_flow',        on: 'event_logs', pipeline: SESSION_FLOW_PIPELINE },
   { name: 'event_summary',       on: 'events',     pipeline: EVENT_SUMMARY_PIPELINE },
   { name: 'user_summary',        on: 'users',      pipeline: USER_SUMMARY_PIPELINE },
+  { name: 'signup_funnel',       on: 'event_logs', pipeline: SIGNUP_FUNNEL_PIPELINE },
 ];
 
 async function recreateView(db, { name, on, pipeline }) {

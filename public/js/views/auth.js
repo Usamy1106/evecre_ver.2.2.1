@@ -418,6 +418,11 @@ export async function _setupGoogleSignIn(mode, opts = {}) {
       callback: async (resp) => {
         if (!resp?.credential) return;
 
+        // ★メール経由（signup.js の STEP 0）と対になるログ。
+        //   これが無いと「Google 経由とメール経由の完走率差」が測れない。
+        //   iOS はこの直後にページが再読込されるため、ここで必ず記録しておく。
+        if (mode === 'create') logEvent('signup_started', { method: 'google' });
+
         // iOS(iPhone/iPad) は全ブラウザが WebKit で、ITP により XHR レスポンスの
         // Set-Cookie が保存されない。トップレベルのフォーム POST で送ると Cookie が
         // first-party 文脈で保存されるため、サーバーが Cookie をセットして / にリダイレクトする。
