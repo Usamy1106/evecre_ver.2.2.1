@@ -797,8 +797,37 @@ async function _enterProfilePhase() {
     });
   }
 
+  _hydrateDraftFromUser(d);
+
   const first = _stepNumFromName(ob?.currentStep) ?? 4;
   await _gotoProfile(_normalizeStep(d, first));
+}
+
+/**
+ * 保存済みの回答を下書きに戻す。
+ *
+ * ★これが無いと「戻る」で前の質問に戻ったとき、選択肢が未選択に見える。
+ *   同じセッション内なら下書きが残っているが、離脱して再開した場合は
+ *   下書きが空なので、サーバーに保存済みの値から復元する必要がある。
+ */
+function _hydrateDraftFromUser(d) {
+  const u = state.currentUser || {};
+  const p = u.profile || {};
+  const done = new Set(u.onboarding?.completedSteps || []);
+
+  // 表示名は「本人が設定済みのとき」だけ入れる。
+  // 未設定だとサーバーが振った仮名（ユーザー1234）が入ってしまうため。
+  if (done.has('step4') && u.username) d.name = u.username;
+
+  // アバターがプリセットなら、その ID を選択状態にする
+  const m = /\/images\/avatar\/(preset-avatar-\d+)\.png$/.exec(String(u.avatarUrl || ''));
+  if (m) d.avatarPreset = m[1];
+
+  if (p.acquisitionChannel)      d.acquisitionChannel      = p.acquisitionChannel;
+  if (p.acquisitionChannelOther) d.acquisitionChannelOther = p.acquisitionChannelOther;
+  if (p.eventExperience)         d.eventExperience         = p.eventExperience;
+  if (p.workStylePlanning)       d.workStylePlanning       = p.workStylePlanning;
+  if (p.workStyleSocial)         d.workStyleSocial         = p.workStyleSocial;
 }
 
 function _stepNumFromName(name) {
@@ -819,6 +848,37 @@ function _normalizeStep(d, step) {
   const steps = _visibleProfileSteps(d);
   if (steps.includes(step)) return step;
   return steps.find(s => s > step) ?? null;
+}
+
+/**
+ * 表示対象のうち、いま居るステップの1つ前を返す。
+ * @returns {number|null} null なら先頭（＝これ以上戻れない）
+ */
+function _prevProfileStep(d, step) {
+  const steps = _visibleProfileSteps(d);
+  const idx = steps.indexOf(step);
+  return idx > 0 ? steps[idx - 1] : null;
+}
+
+/** その画面に戻るボタンを出すか（先頭のプロフィール質問では出さない） */
+function _canBack(d, step) {
+  return _prevProfileStep(d, step) !== null;
+}
+
+/**
+ * 前の質問へ戻る。回答は保持したまま戻す（消さない）。
+ * ★戻った先で「次へ」を押すと _saveStep が走って上書き保存されるので、
+ *   答え直しがそのまま反映される。
+ */
+function _backProfile(step) {
+  const d = _draft();
+  const prev = _prevProfileStep(d, step);
+  if (prev === null) return;
+  if (prev === 8) d.quizIndex = QUIZ.length - 1;   // 診断へ戻るときは最後の設問から
+  d.step = prev;
+  d.errors = {};
+  state.render();
+  window.scrollTo(0, 0);
 }
 
 /**
@@ -893,13 +953,14 @@ function _renderName(container, d) {
 
     <button id="su-name-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-6">次へ</button>
     ${_skipButton('あとで設定する')}
-  `);
+  `, { back: _canBack(d, 4) });
 
   const input = document.getElementById('su-name');
   for (const ev of ['input', 'change']) input.addEventListener(ev, e => d.name = e.target.value);
   input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('su-name-next').click(); });
   setTimeout(() => input.focus(), 50);
 
+  document.getElementById('su-back')?.addEventListener('click', () => _backProfile(4));
   document.getElementById('su-name-next').onclick = async () => {
     _syncDraftFromDom({ 'su-name': 'name' }, d);
     const name = (d.name || '').trim();
@@ -970,7 +1031,7 @@ function _renderAvatar(container, d) {
 
     <button id="su-avatar-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
     ${_skipButton('あとで設定する')}
-  `);
+  `, { back: _canBack(d, 5) });
 
   // プリセット一覧はサーバーから取る（ホワイトリストの実体はサーバー側）
   if (choices.length === 0 && !d.avatarLoading) {
@@ -1019,6 +1080,7 @@ function _renderAvatar(container, d) {
     }
   });
 
+  document.getElementById('su-back')?.addEventListener('click', () => _backProfile(5));
   document.getElementById('su-avatar-next').onclick = async () => {
     if (!d.avatarPreset && !d.avatarUploadDataUrl) {
       d.errors = { avatar: 'アイコンを選ぶか、画像をアップロードしてください' };
@@ -1072,7 +1134,7 @@ function _renderChannel(container, d) {
 
     <button id="su-channel-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
     ${_skipButton()}
-  `);
+  `, { back: _canBack(d, 6) });
 
   container.querySelectorAll('[data-choice]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1083,6 +1145,7 @@ function _renderChannel(container, d) {
   });
   document.getElementById('su-channel-other')?.addEventListener('input', e => d.acquisitionChannelOther = e.target.value);
 
+  document.getElementById('su-back')?.addEventListener('click', () => _backProfile(6));
   document.getElementById('su-channel-next').onclick = async () => {
     if (!d.acquisitionChannel) { d.errors = { _global: '選択してください' }; state.render(); return; }
     _syncDraftFromDom({ 'su-channel-other': 'acquisitionChannelOther' }, d);
@@ -1116,11 +1179,12 @@ function _renderExperience(container, d) {
 
     <button id="su-exp-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
     ${_skipButton()}
-  `);
+  `, { back: _canBack(d, 7) });
 
   container.querySelectorAll('[data-choice]').forEach(btn => {
     btn.addEventListener('click', () => { d.eventExperience = btn.dataset.choice; state.render(); });
   });
+  document.getElementById('su-back')?.addEventListener('click', () => _backProfile(7));
   document.getElementById('su-exp-next').onclick = async () => {
     if (!d.eventExperience) { d.errors = { _global: '選択してください' }; state.render(); return; }
     await _saveStep('step7', true, { eventExperience: d.eventExperience });
@@ -1176,7 +1240,7 @@ function _renderQuiz(container, d) {
     </div>
 
     ${_skipButton()}
-  `, { back: qi > 0 });
+  `, { back: qi > 0 || _canBack(d, 8) });
 
   container.querySelectorAll('[data-choice]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -1186,7 +1250,11 @@ function _renderQuiz(container, d) {
       setTimeout(() => _advanceQuiz(d), 250);
     });
   });
-  document.getElementById('su-back')?.addEventListener('click', () => { d.quizIndex = qi - 1; state.render(); });
+  document.getElementById('su-back')?.addEventListener('click', () => {
+    // 2問目からは1問目へ、1問目からは前のステップへ戻る
+    if (qi > 0) { d.quizIndex = qi - 1; state.render(); }
+    else        { _backProfile(8); }
+  });
   document.getElementById('su-skip').onclick = () => _advanceQuiz(d, { skipped: true });
 }
 
@@ -1281,7 +1349,7 @@ function _renderNotify(container, d) {
     <p class="text-rs text-[#A7AAAC] mb-6 font-bold">大事なことだけお届けします</p>
     ${body}
     ${_skipButton('スキップ')}
-  `);
+  `, { back: _canBack(d, 9) });
 
   // ★ここが要点：クリックハンドラの中で直接 enablePush() を呼ぶ。
   //   手前に await を置くとユーザー操作起点でなくなり、iOS で許可ダイアログが出ない。
@@ -1314,6 +1382,7 @@ function _renderNotify(container, d) {
     await _finishProfile();
   });
 
+  document.getElementById('su-back')?.addEventListener('click', () => _backProfile(9));
   document.getElementById('su-skip').onclick = async () => {
     // ★スキップでは enablePush() を呼ばない。
     //   一度ブロックされるとプログラムからは戻せなくなるため。
@@ -1395,7 +1464,7 @@ function _renderComplete(container, d) {
         イベクリをはじめる
       </button>
     </div>
-  `);
+  `, { back: true });
 
   // 組み上がりアニメーション（CSS だけで完結させる：外部ライブラリを足さない）
   const reveal = (id, delay, extra = '') => {
@@ -1421,5 +1490,14 @@ function _renderComplete(container, d) {
   });
   reveal('cc-start', 900 + tags.length * 130 + 200);
 
+  // カードからも答え直しに戻れる（最後の質問へ）
+  document.getElementById('su-back')?.addEventListener('click', () => {
+    const steps = _visibleProfileSteps(d);
+    const last = steps[steps.length - 1];
+    if (last === 8) d.quizIndex = QUIZ.length - 1;
+    d.step = last;
+    state.render();
+    window.scrollTo(0, 0);
+  });
   document.getElementById('cc-start').onclick = () => _finish();
 }
