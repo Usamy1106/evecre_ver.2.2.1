@@ -14,7 +14,8 @@
 //
 //   STEP 4  表示名 / STEP 5 アバター / STEP 6 流入経路 / STEP 7 運営経験 / STEP 8 診断
 // プロフィール質問は1問ずつ即時保存し、途中離脱しても users.onboarding から再開できる。
-// STEP 9（通知）は Phase D、COMPLETE カードは Phase E で追加する。
+//   STEP 9  お知らせの受け取り方（Web Push の意向）
+// COMPLETE カードは Phase E で追加する。
 
 import { state } from '../state.js';
 import { api }   from '../api.js';
@@ -24,6 +25,7 @@ import {
   _esc, _setSubmitting, _syncDraftFromDom, _inviteContextBanner, _setupGoogleSignIn,
 } from './auth.js';
 import { _processImageFile } from './account.js';
+import { getPushState, enablePush } from '../push.js';
 
 const RESEND_COOLDOWN_SEC = 60;
 const OTP_LENGTH = 6;
@@ -124,6 +126,7 @@ export function renderSignup(container) {
   else if (d.step === 6) _renderChannel(container, d);
   else if (d.step === 7) _renderExperience(container, d);
   else if (d.step === 8) _renderQuiz(container, d);
+  else if (d.step === 9) _renderNotify(container, d);
   else                   _renderEntry(container, d);
 }
 
@@ -748,13 +751,15 @@ async function _finish(verifyResp = null) {
 //   Google 経由       … 6,7,8      （表示名とアバターは Google から埋まる）
 //   Google ＋ 招待    … 7,8        （流入経路は聞かずに 'invite' で自動記録）
 
-const PROFILE_STEPS = [4, 5, 6, 7, 8];
+const PROFILE_STEPS = [4, 5, 6, 7, 8, 9];
 
 /** この人に実際に出るプロフィール質問のステップ一覧 */
 function _visibleProfileSteps(d) {
   const skip = new Set();
   if (d.googleRoute) { skip.add(4); skip.add(5); }
   if (d.inviteRoute) skip.add(6);
+  // 通知に対応していないブラウザでは STEP 9 を出さない（分母にも入れない）
+  if (getPushState() === 'unsupported') skip.add(9);
   return PROFILE_STEPS.filter(s => !skip.has(s));
 }
 
@@ -803,16 +808,35 @@ function _stepNumFromName(name) {
   return m ? Number(m[1]) : null;
 }
 
-/** スキップ対象のステップに来たら、次の表示対象までずらす */
+/**
+ * スキップ対象のステップに来たら、次の表示対象までずらす。
+ * @returns {number|null} null なら残りのステップは無い（＝完了）
+ *
+ * ★step に null を渡さないこと。`s > null` は `s > 0` と評価されるため
+ *   先頭のステップが返り、完了したはずが STEP 4 に戻る（実際にそのバグを出した）。
+ *   完了させたいときは _finishProfile() を呼ぶ。
+ */
 function _normalizeStep(d, step) {
+  if (typeof step !== 'number') return null;
   const steps = _visibleProfileSteps(d);
   if (steps.includes(step)) return step;
-  return steps.find(s => s > step) ?? null;   // null なら全部終わり
+  return steps.find(s => s > step) ?? null;
+}
+
+/** プロフィール作成を完了して通常の着地へ進む */
+async function _finishProfile() {
+  await _saveStep('complete', true);
+  await _finish();
 }
 
 async function _gotoProfile(step) {
   const d = _draft();
-  if (step === null) { await _finish(); return; }
+  if (step === null || step === undefined) {
+    // 全ステップ終了。COMPLETE カード（プロフィールカード）は Phase E で追加する。
+    await _saveStep('complete', true);
+    await _finish();
+    return;
+  }
 
   d.step = step;
   d.errors = {};
@@ -1173,8 +1197,126 @@ async function _advanceQuiz(d, { skipped = false } = {}) {
     ...(d.workStylePlanning ? { workStylePlanning: d.workStylePlanning } : {}),
     ...(d.workStyleSocial   ? { workStyleSocial:   d.workStyleSocial }   : {}),
   });
-  // STEP 9（通知）は Phase D、COMPLETE カードは Phase E で追加する。
-  // 現時点ではここで完了扱いにして通常の着地へ進む。
-  await _saveStep('complete', true);
-  await _finish();
+  await _gotoProfile(_normalizeStep(d, 9));
+}
+
+// =====================================================
+// STEP 9：お知らせの受け取り方
+// =====================================================
+//
+// ★ここでいきなりネイティブの許可ダイアログを出さない設計にしてある。
+//   Notification.requestPermission() は一度ブロックされるとプログラムからは
+//   二度と出せず、ブラウザ設定からしか戻せない。さらに Chrome は許可率の低い
+//   ドメインのダイアログを自動的に静音化する。
+//   そのため「オンにする」を押した人にだけ、そのクリックの中で直接呼ぶ。
+//
+// ★enablePush() は必ずクリックハンドラから同期的に呼ぶこと。
+//   前に await を挟むとユーザー操作起点とみなされず、iOS で無反応になる。
+//
+// 状態は push.js の getPushState() で分岐する：
+//   ios-needs-install … ホーム画面追加の案内のみ（許可は求めない）
+//   unsupported       … この画面自体を出さない
+//   denied            … 設定から戻す案内のみ（ダイアログは呼ばない）
+//   granted/available … 「オンにする（推奨）」と「スキップ」の2択
+
+function _renderNotify(container, d) {
+  const st = getPushState();
+
+  // 対応していないブラウザには聞くだけ無駄なので、記録だけしてスキップする
+  if (st === 'unsupported') {
+    _saveStep('step9', false, { notificationPreference: 'unsupported' })
+      .then(() => _finishProfile());
+    container.innerHTML = _shell(`<p class="text-[13px] text-[#A7AAAC] font-bold text-center py-16">読み込み中…</p>`);
+    return;
+  }
+
+  if (!d._notifyLogged) {
+    d._notifyLogged = true;
+    logEvent('push_prompt_shown', { state: st, where: 'signup' });
+    if (st === 'ios-needs-install') logEvent('push_ios_guide_shown', { where: 'signup' });
+  }
+
+  const body =
+    st === 'ios-needs-install' ? `
+      <!-- 文面は account.js の通知セクションと揃えてある -->
+      <div class="bg-[#EBF7FE] border border-[#0CA1E3]/40 rounded-2xl p-4 mb-4">
+        <p class="text-[12px] font-bold text-[#0CA1E3] mb-2">ホーム画面に追加すると使えます</p>
+        <ol class="text-[11px] text-[#484545] leading-relaxed list-decimal pl-4 space-y-1">
+          <li>画面下の ⋯ の「共有」ボタンをタップ</li>
+          <li>「ホーム画面に追加」を選ぶ</li>
+          <li>追加されたアイコンからイベクリを開く</li>
+        </ol>
+        <p class="text-[10px] text-[#A7AAAC] mt-2">iPhone / iPad では Safari の仕様上、この手順が必要です。</p>
+      </div>
+      <p class="text-[11px] text-[#A7AAAC] font-bold leading-relaxed mb-2">
+        あとからアカウント設定でオンにできます。
+      </p>
+      <button id="su-notify-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-2">次へ</button>`
+  : st === 'denied' ? `
+      <div class="bg-[#FFF7E6] border border-[#FFC300] rounded-2xl p-4 mb-4">
+        <p class="text-[12px] font-bold text-[#484545] mb-1">通知がブロックされています</p>
+        <p class="text-[11px] text-[#484545] leading-relaxed">
+          ブラウザ（または端末）の設定でこのサイトの通知を「許可」に変更すると受け取れます。
+        </p>
+      </div>
+      <p class="text-[11px] text-[#A7AAAC] font-bold leading-relaxed mb-2">
+        あとからアカウント設定でオンにできます。
+      </p>
+      <button id="su-notify-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-2">次へ</button>`
+  : `
+      <button id="su-notify-on" class="btn-primary w-full py-4 heading-rs font-bold mb-3">
+        プッシュ通知をオンにする（推奨）
+      </button>
+      ${d.notifyError ? `<p class="text-[12px] text-[#EE3E12] font-bold mb-2 leading-relaxed">${_esc(d.notifyError)}</p>` : ''}
+      <p class="text-[11px] text-[#A7AAAC] font-bold leading-relaxed text-center">
+        ミッションの割り当てや締め切りの前にお知らせします。<br>あとから設定で変更できます。
+      </p>`;
+
+  container.innerHTML = _shell(`
+    ${_profileDots(d, 9)}
+    <h1 class="heading-l text-[#484545] font-bold mb-2">お知らせの<br>受け取り方</h1>
+    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">大事なことだけお届けします</p>
+    ${body}
+    ${_skipButton('スキップ')}
+  `);
+
+  // ★ここが要点：クリックハンドラの中で直接 enablePush() を呼ぶ。
+  //   手前に await を置くとユーザー操作起点でなくなり、iOS で許可ダイアログが出ない。
+  document.getElementById('su-notify-on')?.addEventListener('click', () => {
+    logEvent('push_enable_tap', { where: 'signup' });
+    const btn = document.getElementById('su-notify-on');
+    if (btn) { btn.disabled = true; btn.textContent = '設定中…'; btn.style.opacity = '0.6'; }
+
+    enablePush().then(async (r) => {
+      if (r.ok) {
+        await _saveStep('step9', true, { notificationPreference: 'enabled' });
+        await _finishProfile();
+        return;
+      }
+      // 拒否された・失敗した場合も先へは進める（通知は必須ではない）
+      d.notifyError = r.error === 'denied'
+        ? '通知が許可されませんでした。あとから設定でオンにできます。'
+        : '通知を設定できませんでした。あとから設定でオンにできます。';
+      await _saveStep('step9', false, { notificationPreference: 'skipped' });
+      state.render();
+      setTimeout(() => _finishProfile(), 1600);
+    });
+  });
+
+  // iOS 未インストール / ブロック中は「次へ」で意向だけ記録する（許可は求めない）
+  document.getElementById('su-notify-next')?.addEventListener('click', async () => {
+    await _saveStep('step9', false, {
+      notificationPreference: st === 'ios-needs-install' ? 'ios_pending' : 'skipped',
+    });
+    await _finishProfile();
+  });
+
+  document.getElementById('su-skip').onclick = async () => {
+    // ★スキップでは enablePush() を呼ばない。
+    //   一度ブロックされるとプログラムからは戻せなくなるため。
+    await _saveStep('step9', false, {
+      notificationPreference: st === 'ios-needs-install' ? 'ios_pending' : 'skipped',
+    });
+    await _finishProfile();
+  };
 }
