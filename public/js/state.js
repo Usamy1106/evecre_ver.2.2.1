@@ -819,7 +819,8 @@ export const state = {
     //   作成途中に共有シートへ誘導すると流れが切れるため）。
     if (this.currentView === 'HOME' && this.pendingPushSetup && this.currentUser) {
       this.pendingPushSetup = false;
-      setTimeout(() => window._app?.startPushSetup?.('signup_complete'), 600);
+      // silent:true … すでにオン／非対応なら何も出さない（自動起動のため）
+      setTimeout(() => window._app?.startPushSetup?.('signup_complete', true), 600);
     }
 
     // 開発者からのお知らせモーダル（全ユーザー・セッション1回、イベント非依存）。

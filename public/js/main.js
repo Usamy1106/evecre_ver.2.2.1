@@ -212,7 +212,7 @@ window._app = {
   // --- state 委譲 ---
   setView: (view, id) => state.setView(view, id),
   // 通知セットアップ（ホーム画面追加 → 通知許可）。HOME のバナー・お知らせのボタンから呼ぶ
-  startPushSetup: (source) => startPushSetupFlow({ source }),
+  startPushSetup: (source, silent) => startPushSetupFlow({ source, silent }),
   setTab: (tab) => {
     state.mainBoardTab = tab;
     logEvent('board_tab_switched', { tab });
@@ -1593,9 +1593,14 @@ const _LOG_LABELS = {
   push_ios_guide_shown:   'iOSのホーム画面追加案内を表示',
   // ホーム画面への追加（PWA インストール）。iOS は追加しないと通知が届かないため、
   // ここの通過率が通知到達率をそのまま決める。
+  pwa_prompt_shown:       'ホーム画面追加の案内を表示',
+  pwa_prompt_dismissed:   'ホーム画面追加の案内を閉じた',
   pwa_install_accepted:   'ホーム画面に追加した',
   pwa_install_dismissed:  'ホーム画面への追加を断った',
   pwa_installed:          'ホーム画面に追加された',
+  push_setup_started:     '通知の設定を開いた',
+  push_banner_tapped:     '通知バナーをタップ',
+  push_banner_dismissed:  '通知バナーを閉じた',
   push_enable_tap:        '通知をオンにするを押した',
   push_disable_tap:       '通知をオフにするを押した',
   push_enabled:           '通知をオンにした',

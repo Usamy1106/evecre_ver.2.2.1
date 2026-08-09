@@ -8,6 +8,9 @@
 // 既読は「開いた時点」で記録するため、途中で閉じても同じ version は再表示されない。
 
 import { state } from '../state.js';
+import {
+  pushSetupPhase, pushSetupContentHtml, bindPushSetupContent, recordPushSkipped,
+} from './pushSetupModal.js';
 import { DEV_ANNOUNCEMENT } from '../devAnnouncement.js';
 
 // 画像の高さ上限。これを超える画像は縮小して全体を表示する（切り取らない）。
@@ -66,31 +69,69 @@ function _openModal() {
  * 指定ページを描画する。オーバーレイは作り直さず中身だけ差し替える
  * （毎回 fadeIn させると切り替えがちらつくため）。
  */
-function _renderPage(overlay, pages, index) {
+function _renderPage(overlay, pages, index, opts = {}) {
   const page   = pages[index];
   const isLast = index === pages.length - 1;
   const multi  = pages.length > 1;
 
-  // ページインジケーター（複数ページのときだけ）
-  const dots = multi ? `
-    <div class="flex items-center justify-center gap-1.5 mb-4">
-      ${pages.map((_, i) => `
-        <span class="rounded-full transition-all"
-          style="width:${i === index ? 18 : 6}px;height:6px;background-color:${i === index ? '#0CA1E3' : '#D3D6D8'}"></span>
-      `).join('')}
-    </div>` : '';
+  // 通知セットアップの差し込みページ（お知らせのページ数には数えない）
+  const pushMode = !!opts.pushSetup;
 
-  // 画像は上限の高さまで縮小して「全体」を見せる（object-contain）。
-  // 余白が出るので下地を薄いグレーにして境界を自然にする。
+  const dots = !multi ? '' : `
+    <div class="flex items-center justify-center gap-1.5 mb-4">
+      ${pages.map((_, i) => `<div class="w-1.5 h-1.5 rounded-full ${i === index ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}"></div>`).join('')}
+    </div>`;
+
+  if (pushMode) {
+    const phase = pushSetupPhase();
+    overlay.innerHTML = `
+      <div data-ann-card class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col text-center"
+        style="max-height:92vh">
+        <div class="p-6 pt-6 overflow-y-auto flex-1">
+          <div data-psm-body>${pushSetupContentHtml(phase)}</div>
+        </div>
+        <div class="px-6 pb-6 pt-1 flex-shrink-0">
+          ${dots}
+          <button data-action="next" class="w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]">
+            ${isLast ? '閉じる' : '次へ'}
+          </button>
+        </div>
+      </div>`;
+
+    const body = overlay.querySelector('[data-psm-body]');
+    const advance = () => {
+      if (isLast) { overlay.remove(); return; }
+      _renderPage(overlay, pages, index + 1);
+    };
+    bindPushSetupContent(body, {
+      phase,
+      onAdvance: () => {
+        // ホーム画面追加のあとは、同じ枠で通知の許可へ切り替える（iOS を除く）
+        if (phase === 'install' && !_isIOSLike()) {
+          body.innerHTML = pushSetupContentHtml('notify');
+          bindPushSetupContent(body, { phase: 'notify', onAdvance: advance });
+          return;
+        }
+        advance();
+      },
+    });
+    overlay.querySelector('[data-action="next"]').onclick = () => {
+      if (phase !== 'done' && phase !== 'unsupported') recordPushSkipped();
+      advance();
+    };
+    // ★このページはスワイプさせない（誤操作で案内を飛ばさないため）
+    _bindSwipe(overlay, null);
+    return;
+  }
+
   const image = page.imageUrl ? `
-    <div class="bg-[#F4F1EC] flex items-center justify-center flex-shrink-0">
+    <div class="w-full bg-[#F5F3F0] flex items-center justify-center" style="max-height:45vh">
       <img src="${_esc(page.imageUrl)}" alt=""
-        class="w-full object-contain" style="max-height:${IMAGE_MAX_H}" loading="lazy"
-        onerror="this.parentElement.style.display='none'">
+        class="w-full h-auto object-contain" style="max-height:45vh">
     </div>` : '';
 
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl animate-fadeIn overflow-hidden flex flex-col text-center"
+    <div data-ann-card class="bg-white rounded-3xl w-full max-w-sm shadow-2xl animate-fadeIn overflow-hidden flex flex-col text-center"
       style="max-height:92vh">
       ${image}
       <div class="p-6 pt-5 overflow-y-auto flex-1">
@@ -100,16 +141,15 @@ function _renderPage(overlay, pages, index) {
       <div class="px-6 pb-6 pt-1 flex-shrink-0">
         ${dots}
         ${page.action === 'push-setup' ? `
-          <!-- お知らせから通知セットアップへ直接つなぐボタン。
-               既存ユーザーは新しいアカウント作成フローを通らないため、
-               ここが唯一の案内導線になる（devAnnouncement.js で action を指定） -->
+          <!-- 押すと同じモーダルの中で通知セットアップに切り替わり、
+               「次へ」で続きのお知らせに戻る（overlay は閉じない） -->
           <button data-action="push-setup" class="btn-primary w-full py-3 heading-rs font-bold mb-2">
             ${_esc(page.actionLabel || '通知を設定する')}
           </button>` : ''}
         <button data-action="next" class="${page.action ? 'w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]' : 'btn-primary w-full py-3 heading-rs font-bold'}">
           ${isLast ? '閉じる' : '次へ'}
         </button>
-        ${!isLast ? `
+        ${!isLast && !page.action ? `
           <button data-action="close" class="w-full pt-3 text-[12px] font-bold text-[#A7AAAC]">
             スキップ
           </button>` : ''}
@@ -122,9 +162,58 @@ function _renderPage(overlay, pages, index) {
   };
   overlay.querySelector('[data-action="close"]')?.addEventListener('click', () => overlay.remove());
 
-  // お知らせを閉じてから通知セットアップを開く（モーダルが重ならないように）
+  // 同じモーダル内で通知セットアップに切り替える（お知らせは閉じない）
   overlay.querySelector('[data-action="push-setup"]')?.addEventListener('click', () => {
-    overlay.remove();
-    setTimeout(() => window._app?.startPushSetup?.('announcement'), 250);
+    _renderPage(overlay, pages, index, { pushSetup: true });
   });
+
+  // 左右スワイプでページを移動（ページ単位で無効にできる）
+  _bindSwipe(overlay, _swipeEnabled(page) ? {
+    onNext: () => { if (!isLast) _renderPage(overlay, pages, index + 1); },
+    onPrev: () => { if (index > 0) _renderPage(overlay, pages, index - 1); },
+  } : null);
+}
+
+/** iOS 判定（push.js を import すると循環参照になるのでここで簡易判定する） */
+function _isIOSLike() {
+  const ua = navigator.userAgent || '';
+  if (/iphone|ipad|ipod/i.test(ua)) return true;
+  const looksMac = navigator.platform === 'MacIntel' || /Macintosh|Mac OS X/i.test(ua);
+  return looksMac && (navigator.maxTouchPoints || 0) > 1;
+}
+
+/**
+ * このページでスワイプ移動を許すか。
+ * ページの swipe が優先、無ければ DEV_ANNOUNCEMENT.swipe、既定は true。
+ */
+function _swipeEnabled(page) {
+  if (page && page.swipe !== undefined) return !!page.swipe;
+  if (DEV_ANNOUNCEMENT?.swipe !== undefined) return !!DEV_ANNOUNCEMENT.swipe;
+  return true;
+}
+
+/**
+ * 左右スワイプの配線。handlers が null なら無効化する。
+ * ★縦スクロール（長い本文や画像）を邪魔しないよう、横方向の移動量が
+ *   縦方向より大きいときだけページ移動として扱う。
+ */
+function _bindSwipe(overlay, handlers) {
+  const card = overlay.querySelector('[data-ann-card]');
+  if (!card || !handlers) return;
+  const THRESHOLD = 50;   // これ以上動かしたらページ移動とみなす
+  let x0 = null, y0 = null;
+
+  card.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    x0 = e.clientX; y0 = e.clientY;
+  });
+  card.addEventListener('pointerup', (e) => {
+    if (x0 === null) return;
+    const dx = e.clientX - x0, dy = e.clientY - y0;
+    x0 = null; y0 = null;
+    if (Math.abs(dx) < THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
+    if (dx < 0) handlers.onNext?.();
+    else        handlers.onPrev?.();
+  });
+  card.addEventListener('pointercancel', () => { x0 = null; y0 = null; });
 }

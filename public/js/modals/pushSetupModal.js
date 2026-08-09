@@ -20,9 +20,6 @@ import {
   canPromptInstall, promptInstall,
 } from '../push.js';
 
-const INSTALL_ID = 'push-install-modal';
-const NOTIFY_ID  = 'push-notify-modal';
-
 // バナーを閉じてから再表示するまでの日数
 export const BANNER_SNOOZE_DAYS = 7;
 
@@ -56,131 +53,132 @@ function _sheet(id, inner) {
   return overlay;
 }
 
-// ── ① ホーム画面に追加 ──────────────────────────────────────
+// ── 中身（お知らせモーダルからも埋め込めるよう、HTML と配線を分けてある）──
+//
+// startPushSetupFlow() は下からせり上がるシートとして出し、
+// devAnnouncementModal は同じ中身をお知らせのページとして差し込む。
 
-/**
- * @param {{onDone: function}} opts onDone は閉じたあとに必ず呼ばれる
- */
-function _openInstallModal({ onDone }) {
-  const ios = isIOS();
-  const native = canPromptInstall();
-  logEvent('pwa_prompt_shown', { ios, native });
-
-  const guide = ios ? `
-      <ol class="text-[13px] text-[#484545] leading-relaxed list-decimal pl-5 space-y-1.5 mb-4">
-        <li>画面下の <span class="font-bold">共有</span> ボタン（□に↑）をタップ</li>
-        <li><span class="font-bold">「ホーム画面に追加」</span>を選ぶ</li>
-        <li>追加されたアイコンからイベクリを開く</li>
-      </ol>
-      <p class="text-[12px] text-[#0CA1E3] font-bold leading-relaxed mb-5">
-        iPhone / iPad では、この手順をしないと通知を受け取れません。
-      </p>`
-    : native ? `
-      <p class="text-[13px] text-[#484545] leading-relaxed mb-5">
-        ホーム画面から1タップで開けるようになり、通知も受け取りやすくなります。
-      </p>`
-    : `
-      <ol class="text-[13px] text-[#484545] leading-relaxed list-decimal pl-5 space-y-1.5 mb-5">
-        <li>ブラウザのメニュー（⋮）を開く</li>
-        <li><span class="font-bold">「アプリをインストール」</span>または「ホーム画面に追加」を選ぶ</li>
-      </ol>`;
-
-  const overlay = _sheet(INSTALL_ID, `
-    <p class="text-[28px] text-center mb-2">📲</p>
-    <h3 class="heading-r text-[#484545] font-bold text-center mb-2">ホーム画面に追加しませんか？</h3>
-    <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
-      ミッションの締め切りや割り当てを<br>通知でお知らせできるようになります
-    </p>
-    ${guide}
-    ${native ? `
-      <button id="psm-install" class="w-full py-4 rounded-2xl font-bold text-[14px] text-white bg-[#0CA1E3] mb-3">
-        ホーム画面に追加する
-      </button>` : ''}
-    <button id="psm-install-later" class="w-full py-3 text-[13px] text-[#A7AAAC] font-bold">
-      ${native ? 'あとで' : 'わかりました'}
-    </button>
-  `);
-
-  const finish = (installed) => { _close(INSTALL_ID); onDone(installed); };
-
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(false); });
-  document.getElementById('psm-install-later').onclick = () => {
-    logEvent('pwa_prompt_dismissed', { ios });
-    finish(false);
-  };
-  document.getElementById('psm-install')?.addEventListener('click', async () => {
-    const btn = document.getElementById('psm-install');
-    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
-    const r = await promptInstall();
-    finish(r === 'accepted');
-  });
+/** いまこの端末で案内すべき段階 */
+export function pushSetupPhase() {
+  if (state.pushSubscribed === true) return 'done';          // もうオンになっている
+  if (getPushState() === 'unsupported') return 'unsupported';
+  if (isSmallScreen() && !isStandalone()) return 'install';  // 先にホーム画面へ追加
+  return 'notify';
 }
 
-// ── ② 通知の許可 ────────────────────────────────────────────
+/**
+ * 案内の中身（見出し・説明・ボタン）を返す。
+ * @param {'install'|'notify'|'done'|'unsupported'} phase
+ */
+export function pushSetupContentHtml(phase) {
+  if (phase === 'done') {
+    return `
+      <p class="text-[28px] text-center mb-2">✅</p>
+      <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知はオンになっています</h3>
+      <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
+        ミッションの割り当てや締め切りをお知らせします。<br>
+        アカウント設定からいつでも変更できます。
+      </p>`;
+  }
+  if (phase === 'unsupported') {
+    return `
+      <p class="text-[28px] text-center mb-2">🔔</p>
+      <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知について</h3>
+      <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
+        このブラウザは通知に対応していません。<br>
+        Chrome や Safari でお試しください。
+      </p>`;
+  }
 
-function _openNotifyModal({ onDone }) {
+  if (phase === 'install') {
+    const ios = isIOS();
+    const native = canPromptInstall();
+    const guide = ios ? `
+        <ol class="text-[13px] text-[#484545] leading-relaxed list-decimal pl-5 space-y-1.5 mb-3 text-left">
+          <li>画面下の <span class="font-bold">共有</span> ボタン（□に↑）をタップ</li>
+          <li><span class="font-bold">「ホーム画面に追加」</span>を選ぶ</li>
+          <li>追加されたアイコンからイベクリを開く</li>
+        </ol>
+        <p class="text-[12px] text-[#0CA1E3] font-bold leading-relaxed mb-4 text-left">
+          iPhone / iPad では、この手順をしないと通知を受け取れません。
+        </p>`
+      : native ? `
+        <p class="text-[13px] text-[#484545] leading-relaxed mb-4">
+          ホーム画面から1タップで開けるようになり、通知も受け取りやすくなります。
+        </p>`
+      : `
+        <ol class="text-[13px] text-[#484545] leading-relaxed list-decimal pl-5 space-y-1.5 mb-4 text-left">
+          <li>ブラウザのメニュー（⋮）を開く</li>
+          <li><span class="font-bold">「アプリをインストール」</span>または「ホーム画面に追加」を選ぶ</li>
+        </ol>`;
+    return `
+      <p class="text-[28px] text-center mb-2">📲</p>
+      <h3 class="heading-r text-[#484545] font-bold text-center mb-2">ホーム画面に追加しませんか？</h3>
+      <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-4 leading-relaxed">
+        ミッションの締め切りや割り当てを<br>通知でお知らせできるようになります
+      </p>
+      ${guide}
+      ${native ? `
+        <button data-psm="install" class="w-full py-4 rounded-2xl font-bold text-[14px] text-white bg-[#0CA1E3] mb-2">
+          ホーム画面に追加する
+        </button>` : ''}`;
+  }
+
+  // notify
   const st = getPushState();
-  logEvent('push_prompt_shown', { state: st, where: 'modal' });
-
-  const body =
-    st === 'denied' ? `
-      <div class="bg-[#FFF7E6] border border-[#FFC300] rounded-2xl p-4 mb-5">
-        <p class="text-[13px] font-bold text-[#484545] mb-1">通知がブロックされています</p>
-        <p class="text-[12px] text-[#484545] leading-relaxed">
-          ブラウザ（または端末）の設定で、このサイトの通知を「許可」に変更すると受け取れます。
-        </p>
-      </div>
-      <button id="psm-notify-close" class="w-full py-4 rounded-2xl font-bold text-[14px] text-white bg-[#0CA1E3]">
-        わかりました
-      </button>`
-    : `
-      <button id="psm-notify-on" class="w-full py-4 rounded-2xl font-bold text-[14px] text-white bg-[#0CA1E3] mb-3">
-        通知をオンにする
-      </button>
-      <button id="psm-notify-later" class="w-full py-3 text-[13px] text-[#A7AAAC] font-bold">
-        あとで
-      </button>`;
-
-  const overlay = _sheet(NOTIFY_ID, `
+  if (st === 'denied') {
+    return `
+      <p class="text-[28px] text-center mb-2">🔔</p>
+      <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知がブロックされています</h3>
+      <p class="text-[12px] text-[#484545] font-bold text-center mb-5 leading-relaxed">
+        ブラウザ（または端末）の設定で、<br>このサイトの通知を「許可」に変更すると受け取れます。
+      </p>`;
+  }
+  return `
     <p class="text-[28px] text-center mb-2">🔔</p>
     <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知を受け取りますか？</h3>
     <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
       ミッションを割り当てられたときや<br>締め切りが近いときにお知らせします
     </p>
-    <p id="psm-notify-error" class="text-[12px] text-[#EE3E12] font-bold text-center mb-3 hidden"></p>
-    ${body}
-  `);
+    <p data-psm="error" class="text-[12px] text-[#EE3E12] font-bold text-center mb-3 hidden"></p>
+    <button data-psm="enable" class="w-full py-4 rounded-2xl font-bold text-[14px] text-white bg-[#0CA1E3] mb-2">
+      通知をオンにする
+    </button>`;
+}
 
-  const finish = () => { _close(NOTIFY_ID); onDone(); };
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) { _savePreference('skipped'); finish(); } });
-
-  document.getElementById('psm-notify-close')?.addEventListener('click', () => {
-    _savePreference('skipped'); finish();
+/**
+ * 上の HTML に対してボタンを配線する。
+ * @param {HTMLElement} root  中身を差し込んだ要素
+ * @param {{phase: string, onAdvance: function}} opts
+ *   onAdvance(次に進んでよいか) … 許可/追加のあとに呼ばれる
+ */
+export function bindPushSetupContent(root, { phase, onAdvance }) {
+  // ホーム画面への追加（Android/Chrome のネイティブ確認）
+  root.querySelector('[data-psm="install"]')?.addEventListener('click', async () => {
+    const btn = root.querySelector('[data-psm="install"]');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    const r = await promptInstall();
+    if (r === 'accepted') window._app?.showToast('ホーム画面に追加しました', 'info');
+    onAdvance?.(r === 'accepted');
   });
-  document.getElementById('psm-notify-later')?.addEventListener('click', () => {
-    // ★「あとで」では enablePush() を呼ばない。
-    //   一度ブロックされるとプログラムからは二度と出せなくなるため。
-    _savePreference('skipped');
-    finish();
-  });
 
-  // ★click ハンドラの中で直接 enablePush() を呼ぶ（手前に await を置かない）
-  document.getElementById('psm-notify-on')?.addEventListener('click', () => {
-    logEvent('push_enable_tap', { where: 'modal' });
-    const btn = document.getElementById('psm-notify-on');
+  // ★通知の許可は click ハンドラの中で直接 enablePush() を呼ぶ。
+  //   手前に await を挟むとユーザー操作起点とみなされず iOS で無反応になる。
+  root.querySelector('[data-psm="enable"]')?.addEventListener('click', () => {
+    logEvent('push_enable_tap', { where: 'modal', phase });
+    const btn = root.querySelector('[data-psm="enable"]');
     if (btn) { btn.disabled = true; btn.textContent = '設定中…'; btn.style.opacity = '0.6'; }
 
     enablePush().then(async (r) => {
       if (r.ok) {
+        state.pushSubscribed = true;
         await _savePreference('enabled');
-        _close(NOTIFY_ID);
         window._app?.showToast('通知をオンにしました', 'info');
-        onDone();
-        state.render();   // バナーを消す
+        onAdvance?.(true);
         return;
       }
       await _savePreference('skipped');
-      const err = document.getElementById('psm-notify-error');
+      const err = root.querySelector('[data-psm="error"]');
       if (err) {
         err.textContent = r.error === 'denied'
           ? '通知が許可されませんでした。あとから設定でオンにできます。'
@@ -188,50 +186,74 @@ function _openNotifyModal({ onDone }) {
         err.classList.remove('hidden');
       }
       if (btn) { btn.disabled = false; btn.textContent = '通知をオンにする'; btn.style.opacity = '1'; }
-      setTimeout(() => { _close(NOTIFY_ID); onDone(); }, 2200);
     });
   });
 }
 
+/** 「あとで」を選んだときの記録 */
+export function recordPushSkipped() {
+  // ★ここで enablePush() を呼ばない。一度ブロックされると二度と出せなくなるため。
+  _savePreference(isIOS() && !isStandalone() ? 'ios_pending' : 'skipped');
+}
+
 // ── 呼び出し口 ──────────────────────────────────────────────
 
+const SHEET_ID = 'push-setup-modal';
+
 /**
- * 端末の状態に応じて、必要なモーダルだけを順に出す。
+ * 端末の状態に応じて必要な案内だけをシートで出す。
+ * HOME のバナーと、アカウント作成の完了直後から呼ぶ。
  *
- * 分岐:
- *   - すでに購読済み / 通知に非対応  → 何も出さない
- *   - PC またはホーム画面追加済み    → 通知モーダルだけ
- *   - iOS（未追加）                  → 追加モーダルだけ
- *     ★iOS は追加しないと許可自体できないので、通知モーダルを続けて出さない。
- *       アイコンから開き直した次回に通知モーダルが出る
- *   - Android 等（未追加）           → 追加モーダル → 通知モーダル
+ * 分岐（pushSetupPhase）:
+ *   done        … すでにオン。明示的に呼ばれたときだけ「オンです」と表示する
+ *                 ★以前はここで黙って return していたため、バナーやボタンを
+ *                   押しても無反応に見えるという不具合になっていた
+ *   install     … 小画面かつ未追加 → ホーム画面への追加を案内
+ *                 iOS はここで終わり（追加しないと許可自体できないため、
+ *                 アイコンから開き直した次回に notify が出る）
+ *   notify      … 通知の許可
  *
- * @param {{source?: string}} opts 計測用の呼び出し元
+ * @param {{source?: string, silent?: boolean}} opts
+ *   silent … 自動起動（作成直後）で、案内不要なら何も出さない
  */
-export async function startPushSetupFlow({ source = 'unknown' } = {}) {
-  const st = getPushState();
-  if (st === 'unsupported') return;
-  if (await hasSubscription()) return;   // もうオンになっている
+export async function startPushSetupFlow({ source = 'unknown', silent = false } = {}) {
+  if (state.pushSubscribed === null) await refreshPushSubscribed();
+  const phase = pushSetupPhase();
 
-  logEvent('push_setup_started', { source, state: st });
+  // 自動起動のときは、すでにオン／非対応なら黙って何もしない
+  if (silent && (phase === 'done' || phase === 'unsupported')) return;
 
-  const needInstall = isSmallScreen() && !isStandalone();
-  const done = () => { state.render(); };
+  logEvent('push_setup_started', { source, phase });
 
-  if (!needInstall) { _openNotifyModal({ onDone: done }); return; }
+  const advanceable = phase === 'install' && !isIOS();   // Android 等は続けて通知へ
+  const overlay = _sheet(SHEET_ID, `
+    <div data-psm-body>${pushSetupContentHtml(phase)}</div>
+    <button data-psm="later" class="w-full py-3 text-[13px] text-[#A7AAAC] font-bold">
+      ${(phase === 'done' || phase === 'unsupported') ? '閉じる' : 'あとで'}
+    </button>
+  `);
 
-  _openInstallModal({
-    onDone: (installed) => {
-      if (isIOS()) {
-        // iOS はホーム画面から開き直さない限り許可できない。ここで終わり。
-        _savePreference('ios_pending');
-        done();
-        return;
-      }
-      // Android 等は追加の有無にかかわらず通知の許可は出せる
-      setTimeout(() => _openNotifyModal({ onDone: done }), installed ? 600 : 250);
+  const body = overlay.querySelector('[data-psm-body]');
+  const finish = () => { _close(SHEET_ID); state.render(); };
+
+  const goNotify = () => {
+    body.innerHTML = pushSetupContentHtml('notify');
+    bindPushSetupContent(body, { phase: 'notify', onAdvance: finish });
+  };
+
+  bindPushSetupContent(body, {
+    phase,
+    onAdvance: () => {
+      if (advanceable) { goNotify(); return; }
+      finish();
     },
   });
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(); });
+  overlay.querySelector('[data-psm="later"]').onclick = () => {
+    if (phase !== 'done' && phase !== 'unsupported') recordPushSkipped();
+    finish();
+  };
 }
 
 /** いま HOME に通知バナーを出すべきか（同期判定用のキャッシュを見る） */
