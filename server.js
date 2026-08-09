@@ -229,7 +229,9 @@ const ONBOARDING_TEXTS = {
   acquisitionChannelOther:  100,
   acquisitionInviteEventId: 64,
 };
-// オンボーディングのステップ名（currentStep の値域）
+// オンボーディングのステップ名（currentStep の値域）。
+// ★step9（お知らせの受け取り方）はオンボーディングから外し、完了後の HOME で
+//   モーダルとして出す方式に変えた。既に step9 を持つユーザーが居るため値域には残す。
 const ONBOARDING_STEPS = ['step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'complete'];
 
 /** 新規アカウント作成時のオンボーディング初期値 */
@@ -1153,6 +1155,20 @@ app.patch('/api/account/onboarding', requireAuth, async (req, res) => {
   try {
     const body = req.body || {};
     const step = String(body.step || '');
+
+    // ★step を省略した場合は「回答だけ更新」する（onboarding の進行は動かさない）。
+    //   通知の意向はオンボーディング完了後の HOME でも聞くため、
+    //   ステップ進行と切り離して保存できる必要がある。
+    if (!step) {
+      const fields = pickOnboardingFields(body);
+      if (Object.keys(fields).length === 0) {
+        return res.status(400).json({ ok: false, error: 'no_fields' });
+      }
+      await userStore.update(req.user.id, fields);
+      Object.assign(req.user, fields);
+      return res.json({ ok: true, user: userPublic(req.user) });
+    }
+
     if (!ONBOARDING_STEPS.includes(step)) {
       return res.status(400).json({ ok: false, error: 'invalid_step', validSteps: ONBOARDING_STEPS });
     }

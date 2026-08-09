@@ -45,6 +45,9 @@ export const state = {
   inviteContextForAuth: null,          // アカウント作成画面で「○○に招待されています」案内表示用
   inviteLinkError: null,               // 無効な招待リンクで来た時のエラーメッセージ
   signup: null,                        // アカウント作成フロー（views/signup.js）の下書き
+  pushSubscribed: null,                // この端末が push を購読済みか（null=未判定）。
+                                       // HOME のバナー表示を同期で判定するためのキャッシュ
+  pendingPushSetup: false,             // アカウント作成の完了直後に通知セットアップを出す予約
   legalDoc: null,                      // LEGAL ビューで表示中の文書 'terms' | 'privacy'
   legalReturnView: null,               // LEGAL を閉じたときに戻るビュー
   mainBoardTab: 'MAIN',
@@ -809,6 +812,14 @@ export const state = {
         this._eventDateReminderCheckedForEvent !== this.selectedEventId) {
       this._eventDateReminderCheckedForEvent = this.selectedEventId;
       setTimeout(() => window._app?.checkEventDateReminderModal?.(), 900);
+    }
+
+    // アカウント作成の完了直後：ホーム画面追加 → 通知許可 を順に案内する。
+    // ★オンボーディングの途中では出さない（iOS は追加しないと許可できず、
+    //   作成途中に共有シートへ誘導すると流れが切れるため）。
+    if (this.currentView === 'HOME' && this.pendingPushSetup && this.currentUser) {
+      this.pendingPushSetup = false;
+      setTimeout(() => window._app?.startPushSetup?.('signup_complete'), 600);
     }
 
     // 開発者からのお知らせモーダル（全ユーザー・セッション1回、イベント非依存）。

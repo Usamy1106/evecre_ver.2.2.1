@@ -26,7 +26,7 @@ function _storageKey(userId) {
 /** pages 形式に正規化する（空ページは除外） */
 function _getPages() {
   const pages = Array.isArray(DEV_ANNOUNCEMENT.pages) ? DEV_ANNOUNCEMENT.pages : [];
-  return pages.filter(p => p && (p.title || p.body || p.imageUrl));
+  return pages.filter(p => p && (p.title || p.body || p.imageUrl || p.action));
 }
 
 /**
@@ -99,7 +99,14 @@ function _renderPage(overlay, pages, index) {
       </div>
       <div class="px-6 pb-6 pt-1 flex-shrink-0">
         ${dots}
-        <button data-action="next" class="btn-primary w-full py-3 heading-rs font-bold">
+        ${page.action === 'push-setup' ? `
+          <!-- お知らせから通知セットアップへ直接つなぐボタン。
+               既存ユーザーは新しいアカウント作成フローを通らないため、
+               ここが唯一の案内導線になる（devAnnouncement.js で action を指定） -->
+          <button data-action="push-setup" class="btn-primary w-full py-3 heading-rs font-bold mb-2">
+            ${_esc(page.actionLabel || '通知を設定する')}
+          </button>` : ''}
+        <button data-action="next" class="${page.action ? 'w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]' : 'btn-primary w-full py-3 heading-rs font-bold'}">
           ${isLast ? '閉じる' : '次へ'}
         </button>
         ${!isLast ? `
@@ -114,4 +121,10 @@ function _renderPage(overlay, pages, index) {
     _renderPage(overlay, pages, index + 1);
   };
   overlay.querySelector('[data-action="close"]')?.addEventListener('click', () => overlay.remove());
+
+  // お知らせを閉じてから通知セットアップを開く（モーダルが重ならないように）
+  overlay.querySelector('[data-action="push-setup"]')?.addEventListener('click', () => {
+    overlay.remove();
+    setTimeout(() => window._app?.startPushSetup?.('announcement'), 250);
+  });
 }

@@ -11,9 +11,22 @@
 //   imageUrl … 画像（不要なら空文字）。public/images/announcements/ 等に置いてパスを書く。
 //               画像は全体が見えるように表示される（上限の高さまで縮小）。
 
+// ★ページに action: 'push-setup' を付けると、「通知を設定する」ボタンが出て、
+//   ホーム画面への追加 → 通知の許可 を順に案内するモーダルが開く。
+//   （既存ユーザーは新しいアカウント作成フローを通らないため、ここが唯一の案内導線）
+//   actionLabel でボタンの文言を変えられる。
+
 export const DEV_ANNOUNCEMENT = {
-  version: '2026-07-30-05',   // 例: '2026-07-30-01'（日付＋連番など、前回と異なる文字列であれば形式自由）
+  version: '2026-08-09-01',   // 例: '2026-07-30-01'（日付＋連番など、前回と異なる文字列であれば形式自由）
   pages: [
+    {
+      title: '【新機能】通知が使えるようになりました',
+      body: 'ミッションを割り当てられたときや、締め切りが近づいたときにお知らせします。\n\n'
+          + 'iPhone / iPad をお使いの方は、ホーム画面に追加しないと通知を受け取れません。'
+          + '下のボタンから設定できます（あとからアカウント設定でも変更できます）。',
+      action: 'push-setup',
+      actionLabel: '通知を設定する',
+    },
     {
       body: 'ミッション横の ⋯ ボタンからリンクをコピーできます。\nミッションの詳細を共有したい際にご活用ください！',
       imageUrl: '/images/announcements/announcement-image-link.webp',
@@ -31,7 +44,10 @@ export const DEV_ANNOUNCEMENT = {
     // {
     //   title: '2つ目のお知らせ',
     //   body: '本文をここに書く。\n改行も使えます。',
+    //   + '（次の行）。',
     //   imageUrl: '/images/announcements/',
+    //   action: 'push-setup',
+    //   actionLabel: '通知を設定する',
     // },
   ],
 };

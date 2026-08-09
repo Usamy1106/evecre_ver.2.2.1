@@ -2,6 +2,7 @@
 import { state } from '../state.js';
 import { Components } from '../components.js';
 import { bindEventLongPress, bindFolderLongPress } from '../modals/eventActions.js';
+import { pushBannerHtml, bindPushBanner } from '../modals/pushSetupModal.js';
 
 /**
  * ホーム画面をレンダリングする
@@ -14,6 +15,10 @@ export function renderHome(container) {
     <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
       ${Components.Header(null)}
       ${Components.VerifyBanner()}
+      <!-- 通知が未設定の人へのバナー（閉じると7日間は出ない）。
+           iOS は6割を占め、ホーム画面に追加しないと通知が届かないため、
+           HOME から辿り直せる導線を常設している -->
+      <div class="mx-4 mt-3">${pushBannerHtml()}</div>
       ${state.pendingApprovalMessage ? `
         <div class="mx-4 mt-3 bg-[#F0FDE8] border border-[#9EDF05]/60 rounded-2xl px-4 py-3 flex items-start gap-3">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="2.5" class="flex-shrink-0 mt-0.5">
@@ -59,6 +64,8 @@ export function renderHome(container) {
           </svg>
         </button>` : ''}
     </div>`;
+
+  bindPushBanner();
 
   bindEventLongPress();
   bindFolderLongPress();

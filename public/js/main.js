@@ -16,6 +16,7 @@ import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
 import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
 import { renderLegal } from './views/legal.js';
+import { startPushSetupFlow, refreshPushSubscribed } from './modals/pushSetupModal.js';
 import {
   renderMissionDetail,
   sendChatMessage, deleteChatMessage, toggleChatReaction, openChatEmojiPicker,
@@ -210,6 +211,8 @@ function _openApproveModal(uid, username, roles, onSuccess) {
 window._app = {
   // --- state 委譲 ---
   setView: (view, id) => state.setView(view, id),
+  // 通知セットアップ（ホーム画面追加 → 通知許可）。HOME のバナー・お知らせのボタンから呼ぶ
+  startPushSetup: (source) => startPushSetupFlow({ source }),
   setTab: (tab) => {
     state.mainBoardTab = tab;
     logEvent('board_tab_switched', { tab });
@@ -1370,6 +1373,8 @@ window.addEventListener('beforeunload', () => state.flushPendingSave());
 // SW を登録し、通知タップ（アプリが開いている場合）の遷移を配線する。
 // 購読そのものはユーザーのタップから enablePush() を呼ぶ（iOS の必須条件）。
 registerServiceWorker();
+// バナーの表示判定を同期で行えるよう、購読状態を先に state に載せておく
+refreshPushSubscribed().then(() => state.render());
 initPushNavigation((url) => state.handlePushNavigation(url));
 
 // ===== アプリ起動 =====
