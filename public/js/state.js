@@ -664,7 +664,8 @@ export const state = {
       daysLeft: safeDates.length > 0 ? calculateDaysLeft(safeDates[0]) : null,
       missions: defaultMissions,
       clearedData: {},
-      proposals: PROPOSAL_POOL.slice(0, 2), // 固定枠 p1/p2 のみ。3枠目(動的)は作成後に AI 生成（静的提案は出さない）
+      proposals: [], // 固定枠は廃止。3枠すべて作成直後の初回 _checkProposalCycle で AI 生成する
+                     // （生成が返るまで mainBoard がローディングカードを出す。静的提案は出さない）
       lastProposalClearedTime: null,
       likes: 0,
       hasLiked: false,
@@ -900,13 +901,14 @@ export const state = {
 
   // --- 提案の更新サイクル判定 ---
   // スロット構成（最大3件）：
-  // - 固定枠2件（FIXED_IDS = p1 開催場所を決める / p2 メインビジュアルを作成する）。
-  //   採用されるまで不変。エンジンでは置き換えない。
-  // - 動的枠（残り＝最大1件、表示は末尾＝p3 の位置）。Cloudflare Workers AI 生成で
-  //   イベント内容・進捗・フェーズに合わせ、12時間ごとに更新する。
-  //   固定枠が採用で空けば、その枠も動的になる。
+  // - ★固定枠は廃止済み。3枠すべてが動的枠（Cloudflare Workers AI 生成）で、
+  //   イベント内容・進捗・フェーズに合わせて12時間ごとに更新される。
+  //   かつては p1「開催場所を決める」/ p2「メインビジュアルを作成する」を固定していたが、
+  //   3枠のうち2枠を恒久的に占有し、序盤は生成・選出の余地が実質1枠しか無かったため廃止した。
+  //   会場・メインビジュアルはアーカイブから直接編集できる（modals/helpers.js の
+  //   editArchiveItem('venue') / ('image')）ので、ミッション経由で回収する必要はない。
   // - 基準時刻：直近生成 lastProposalGeneratedAt から12時間。未生成なら即時生成
-  //   （作成直後にイベント適合の動的枠を出すため。createdAt は基準に使わない）。
+  //   （作成直後にイベント適合の提案を出すため。createdAt は基準に使わない）。
   // 提案カードは管理者UIのみのため、非管理者では走らせない（生成・保存しない）。
   //
   // ★重要：この判定は render()（＝管理者が実際にイベントページへアクセス/操作した時）からのみ呼ぶこと。
@@ -925,45 +927,38 @@ export const state = {
   },
 
   // --- 提案リフレッシュ（サーバーの AI 生成エンドポイントを呼ぶ） ---
-  // 固定枠（p1/p2、非採用で残っているもの）は保持し、それ以外の「動的枠」だけを
-  // 新しい提案で入れ替える（＝動的枠は12時間ごとに更新される）。固定枠が採用で空けば
-  // その枠も動的枠として埋まる。表示順は p1 → p2 → 動的枠（末尾＝p3 の位置）。結果は save() で永続化。
+  // ★固定枠は無い。3枠すべてを新しい提案で入れ替える（＝12時間ごとに全枠更新される）。
+  // 結果は saveNow() で永続化（保存しないと再読込で消え、サイクルが再発火する）。
   async _refreshProposals(p) {
     if (this._proposalFetching) return;
     this._proposalFetching = true;
     const FULL = 3;
-    const FIXED_IDS = new Set(['p1', 'p2']); // 固定枠
-    // ★レース対策：固定枠・除外集合・並びは「必ず await の後」に最新の p.proposals / p.missions
-    //   から計算する。生成を待つ間にユーザーが採用（提案削除＋ミッション追加）しても、
-    //   古いスナップショットで採用済みの固定提案を復活させない（＝ミッションと重複しない）。
-    //   除外：採用済みid（originProposalId）／既存ミッション名／既に残す固定提案。
+    // ★レース対策：除外集合は「必ず await の後」に最新の p.missions から計算する。
+    //   生成を待つ間にユーザーが採用（提案削除＋ミッション追加）しても、古いスナップショットで
+    //   採用済みの提案を復活させない（＝ミッションと重複しない）。
+    //   除外：採用済みid（originProposalId）／既存ミッション名。
     // タイトル比較は正規化して行う（表記ゆれ・空白差で重複がすり抜けるのを防ぐ）
     const normTitle = (t) => String(t || '').normalize('NFKC').toLowerCase().replace(/[\s　]/g, '');
     const buildResult = (candidates) => {
       const adoptedIds    = new Set((p.missions || []).map(m => m.originProposalId).filter(Boolean));
       const missionTitles = new Set((p.missions || []).map(m => normTitle(m.title)));
-      const fixed = (p.proposals || []).filter(pr => FIXED_IDS.has(pr.id) && !adoptedIds.has(pr.id));
-      const need  = Math.max(0, FULL - fixed.length); // 動的枠の数
-      const seenIds    = new Set(fixed.map(x => x.id));
-      const seenTitles = new Set(fixed.map(x => normTitle(x.title)));
-      const dynamic = [];
+      const seenIds    = new Set();
+      const seenTitles = new Set();
+      const out = [];
       for (const np of candidates) {
-        if (dynamic.length >= need) break;
+        if (out.length >= FULL) break;
         if (!np) continue;
         if (seenIds.has(np.id) || adoptedIds.has(np.id)) continue;
         if (seenTitles.has(normTitle(np.title)) || missionTitles.has(normTitle(np.title))) continue;
-        dynamic.push(np);
+        out.push(np);
         seenIds.add(np.id); seenTitles.add(normTitle(np.title));
       }
-      // 固定枠を先頭（p1 → p2）に置き、動的枠を末尾（p3 の位置）に並べる
-      const p1 = fixed.find(x => x.id === 'p1');
-      const p2 = fixed.find(x => x.id === 'p2');
-      return [p1, p2, ...dynamic].filter(Boolean).slice(0, FULL);
+      return out;
     };
     try {
       const r = await api.generateProposals(p.id);
       if (r.ok && Array.isArray(r.proposals)) {
-        // 固定枠 + 新規動的枠。既存の動的提案は破棄して入れ替える（12時間ごと更新）
+        // 既存の提案は破棄して3枠すべて入れ替える（12時間ごと更新）
         p.proposals = buildResult(r.proposals);
         p.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
         p.lastProposalClearedTime = null;
@@ -972,9 +967,9 @@ export const state = {
         this.render();
       }
     } catch (_) {
-      // API 失敗時は PROPOSAL_POOL フォールバック（固定id・使用済みは除外して動的枠を補充）
+      // API 失敗時は PROPOSAL_POOL フォールバック（採用済みidは除外して3枠を補充）
       const usedIds = new Set((p.missions || []).map(m => m.originProposalId).filter(Boolean));
-      const available = PROPOSAL_POOL.filter(pr => !usedIds.has(pr.id) && !FIXED_IDS.has(pr.id));
+      const available = PROPOSAL_POOL.filter(pr => !usedIds.has(pr.id));
       p.proposals = buildResult(available.sort(() => 0.5 - Math.random()));
       this.save();
       this.render();
