@@ -400,7 +400,7 @@ function _finishAndGoToEvent() {
   const id = sec.eventId;
   state.createEventInviteScreen = {};
   // draftEvent もリセット
-  state.draftEvent = { name: '', description: '', dates: [], seedType: 'jack' };
+  state.resetDraftEvent();
   if (id) {
     state.setView('MAIN_BOARD', id);
   } else {

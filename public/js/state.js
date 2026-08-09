@@ -16,6 +16,22 @@ const SAVE_DEBOUNCE_MS = 400;
 const _renderers = {};
 
 /**
+ * イベント作成フローの空の下書きを作る。
+ * ★リセットは必ずこの関数（または state.resetDraftEvent()）を経由すること。
+ *   以前は同じオブジェクトリテラルが state.js / main.js / createEvent.js の3箇所に
+ *   散っており、項目を足すたびに入れ忘れる温床になっていた。
+ * eventType / expectedScale / catchphrase / motivationTags / motivationText は
+ * すべて任意。未入力なら保存時に落とすので、既存イベントと同じ形になる。
+ */
+function newDraftEvent() {
+  return {
+    name: '', description: '', dates: [], seedType: 'jack',
+    eventType: null, expectedScale: null, catchphrase: '',
+    motivationTags: [], motivationText: '',
+  };
+}
+
+/**
  * ビュー名とレンダリング関数を紐付ける
  * @param {string} viewName
  * @param {function} fn
@@ -59,7 +75,7 @@ export const state = {
   missionFilterTag: null,      // ミッション絞り込みタグ（null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority' | 'assignee'
   editingMissionId: null,
-  draftEvent: { name: '', description: '', dates: [], seedType: 'jack' },
+  draftEvent: newDraftEvent(),   // イベント作成フローの下書き。リセットは state.resetDraftEvent()
   draftMission: { title: '', labels: [], priority: 0, dates: [], clearFormat: 'text', note: '' },
   missionModalTab: 'BASIC',
   calendarDate: new Date(),
@@ -550,7 +566,7 @@ export const state = {
       this.eventSettingsScreen = null;
     }
     if (view === 'CREATE_EVENT_INFO' && this.currentView === 'HOME') {
-      this.draftEvent = { name: '', description: '', dates: [], seedType: 'jack' };
+      this.resetDraftEvent();
       logEvent('event_create_started');
     }
     if (view === 'PROJECT_DETAIL') {
@@ -628,6 +644,11 @@ export const state = {
     }
   },
 
+  // --- イベント作成フローの下書きをリセット ---
+  resetDraftEvent() {
+    this.draftEvent = newDraftEvent();
+  },
+
   // --- イベント作成（旧フロー、HOME から呼ばれる用、互換）---
   async addProject() {
     const id = await this._createEventAndReturnId();
@@ -641,6 +662,17 @@ export const state = {
     if (!name) return null;
     const safeDescription = description || '';
     const safeDates       = Array.isArray(dates) ? dates : [];
+
+    // 作成フローで聞いた任意項目。未入力のものは newProject に載せない
+    // （undefined は flatToCrdt が落とすが、空文字/空配列は「入力された空」として
+    //   保存されてしまうため、ここで明示的に除外して既存イベントと同じ形にする）
+    const d = this.draftEvent;
+    const optional = {};
+    if (d.eventType)      optional.eventType      = d.eventType;
+    if (d.expectedScale)  optional.expectedScale  = d.expectedScale;
+    if (d.catchphrase?.trim())    optional.catchphrase    = d.catchphrase.trim();
+    if (d.motivationTags?.length) optional.motivationTags = [...d.motivationTags];
+    if (d.motivationText?.trim()) optional.motivationText = d.motivationText.trim();
 
     // 種をランダム選択
     const randomSeed = SEED_TYPES[Math.floor(Math.random() * SEED_TYPES.length)];
@@ -669,6 +701,8 @@ export const state = {
       lastProposalClearedTime: null,
       likes: 0,
       hasLiked: false,
+      ...optional,   // eventType / expectedScale / catchphrase / motivation*（入力があるものだけ）
+      motivationReactions: [],   // CRDT対象外。専用エンドポイントの $addToSet / $pull でのみ更新する
       // 自分をオーナーとしてメンバーに含める（サーバー側でも同じ処理が走る）
       ownerId: this.currentUser?.id,
       members: this.currentUser ? [{

@@ -1203,7 +1203,7 @@ window._app = {
   // プロジェクト詳細から「+ 新規イベント作成」
   createEventInFolder: (folderId) => {
     state.selectedFolderId = folderId;
-    state.draftEvent = { name: '', description: '', dates: [], seedType: 'jack' };
+    state.resetDraftEvent();
     state.setView('CREATE_EVENT_INFO');
   },
 
