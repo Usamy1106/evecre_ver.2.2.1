@@ -40,6 +40,61 @@ export function isMacDesktop() {
   return (navigator.maxTouchPoints || 0) <= 1;
 }
 
+/**
+ * タブレット以下の画面サイズか（＝スマホ・タブレット）。
+ * この層はホーム画面に追加してもらう価値が高い：
+ *  - iOS は追加しないと push が一切届かない（ブラウザのままでは許可すら出せない）
+ *  - アイコンから開けるようになり、再訪の障壁が下がる
+ */
+export function isSmallScreen() {
+  return window.matchMedia?.('(max-width: 1024px)').matches ?? (window.innerWidth <= 1024);
+}
+
+// ── ホーム画面への追加（PWA インストール）────────────────────────
+//
+// Android/Chrome は beforeinstallprompt を横取りしておくと、あとから
+// 任意のタイミングでネイティブのインストール確認を出せる。
+// ★このイベントはページ読み込み直後に飛んでくるので、リスナーは
+//   モジュール読み込み時（main.js が起動時に import する）に張る必要がある。
+// iOS は同等の API が無く、共有シートからの手動追加を案内するしかない。
+let _deferredInstallPrompt = null;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();          // 既定のミニバーを抑止し、こちらのタイミングで出す
+    _deferredInstallPrompt = e;
+  });
+  window.addEventListener('appinstalled', () => {
+    _deferredInstallPrompt = null;
+    logEvent('pwa_installed', { ios: isIOS() });
+  });
+}
+
+/** ネイティブのインストール確認を出せるか（主に Android/Chrome） */
+export function canPromptInstall() {
+  return !!_deferredInstallPrompt;
+}
+
+/**
+ * ホーム画面への追加を促す（ネイティブの確認ダイアログ）。
+ * ★ユーザー操作起点で呼ぶこと。
+ * @returns {Promise<'accepted'|'dismissed'|'unavailable'>}
+ */
+export async function promptInstall() {
+  if (!_deferredInstallPrompt) return 'unavailable';
+  const p = _deferredInstallPrompt;
+  _deferredInstallPrompt = null;      // 一度きりしか使えない
+  try {
+    p.prompt();
+    const { outcome } = await p.userChoice;
+    logEvent(outcome === 'accepted' ? 'pwa_install_accepted' : 'pwa_install_dismissed');
+    return outcome;
+  } catch (e) {
+    console.warn('[pwa] インストール確認に失敗:', e);
+    return 'unavailable';
+  }
+}
+
 /** この環境で push を購読できる可能性があるか（許可状態は見ない） */
 export function isPushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;

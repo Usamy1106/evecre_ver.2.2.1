@@ -1586,6 +1586,11 @@ const _LOG_LABELS = {
   // Web Push（iOS はホーム画面追加が必須なので、どこで脱落するかを追う）
   push_prompt_shown:      '通知の案内を表示',
   push_ios_guide_shown:   'iOSのホーム画面追加案内を表示',
+  // ホーム画面への追加（PWA インストール）。iOS は追加しないと通知が届かないため、
+  // ここの通過率が通知到達率をそのまま決める。
+  pwa_install_accepted:   'ホーム画面に追加した',
+  pwa_install_dismissed:  'ホーム画面への追加を断った',
+  pwa_installed:          'ホーム画面に追加された',
   push_enable_tap:        '通知をオンにするを押した',
   push_disable_tap:       '通知をオフにするを押した',
   push_enabled:           '通知をオンにした',

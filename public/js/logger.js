@@ -58,6 +58,12 @@ export function logEvent(name, props = {}) {
       viewport:   `${window.innerWidth}x${window.innerHeight}`,
       appVersion: APP_VERSION,
       clientId,
+      // ★ホーム画面から起動しているか。これが無いと「追加を促した結果、
+      //   何人が実際に追加したか」を測れない。iOS は追加しないと push が
+      //   届かないため、通知の到達率を読むうえで欠かせない指標。
+      //   push.js を import すると循環参照になるのでここで直接判定する。
+      standalone: window.matchMedia?.('(display-mode: standalone)').matches
+        || window.navigator.standalone === true,
     },
   });
 

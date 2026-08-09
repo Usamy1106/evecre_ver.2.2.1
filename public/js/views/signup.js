@@ -25,7 +25,10 @@ import {
   _esc, _setSubmitting, _syncDraftFromDom, _inviteContextBanner, _setupGoogleSignIn,
 } from './auth.js';
 import { _processImageFile } from './account.js';
-import { getPushState, enablePush } from '../push.js';
+import {
+  getPushState, enablePush, isStandalone, isIOS, isSmallScreen,
+  canPromptInstall, promptInstall,
+} from '../push.js';
 import { Components } from '../components.js';
 
 const RESEND_COOLDOWN_SEC = 60;
@@ -1290,6 +1293,41 @@ async function _advanceQuiz(d, { skipped = false } = {}) {
 //   denied            … 設定から戻す案内のみ（ダイアログは呼ばない）
 //   granted/available … 「オンにする（推奨）」と「スキップ」の2択
 
+/**
+ * ホーム画面への追加を促すか。
+ *
+ * ★スマホ・タブレットのときだけ出す（PC では意味が薄い）。
+ *   本番の利用者は iOS が6割で、iOS はホーム画面に追加しないと push が
+ *   一切届かない。追加してもらえるかどうかが通知到達率を決める。
+ *   すでに standalone で開いている（＝追加済み）なら出さない。
+ */
+function _shouldPromoteInstall() {
+  return isSmallScreen() && !isStandalone();
+}
+
+/** 端末に合わせた追加手順 */
+function _installGuideHtml() {
+  if (isIOS()) {
+    return `
+      <ol class="text-[12px] text-[#484545] leading-relaxed list-decimal pl-5 space-y-1">
+        <li>画面下の <span class="font-bold">共有</span> ボタン（□に↑）をタップ</li>
+        <li><span class="font-bold">「ホーム画面に追加」</span>を選ぶ</li>
+        <li>追加されたアイコンからイベクリを開く</li>
+      </ol>
+      <p class="text-[11px] text-[#A7AAAC] mt-2 leading-relaxed">
+        iPhone / iPad では、この手順をしないと通知を受け取れません。
+      </p>`;
+  }
+  if (canPromptInstall()) {
+    return `<p class="text-[12px] text-[#484545] leading-relaxed">下のボタンから追加できます。</p>`;
+  }
+  return `
+    <ol class="text-[12px] text-[#484545] leading-relaxed list-decimal pl-5 space-y-1">
+      <li>ブラウザのメニュー（⋮）を開く</li>
+      <li><span class="font-bold">「アプリをインストール」</span>または「ホーム画面に追加」を選ぶ</li>
+    </ol>`;
+}
+
 function _renderNotify(container, d) {
   const st = getPushState();
 
@@ -1309,18 +1347,12 @@ function _renderNotify(container, d) {
 
   const body =
     st === 'ios-needs-install' ? `
-      <!-- 文面は account.js の通知セクションと揃えてある -->
-      <div class="bg-[#EBF7FE] border border-[#0CA1E3]/40 rounded-2xl p-4 mb-4">
-        <p class="text-[12px] font-bold text-[#0CA1E3] mb-2">ホーム画面に追加すると使えます</p>
-        <ol class="text-[11px] text-[#484545] leading-relaxed list-decimal pl-4 space-y-1">
-          <li>画面下の ⋯ の「共有」ボタンをタップ</li>
-          <li>「ホーム画面に追加」を選ぶ</li>
-          <li>追加されたアイコンからイベクリを開く</li>
-        </ol>
-        <p class="text-[10px] text-[#A7AAAC] mt-2">iPhone / iPad では Safari の仕様上、この手順が必要です。</p>
-      </div>
+      <!-- 手順は上の①に出しているので、ここは状態の説明だけにする -->
+      <p class="text-[12px] text-[#484545] font-bold leading-relaxed mb-2">
+        ホーム画面に追加すると、通知をオンにできるようになります。
+      </p>
       <p class="text-[11px] text-[#A7AAAC] font-bold leading-relaxed mb-2">
-        あとからアカウント設定でオンにできます。
+        いま追加しなくても、あとからアカウント設定でオンにできます。
       </p>
       <button id="su-notify-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-2">次へ</button>`
   : st === 'denied' ? `
@@ -1343,13 +1375,48 @@ function _renderNotify(container, d) {
         ミッションの割り当てや締め切りの前にお知らせします。<br>あとから設定で変更できます。
       </p>`;
 
+  // ★スマホ・タブレットではホーム画面への追加も一緒に促す。
+  //   iOS はこれをしないと通知が届かず、どの端末でもアイコンから開けると再訪しやすい。
+  const promoteInstall = _shouldPromoteInstall();
+  const installSection = !promoteInstall ? '' : `
+    <div class="bg-[#EBF7FE] border border-[#0CA1E3]/40 rounded-2xl p-4 mb-5">
+      <p class="text-[13px] font-bold text-[#0CA1E3] mb-2">① ホーム画面に追加する</p>
+      ${_installGuideHtml()}
+      ${canPromptInstall() ? `
+        <button id="su-install" class="w-full mt-3 py-3 rounded-xl text-[13px] font-bold text-white bg-[#0CA1E3]">
+          ホーム画面に追加する
+        </button>` : ''}
+      ${isIOS() ? `
+        <p class="text-[11px] text-[#0CA1E3] font-bold mt-3 leading-relaxed">
+          追加したら、ホーム画面のアイコンから開き直してください。<br>
+          続きからやり直せます。
+        </p>` : ''}
+    </div>`;
+
   container.innerHTML = _shell(`
     ${_profileDots(d, 9)}
     <h1 class="heading-l text-[#484545] font-bold mb-2">お知らせの<br>受け取り方</h1>
-    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">大事なことだけお届けします</p>
+    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">
+      ${promoteInstall ? 'ミッションの締め切りや割り当てをお知らせします' : '大事なことだけお届けします'}
+    </p>
+    ${installSection}
+    ${promoteInstall ? `<p class="text-[13px] font-bold text-[#484545] mb-2">② 通知を受け取る</p>` : ''}
     ${body}
-    ${_skipButton('スキップ')}
+    <!-- ios-needs-install / denied のときは「次へ」しか選択肢が無いので、
+         同じ動作の「スキップ」を並べない（押し分けを迷わせないため） -->
+    ${(st === 'granted' || st === 'available') ? _skipButton('スキップ') : ''}
   `, { back: _canBack(d, 9) });
+
+  // Android/Chrome はネイティブの追加確認を出せる（ユーザー操作起点で呼ぶ）
+  document.getElementById('su-install')?.addEventListener('click', async () => {
+    const btn = document.getElementById('su-install');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    const r = await promptInstall();
+    if (r === 'accepted') {
+      window._app?.showToast('ホーム画面に追加しました', 'info');
+      state.render();
+    } else if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  });
 
   // ★ここが要点：クリックハンドラの中で直接 enablePush() を呼ぶ。
   //   手前に await を置くとユーザー操作起点でなくなり、iOS で許可ダイアログが出ない。
@@ -1383,7 +1450,8 @@ function _renderNotify(container, d) {
   });
 
   document.getElementById('su-back')?.addEventListener('click', () => _backProfile(9));
-  document.getElementById('su-skip').onclick = async () => {
+  const skipBtn = document.getElementById('su-skip');
+  if (skipBtn) skipBtn.onclick = async () => {
     // ★スキップでは enablePush() を呼ばない。
     //   一度ブロックされるとプログラムからは戻せなくなるため。
     await _saveStep('step9', false, {
