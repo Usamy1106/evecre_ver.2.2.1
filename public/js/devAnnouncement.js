@@ -15,7 +15,7 @@ export const DEV_ANNOUNCEMENT = {
   version: '2026-07-30-05',   // 例: '2026-07-30-01'（日付＋連番など、前回と異なる文字列であれば形式自由）
   pages: [
     {
-      body: 'ミッション横の・・・ボタンからリンクをコピーできます。\nミッションの詳細を共有したい際にご活用ください！',
+      body: 'ミッション横の ⋯ ボタンからリンクをコピーできます。\nミッションの詳細を共有したい際にご活用ください！',
       imageUrl: '/images/announcements/announcement-image-link.webp',
     },
     {

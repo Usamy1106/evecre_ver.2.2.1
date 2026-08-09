@@ -27,6 +27,7 @@ const pushClient       = require('./lib/pushClient');
 const pushScheduler    = require('./lib/pushScheduler');
 const pushRules        = require('./lib/pushRules');
 const eventLogStore    = require('./lib/eventLogStore');
+const surveyStore     = require('./lib/surveyStore');
 const r2               = require('./lib/r2');
 const proposalEngine   = require('./lib/proposalEngine');
 const aiProposalClient = require('./lib/aiProposalClient');
@@ -1264,6 +1265,15 @@ app.delete('/api/account', requireAuth, async (req, res) => {
     // アバター画像（R2 にある場合のみ。data: URL や Google の picture は対象外）
     const avatarKey = r2.urlToKey(req.user.avatarUrl);
     if (avatarKey) r2.deleteObject(avatarKey).catch(e => console.warn('[r2] avatar delete warn:', e.message));
+
+    // ★アンケート回答だけは匿名化して残す（サービス改善の集計に使うため）。
+    //   userId・メール・表示名・招待元イベントは持ち越さない（lib/surveyStore.js 参照）。
+    //   失敗しても退会自体は止めない。
+    try {
+      await surveyStore.saveAnonymized(req.user);
+    } catch (e) {
+      console.warn('[account-delete] アンケートの保存に失敗:', e.message);
+    }
 
     // ユーザーに紐づくデータを消去
     await pushStore.deleteByUserId(userId);

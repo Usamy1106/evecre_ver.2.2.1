@@ -284,6 +284,90 @@ const SIGNUP_FUNNEL_PIPELINE = [
   { $sort: { startedAt: -1 } },
 ];
 
+// ── survey_responses_all（1行 = 1人分のアンケート回答）─────────────────
+// 現役ユーザー（users）と、退会者の匿名化済み回答（survey_responses）を1つに束ねる。
+// ★退会者を足さないと「辞めた人がどこで知ったか」が集計から消え、
+//   もっとも知りたい層が抜け落ちる。
+const SURVEY_ALL_PIPELINE = [
+  { $match: { $or: [
+    { acquisitionChannel: { $ne: null } }, { eventExperience: { $ne: null } },
+    { workStylePlanning:  { $ne: null } }, { workStyleSocial:  { $ne: null } },
+  ] } },
+  { $project: {
+      _id: 0,
+      acquisitionChannel: 1, acquisitionChannelOther: 1,
+      eventExperience: 1, workStylePlanning: 1, workStyleSocial: 1,
+      notificationPreference: 1, consentVersion: 1,
+      authProvider: { $cond: [ { $ifNull: [ '$googleSub', false ] }, 'google', 'password' ] },
+      onboardingCompleted: { $cond: [ { $ifNull: [ '$onboarding.completedAt', false ] }, true, false ] },
+      signedUpMonth: { $dateToString: { date: { $toDate: '$createdAt' }, format: '%Y-%m', timezone: 'Asia/Tokyo' } },
+      status: 'active',
+  } },
+  { $unionWith: { coll: 'survey_responses', pipeline: [
+      { $project: {
+          _id: 0,
+          acquisitionChannel: 1, acquisitionChannelOther: 1,
+          eventExperience: 1, workStylePlanning: 1, workStyleSocial: 1,
+          notificationPreference: 1, consentVersion: 1,
+          authProvider: 1, onboardingCompleted: 1, signedUpMonth: 1,
+          status: 'deleted',
+      } },
+  ] } },
+];
+
+// ── survey_summary（1行 = 「設問 × 選択肢」の件数）────────────────────
+// MongoDB Charts でそのまま棒グラフにできる形。設問ごとに割合も持たせる。
+// 選択肢の日本語ラベルはここで付ける（Charts 側で凡例を作り直さなくてよいように）。
+const SURVEY_LABELS = {
+  acquisitionChannel: {
+    friend: '友達・先輩に誘われた', sns: 'X / Instagram などで見た', search: '検索して見つけた',
+    school: '学校・先生から聞いた', invite: '招待リンク経由', other: 'その他',
+  },
+  eventExperience:   { first: '今回が初めて', few: '何回か手伝った', many: '何度も仕切ってきた' },
+  workStylePlanning: { planner: '計画してから動く', mover: '動いてから考える' },
+  workStyleSocial:   { group: '大勢でワイワイ', solo: '少人数で黙々' },
+  notificationPreference: {
+    enabled: '通知オン', skipped: 'スキップ', ios_pending: 'iOS未インストール', unsupported: '非対応',
+  },
+};
+const SURVEY_QUESTION_LABELS = {
+  acquisitionChannel:     'イベクリをどこで知ったか',
+  eventExperience:        'イベント運営の経験',
+  workStylePlanning:      '進め方（計画派 / 勢い派）',
+  workStyleSocial:        '人数の好み（ワイワイ / もくもく）',
+  notificationPreference: '通知の受け取り',
+};
+
+const SURVEY_SUMMARY_PIPELINE = [
+  // 1人の回答を「設問ごとの1行」にばらす
+  { $project: { answers: [
+      { q: 'acquisitionChannel',     a: '$acquisitionChannel' },
+      { q: 'eventExperience',        a: '$eventExperience' },
+      { q: 'workStylePlanning',      a: '$workStylePlanning' },
+      { q: 'workStyleSocial',        a: '$workStyleSocial' },
+      { q: 'notificationPreference', a: '$notificationPreference' },
+  ] } },
+  { $unwind: '$answers' },
+  { $match: { 'answers.a': { $ne: null } } },
+  { $group: { _id: { q: '$answers.q', a: '$answers.a' }, count: { $sum: 1 } } },
+  { $group: { _id: '$_id.q', options: { $push: { answer: '$_id.a', count: '$count' } }, total: { $sum: '$count' } } },
+  { $unwind: '$options' },
+  { $set: {
+      question:      '$_id',
+      questionLabel: { $getField: { field: '$_id', input: SURVEY_QUESTION_LABELS } },
+      answer:        '$options.answer',
+      count:         '$options.count',
+      total:         '$total',
+      percent: { $round: [ { $multiply: [ { $divide: [ '$options.count', '$total' ] }, 100 ] }, 1 ] },
+  } },
+  { $set: { answerLabel: { $let: {
+      vars: { map: { $getField: { field: '$question', input: SURVEY_LABELS } } },
+      in: { $ifNull: [ { $getField: { field: '$answer', input: '$$map' } }, '$answer' ] },
+  } } } },
+  { $project: { _id: 0, options: 0 } },
+  { $sort: { question: 1, count: -1 } },
+];
+
 const VIEWS = [
   { name: 'event_logs_enriched', on: 'event_logs', pipeline: ENRICHED_PIPELINE },
   { name: 'mission_analytics',   on: 'events',     pipeline: MISSION_PIPELINE },
@@ -291,6 +375,9 @@ const VIEWS = [
   { name: 'event_summary',       on: 'events',     pipeline: EVENT_SUMMARY_PIPELINE },
   { name: 'user_summary',        on: 'users',      pipeline: USER_SUMMARY_PIPELINE },
   { name: 'signup_funnel',       on: 'event_logs', pipeline: SIGNUP_FUNNEL_PIPELINE },
+  // ★survey_summary は survey_responses_all を参照するので、必ずこの順で作る
+  { name: 'survey_responses_all', on: 'users',                 pipeline: SURVEY_ALL_PIPELINE },
+  { name: 'survey_summary',       on: 'survey_responses_all',  pipeline: SURVEY_SUMMARY_PIPELINE },
 ];
 
 async function recreateView(db, { name, on, pipeline }) {
