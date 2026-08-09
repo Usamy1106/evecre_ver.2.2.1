@@ -131,7 +131,7 @@ function _renderPage(overlay, pages, index, opts = {}) {
     </div>` : '';
 
   overlay.innerHTML = `
-    <div data-ann-card class="bg-white rounded-3xl w-full max-w-sm shadow-2xl animate-fadeIn overflow-hidden flex flex-col text-center"
+    <div data-ann-card class="bg-white rounded-3xl w-full max-w-sm shadow-2xl ${opts.enterFrom ? '' : 'animate-fadeIn'} overflow-hidden flex flex-col text-center"
       style="max-height:92vh">
       ${image}
       <div class="p-6 pt-5 overflow-y-auto flex-1">
@@ -167,11 +167,16 @@ function _renderPage(overlay, pages, index, opts = {}) {
     _renderPage(overlay, pages, index, { pushSetup: true });
   });
 
-  // 左右スワイプでページを移動（ページ単位で無効にできる）
+  // 左右のドラッグでページを移動（ページ単位で無効にできる）
   _bindSwipe(overlay, _swipeEnabled(page) ? {
-    onNext: () => { if (!isLast) _renderPage(overlay, pages, index + 1); },
-    onPrev: () => { if (index > 0) _renderPage(overlay, pages, index - 1); },
+    canNext: !isLast,
+    canPrev: index > 0,
+    // 送り出した向きと逆側から新しいカードが入ってくる
+    onNext: () => _renderPage(overlay, pages, index + 1, { enterFrom: 'right' }),
+    onPrev: () => _renderPage(overlay, pages, index - 1, { enterFrom: 'left' }),
   } : null);
+
+  if (opts.enterFrom) _slideIn(overlay, opts.enterFrom);
 }
 
 /** iOS 判定（push.js を import すると循環参照になるのでここで簡易判定する） */
@@ -193,27 +198,95 @@ function _swipeEnabled(page) {
 }
 
 /**
- * 左右スワイプの配線。handlers が null なら無効化する。
- * ★縦スクロール（長い本文や画像）を邪魔しないよう、横方向の移動量が
- *   縦方向より大きいときだけページ移動として扱う。
+ * 左右のドラッグでページを切り替える（指に追従して動き、離した位置で決まる）。
+ * handlers が null ならドラッグ無効。
+ *
+ * ★縦スクロールを邪魔しないこと。
+ *   - カードに touch-action: pan-y を付け、縦はブラウザに任せる
+ *   - 最初の数px で「横か縦か」を判定し、縦だったらドラッグを取りやめる
+ * ★これ以上ページが無い方向は抵抗を強くして（ラバーバンド）、行き止まりだと分かるようにする。
  */
 function _bindSwipe(overlay, handlers) {
   const card = overlay.querySelector('[data-ann-card]');
-  if (!card || !handlers) return;
-  const THRESHOLD = 50;   // これ以上動かしたらページ移動とみなす
-  let x0 = null, y0 = null;
+  if (!card) return;
+  // 縦スクロールはブラウザに任せ、横だけこちらで扱う
+  card.style.touchAction = 'pan-y';
+  if (!handlers) return;
+
+  const width = () => card.getBoundingClientRect().width || 320;
+  const threshold = () => Math.min(90, width() * 0.28);
+
+  let x0 = 0, y0 = 0, dx = 0;
+  let dragging = false;   // ポインタが押されている
+  let decided  = false;   // 横方向のドラッグだと確定した
+
+  const setX = (v, animate) => {
+    card.style.transition = animate
+      ? 'transform .28s cubic-bezier(.2,.8,.3,1), opacity .28s ease'
+      : 'none';
+    card.style.transform = `translateX(${v}px)`;
+    // 動かすほど少し薄くして、切り替わる予感を出す
+    card.style.opacity = String(Math.max(0.55, 1 - Math.abs(v) / (width() * 1.6)));
+  };
 
   card.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    x0 = e.clientX; y0 = e.clientY;
+    x0 = e.clientX; y0 = e.clientY; dx = 0;
+    dragging = true; decided = false;
   });
-  card.addEventListener('pointerup', (e) => {
-    if (x0 === null) return;
-    const dx = e.clientX - x0, dy = e.clientY - y0;
-    x0 = null; y0 = null;
-    if (Math.abs(dx) < THRESHOLD || Math.abs(dx) <= Math.abs(dy)) return;
-    if (dx < 0) handlers.onNext?.();
-    else        handlers.onPrev?.();
+
+  card.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const mx = e.clientX - x0, my = e.clientY - y0;
+
+    if (!decided) {
+      if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;   // まだ方向が分からない
+      if (Math.abs(mx) <= Math.abs(my)) { dragging = false; return; }  // 縦スクロールに譲る
+      decided = true;
+      card.setPointerCapture?.(e.pointerId);   // カードの外へ指が出ても追従させる
+    }
+
+    dx = mx;
+    // 行き止まりの方向は動きを鈍くする
+    if ((dx > 0 && !handlers.canPrev) || (dx < 0 && !handlers.canNext)) dx *= 0.32;
+    setX(dx, false);
   });
-  card.addEventListener('pointercancel', () => { x0 = null; y0 = null; });
+
+  const release = () => {
+    if (!dragging) return;
+    dragging = false;
+    if (!decided) return;
+
+    const toNext = dx < 0;
+    const canGo  = Math.abs(dx) > threshold() && (toNext ? handlers.canNext : handlers.canPrev);
+
+    if (!canGo) { setX(0, true); return; }   // 届かなかったので元に戻す
+
+    // 画面外へ送り出してから中身を差し替える（新しいカードは反対側から入ってくる）
+    setX(toNext ? -width() * 1.1 : width() * 1.1, true);
+    setTimeout(() => (toNext ? handlers.onNext() : handlers.onPrev()), 170);
+  };
+  card.addEventListener('pointerup', release);
+  card.addEventListener('pointercancel', release);
+  card.addEventListener('lostpointercapture', release);
+}
+
+/**
+ * 差し替えた直後のカードを、指定方向から滑り込ませる。
+ * @param {HTMLElement} overlay
+ * @param {'left'|'right'} from
+ */
+function _slideIn(overlay, from) {
+  const card = overlay.querySelector('[data-ann-card]');
+  if (!card) return;
+  card.classList.remove('animate-fadeIn');   // フェードと二重にしない
+  const w = card.getBoundingClientRect().width || 320;
+  card.style.transition = 'none';
+  card.style.transform = `translateX(${from === 'right' ? w : -w}px)`;
+  card.style.opacity = '0.55';
+  requestAnimationFrame(() => {
+    card.style.transition = 'transform .3s cubic-bezier(.2,.8,.3,1), opacity .3s ease';
+    card.style.transform = 'translateX(0)';
+    card.style.opacity = '1';
+  });
 }
