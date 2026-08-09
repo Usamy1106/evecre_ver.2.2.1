@@ -1,7 +1,17 @@
-// ===== イベント作成画面（3ステップ）=====
-// ステップ1: イベント名・説明
-// ステップ2: 開催日時
-// ステップ3: 招待リンク発行（画面到達時に自動でイベント作成＋招待リンク発行）
+// ===== イベント作成画面（7ステップ）=====
+// STEP 1  イベント名                      CREATE_EVENT_INFO
+// STEP 2  どんなイベントを計画中？        CREATE_EVENT_TYPE
+// STEP 3  どのくらいの人に来てほしい？    CREATE_EVENT_SCALE
+// STEP 4  開催日はいつ？                  CREATE_EVENT_DATES
+// STEP 5  キャッチコピー                  CREATE_EVENT_CATCHPHRASE
+// STEP 6  なんでやりたい？（意気込み）    CREATE_EVENT_MOTIVATION
+// STEP 7  招待リンク                      CREATE_EVENT_INVITE
+//
+// 進捗の分母は 6（STEP 7 の招待リンクは「完了」扱いで分母から外す）。
+// STEP 4〜6 はすべてスキップ可能。STEP 2・3 は選んだ瞬間に次へ自動遷移する。
+// イベントの説明（description）の入力欄は作成フローから外した。フィールド自体は
+// 残っており、イベント設定から編集できる（proposalEngine の detectCategory と
+// AI プロンプトが参照するため消してはいけない）。
 //
 // 種は addEvent 内でランダム自動選択（ユーザー選択は廃止）。
 
@@ -9,9 +19,36 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { Components } from '../components.js';
 import { getConsecutiveGroups } from '../utils.js';
+import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, CATCHPHRASE_EXAMPLES } from '../constants.js';
+
+const TOTAL_STEPS = 6;   // 招待リンク（STEP 7）は分母に含めない
+
+/** 進捗インジケーター。STEP 7 では step > total にして全ドットを「完了」表示にする */
+function _steps(step, label) {
+  return Components.StepIndicator(step, TOTAL_STEPS, { compact: true, label });
+}
+
+/** 選択式・入力式ステップの共通の外枠（STEP 2/3/5/6 で使う） */
+function _stepShell({ step, stepLabel, heading, sub = '', body, footer }) {
+  return `
+    <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
+      <header class="px-6 pt-10 pb-6 text-center">
+        <h1 class="heading-l text-[#0CA1E3]">新規イベントの作成</h1>
+      </header>
+      <main class="flex-1 px-6 pt-2 pb-12 flex flex-col page-transition items-center">
+        <h2 class="heading-m mb-2 text-[#484545] font-bold text-center">${heading}</h2>
+        ${sub ? `<p class="text-[11px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">${sub}</p>` : '<div class="mb-5"></div>'}
+        <div class="w-full max-w-sm">${body}</div>
+        <div class="mt-auto w-full max-w-sm space-y-3 pt-8">
+          ${_steps(step, stepLabel)}
+          ${footer}
+        </div>
+      </main>
+    </div>`;
+}
 
 // =====================================================
-// ステップ1: イベント名・説明
+// STEP 1: イベント名
 // =====================================================
 export function renderCreateEventInfo(container) {
   const canNext = !!state.draftEvent.name;
@@ -22,23 +59,18 @@ export function renderCreateEventInfo(container) {
         <h1 class="heading-l text-[#0CA1E3]">新規イベントの作成</h1>
       </header>
       <main class="flex-1 px-8 pt-2 pb-12 flex flex-col page-transition items-center">
-        <div class="w-full space-y-6 mb-12">
+        <div class="w-full space-y-3 mb-12">
           <div>
             <label class="heading-rs block mb-2 text-[#484545]">イベント名</label>
             <input type="text" placeholder="イベント名を入力"
               value="${_esc(state.draftEvent.name)}"
               oninput="window._app.updateDraftInfo('name', this.value)"
               class="input-field w-full px-5 py-4 focus:outline-none">
-          </div>
-          <div>
-            <label class="heading-rs block mb-2 text-[#484545]">イベントの説明 <span class="text-[#A7AAAC] text-[11px]">（任意）</span></label>
-            <textarea placeholder="イベントの説明を入力" rows="4"
-              oninput="window._app.updateDraftInfo('description', this.value)"
-              class="input-field w-full px-5 py-4 focus:outline-none resize-none">${_esc(state.draftEvent.description)}</textarea>
+            <p class="text-[11px] text-[#A7AAAC] font-bold mt-2">あとで変更できます</p>
           </div>
         </div>
         <div class="mt-auto w-full max-w-sm space-y-3">
-          ${Components.StepIndicator(1)}
+          ${_steps(1, 'イベント作成（1/6）')}
           <button id="cp-info-next" onclick="window._app.tryProceedFromInfo()"
             class="btn-primary w-full py-5 heading-m font-bold shadow-lg" ${canNext ? '' : 'disabled style="opacity:.5"'}>次へ</button>
           <button onclick="window._app.setView('HOME')"
@@ -49,7 +81,71 @@ export function renderCreateEventInfo(container) {
 }
 
 // =====================================================
-// ステップ2: 開催日時（インラインカレンダー）
+// STEP 2: どんなイベントを計画中？
+// この回答が提案エンジンのカテゴリ判定を置き換える（最重要ステップ）。
+// 従来はイベント名と説明文のキーワード一致で当てていた。
+// =====================================================
+export function renderCreateEventType(container) {
+  const cur = state.draftEvent.eventType;
+  const body = EVENT_TYPES.map(t => `
+    <button data-cp-type="${t.id}"
+      class="w-full text-left px-5 py-4 mb-2.5 rounded-2xl border-2 transition-all active:scale-[.99]
+        ${cur === t.id
+          ? 'border-[#0CA1E3] bg-[#0CA1E3]/5 shadow-sm'
+          : 'border-[#E1DFDC] bg-white'}">
+      <span class="block text-[14px] font-bold ${cur === t.id ? 'text-[#0CA1E3]' : 'text-[#484545]'}">${_esc(t.label)}</span>
+      <span class="block text-[11px] text-[#A7AAAC] font-bold mt-0.5">${_esc(t.hint)}</span>
+    </button>`).join('');
+
+  container.innerHTML = _stepShell({
+    step: 2, stepLabel: 'イベント作成（2/6）',
+    heading: 'どんなイベントを計画中？',
+    sub: 'ぴったりの提案を出すために使います<br>あとで変更できます',
+    body,
+    footer: `
+      <button onclick="window._app.setView('CREATE_EVENT_INFO')"
+        class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+  });
+
+  container.querySelectorAll('[data-cp-type]').forEach(el =>
+    el.addEventListener('click', () => window._app.selectEventType(el.dataset.cpType))
+  );
+}
+
+// =====================================================
+// STEP 3: どのくらいの人に来てほしい？
+// =====================================================
+export function renderCreateEventScale(container) {
+  const cur = state.draftEvent.expectedScale;
+  const body = EXPECTED_SCALES.map(s => `
+    <button data-cp-scale="${s.id}"
+      class="w-full text-left px-5 py-5 mb-3 rounded-2xl border-2 transition-all active:scale-[.99]
+        ${cur === s.id
+          ? 'border-[#0CA1E3] bg-[#0CA1E3]/5 shadow-sm'
+          : 'border-[#E1DFDC] bg-white'}">
+      <span class="block text-[14px] font-bold ${cur === s.id ? 'text-[#0CA1E3]' : 'text-[#484545]'}">${_esc(s.label)}</span>
+      <span class="block text-[11px] text-[#A7AAAC] font-bold mt-1">${_esc(s.hint)}</span>
+    </button>`).join('');
+
+  container.innerHTML = _stepShell({
+    step: 3, stepLabel: 'イベント作成（3/6）',
+    heading: 'どのくらいの人に<br>来てほしい？',
+    sub: '決まっていなければ、いまの気持ちで',
+    body,
+    footer: `
+      <button onclick="window._app.setView('CREATE_EVENT_TYPE')"
+        class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+  });
+
+  container.querySelectorAll('[data-cp-scale]').forEach(el =>
+    el.addEventListener('click', () => window._app.selectExpectedScale(el.dataset.cpScale))
+  );
+}
+
+// =====================================================
+// STEP 4: 開催日はいつ？（インラインカレンダー）
+// ★カレンダー本体（複数日選択・ドラッグ選択・タグの×削除）は従来のまま。
+//   変更したのは StepIndicator の番号と前後の遷移先、スキップボタンだけ。
 // =====================================================
 
 // カレンダー表示用の状態（このステップ画面でのみ使う）
@@ -110,7 +206,7 @@ export function renderCreateEventDates(container) {
         <h1 class="heading-l text-[#0CA1E3]">新規イベントの作成</h1>
       </header>
       <main class="flex-1 px-6 pt-2 pb-12 flex flex-col page-transition items-center">
-        <h2 class="heading-m mb-2 text-[#484545] font-bold">開催日時 <span class="text-[#A7AAAC] text-[11px]">（任意）</span></h2>
+        <h2 class="heading-m mb-2 text-[#484545] font-bold">開催日はいつ？ <span class="text-[#A7AAAC] text-[11px]">（任意）</span></h2>
         <p class="text-[11px] text-[#A7AAAC] font-bold text-center mb-4">
           タップまたはスライドで複数日選択<br>
           後から設定することもできます
@@ -140,10 +236,12 @@ export function renderCreateEventDates(container) {
         </div>
 
         <div class="mt-auto w-full max-w-sm space-y-3 pt-6">
-          ${Components.StepIndicator(2)}
+          ${_steps(4, 'イベント作成（4/6）')}
           <button id="cp-dates-next" onclick="window._app.tryProceedFromDates()"
             class="btn-primary w-full py-5 heading-m font-bold shadow-lg" ${canNext ? '' : 'disabled style="opacity:.5"'}>次へ</button>
-          <button onclick="window._app.setView('CREATE_EVENT_INFO')"
+          <button onclick="window._app.skipStep('dates')"
+            class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">あとで決める</button>
+          <button onclick="window._app.setView('CREATE_EVENT_SCALE')"
             class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>
         </div>
       </main>
@@ -259,7 +357,153 @@ function _bindCalendarDrag(container) {
 }
 
 // =====================================================
-// ステップ3: 招待リンク発行（画面到達と同時に自動で作成＋発行）
+// 招待ページのライブプレビュー（STEP 5・6 で共用）
+// この時点ではイベント未作成（作成は STEP 7 到達時）なので、state.draftEvent から
+// クライアント側だけで組み立てる。サーバーには問い合わせない。
+// =====================================================
+function _invitePreviewHtml(d) {
+  const tagLabels = (d.motivationTags || [])
+    .map(id => MOTIVATION_CARDS.find(c => c.id === id)?.label)
+    .filter(Boolean);
+
+  return `
+    <div class="rounded-2xl border border-[#E1DFDC] bg-white shadow-sm overflow-hidden">
+      <div class="px-4 pt-3 pb-2 border-b border-[#F0EEEB] flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#0CA1E3]"></span>
+        <span class="text-[10px] text-[#A7AAAC] font-bold">招待ページのプレビュー</span>
+      </div>
+      <div class="px-5 py-5 text-center">
+        <p id="cp-preview-catch"
+          class="text-[15px] font-bold leading-snug mb-2 ${d.catchphrase?.trim() ? 'text-[#0CA1E3]' : 'text-[#D3D6D8]'}"
+          >${_esc(d.catchphrase?.trim() || 'ここにキャッチコピーが入ります')}</p>
+        <p class="text-[13px] text-[#484545] font-bold mb-1">${_esc(d.name || '（イベント名）')}</p>
+        <p class="text-[11px] text-[#A7AAAC] font-bold">${_esc(_previewDateLabel(d.dates))}</p>
+        <div id="cp-preview-motivation" class="mt-3">${_previewMotivationHtml(tagLabels, d.motivationText)}</div>
+      </div>
+    </div>`;
+}
+
+function _previewMotivationHtml(tagLabels, text) {
+  if (!tagLabels.length && !text?.trim()) return '';
+  return `
+    <div class="pt-3 border-t border-[#F0EEEB]">
+      <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">この人たちの想い</p>
+      <div class="flex flex-wrap gap-1.5 justify-center">
+        ${tagLabels.map(l => `
+          <span class="text-[10px] font-bold text-[#EE3E12] bg-[#EE3E12]/10 px-2.5 py-1 rounded-full">${_esc(l)}</span>
+        `).join('')}
+      </div>
+      ${text?.trim() ? `<p class="text-[12px] text-[#484545] font-bold mt-2.5 leading-relaxed">「${_esc(text.trim())}」</p>` : ''}
+    </div>`;
+}
+
+function _previewDateLabel(dates) {
+  const ds = Array.isArray(dates) ? [...dates].sort() : [];
+  if (ds.length === 0) return '開催日は未定';
+  const fmt = (s) => { const [, m, d] = s.split('-'); return `${Number(m)}月${Number(d)}日`; };
+  return ds.length === 1 ? fmt(ds[0]) : `${fmt(ds[0])}〜${fmt(ds[ds.length - 1])}`;
+}
+
+// =====================================================
+// STEP 5: キャッチコピー（ライブプレビュー付き・スキップ可）
+// =====================================================
+export function renderCreateEventCatchphrase(container) {
+  const d = state.draftEvent;
+  const examples = CATCHPHRASE_EXAMPLES[d.eventType] || CATCHPHRASE_EXAMPLES.other;
+
+  const body = `
+    <input type="text" id="cp-catch-input" placeholder="キャッチコピーを入力"
+      value="${_esc(d.catchphrase || '')}" maxlength="40"
+      oninput="window._app.updateDraftCatchphrase(this.value)"
+      class="input-field w-full px-5 py-4 focus:outline-none mb-3">
+
+    <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">例文（タップで使う）</p>
+    <div class="space-y-2 mb-5">
+      ${examples.map(ex => `
+        <button data-cp-example="${_esc(ex)}"
+          class="w-full text-left px-4 py-3 rounded-xl border border-[#E1DFDC] bg-white text-[13px] font-bold text-[#484545] active:bg-[#FDFBF8] active:scale-[.99] transition-all">
+          ${_esc(ex)}
+        </button>`).join('')}
+    </div>
+
+    ${_invitePreviewHtml(d)}`;
+
+  container.innerHTML = _stepShell({
+    step: 5, stepLabel: 'イベント作成（5/6）',
+    heading: 'キャッチコピーを<br>つけよう',
+    sub: '招待ページの一番上に表示されます<br>あとで変更できます',
+    body,
+    footer: `
+      <button onclick="window._app.proceedFromCatchphrase()"
+        class="btn-primary w-full py-5 heading-m font-bold shadow-lg">次へ</button>
+      <button onclick="window._app.skipStep('catchphrase')"
+        class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">スキップする</button>
+      <button onclick="window._app.setView('CREATE_EVENT_DATES')"
+        class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+  });
+
+  container.querySelectorAll('[data-cp-example]').forEach(el =>
+    el.addEventListener('click', () => window._app.useCatchphraseExample(el.dataset.cpExample))
+  );
+}
+
+// =====================================================
+// STEP 6: なんでやりたい？（意気込み・スキップ可）
+// ★自由記述を2連続にしないため、カード選択（複数可）＋任意の一言の二段構えにする。
+//   カード0件・一言なしでも次へ進める。
+// =====================================================
+export function renderCreateEventMotivation(container) {
+  const d = state.draftEvent;
+  const sel = new Set(d.motivationTags || []);
+
+  const body = `
+    <div class="space-y-2 mb-5">
+      ${MOTIVATION_CARDS.map(c => {
+        const on = sel.has(c.id);
+        return `
+          <button data-cp-motiv="${c.id}"
+            class="w-full text-left px-4 py-3.5 rounded-2xl border-2 transition-all active:scale-[.99] flex items-center gap-3
+              ${on ? 'border-[#EE3E12] bg-[#EE3E12]/5' : 'border-[#E1DFDC] bg-white'}">
+            <span class="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center border-2
+              ${on ? 'bg-[#EE3E12] border-[#EE3E12]' : 'border-[#D3D6D8]'}">
+              ${on ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>` : ''}
+            </span>
+            <span class="text-[13px] font-bold ${on ? 'text-[#EE3E12]' : 'text-[#484545]'}">${_esc(c.label)}</span>
+          </button>`;
+      }).join('')}
+    </div>
+
+    <label class="text-[11px] text-[#484545] font-bold block mb-2">
+      ひとことで言うと？ <span class="text-[#A7AAAC]">（任意）</span>
+    </label>
+    <input type="text" id="cp-motiv-input" placeholder="例：全部出しきる"
+      value="${_esc(d.motivationText || '')}" maxlength="60"
+      oninput="window._app.updateDraftMotivationText(this.value)"
+      class="input-field w-full px-5 py-4 focus:outline-none mb-5">
+
+    ${_invitePreviewHtml(d)}`;
+
+  container.innerHTML = _stepShell({
+    step: 6, stepLabel: 'イベント作成（6/6）',
+    heading: 'このイベント、<br>なんでやりたい？',
+    sub: '当てはまるものを選んでね（複数可）<br>参加してくれる人にも伝わります',
+    body,
+    footer: `
+      <button onclick="window._app.proceedFromMotivation()"
+        class="btn-primary w-full py-5 heading-m font-bold shadow-lg">次へ</button>
+      <button onclick="window._app.skipStep('motivation')"
+        class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">スキップする</button>
+      <button onclick="window._app.setView('CREATE_EVENT_CATCHPHRASE')"
+        class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+  });
+
+  container.querySelectorAll('[data-cp-motiv]').forEach(el =>
+    el.addEventListener('click', () => window._app.toggleMotivationTag(el.dataset.cpMotiv))
+  );
+}
+
+// =====================================================
+// STEP 7: 招待リンク発行（画面到達と同時に自動で作成＋発行）
 // =====================================================
 export function renderCreateEventInvite(container) {
   const sec = state.createEventInviteScreen || (state.createEventInviteScreen = {});
@@ -284,7 +528,7 @@ export function renderCreateEventInvite(container) {
                          : _renderShare(sec.inviteUrl)}
 
         <div class="mt-auto w-full max-w-sm space-y-3 pt-8">
-          ${Components.StepIndicator(3)}
+          ${_steps(TOTAL_STEPS + 1, '完了')}
           ${sec.inviteUrl ? `
             <button id="cpi-finish"
               class="btn-primary w-full py-5 heading-m font-bold shadow-lg">イベント画面へ</button>
@@ -292,7 +536,7 @@ export function renderCreateEventInvite(container) {
             <button id="cpi-retry"
               class="btn-primary w-full py-5 heading-m font-bold shadow-lg">もう一度試す</button>
           ` : ''}
-          <button onclick="window._app.setView('CREATE_EVENT_DATES')"
+          <button onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
             class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]" ${sec.creating ? 'disabled style="opacity:.5"' : ''}>戻る</button>
         </div>
       </main>
@@ -368,7 +612,7 @@ async function _createAndIssueInvite() {
     const eventId = await state._createEventAndReturnId();
     if (!eventId) {
       sec.creating = false;
-      sec.error = 'イベント名・説明・開催日時を確認してください';
+      sec.error = 'イベント名を確認してください';
       state.render();
       return;
     }

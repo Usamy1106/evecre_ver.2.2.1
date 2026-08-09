@@ -43,6 +43,50 @@ export const PROPOSAL_POOL = [
     description: '配信機材・音響・PC・備品など、当日必要なものをリストアップしましょう。' },
 ];
 
+// ===== イベント作成フローの選択肢 =====
+// eventType はミッション提案のカテゴリ判定に直結する（サーバー側 lib/proposalEngine.js の
+// EVENT_TYPE_TO_CATEGORY で music/exhibit/sports/business/party/general に写す）。
+// ★ここに選択肢を足すときは EVENT_TYPE_TO_CATEGORY にも必ず対応を足すこと。
+// 未定義だと general にフォールバックし、カテゴリ固有のテンプレが選ばれなくなる。
+export const EVENT_TYPES = [
+  { id: 'exhibit',          label: '作品展示会・展覧会',   hint: 'アート・デザイン・制作物の展示' },
+  { id: 'festival_market',  label: 'フェス・マーケット',   hint: '物販・飲食の出店がある' },
+  { id: 'live_performance', label: 'ライブ・公演',         hint: '音楽・演劇・パフォーマンス' },
+  { id: 'contest',          label: '大会・コンテスト',     hint: 'スポーツ・競技・コンペ' },
+  { id: 'social',           label: '交流会・パーティー',   hint: '懇親会・打ち上げ・歓迎会' },
+  { id: 'other',            label: 'その他',               hint: 'シークレットな企み' },
+];
+
+// 「規模感は？」ではなく「どのくらいの人に来てほしい？」と聞く。
+// 規模は結果だが、来てほしい人数は意志なので、何も決まっていない段階でも答えられる。
+export const EXPECTED_SCALES = [
+  { id: 'small',  label: '身内だけで楽しむ',   hint: '5〜30人' },
+  { id: 'medium', label: '学校全体を巻き込む', hint: '100〜500人' },
+  { id: 'large',  label: '地域や一般客も呼ぶ', hint: '1,000人〜' },
+];
+
+// 意気込み（複数選択可）。カード0件でも作成を完了できる。
+export const MOTIVATION_CARDS = [
+  { id: 'show_work', label: '自分たちの作ったものを見てほしい' },
+  { id: 'memory',    label: '仲間との思い出をつくりたい' },
+  { id: 'inspire',   label: '誰かの一歩のきっかけになりたい' },
+  { id: 'fun',       label: 'とにかく楽しいことがしたい' },
+  { id: 'grow',      label: '経験を積んで力をつけたい' },
+  { id: 'local',     label: 'この場所・この街を盛り上げたい' },
+];
+
+// キャッチコピーの例文。白紙から捻り出させないための出し分け。
+// ★ここで AI を呼ばないこと（イベント作成のたびに Cloudflare の Neurons を消費するため）。
+// eventType の6種ぶんだけ持ち、expectedScale では出し分けない（18通りはメンテが重い）。
+export const CATCHPHRASE_EXAMPLES = {
+  exhibit:          ['つくる、をみせる。', 'ここにしかない一点もの', '見て、感じて、持ち帰って'],
+  festival_market:  ['食べて、買って、笑って。', '一日限りの街がひらく', 'お腹も心も満たされる日'],
+  live_performance: ['音が鳴る、その一瞬に。', '本気のステージ、見逃すな', '今日だけの熱を浴びに'],
+  contest:          ['てっぺんは、ひとつ。', '全力でぶつかる一日', '勝つのは、誰だ'],
+  social:           ['はじめまして、をたくさん。', '話せば、仲間になる', 'つながる夜がはじまる'],
+  other:            ['まだ、誰も知らない。', 'その日、何かが起こる', 'とりあえず、来てみて'],
+};
+
 export const LABEL_CONFIG = {
   '企画': { color: '#0CA1E3', bg: 'bg-[#0CA1E3]/10', border: 'border-[#0CA1E3]', text: 'text-[#0CA1E3]' },
   '運営': { color: '#EE3E12', bg: 'bg-[#EE3E12]/10', border: 'border-[#EE3E12]', text: 'text-[#EE3E12]' },

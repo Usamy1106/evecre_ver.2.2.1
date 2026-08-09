@@ -7,7 +7,11 @@ import { logEvent, initLogger, setProjectIdGetter } from './logger.js';
 
 // ビュー
 import { renderHome }               from './views/home.js';
-import { renderCreateEventInfo, renderCreateEventDates, renderCreateEventInvite } from './views/createEvent.js';
+import {
+  renderCreateEventInfo, renderCreateEventType, renderCreateEventScale,
+  renderCreateEventDates, renderCreateEventCatchphrase, renderCreateEventMotivation,
+  renderCreateEventInvite,
+} from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
 import { renderMainBoard }          from './views/mainBoard.js';
@@ -70,9 +74,14 @@ registerRenderer('LEGAL',                 renderLegal);
 state._resumeOnboarding = resumeOnboardingIfNeeded;
 registerRenderer('ACCOUNT',               renderAccount);
 registerRenderer('HOME',                  renderHome);
-registerRenderer('CREATE_EVENT_INFO',   renderCreateEventInfo);
-registerRenderer('CREATE_EVENT_DATES',  renderCreateEventDates);
-registerRenderer('CREATE_EVENT_INVITE', renderCreateEventInvite);
+// イベント作成フロー（STEP 1〜7）
+registerRenderer('CREATE_EVENT_INFO',        renderCreateEventInfo);
+registerRenderer('CREATE_EVENT_TYPE',        renderCreateEventType);
+registerRenderer('CREATE_EVENT_SCALE',       renderCreateEventScale);
+registerRenderer('CREATE_EVENT_DATES',       renderCreateEventDates);
+registerRenderer('CREATE_EVENT_CATCHPHRASE', renderCreateEventCatchphrase);
+registerRenderer('CREATE_EVENT_MOTIVATION',  renderCreateEventMotivation);
+registerRenderer('CREATE_EVENT_INVITE',      renderCreateEventInvite);
 registerRenderer('MAIN_BOARD',            renderMainBoard);
 registerRenderer('EVENT_SETTINGS',      renderEventSettings);
 registerRenderer('PROJECT_DETAIL',      renderProjectDetail);
@@ -238,6 +247,8 @@ window._app = {
   },
 
   // --- イベント作成: ステップ間遷移（クリック時に検証）---
+  // STEP 1 → 2 → 3 → 4 → 5 → 6 → 7(招待)。STEP 4〜6 はスキップ可。
+  // 戻るボタンは state.draftEvent をリセットしないので、回答は保持されたまま戻れる。
   tryProceedFromInfo: () => {
     const d = state.draftEvent || {};
     if (!d.name?.trim()) {
@@ -245,11 +256,69 @@ window._app = {
       return;
     }
     logEvent('project_info_completed', { hasDates: (d.dates?.length > 0) });
-    state.setView('CREATE_EVENT_DATES');
+    state.setView('CREATE_EVENT_TYPE');
   },
+
+  // STEP 2・3 は選んだ瞬間に次へ進む（戻れることが前提）。
+  // 選択を見せてから遷移したいので、描画を1フレーム挟んでから移動する。
+  selectEventType: (id) => {
+    state.draftEvent.eventType = id;
+    state.render();
+    setTimeout(() => state.setView('CREATE_EVENT_SCALE'), 180);
+  },
+  selectExpectedScale: (id) => {
+    state.draftEvent.expectedScale = id;
+    state.render();
+    setTimeout(() => state.setView('CREATE_EVENT_DATES'), 180);
+  },
+
   tryProceedFromDates: () => {
-    // 開催日時は任意。何も選択していなくても進める。
+    // 開催日は任意。何も選択していなくても進める。
+    state.setView('CREATE_EVENT_CATCHPHRASE');
+  },
+
+  // STEP 5: キャッチコピー。入力のたびに再描画すると入力欄のフォーカスが飛ぶので、
+  // state 更新とプレビューの差し替えだけを行い、再描画はしない。
+  updateDraftCatchphrase: (v) => {
+    state.draftEvent.catchphrase = v;
+    const el = document.getElementById('cp-preview-catch');
+    if (!el) return;
+    const t = String(v || '').trim();
+    el.textContent = t || 'ここにキャッチコピーが入ります';
+    el.classList.toggle('text-[#0CA1E3]', !!t);
+    el.classList.toggle('text-[#D3D6D8]', !t);
+  },
+  useCatchphraseExample: (text) => {
+    state.draftEvent.catchphrase = text;
+    logEvent('catchphrase_suggestion_used');
+    state.render();
+  },
+  proceedFromCatchphrase: () => {
+    state.draftEvent.catchphrase = (state.draftEvent.catchphrase || '').trim();
+    state.setView('CREATE_EVENT_MOTIVATION');
+  },
+
+  // STEP 6: 意気込み。カード0件・一言なしでも進める。
+  toggleMotivationTag: (id) => {
+    const d = state.draftEvent;
+    const cur = Array.isArray(d.motivationTags) ? d.motivationTags : [];
+    d.motivationTags = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
+    state.render();
+  },
+  updateDraftMotivationText: (v) => {
+    state.draftEvent.motivationText = v;
+  },
+  proceedFromMotivation: () => {
+    state.draftEvent.motivationText = (state.draftEvent.motivationText || '').trim();
     state.setView('CREATE_EVENT_INVITE');
+  },
+
+  // スキップ：その項目の入力を捨てて次へ進む（あとで設定画面から編集できる）
+  skipStep: (step) => {
+    const d = state.draftEvent;
+    if (step === 'dates')      { d.dates = [];          state.setView('CREATE_EVENT_CATCHPHRASE'); }
+    if (step === 'catchphrase'){ d.catchphrase = '';    state.setView('CREATE_EVENT_MOTIVATION'); }
+    if (step === 'motivation') { d.motivationTags = []; d.motivationText = ''; state.setView('CREATE_EVENT_INVITE'); }
   },
 
   // --- カレンダー ---
