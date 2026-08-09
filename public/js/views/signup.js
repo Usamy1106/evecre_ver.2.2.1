@@ -12,8 +12,9 @@
 //   スキップしても未認証ユーザーとしてアプリを使える（既存仕様を維持）。
 //   account.js の未認証バナーからいつでも認証できる。
 //
-// 表示名（STEP 4）以降のプロフィール質問は Phase C で追加する。
-// 現時点では STEP 3 を抜けたら従来どおり loadAfterAuth() で HOME へ着地する。
+//   STEP 4  表示名 / STEP 5 アバター / STEP 6 流入経路 / STEP 7 運営経験 / STEP 8 診断
+// プロフィール質問は1問ずつ即時保存し、途中離脱しても users.onboarding から再開できる。
+// STEP 9（通知）は Phase D、COMPLETE カードは Phase E で追加する。
 
 import { state } from '../state.js';
 import { api }   from '../api.js';
@@ -22,6 +23,7 @@ import { CONSENT_VERSION } from '../constants.js';
 import {
   _esc, _setSubmitting, _syncDraftFromDom, _inviteContextBanner, _setupGoogleSignIn,
 } from './auth.js';
+import { _processImageFile } from './account.js';
 
 const RESEND_COOLDOWN_SEC = 60;
 const OTP_LENGTH = 6;
@@ -46,6 +48,9 @@ function _draft() {
       otpError: '',
       otpSent: false,
       otpSending: false,
+      changingEmail: false,
+      newEmail: '',
+      newEmailError: '',
       devCode: null,
       mailError: null,
       resendLeftSec: 0,
@@ -114,7 +119,33 @@ export function renderSignup(container) {
   if (d.step === 1)      _renderEmail(container, d);
   else if (d.step === 2) _renderPassword(container, d);
   else if (d.step === 3) _renderOtp(container, d);
+  else if (d.step === 4) _renderName(container, d);
+  else if (d.step === 5) _renderAvatar(container, d);
+  else if (d.step === 6) _renderChannel(container, d);
+  else if (d.step === 7) _renderExperience(container, d);
+  else if (d.step === 8) _renderQuiz(container, d);
   else                   _renderEntry(container, d);
+}
+
+/**
+ * 中断したオンボーディングを再開する（アプリ起動時に state.init から呼ばれる）。
+ *
+ * ★iOS の Google サインインはフォーム POST → リダイレクトで、JS の状態が丸ごと消える。
+ *   そのため進行状態はサーバー（users.onboarding）に持ち、ここで復元する。
+ * ★onboarding が無いユーザー（新フロー以前からの既存ユーザー）は完了扱いにして
+ *   引き戻さない（userPublic が null を返す）。
+ * @returns {boolean} オンボーディング画面へ入ったか
+ */
+export function resumeOnboardingIfNeeded() {
+  const ob = state.currentUser?.onboarding;
+  if (!ob || ob.completedAt || ob.currentStep === 'complete') return false;
+  const step = _stepNumFromName(ob.currentStep);
+  if (!step || step < 4) return false;   // 認証パートの途中は復元しない（作り直しになるため）
+
+  state.signup = null;                    // 前の下書きは捨てる
+  state.currentView = 'CREATE_ACCOUNT_INFO';
+  _enterProfilePhase();
+  return true;
 }
 
 function _goto(step) {
@@ -493,9 +524,23 @@ function _renderOtp(container, d) {
     <p class="text-[11px] text-[#A7AAAC] font-bold text-center leading-relaxed mb-1">
       メールが見つからないときは、迷惑メールフォルダもご確認ください
     </p>
-    <button id="su-otp-change-email" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold underline">
-      メールアドレスを変更する
-    </button>
+    ${d.changingEmail ? `
+      <!-- ★STEP 1 に戻さない。戻すと別メールで登録し直され、アカウントが二重にできる。
+           作成済みアカウントのメールアドレスをその場で差し替える。 -->
+      <div class="border border-[#E1DFDC] rounded-2xl p-4 mt-2">
+        <p class="text-[12px] text-[#484545] font-bold mb-2">別のメールアドレスに送り直す</p>
+        <input id="su-newmail" type="email" autocomplete="email" inputmode="email"
+          class="input-field w-full px-4 py-3 focus:outline-none mb-2"
+          placeholder="example@mail.com" value="${_esc(d.newEmail || '')}" maxlength="100">
+        ${d.newEmailError ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.newEmailError)}</p>` : ''}
+        <div class="flex gap-2">
+          <button id="su-newmail-cancel" class="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]">キャンセル</button>
+          <button id="su-newmail-save" class="flex-1 btn-primary py-2.5 text-[13px] font-bold">変更して再送信</button>
+        </div>
+      </div>` : `
+      <button id="su-otp-change-email" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold underline">
+        メールアドレスを変更する
+      </button>`}
 
     <button id="su-otp-later" class="w-full py-3 text-[12px] text-[#A7AAAC] font-bold mt-auto">
       あとで認証する
@@ -526,21 +571,72 @@ function _renderOtp(container, d) {
     state.render();
   };
 
-  document.getElementById('su-otp-change-email').onclick = () => {
-    // 入力し直せるよう STEP 1 に戻す。作成済みのアカウントはそのまま残るため、
-    // 別のメールで作り直す場合は新しいアカウントになる旨を伝える。
-    window._app?.showToast('別のメールアドレスで登録し直せます', 'info');
-    d.otp = ''; d.otpError = '';
-    _goto(1);
-  };
+  document.getElementById('su-otp-change-email')?.addEventListener('click', () => {
+    d.changingEmail = true;
+    d.newEmail = state.currentUser?.email || d.email;
+    d.newEmailError = '';
+    state.render();
+  });
+  document.getElementById('su-newmail-cancel')?.addEventListener('click', () => {
+    d.changingEmail = false; d.newEmailError = '';
+    state.render();
+  });
+  document.getElementById('su-newmail-save')?.addEventListener('click', () => _changeSignupEmail(d));
+  document.getElementById('su-newmail')?.addEventListener('input', e => d.newEmail = e.target.value);
 
   document.getElementById('su-otp-later').onclick = async () => {
     logEvent('otp_deferred');
     logEvent('signup_step_skipped', { step: 'step3' });
-    await _finish();
+    // 認証をスキップしてもプロフィール作成へは進める（アカウントは確定済み）
+    await _enterProfilePhase();
   };
 
   _startCooldown(d);
+}
+
+/**
+ * 作成済みアカウントのメールアドレスを差し替えて、コードを送り直す。
+ * ★STEP 1 に戻して作り直させないこと（アカウントが二重にできる）。
+ */
+async function _changeSignupEmail(d) {
+  const el = document.getElementById('su-newmail');
+  const email = (el?.value || d.newEmail || '').trim();
+  d.newEmail = email;
+  d.newEmailError = '';
+
+  if (!email) { d.newEmailError = 'メールアドレスを入力してください'; state.render(); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    d.newEmailError = '正しいメールアドレスを入力してください'; state.render(); return;
+  }
+
+  const btn = document.getElementById('su-newmail-save');
+  if (btn) { btn.disabled = true; btn.textContent = '送信中…'; btn.style.opacity = '0.6'; }
+  try {
+    const r = await api.changeSignupEmail(email);
+    if (!r.ok) {
+      d.newEmailError = r.errors?.email || r.error || '変更できませんでした';
+      state.render();
+      return;
+    }
+    // 差し替え成功 → 新しいコードが新アドレスへ送られている
+    state.currentUser = r.user || state.currentUser;
+    d.email          = email;
+    d.changingEmail  = false;
+    d.otp            = '';
+    d.otpError       = '';
+    d.devCode        = r.devCode || null;
+    d.mailError      = r.mailError || null;
+    d.resendLeftSec  = r.cooldownSec || RESEND_COOLDOWN_SEC;
+    logEvent('signup_email_changed');
+    logEvent('otp_sent', { reason: 'email_changed' });
+    state.render();
+    window._app?.showToast('新しいメールアドレスにコードを送りました', 'info');
+  } catch (_) {
+    d.newEmailError = 'ネットワークエラーが発生しました';
+    state.render();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '変更して再送信'; btn.style.opacity = '1'; }
+  }
 }
 
 /** マスの表示だけを更新する（再描画するとフォーカスとIME入力が飛ぶため） */
@@ -587,7 +683,9 @@ async function _verify(d) {
       state.currentUser = r.user || { ...state.currentUser, isVerified: true };
       logEvent('otp_verified');
       logEvent('signup_step_completed', { step: 'step3' });
-      await _finish(r);
+      // 招待の着地情報は最後まで持ち越す（プロフィール完了後に使う）
+      d.pendingLanding = r;
+      await _enterProfilePhase();
       return;
     }
     // 期限切れと不一致で文言を出し分ける（サーバーが code を返す）
@@ -613,6 +711,7 @@ async function _verify(d) {
  */
 async function _finish(verifyResp = null) {
   _clearCooldownTimer();
+  verifyResp = verifyResp || state.signup?.pendingLanding || null;
   state.signup = null;
   state.authDraft  = { username: '', email: '', password: '' };
   state.authErrors = {};
@@ -634,4 +733,448 @@ async function _finish(verifyResp = null) {
     return;
   }
   await state.loadAfterAuth();
+}
+
+// =====================================================
+// プロフィール質問（STEP 4〜8）
+// =====================================================
+//
+// ★1ステップ完了ごとに api.saveOnboarding() で即時保存する。
+//   まとめて最後に保存すると、途中で離脱したときに全部消える。
+//   state.save()（/api/data）は経由させない（デバウンスも権限チェックも無関係なため）。
+//
+// 経路によって出る画面が変わる：
+//   メール経由        … 4,5,6,7,8
+//   Google 経由       … 6,7,8      （表示名とアバターは Google から埋まる）
+//   Google ＋ 招待    … 7,8        （流入経路は聞かずに 'invite' で自動記録）
+
+const PROFILE_STEPS = [4, 5, 6, 7, 8];
+
+/** この人に実際に出るプロフィール質問のステップ一覧 */
+function _visibleProfileSteps(d) {
+  const skip = new Set();
+  if (d.googleRoute) { skip.add(4); skip.add(5); }
+  if (d.inviteRoute) skip.add(6);
+  return PROFILE_STEPS.filter(s => !skip.has(s));
+}
+
+/** 経路ごとの実ステップ数で進捗を出す（固定で「10問中」とは出さない） */
+function _profileDots(d, step) {
+  const steps = _visibleProfileSteps(d);
+  const idx = steps.indexOf(step);
+  return `
+    <div class="mb-6">
+      <p class="text-[11px] text-[#0CA1E3] font-bold text-center mb-2">
+        プロフィール作成（${idx + 1}/${steps.length}）
+      </p>
+      <div class="flex items-center justify-center gap-2">
+        ${steps.map((s, i) => `
+          <div class="h-1.5 rounded-full transition-all duration-300 ${
+            i === idx ? 'w-6 bg-[#0CA1E3]' : i < idx ? 'w-1.5 bg-[#0CA1E3]' : 'w-1.5 bg-[#D3D6D8]'
+          }"></div>`).join('')}
+      </div>
+    </div>`;
+}
+
+/** プロフィールフェーズに入る（認証パート完了後、および再開時の入口） */
+async function _enterProfilePhase() {
+  const d = _draft();
+  const ob = state.currentUser?.onboarding;
+  d.googleRoute = ob?.currentStep === 'step6' && !(ob?.completedSteps || []).includes('step4');
+  d.inviteRoute = !!(state.pendingInviteToken || state.inviteContextForAuth);
+
+  // ★招待経由なら STEP 6（流入経路）は聞かずに自動記録する。聞かずに済むものは聞かない。
+  //   ここで済ませること。_gotoProfile の中でやると _normalizeStep が先に STEP 6 を
+  //   飛ばしてしまい、到達せず記録漏れになる（実際にそのバグを出した）。
+  if (d.inviteRoute && !(ob?.completedSteps || []).includes('step6')) {
+    const eventId = state.inviteContextForAuth?.eventId || '';
+    await _saveStep('step6', true, {
+      acquisitionChannel: 'invite',
+      ...(eventId ? { acquisitionInviteEventId: String(eventId) } : {}),
+    });
+  }
+
+  const first = _stepNumFromName(ob?.currentStep) ?? 4;
+  await _gotoProfile(_normalizeStep(d, first));
+}
+
+function _stepNumFromName(name) {
+  const m = /^step(\d)$/.exec(String(name || ''));
+  return m ? Number(m[1]) : null;
+}
+
+/** スキップ対象のステップに来たら、次の表示対象までずらす */
+function _normalizeStep(d, step) {
+  const steps = _visibleProfileSteps(d);
+  if (steps.includes(step)) return step;
+  return steps.find(s => s > step) ?? null;   // null なら全部終わり
+}
+
+async function _gotoProfile(step) {
+  const d = _draft();
+  if (step === null) { await _finish(); return; }
+
+  d.step = step;
+  d.errors = {};
+  logEvent('signup_step_viewed', { step: `step${step}` });
+  state.render();
+  window.scrollTo(0, 0);
+}
+
+/** 1問1保存。失敗しても先へ進める（回答は後からプロフィールで補える） */
+async function _saveStep(stepName, completed, fields = {}) {
+  try {
+    const r = await api.saveOnboarding({ step: stepName, completed, ...fields });
+    if (r.ok && r.user) state.currentUser = r.user;
+    logEvent(completed ? 'signup_step_completed' : 'signup_step_skipped', { step: stepName });
+    return r.ok;
+  } catch (e) {
+    console.warn('[signup] オンボーディング保存に失敗:', e);
+    return false;
+  }
+}
+
+/** 選択肢カード（単一選択） */
+function _choice(id, label, selected) {
+  return `
+    <button data-choice="${_esc(id)}"
+      class="w-full text-left px-4 py-4 rounded-2xl border-2 text-[14px] font-bold mb-2.5 transition-colors
+             ${selected ? 'border-[#0CA1E3] bg-[#E8F6FD] text-[#0CA1E3]' : 'border-[#E1DFDC] bg-white text-[#484545]'}">
+      ${_esc(label)}
+    </button>`;
+}
+
+function _skipButton(label = 'スキップ') {
+  return `<button id="su-skip" class="w-full py-3 text-[12px] text-[#A7AAAC] font-bold mt-auto">${label}</button>`;
+}
+
+// ----- STEP 4：表示名 -----
+
+function _renderName(container, d) {
+  container.innerHTML = _shell(`
+    ${_profileDots(d, 4)}
+    <h1 class="heading-l text-[#484545] font-bold mb-2">イベクリへようこそ。<br>まずはあなたのニックネームを教えて</h1>
+    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">あとから変更できます</p>
+
+    <label class="block text-rs text-[#484545] font-bold mb-2">みんなに表示される名前</label>
+    <input id="su-name" type="text" autocomplete="nickname"
+      class="input-field w-full px-4 py-3.5 focus:outline-none mb-1 ${d.errors.name ? 'ring-2 ring-[#EE3E12]' : ''}"
+      placeholder="ニックネーム" value="${_esc(d.name || '')}" maxlength="20">
+    <p class="text-[11px] text-[#A7AAAC] font-bold mb-1">2〜20文字（英数字・日本語・全角OK）</p>
+    ${d.errors.name ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.errors.name)}</p>` : ''}
+    ${_otherErrorsHtml(d.errors, ['name'])}
+
+    <button id="su-name-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-6">次へ</button>
+    ${_skipButton('あとで設定する')}
+  `);
+
+  const input = document.getElementById('su-name');
+  for (const ev of ['input', 'change']) input.addEventListener(ev, e => d.name = e.target.value);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('su-name-next').click(); });
+  setTimeout(() => input.focus(), 50);
+
+  document.getElementById('su-name-next').onclick = async () => {
+    _syncDraftFromDom({ 'su-name': 'name' }, d);
+    const name = (d.name || '').trim();
+    if (!name) { d.errors = { name: 'ニックネームを入力してください' }; state.render(); return; }
+
+    _setSubmitting('su-name-next', true, '保存中…');
+    const r = await api.changeUsername(name);
+    _setSubmitting('su-name-next', false, '次へ');
+    if (!r.ok) {
+      d.errors = r.errors || { name: r.error || '保存できませんでした' };
+      state.render();
+      return;
+    }
+    state.currentUser = r.user || state.currentUser;
+    await _saveStep('step4', true);
+    await _gotoProfile(_normalizeStep(d, 5));
+  };
+
+  document.getElementById('su-skip').onclick = async () => {
+    await _saveStep('step4', false);
+    await _gotoProfile(_normalizeStep(d, 5));
+  };
+}
+
+// ----- STEP 5：アバター -----
+
+function _pickThree(all, exclude = []) {
+  const pool = all.filter(p => !exclude.includes(p.id));
+  const src = pool.length >= 3 ? pool : all;
+  const shuffled = [...src].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
+}
+
+function _renderAvatar(container, d) {
+  const choices = d.avatarChoices || [];
+  container.innerHTML = _shell(`
+    ${_profileDots(d, 5)}
+    <h1 class="heading-l text-[#484545] font-bold mb-2">アイコンを<br>選んでください</h1>
+    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">あとから変更できます</p>
+
+    <div class="flex justify-between gap-3 mb-3">
+      ${choices.length === 0
+        ? '<p class="text-[12px] text-[#A7AAAC] font-bold py-8 w-full text-center">読み込み中…</p>'
+        : choices.map(p => `
+          <button data-preset="${_esc(p.id)}"
+            class="flex-1 aspect-square rounded-2xl border-2 p-2 transition-colors
+                   ${d.avatarPreset === p.id ? 'border-[#0CA1E3] bg-[#E8F6FD]' : 'border-[#E1DFDC] bg-white'}">
+            <img src="${_esc(p.url)}" alt="" class="w-full h-full object-contain rounded-full">
+          </button>`).join('')}
+    </div>
+
+    <button id="su-avatar-shuffle" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold mb-4">
+      他の候補を見る
+    </button>
+
+    ${d.avatarUploadPreview ? `
+      <div class="flex items-center gap-3 mb-3 p-3 rounded-2xl border-2 border-[#0CA1E3] bg-[#E8F6FD]">
+        <img src="${_esc(d.avatarUploadPreview)}" class="w-14 h-14 rounded-full object-cover">
+        <p class="text-[12px] text-[#0CA1E3] font-bold">この画像を使います</p>
+      </div>` : ''}
+
+    <input id="su-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
+    <button id="su-avatar-upload" class="w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC] mb-2">
+      自分の画像をアップロードする
+    </button>
+
+    ${d.errors.avatar ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.errors.avatar)}</p>` : ''}
+
+    <button id="su-avatar-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    ${_skipButton('あとで設定する')}
+  `);
+
+  // プリセット一覧はサーバーから取る（ホワイトリストの実体はサーバー側）
+  if (choices.length === 0 && !d.avatarLoading) {
+    d.avatarLoading = true;
+    api.listAvatarPresets().then(r => {
+      d.avatarLoading = false;
+      d.avatarAll = r.presets || [];
+      d.avatarChoices = _pickThree(d.avatarAll);
+      if (state.signup?.step === 5) state.render();
+    }).catch(() => { d.avatarLoading = false; });
+  }
+
+  container.querySelectorAll('[data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      d.avatarPreset = btn.dataset.preset;
+      d.avatarUploadDataUrl = null;
+      d.avatarUploadPreview = null;
+      d.errors = {};
+      state.render();
+    });
+  });
+
+  document.getElementById('su-avatar-shuffle').onclick = () => {
+    d.avatarChoices = _pickThree(d.avatarAll || [], (d.avatarChoices || []).map(p => p.id));
+    state.render();
+  };
+
+  const fileInput = document.getElementById('su-avatar-file');
+  document.getElementById('su-avatar-upload').onclick = () => fileInput.click();
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      // ★画像処理は account.js の実装を流用する（256x256 中央クロップ JPEG）。
+      //   新規に書かない。サーバー側の MIME・サイズ検証もそのまま効く。
+      const dataUrl = await _processImageFile(file);
+      d.avatarUploadDataUrl = dataUrl;
+      d.avatarUploadPreview = dataUrl;
+      d.avatarPreset = null;
+      d.errors = {};
+      state.render();
+    } catch (err) {
+      console.error('[signup] 画像処理に失敗:', err);
+      d.errors = { avatar: '画像を読み込めませんでした' };
+      state.render();
+    }
+  });
+
+  document.getElementById('su-avatar-next').onclick = async () => {
+    if (!d.avatarPreset && !d.avatarUploadDataUrl) {
+      d.errors = { avatar: 'アイコンを選ぶか、画像をアップロードしてください' };
+      state.render();
+      return;
+    }
+    _setSubmitting('su-avatar-next', true, '保存中…');
+    const r = d.avatarUploadDataUrl
+      ? await api.changeAvatar(d.avatarUploadDataUrl)
+      : await api.changeAvatarPreset(d.avatarPreset);
+    _setSubmitting('su-avatar-next', false, '次へ');
+    if (!r.ok) {
+      d.errors = { avatar: r.error === 'image_too_large' ? '画像のサイズが大きすぎます'
+                         : r.error === 'invalid_image'  ? '対応していない画像形式です'
+                         : (r.error || '保存できませんでした') };
+      state.render();
+      return;
+    }
+    state.currentUser = r.user || state.currentUser;
+    await _saveStep('step5', true);
+    await _gotoProfile(_normalizeStep(d, 6));
+  };
+
+  document.getElementById('su-skip').onclick = async () => {
+    await _saveStep('step5', false);
+    await _gotoProfile(_normalizeStep(d, 6));
+  };
+}
+
+// ----- STEP 6：どこで知ったか -----
+
+const CHANNELS = [
+  ['friend', '友達・先輩に誘われた'],
+  ['sns',    'X / Instagram などで見た'],
+  ['search', '検索して見つけた'],
+  ['school', '学校・先生から聞いた'],
+  ['other',  'その他'],
+];
+
+function _renderChannel(container, d) {
+  container.innerHTML = _shell(`
+    ${_profileDots(d, 6)}
+    <h1 class="heading-l text-[#484545] font-bold mb-6">イベクリを<br>どこで知りましたか？</h1>
+
+    ${CHANNELS.map(([id, label]) => _choice(id, label, d.acquisitionChannel === id)).join('')}
+
+    ${d.acquisitionChannel === 'other' ? `
+      <input id="su-channel-other" type="text" maxlength="100"
+        class="input-field w-full px-4 py-3 focus:outline-none mt-1 mb-2"
+        placeholder="よければ教えてください（任意）" value="${_esc(d.acquisitionChannelOther || '')}">` : ''}
+
+    <button id="su-channel-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    ${_skipButton()}
+  `);
+
+  container.querySelectorAll('[data-choice]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      d.acquisitionChannel = btn.dataset.choice;
+      state.render();
+      if (d.acquisitionChannel === 'other') setTimeout(() => document.getElementById('su-channel-other')?.focus(), 50);
+    });
+  });
+  document.getElementById('su-channel-other')?.addEventListener('input', e => d.acquisitionChannelOther = e.target.value);
+
+  document.getElementById('su-channel-next').onclick = async () => {
+    if (!d.acquisitionChannel) { d.errors = { _global: '選択してください' }; state.render(); return; }
+    _syncDraftFromDom({ 'su-channel-other': 'acquisitionChannelOther' }, d);
+    await _saveStep('step6', true, {
+      acquisitionChannel: d.acquisitionChannel,
+      ...(d.acquisitionChannel === 'other' && d.acquisitionChannelOther
+        ? { acquisitionChannelOther: d.acquisitionChannelOther } : {}),
+    });
+    await _gotoProfile(_normalizeStep(d, 7));
+  };
+  document.getElementById('su-skip').onclick = async () => {
+    await _saveStep('step6', false);
+    await _gotoProfile(_normalizeStep(d, 7));
+  };
+}
+
+// ----- STEP 7：イベント運営の経験 -----
+
+const EXPERIENCES = [
+  ['first', '今回が初めて'],
+  ['few',   '何回か手伝ったことがある'],
+  ['many',  '何度も仕切ってきた'],
+];
+
+function _renderExperience(container, d) {
+  container.innerHTML = _shell(`
+    ${_profileDots(d, 7)}
+    <h1 class="heading-l text-[#484545] font-bold mb-6">イベント運営の<br>経験はありますか？</h1>
+
+    ${EXPERIENCES.map(([id, label]) => _choice(id, label, d.eventExperience === id)).join('')}
+
+    <button id="su-exp-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    ${_skipButton()}
+  `);
+
+  container.querySelectorAll('[data-choice]').forEach(btn => {
+    btn.addEventListener('click', () => { d.eventExperience = btn.dataset.choice; state.render(); });
+  });
+  document.getElementById('su-exp-next').onclick = async () => {
+    if (!d.eventExperience) { d.errors = { _global: '選択してください' }; state.render(); return; }
+    await _saveStep('step7', true, { eventExperience: d.eventExperience });
+    await _gotoProfile(_normalizeStep(d, 8));
+  };
+  document.getElementById('su-skip').onclick = async () => {
+    await _saveStep('step7', false);
+    await _gotoProfile(_normalizeStep(d, 8));
+  };
+}
+
+// ----- STEP 8：診断（内部2問）-----
+// 1問ずつ出し、二択を大きなカードで並べる（診断コンテンツらしい見せ方）。
+
+const QUIZ = [
+  {
+    key: 'workStylePlanning',
+    title: 'イベント準備、<br>あなたはどっち？',
+    options: [
+      ['planner', '計画を立てて\nから動きたい', '📋'],
+      ['mover',   'とりあえず動いて\nから考える',   '🏃'],
+    ],
+  },
+  {
+    key: 'workStyleSocial',
+    title: '作業するなら<br>どっち？',
+    options: [
+      ['group', '大勢で\nワイワイ',  '🎉'],
+      ['solo',  '少人数で\n黙々',    '🎧'],
+    ],
+  },
+];
+
+function _renderQuiz(container, d) {
+  const qi = d.quizIndex || 0;
+  const q  = QUIZ[qi];
+  const selected = d[q.key];
+
+  container.innerHTML = _shell(`
+    ${_profileDots(d, 8)}
+    <p class="text-[12px] text-[#0CA1E3] font-bold mb-2">${qi + 1} / ${QUIZ.length}</p>
+    <h1 class="heading-l text-[#484545] font-bold mb-8">${q.title}</h1>
+
+    <div class="flex gap-3 mb-4">
+      ${q.options.map(([id, label, emoji]) => `
+        <button data-choice="${_esc(id)}"
+          class="flex-1 rounded-3xl border-2 px-3 py-8 flex flex-col items-center justify-center gap-3 transition-colors
+                 ${selected === id ? 'border-[#0CA1E3] bg-[#E8F6FD]' : 'border-[#E1DFDC] bg-white'}">
+          <span class="text-[40px] leading-none">${emoji}</span>
+          <span class="text-[14px] font-bold whitespace-pre-line text-center
+                       ${selected === id ? 'text-[#0CA1E3]' : 'text-[#484545]'}">${_esc(label)}</span>
+        </button>`).join('')}
+    </div>
+
+    ${_skipButton()}
+  `, { back: qi > 0 });
+
+  container.querySelectorAll('[data-choice]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      d[q.key] = btn.dataset.choice;
+      state.render();
+      // タップしたら少し見せてから次へ（診断らしいテンポにする）
+      setTimeout(() => _advanceQuiz(d), 250);
+    });
+  });
+  document.getElementById('su-back')?.addEventListener('click', () => { d.quizIndex = qi - 1; state.render(); });
+  document.getElementById('su-skip').onclick = () => _advanceQuiz(d, { skipped: true });
+}
+
+async function _advanceQuiz(d, { skipped = false } = {}) {
+  const qi = d.quizIndex || 0;
+  if (qi < QUIZ.length - 1) { d.quizIndex = qi + 1; state.render(); return; }
+
+  // 2問とも終わったらまとめて保存（STEP 8 という1ステップの中の設問のため）
+  const answered = !!d.workStylePlanning || !!d.workStyleSocial;
+  await _saveStep('step8', answered && !skipped, {
+    ...(d.workStylePlanning ? { workStylePlanning: d.workStylePlanning } : {}),
+    ...(d.workStyleSocial   ? { workStyleSocial:   d.workStyleSocial }   : {}),
+  });
+  // STEP 9（通知）は Phase D、COMPLETE カードは Phase E で追加する。
+  // 現時点ではここで完了扱いにして通常の着地へ進む。
+  await _saveStep('complete', true);
+  await _finish();
 }

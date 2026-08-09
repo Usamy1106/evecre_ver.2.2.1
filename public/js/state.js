@@ -356,6 +356,16 @@ export const state = {
       return;
     }
 
+    // オンボーディング（プロフィール作成）が途中なら続きから再開する。
+    // ★iOS の Google サインインはリダイレクトで JS の状態が消えるため、
+    //   進行状態はサーバー（users.onboarding）から復元している。
+    // ★招待・ミッションリンクの着地は上のブロックで先に return しているので、
+    //   ここへ来るのは通常の起動・ログイン直後だけ。
+    if (this._resumeOnboarding && this._resumeOnboarding()) {
+      this._hideLoading();
+      return;
+    }
+
     console.log('[loadAfterAuth] HOME へ遷移');
     this.currentView = 'HOME';
     syncRealtime();

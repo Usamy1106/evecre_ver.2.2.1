@@ -12,7 +12,7 @@ import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
 import { renderMainBoard }          from './views/mainBoard.js';
 import { renderLogin } from './views/auth.js';
-import { renderSignup } from './views/signup.js';
+import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
 import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
 import { renderLegal } from './views/legal.js';
@@ -63,6 +63,10 @@ registerRenderer('LOGIN',                 renderLogin);
 registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);
 registerRenderer('LEGAL',                 renderLegal);
+
+// オンボーディング再開のフックを state に渡す（state.js から views を import すると
+// 循環依存になるため、registerRenderer と同じ方式で注入する）。
+state._resumeOnboarding = resumeOnboardingIfNeeded;
 registerRenderer('ACCOUNT',               renderAccount);
 registerRenderer('HOME',                  renderHome);
 registerRenderer('CREATE_EVENT_INFO',   renderCreateEventInfo);

@@ -622,7 +622,9 @@ function _esc(s) {
 /**
  * ファイルを読み込み、Canvas で 256x256 中央クロップした JPEG の data URL を返す
  */
-function _processImageFile(file) {
+// ★アカウント作成の STEP 5（アバター選択）からも使うため export している。
+//   画像処理を二重に書かないこと（256x256 中央クロップ JPEG に統一）。
+export function _processImageFile(file) {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) return reject(new Error('not an image'));
     const reader = new FileReader();

@@ -325,7 +325,7 @@ export function _inviteContextBanner() {
     <div class="bg-[#E8F6FD] border border-[#0CA1E3] rounded-2xl p-4 mb-6">
       <p class="text-[12px] text-[#484545] font-bold leading-relaxed text-center">
         <span class="text-[#0CA1E3]">${_esc(ctx.ownerName || '')}</span>さんから<br>
-        「<span class="text-[#0CA1E3]">${_esc(ctx.projectName || '')}</span>」<br>
+        「<span class="text-[#0CA1E3]">${_esc(ctx.eventName || ctx.projectName || '')}</span>」<br>
         への招待を受けています
       </p>
       <p class="text-[10px] text-[#A7AAAC] font-bold text-center mt-2">アカウント作成で参加が完了します</p>

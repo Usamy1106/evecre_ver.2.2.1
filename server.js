@@ -209,6 +209,52 @@ async function generateTempUsername() {
   return `ユーザー${crypto.randomBytes(3).toString('hex')}`;
 }
 
+// ===== オンボーディング（アカウント作成のプロフィール質問）=====
+//
+// ★1ステップ完了ごとに即時保存する。まとめて最後に保存すると、途中離脱で全部消える。
+//   保存は users への $set（CRDT 対象外）。/api/data（state.save()）は経由させない。
+//
+// 値は「選択肢のIDだけ」を受け付けるホワイトリスト方式にしてある。
+// クライアントから任意のキー・任意の文字列を users に書き込ませないため。
+const ONBOARDING_ENUMS = {
+  acquisitionChannel: ['friend', 'sns', 'search', 'school', 'invite', 'other'],
+  eventExperience:    ['first', 'few', 'many'],
+  workStylePlanning:  ['planner', 'mover'],
+  workStyleSocial:    ['group', 'solo'],
+  notificationPreference: ['enabled', 'skipped', 'ios_pending', 'unsupported'],
+};
+// 自由記述として受け付けるもの（長さだけ制限する）
+const ONBOARDING_TEXTS = {
+  acquisitionChannelOther:  100,
+  acquisitionInviteEventId: 64,
+};
+// オンボーディングのステップ名（currentStep の値域）
+const ONBOARDING_STEPS = ['step4', 'step5', 'step6', 'step7', 'step8', 'step9', 'complete'];
+
+/** 新規アカウント作成時のオンボーディング初期値 */
+function newOnboarding(startStep) {
+  return { currentStep: startStep, completedSteps: [], completedAt: null };
+}
+
+/**
+ * リクエスト body からオンボーディングの更新分だけを取り出す。
+ * 未知のキー・値域外は黙って捨てる（不正な値を users に書かせない）。
+ */
+function pickOnboardingFields(body) {
+  const out = {};
+  for (const [key, allowed] of Object.entries(ONBOARDING_ENUMS)) {
+    if (body[key] === undefined) continue;
+    const v = String(body[key]);
+    if (allowed.includes(v)) out[key] = v;
+  }
+  for (const [key, maxLen] of Object.entries(ONBOARDING_TEXTS)) {
+    if (body[key] === undefined) continue;
+    const v = String(body[key]).trim().slice(0, maxLen);
+    if (v) out[key] = v;
+  }
+  return out;
+}
+
 /**
  * 規約同意の記録を body から取り出す。
  * バージョン文字列は画面（constants.js の CONSENT_VERSION）から送られてくるので、
@@ -308,6 +354,9 @@ function _touchLastSeen(user) {
     .catch(e => console.warn('[lastSeen] 更新に失敗:', e.message));
 }
 
+// ★ここ1箇所を直せば me / register / login / google の全レスポンスに反映される。
+//   onboarding を含めているのは、iOS の Google サインイン（フォーム POST → リダイレクト）で
+//   JS の状態が消えても「どこまで進んだか」をサーバーから復元するため。
 function userPublic(u) {
   return {
     id:         u.id,
@@ -315,6 +364,17 @@ function userPublic(u) {
     email:      u.emailLower,
     isVerified: !!u.isVerified,
     avatarUrl:  u.avatarUrl || null,
+    // ★undefined（＝新フロー以前からの既存ユーザー）は「完了済み」として扱う。
+    //   ここで null を返し、クライアント側でオンボーディングへ引き戻さない。
+    onboarding: u.onboarding || null,
+    profile: {
+      acquisitionChannel:      u.acquisitionChannel      || null,
+      acquisitionChannelOther: u.acquisitionChannelOther || null,
+      eventExperience:         u.eventExperience         || null,
+      workStylePlanning:       u.workStylePlanning       || null,
+      workStyleSocial:         u.workStyleSocial         || null,
+      notificationPreference:  u.notificationPreference  || null,
+    },
   };
 }
 
@@ -639,6 +699,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       emailLower, passwordHash,
       isVerified: false,
       createdAt: Date.now(),
+      // メール経由は表示名（STEP 4）から聞く
+      onboarding: newOnboarding('step4'),
       ...(pickConsent(req.body) || {}),
     };
     await userStore.insert(user);
@@ -704,6 +766,50 @@ app.post('/api/auth/verify-email', otpLimiter, requireAuth, async (req, res) => 
     });
   } catch (e) {
     console.error('verify-email error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// アカウント作成中のメールアドレス変更。
+//
+// ★これが無いと、STEP 3 で「メールアドレスを変更する」を押した人が
+//   STEP 1 に戻って別のメールで登録し直し、アカウントが二重にできてしまう。
+//   キャリアメールや学校ドメインは弾かれることがあるので、逃げ道自体は必須。
+//
+// 未認証（isVerified:false）のときだけ許可する。この状態はどちらのアドレスの
+// 所有も証明されていないので、差し替えてもセキュリティ上の後退にならない。
+// 認証済みユーザーの変更は従来どおり /api/account/change-email/*（新旧両方に OTP）を使う。
+app.post('/api/auth/change-signup-email', otpLimiter, requireAuth, async (req, res) => {
+  try {
+    if (req.user.isVerified) {
+      return res.status(400).json({ ok: false, code: 'already_verified', error: '認証済みのため、この方法では変更できません' });
+    }
+    const email = String(req.body?.email ?? '').trim();
+    const err = validateEmail(email);
+    if (err) return res.status(400).json({ ok: false, errors: { email: err } });
+
+    const emailLower = email.toLowerCase();
+    if (emailLower === req.user.emailLower) {
+      return res.status(400).json({ ok: false, errors: { email: '現在と同じメールアドレスです' } });
+    }
+    if (await userStore.emailExists(emailLower, req.user.id)) {
+      return res.status(409).json({ ok: false, code: 'email_taken', errors: { email: 'このメールアドレスは既に登録されています' } });
+    }
+
+    req.user.emailLower = emailLower;
+    const code = await setVerificationOtp(req.user, 'verify');
+    await userStore.update(req.user.id, { emailLower, otp: req.user.otp });
+
+    const mail = await sendOtpEmail(emailLower, code, '新規登録');
+    res.json({
+      ok: true,
+      user: userPublic(req.user),
+      devCode: mail.devCode,
+      mailError: mail.ok ? null : mail.error,
+      cooldownSec: Math.ceil(OTP_RESEND_COOLDOWN_MS / 1000),
+    });
+  } catch (e) {
+    console.error('change-signup-email error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });
@@ -823,6 +929,8 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
         isVerified: true,
         avatarUrl: pictureUrl,
         createdAt: Date.now(),
+        // Google は表示名とアバターが Google 側から埋まるので STEP 4・5 を飛ばす
+        onboarding: newOnboarding('step6'),
         ...(consent || {}),
       };
       await userStore.insert(user);
@@ -1035,6 +1143,47 @@ app.post('/api/account/change-password/confirm', requireAuth, async (req, res) =
 });
 
 // アバター変更
+// オンボーディングの1問1保存。
+// body 例: { step:'step6', completed:true, acquisitionChannel:'friend' }
+//   step      … 今いるステップ。次の currentStep はサーバー側で決める
+//   completed … true なら completedSteps に加える（スキップ時は false）
+//   その他    … pickOnboardingFields のホワイトリストに載っているものだけ保存
+app.patch('/api/account/onboarding', requireAuth, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const step = String(body.step || '');
+    if (!ONBOARDING_STEPS.includes(step)) {
+      return res.status(400).json({ ok: false, error: 'invalid_step', validSteps: ONBOARDING_STEPS });
+    }
+
+    const ob = req.user.onboarding || newOnboarding(step);
+    const completedSteps = new Set(ob.completedSteps || []);
+    if (body.completed) completedSteps.add(step);
+    // スキップした項目は completedSteps に入れない（後日プロフィール完成度として回収できる）
+    else                completedSteps.delete(step);
+
+    const idx  = ONBOARDING_STEPS.indexOf(step);
+    const next = ONBOARDING_STEPS[Math.min(idx + 1, ONBOARDING_STEPS.length - 1)];
+    const done = step === 'complete';
+
+    const fields = {
+      ...pickOnboardingFields(body),
+      onboarding: {
+        currentStep:    done ? 'complete' : next,
+        completedSteps: [...completedSteps],
+        completedAt:    done ? Date.now() : (ob.completedAt || null),
+      },
+    };
+
+    await userStore.update(req.user.id, fields);
+    Object.assign(req.user, fields);
+    res.json({ ok: true, user: userPublic(req.user) });
+  } catch (e) {
+    console.error('PATCH /api/account/onboarding error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
 // ===== アカウント削除（退会）=====
 //
 // プライバシーポリシー第7項・第10項、利用規約第14条に対応する。
@@ -1132,8 +1281,39 @@ app.delete('/api/account', requireAuth, async (req, res) => {
   }
 });
 
+// プリセットアバターのファイル名ホワイトリスト。
+// ★クライアントから任意のパスや外部 URL を avatarUrl に書かせないため、
+//   受け取るのは ID だけにして、パスはサーバー側で組み立てる。
+//   public/images/avatar/ に画像を足したらここにも追加する。
+const AVATAR_PRESETS = Object.freeze(
+  Array.from({ length: 10 }, (_, i) => `preset-avatar-${String(i + 1).padStart(2, '0')}`),
+);
+const AVATAR_PRESET_DIR = '/images/avatar';
+
+app.get('/api/account/avatar-presets', (_req, res) => {
+  res.json({
+    ok: true,
+    presets: AVATAR_PRESETS.map(id => ({ id, url: `${AVATAR_PRESET_DIR}/${id}.png` })),
+  });
+});
+
 app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
   try {
+    // プリセット選択（アップロードではなく ID 指定）
+    const presetId = String(req.body?.presetId || '');
+    if (presetId) {
+      if (!AVATAR_PRESETS.includes(presetId)) {
+        return res.status(400).json({ ok: false, error: 'invalid_preset' });
+      }
+      // 旧アバターが R2 にあれば消す（プリセットへ切り替えると参照されなくなるため）
+      const oldKey = r2.urlToKey(req.user.avatarUrl);
+      if (oldKey) r2.deleteObject(oldKey).catch(e => console.warn('[r2] old avatar delete warn:', e.message));
+      const avatarUrl = `${AVATAR_PRESET_DIR}/${presetId}.png`;
+      await userStore.update(req.user.id, { avatarUrl });
+      req.user.avatarUrl = avatarUrl;
+      return res.json({ ok: true, user: userPublic(req.user) });
+    }
+
     const dataUrl = String(req.body?.dataUrl || '');
     if (!dataUrl) {
       // 旧 R2 アバターがあれば削除
@@ -2602,6 +2782,9 @@ app.get('/api/invites/:token', async (req, res) => {
     res.json({
       ok: true,
       invite: {
+        // acquisitionInviteEventId（どの招待から来たか）の記録に使う。
+        // 招待トークンを持っている相手なので、イベントIDは秘密ではない。
+        eventId:   p.id,
         eventName: flat.name,
         seedType:    flat.seedType,
         ownerName:   owner?.username || '不明',

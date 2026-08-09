@@ -261,6 +261,26 @@ export const api = {
     return json || { ok: false };
   },
 
+  // ----- オンボーディング（1ステップ1保存）-----
+  // state.save()（/api/data）は経由させない。専用エンドポイントを直接叩く。
+  async saveOnboarding(payload) {
+    const { json } = await _send('PATCH', '/api/account/onboarding', payload);
+    return json || { ok: false, error: 'ネットワークエラー' };
+  },
+  async listAvatarPresets() {
+    const { json } = await _send('GET', '/api/account/avatar-presets');
+    return json || { ok: false, presets: [] };
+  },
+  async changeAvatarPreset(presetId) {
+    const { json } = await _send('POST', '/api/account/change-avatar', { presetId });
+    return json || { ok: false };
+  },
+  // アカウント作成中（未認証）のメールアドレス変更。認証済みの変更は changeEmail 系を使う。
+  async changeSignupEmail(email) {
+    const { json } = await _send('POST', '/api/auth/change-signup-email', { email });
+    return json || { ok: false, error: 'ネットワークエラー' };
+  },
+
   // ----- アカウント削除（退会）-----
   // 取り消せない操作。呼ぶ前に必ず showConfirmDialog で確認を取ること。
   async deleteAccount() {
