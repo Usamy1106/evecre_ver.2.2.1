@@ -10,6 +10,7 @@ import { Components } from '../components.js';
 import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
 import { showConfirmDialog } from '../dialog.js';
 import { formatEventPeriodLines } from '../utils.js';
+import { EVENT_TYPES, EXPECTED_SCALES } from '../constants.js';
 
 export function renderEventSettings(container) {
   const p = state.events.find(x => x.id === state.selectedEventId);
@@ -141,6 +142,41 @@ function _eventManagementSection(p, sec) {
             <span class="text-[14px] text-[#484545] font-bold whitespace-pre-wrap">${_formatDates(p.dates, p.dateTimes)}</span>
             ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 flex-shrink-0 self-start">変更</button>` : ''}
           </div>
+        </div>
+
+        <!-- イベントの種別 -->
+        <!-- ★ミッション提案のカテゴリ判定に直結する。作成フロー導入前のイベントは
+             未設定のままなので、ここから後追いで入力できるようにしている。 -->
+        <div class="p-4">
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">イベントの種別</p>
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">ミッション提案の内容がこれに合わせて変わります</p>
+          ${canMgr ? `
+            <select data-ps-select="eventType"
+              class="input-field w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
+              <option value="" ${!p.eventType ? 'selected' : ''}>(未設定)</option>
+              ${EVENT_TYPES.map(t => `
+                <option value="${_esc(t.id)}" ${p.eventType === t.id ? 'selected' : ''}>${_esc(t.label)}</option>
+              `).join('')}
+            </select>
+          ` : `
+            <span class="text-[14px] text-[#484545] font-bold">${_esc(EVENT_TYPES.find(t => t.id === p.eventType)?.label || '(未設定)')}</span>
+          `}
+        </div>
+
+        <!-- 来てほしい人数 -->
+        <div class="p-4">
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">来てほしい人数</p>
+          ${canMgr ? `
+            <select data-ps-select="expectedScale"
+              class="input-field w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
+              <option value="" ${!p.expectedScale ? 'selected' : ''}>(未設定)</option>
+              ${EXPECTED_SCALES.map(s => `
+                <option value="${_esc(s.id)}" ${p.expectedScale === s.id ? 'selected' : ''}>${_esc(s.label)}（${_esc(s.hint)}）</option>
+              `).join('')}
+            </select>
+          ` : `
+            <span class="text-[14px] text-[#484545] font-bold">${_esc(EXPECTED_SCALES.find(s => s.id === p.expectedScale)?.label || '(未設定)')}</span>
+          `}
         </div>
 
         <!-- フェーズ -->
@@ -403,6 +439,23 @@ function _bindEvents(p, sec) {
     sec.editing = null;
     sec.draftValue = null;
     state.render();
+  });
+
+  // 種別 / 来てほしい人数（管理者権限が必要）。未設定に戻す場合は値を消す。
+  // ★eventType は次回の提案生成からカテゴリ判定に使われる（即時再生成はしない。
+  //   12時間サイクルの次回、または提案が空になったタイミングで反映される）。
+  document.querySelectorAll('[data-ps-select]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const ev = state.events.find(x => x.id === p.id);
+      if (!ev) return;
+      const key = sel.dataset.psSelect;      // 'eventType' | 'expectedScale'
+      // ★「(未設定)」に戻すときは delete ではなく空文字を入れること。
+      //   flatToCrdt は undefined のキーをパッチに載せないため、delete だと
+      //   サーバー側の古い値が LWW で残り続けて消えない。
+      ev[key] = sel.value || '';
+      state.save();
+      state.render();
+    });
   });
 
   // フェーズ変更（管理者権限が必要・確認ダイアログを表示）
