@@ -173,10 +173,34 @@ export const Components = {
    * ステップインジケーター（イベント作成フロー）
    * @param {1|2|3} step
    */
-  StepIndicator(step) {
+  /**
+   * ステップ進捗インジケータ。
+   *
+   * ★total を省略すると従来どおり3ステップ。イベント作成（createEvent.js）は
+   *   StepIndicator(1..3) のまま動くので、呼び出しを変えなくてよい。
+   *
+   * @param {number} step   現在のステップ（1始まり）
+   * @param {number} [total=3] 全ステップ数
+   * @param {{label?:string, compact?:boolean}} [opts]
+   *   label   … 上に出す見出し（例「プロフィール作成（2/5）」）。フェーズの
+   *             切り替わりを伝えたいときに使う
+   *   compact … 現在位置だけ横長にする細いバー表示にする（ステップ数が多いとき向け）
+   */
+  StepIndicator(step, total = 3, opts = {}) {
+    const { label = '', compact = false } = opts;
+    const dots = Array.from({ length: total }, (_, i) => i + 1).map(s => {
+      if (!compact) {
+        return `<div class="w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
+          s === step ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}"></div>`;
+      }
+      return `<div class="h-1.5 rounded-full transition-all duration-300 ${
+        s === step ? 'w-6 bg-[#0CA1E3]' : s < step ? 'w-1.5 bg-[#0CA1E3]' : 'w-1.5 bg-[#D3D6D8]'}"></div>`;
+    }).join('');
     return `
-      <div class="flex items-center justify-center gap-3 mb-10">
-        ${[1, 2, 3].map(s => `<div class="w-2.5 h-2.5 rounded-full transition-colors duration-300 ${s === step ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}"></div>`).join('')}
+      <div class="${compact ? 'mb-6' : 'mb-10'}">
+        ${label ? `<p class="text-[11px] text-[#0CA1E3] font-bold text-center mb-2">${
+          String(label).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>` : ''}
+        <div class="flex items-center justify-center gap-${compact ? '2' : '3'}">${dots}</div>
       </div>`;
   },
 

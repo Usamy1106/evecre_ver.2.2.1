@@ -15,7 +15,7 @@
 //   STEP 4  表示名 / STEP 5 アバター / STEP 6 流入経路 / STEP 7 運営経験 / STEP 8 診断
 // プロフィール質問は1問ずつ即時保存し、途中離脱しても users.onboarding から再開できる。
 //   STEP 9  お知らせの受け取り方（Web Push の意向）
-// COMPLETE カードは Phase E で追加する。
+//   COMPLETE  プロフィールカード（回答から作ったタグを載せて見せる）
 
 import { state } from '../state.js';
 import { api }   from '../api.js';
@@ -26,6 +26,7 @@ import {
 } from './auth.js';
 import { _processImageFile } from './account.js';
 import { getPushState, enablePush } from '../push.js';
+import { Components } from '../components.js';
 
 const RESEND_COOLDOWN_SEC = 60;
 const OTP_LENGTH = 6;
@@ -62,15 +63,15 @@ function _draft() {
   return state.signup;
 }
 
-/** 進捗の点（Phase E で StepIndicator に統合予定。ここでは認証パートの4段だけ示す） */
+// 認証パート（STEP 1〜3）の進捗。STEP 3 を境にラベルが
+// 「アカウント作成」→「プロフィール作成」へ変わり、フェーズの転換を示す。
+const AUTH_STEPS = 3;
+
 function _dots(step) {
-  return `
-    <div class="flex items-center justify-center gap-2 mb-6">
-      ${[0, 1, 2, 3].map(s => `
-        <div class="h-1.5 rounded-full transition-all duration-300 ${
-          s === step ? 'w-6 bg-[#0CA1E3]' : s < step ? 'w-1.5 bg-[#0CA1E3]' : 'w-1.5 bg-[#D3D6D8]'
-        }"></div>`).join('')}
-    </div>`;
+  return Components.StepIndicator(step, AUTH_STEPS, {
+    label: `アカウント作成（${step}/${AUTH_STEPS}）`,
+    compact: true,
+  });
 }
 
 function _shell(inner, { back = null } = {}) {
@@ -127,6 +128,7 @@ export function renderSignup(container) {
   else if (d.step === 7) _renderExperience(container, d);
   else if (d.step === 8) _renderQuiz(container, d);
   else if (d.step === 9) _renderNotify(container, d);
+  else if (d.step === 'complete') _renderComplete(container, d);
   else                   _renderEntry(container, d);
 }
 
@@ -763,22 +765,18 @@ function _visibleProfileSteps(d) {
   return PROFILE_STEPS.filter(s => !skip.has(s));
 }
 
-/** 経路ごとの実ステップ数で進捗を出す（固定で「10問中」とは出さない） */
+/**
+ * プロフィールパートの進捗。
+ * ★経路ごとの実ステップ数で出す（固定で「10問中」とは出さない）。
+ *   メール経由=6、Google 経由=4、Google＋招待=3 のように分母が変わる。
+ */
 function _profileDots(d, step) {
   const steps = _visibleProfileSteps(d);
   const idx = steps.indexOf(step);
-  return `
-    <div class="mb-6">
-      <p class="text-[11px] text-[#0CA1E3] font-bold text-center mb-2">
-        プロフィール作成（${idx + 1}/${steps.length}）
-      </p>
-      <div class="flex items-center justify-center gap-2">
-        ${steps.map((s, i) => `
-          <div class="h-1.5 rounded-full transition-all duration-300 ${
-            i === idx ? 'w-6 bg-[#0CA1E3]' : i < idx ? 'w-1.5 bg-[#0CA1E3]' : 'w-1.5 bg-[#D3D6D8]'
-          }"></div>`).join('')}
-      </div>
-    </div>`;
+  return Components.StepIndicator(idx + 1, steps.length, {
+    label: `プロフィール作成（${idx + 1}/${steps.length}）`,
+    compact: true,
+  });
 }
 
 /** プロフィールフェーズに入る（認証パート完了後、および再開時の入口） */
@@ -823,18 +821,23 @@ function _normalizeStep(d, step) {
   return steps.find(s => s > step) ?? null;
 }
 
-/** プロフィール作成を完了して通常の着地へ進む */
+/**
+ * プロフィール作成を完了し、プロフィールカードを見せる。
+ * 着地（HOME / 招待の参加フロー）はカードの「はじめる」を押したときに行う。
+ */
 async function _finishProfile() {
+  const d = _draft();
   await _saveStep('complete', true);
-  await _finish();
+  logEvent('onboarding_completed');
+  d.step = 'complete';
+  state.render();
+  window.scrollTo(0, 0);
 }
 
 async function _gotoProfile(step) {
   const d = _draft();
   if (step === null || step === undefined) {
-    // 全ステップ終了。COMPLETE カード（プロフィールカード）は Phase E で追加する。
-    await _saveStep('complete', true);
-    await _finish();
+    await _finishProfile();   // 全ステップ終了 → プロフィールカードへ
     return;
   }
 
@@ -1319,4 +1322,104 @@ function _renderNotify(container, d) {
     });
     await _finishProfile();
   };
+}
+
+// =====================================================
+// COMPLETE：プロフィールカード
+// =====================================================
+//
+// 「フォームを埋めさせられた」ではなく「自分のカードができた」という読後感にする。
+// 回答からタグを組み立て、カードが順に組み上がるアニメーションで見せる。
+
+/** 回答 → カードに載せるタグ。未回答の項目は出さない（空欄を見せない）。 */
+function _profileTags(u) {
+  const p = u?.profile || {};
+  const tags = [];
+  const exp = { first: 'はじめて', few: '経験あり', many: 'ベテラン' }[p.eventExperience];
+  if (exp) tags.push({ label: exp, color: '#0CA1E3' });
+
+  const planning = { planner: '計画派', mover: '勢い派' }[p.workStylePlanning];
+  if (planning) tags.push({ label: planning, color: '#9EDF05' });
+
+  const social = { group: 'ワイワイ派', solo: 'もくもく派' }[p.workStyleSocial];
+  if (social) tags.push({ label: social, color: '#FFC300' });
+
+  return tags;
+}
+
+/** タグの組み合わせから一言そえる（診断コンテンツらしい読後感のため） */
+function _profileCatch(u) {
+  const p = u?.profile || {};
+  const a = p.workStylePlanning, b = p.workStyleSocial;
+  if (a === 'planner' && b === 'group') return '段取りよく、みんなを引っぱるタイプ';
+  if (a === 'planner' && b === 'solo')  return '見通しを立てて、着実に進めるタイプ';
+  if (a === 'mover'   && b === 'group') return '勢いと巻き込み力で進めるタイプ';
+  if (a === 'mover'   && b === 'solo')  return '手を動かしながら形にするタイプ';
+  return 'これからのイベントづくり、一緒に進めましょう';
+}
+
+function _renderComplete(container, d) {
+  const u = state.currentUser || {};
+  const tags = _profileTags(u);
+
+  container.innerHTML = _shell(`
+    <div class="flex-1 flex flex-col justify-center">
+      <p id="cc-lead" class="text-rs text-[#A7AAAC] font-bold text-center mb-5 opacity-0">
+        プロフィールができました！
+      </p>
+
+      <!-- カード本体。中の要素を時間差で出して「組み上がる」ように見せる -->
+      <div id="cc-card"
+        class="bg-white rounded-3xl border border-[#E1DFDC] shadow-sm px-6 py-8 mb-8 opacity-0"
+        style="transform:translateY(12px)">
+        <div id="cc-avatar" class="flex justify-center mb-4 opacity-0" style="transform:scale(.8)">
+          ${Components.UserAvatar(u, { size: 96 })}
+        </div>
+        <p id="cc-name" class="heading-r text-[#484545] font-bold text-center mb-1 opacity-0">
+          ${_esc(u.username || '')}
+        </p>
+        <p id="cc-catch" class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 opacity-0">
+          ${_esc(_profileCatch(u))}
+        </p>
+        <div id="cc-tags" class="flex flex-wrap justify-center gap-2">
+          ${tags.map((t, i) => `
+            <span data-tag-i="${i}"
+              class="px-3 py-1.5 rounded-full text-[12px] font-bold opacity-0"
+              style="background:${t.color}1A;color:${t.color};transform:translateY(6px)">
+              ${_esc(t.label)}
+            </span>`).join('')}
+        </div>
+      </div>
+
+      <button id="cc-start" class="btn-primary w-full py-4 heading-rs font-bold opacity-0">
+        イベクリをはじめる
+      </button>
+    </div>
+  `);
+
+  // 組み上がりアニメーション（CSS だけで完結させる：外部ライブラリを足さない）
+  const reveal = (id, delay, extra = '') => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    setTimeout(() => {
+      el.style.transition = 'opacity .45s ease, transform .45s cubic-bezier(.2,.8,.3,1)';
+      el.style.opacity = '1';
+      el.style.transform = extra || 'none';
+    }, delay);
+  };
+  reveal('cc-lead',   80);
+  reveal('cc-card',  200);
+  reveal('cc-avatar', 420);
+  reveal('cc-name',   620);
+  reveal('cc-catch',  780);
+  container.querySelectorAll('[data-tag-i]').forEach((el, i) => {
+    setTimeout(() => {
+      el.style.transition = 'opacity .4s ease, transform .4s cubic-bezier(.2,.8,.3,1)';
+      el.style.opacity = '1';
+      el.style.transform = 'none';
+    }, 900 + i * 130);
+  });
+  reveal('cc-start', 900 + tags.length * 130 + 200);
+
+  document.getElementById('cc-start').onclick = () => _finish();
 }

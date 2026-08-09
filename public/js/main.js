@@ -1548,6 +1548,9 @@ const _LOG_LABELS = {
   session_ended:          'アプリを閉じた',
   login_completed:        'ログインした',
   signup_completed:       '新規登録した',
+  // ★signup_completed は register 直後のまま据え置き（既存の集計との互換のため）。
+  //   オンボーディングの完走はこちらで測る。両方あると「登録したが完走しなかった人」も分かる。
+  onboarding_completed:   'アカウント作成を完了した',
   logout:                 'ログアウトした',
   event_create_started:   'イベント作成を開始',
   project_info_completed: 'イベント情報を入力',
