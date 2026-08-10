@@ -2865,10 +2865,90 @@ app.get('/api/invites/:token', async (req, res) => {
         ownerName:   owner?.username || '不明',
         memberCount: (p.members || []).length,
         expiresAt:   inv.expiresAt,
+        // ★既存項目は削らないこと（inviteContextForAuth の他の利用箇所が壊れる）
+        // 作成フローで入力された「どんなイベントか」を招待相手にも見せる（すべて任意）
+        catchphrase:    (flat.catchphrase || '').trim() || null,
+        eventType:      flat.eventType || null,
+        eventTypeLabel: _EVENT_TYPE_LABELS[flat.eventType] || null,
+        motivationTags:  Array.isArray(flat.motivationTags) ? flat.motivationTags : [],
+        motivationLabels: (Array.isArray(flat.motivationTags) ? flat.motivationTags : [])
+          .map(t => _MOTIVATION_LABELS[t]).filter(Boolean),
+        motivationText: (flat.motivationText || '').trim() || null,
+        // 🔥 の数（このエンドポイントは未認証でも叩けるので「自分が押したか」は返さない）
+        motivationReactionCount: (p.motivationReactions || []).length,
       },
     });
   } catch (e) {
     console.error('GET /api/invites/:token error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ── 意気込みへのリアクション（🔥）────────────────────────────
+// ★motivationReactions は CRDT の LWW セルではない（配列全体が Last-Write-Wins に
+//   なると、同時に押した2人のうち1人が消えるため）。ここで $push / $pull により
+//   MongoDB 側で原子的に更新する。PUT /api/data（applyPatch）はこのフィールドに
+//   触らないので、通常保存で上書きされることもない。
+//
+// 宛先の考え方：招待ページから押されるので「まだメンバーでない人」も押せる必要がある。
+// メンバーであるか、そのイベント宛の有効な招待トークンを持っているかのどちらかを要求する。
+app.post('/api/events/:id/motivation-reactions', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
+
+    const emoji = String(req.body?.emoji ?? '🔥').trim();
+    if (!emoji || emoji.length > 16) return res.status(400).json({ ok: false, error: '絵文字が不正です' });
+
+    // 権限：メンバー or このイベント宛の有効な招待トークン保持者
+    let allowed = eventStore.isMember(p, req.user.id);
+    if (!allowed && req.body?.inviteToken) {
+      const inv = await inviteStore.loadInvite(String(req.body.inviteToken));
+      const now = Date.now();
+      allowed = !!inv && inv.eventId === p.id &&
+        !(inv.expiresAt && inv.expiresAt < now) &&
+        !(inv.maxUses && (inv.usedBy || []).length >= inv.maxUses);
+    }
+    if (!allowed) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const col  = getDb().collection('events');
+    const uid  = req.user.id;
+    const has  = (p.motivationReactions || []).some(r => r.userId === uid && r.emoji === emoji);
+
+    if (has) {
+      await col.updateOne({ _id: p.id }, { $pull: { motivationReactions: { userId: uid, emoji } } });
+    } else {
+      // 条件付き $push で二重追加を防ぐ（$addToSet は at が異なると重複するため使えない）
+      await col.updateOne(
+        { _id: p.id, motivationReactions: { $not: { $elemMatch: { userId: uid, emoji } } } },
+        { $push: { motivationReactions: { userId: uid, emoji, at: Date.now() } } }
+      );
+    }
+
+    const fresh = await eventStore.loadEvent(p.id);
+    const list  = fresh?.motivationReactions || [];
+    const count = list.length;
+    const mine  = list.some(r => r.userId === uid && r.emoji === emoji);
+
+    // ★通知は必ずまとめる（参加者ごとに1通飛ぶと即座に鬱陶しくなる）。
+    //   同じイベントの未読通知があれば件数と時刻を更新し、無ければ1件だけ作る。
+    if (!has && count > 0) {
+      const admins = (fresh.members || [])
+        .map(m => m.userId)
+        .filter(id => id !== uid && eventStore.canManage(fresh, id));
+      if (admins.length > 0) {
+        const people = new Set(list.map(r => r.userId)).size;
+        await notifStore.upsertEventNotification(admins, {
+          type:    'motivation_reaction',
+          eventId: fresh.id,
+          message: `${people}人が「${fresh.fields?.name?.v || 'イベント'}」の意気込みに ${emoji} を送りました`,
+        });
+      }
+    }
+
+    res.json({ ok: true, count, mine });
+  } catch (e) {
+    console.error('motivation-reactions error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });

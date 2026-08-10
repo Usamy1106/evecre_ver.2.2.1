@@ -15,7 +15,7 @@ import {
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
 import { renderMainBoard }          from './views/mainBoard.js';
-import { renderLogin } from './views/auth.js';
+import { renderLogin, motivationBlockHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
 import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
@@ -1287,14 +1287,21 @@ window._app = {
       <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
         <p class="text-[36px] mb-2">🎉</p>
         <h3 class="heading-m text-[#484545] font-bold mb-3">イベントに参加する</h3>
+        <p id="jec-catch" class="text-[14px] text-[#0CA1E3] font-bold leading-snug mb-2 hidden"></p>
         <p class="text-[13px] text-[#484545] font-bold mb-1">「${_escH(eventName || 'イベント')}」</p>
-        <p class="text-[12px] text-[#A7AAAC] font-bold mb-8">への参加を申請しますか？<br>管理者の承認後に参加できます。</p>
+        <p class="text-[12px] text-[#A7AAAC] font-bold mb-4">への参加を申請しますか？<br>管理者の承認後に参加できます。</p>
+        <!-- 意気込み＋🔥（招待プレビューを取得できたときだけ差し込む） -->
+        <div id="jec-motivation" class="mb-6"></div>
         <div class="flex gap-3">
           <button id="jec-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
           <button id="jec-confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md bg-[#0CA1E3]">参加申請する</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
+
+    // 意気込み・キャッチコピー・🔥 は招待プレビューから後追いで差し込む。
+    // 取得に失敗しても参加フロー自体は従来どおり動く（表示が増えないだけ）。
+    _hydrateJoinModalMotivation(inviteToken);
 
     document.getElementById('jec-cancel').onclick = () => overlay.remove();
     document.getElementById('jec-confirm').onclick = async () => {
@@ -1474,6 +1481,62 @@ function _cleanChecklist(list) {
 /** HTML 属性・テキストのエスケープ */
 function _escH(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/**
+ * 参加確認モーダルに、招待側の意気込み・キャッチコピー・🔥ボタンを差し込む。
+ *
+ * ★🔥を出すのはここ（ログイン済みの参加確認モーダル）だけ。認証前の招待バナー
+ *   （auth.js の _inviteContextBanner）では押せないためボタンを置かない。
+ *   サーバーはメンバーでなくても有効な招待トークンがあれば受け付ける。
+ */
+async function _hydrateJoinModalMotivation(inviteToken) {
+  if (!inviteToken) return;
+  let ctx = null;
+  try {
+    const r = await api.previewInvite(inviteToken);
+    if (r?.ok) ctx = r.invite;
+  } catch (_) { return; }           // 取得できなければ何も足さない（従来の見た目）
+  if (!ctx) return;
+
+  const catchEl = document.getElementById('jec-catch');
+  if (catchEl && ctx.catchphrase) {
+    catchEl.textContent = ctx.catchphrase;
+    catchEl.classList.remove('hidden');
+  }
+
+  const box = document.getElementById('jec-motivation');
+  if (!box) return;
+  const block = motivationBlockHtml(ctx);
+  if (!block) return;               // 意気込みが未入力なら🔥も出さない
+
+  let count = Number(ctx.motivationReactionCount) || 0;
+  let mine  = false;
+
+  const paint = () => {
+    box.innerHTML = `
+      ${block}
+      <button id="jec-fire"
+        class="mt-3 px-4 py-2 rounded-full text-[13px] font-bold border-2 transition-all active:scale-95
+          ${mine ? 'border-[#EE3E12] bg-[#EE3E12]/10 text-[#EE3E12]' : 'border-[#E1DFDC] bg-white text-[#A7AAAC]'}">
+        🔥 ${count > 0 ? count : ''} <span class="text-[11px]">${mine ? '送った！' : '応援する'}</span>
+      </button>`;
+    document.getElementById('jec-fire').onclick = async () => {
+      const btn = document.getElementById('jec-fire');
+      btn.disabled = true;
+      try {
+        const r = await api.toggleMotivationReaction(ctx.eventId, '🔥', inviteToken);
+        if (r?.ok) { count = r.count; mine = r.mine; paint(); }
+        else window._app?.showToast(r?.error || '送信に失敗しました', 'error');
+      } catch (_) {
+        window._app?.showToast('通信エラーが発生しました', 'error');
+      } finally {
+        const b = document.getElementById('jec-fire');
+        if (b) b.disabled = false;
+      }
+    };
+  };
+  paint();
 }
 
 // ===== プロジェクト（フォルダ）ヘルパ =====

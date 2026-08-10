@@ -315,6 +315,12 @@ export const api = {
     const { json } = await _send('POST', `/api/invites/${token}/accept`);
     return json || { ok: false };
   },
+  // 意気込みへのリアクション（トグル）。まだメンバーでない招待相手も押せるよう
+  // inviteToken を添えて送る（サーバーがメンバー or 有効な招待かを検証する）
+  async toggleMotivationReaction(eventId, emoji = '🔥', inviteToken = null) {
+    const { json } = await _send('POST', `/api/events/${eventId}/motivation-reactions`, { emoji, inviteToken });
+    return json || { ok: false };
+  },
 
   // ----- プロジェクト（フォルダ）-----
   async listProjects() {

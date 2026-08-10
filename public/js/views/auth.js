@@ -323,12 +323,38 @@ export function _inviteContextBanner() {
   if (!ctx) return '';
   return `
     <div class="bg-[#E8F6FD] border border-[#0CA1E3] rounded-2xl p-4 mb-6">
+      ${ctx.catchphrase ? `
+        <p class="text-[14px] text-[#0CA1E3] font-bold text-center leading-snug mb-2">${_esc(ctx.catchphrase)}</p>
+      ` : ''}
       <p class="text-[12px] text-[#484545] font-bold leading-relaxed text-center">
         <span class="text-[#0CA1E3]">${_esc(ctx.ownerName || '')}</span>さんから<br>
         「<span class="text-[#0CA1E3]">${_esc(ctx.eventName || ctx.projectName || '')}</span>」<br>
         への招待を受けています
       </p>
+      ${motivationBlockHtml(ctx)}
       <p class="text-[10px] text-[#A7AAAC] font-bold text-center mt-2">アカウント作成で参加が完了します</p>
+    </div>`;
+}
+
+/**
+ * 招待の「意気込み」ブロック。招待バナー（未ログイン）と参加確認モーダル（ログイン済み）で共用する。
+ * ★🔥ボタンはここには置かない。押すには認証が必要で、未ログインの招待バナーでは
+ *   押せないため。ログイン済みの参加確認モーダル側だけがボタンを出す（main.js）。
+ * @param {object} ctx 招待プレビュー（GET /api/invites/:token の invite）
+ */
+export function motivationBlockHtml(ctx) {
+  const labels = Array.isArray(ctx?.motivationLabels) ? ctx.motivationLabels : [];
+  const text   = (ctx?.motivationText || '').trim();
+  if (!labels.length && !text) return '';
+  return `
+    <div class="mt-3 pt-3 border-t border-[#0CA1E3]/20">
+      <p class="text-[10px] text-[#A7AAAC] font-bold text-center mb-2">この人たちの想い</p>
+      <div class="flex flex-wrap gap-1.5 justify-center">
+        ${labels.map(l => `
+          <span class="text-[10px] font-bold text-[#EE3E12] bg-[#EE3E12]/10 px-2.5 py-1 rounded-full">${_esc(l)}</span>
+        `).join('')}
+      </div>
+      ${text ? `<p class="text-[12px] text-[#484545] font-bold mt-2.5 text-center leading-relaxed">「${_esc(text)}」</p>` : ''}
     </div>`;
 }
 
