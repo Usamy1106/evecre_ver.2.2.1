@@ -10,7 +10,7 @@ import { Components } from '../components.js';
 import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
 import { showConfirmDialog } from '../dialog.js';
 import { formatEventPeriodLines } from '../utils.js';
-import { EVENT_TYPES, EXPECTED_SCALES } from '../constants.js';
+import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS } from '../constants.js';
 
 export function renderEventSettings(container) {
   const p = state.events.find(x => x.id === state.selectedEventId);
@@ -91,9 +91,11 @@ function _membersAvatarsSection(sec) {
 // =====================================================
 function _eventManagementSection(p, sec) {
   const canMgr = state.canManageCurrentEvent();
-  const editingName = sec.editing === 'name';
-  const editingDesc = sec.editing === 'description';
+  const editingName  = sec.editing === 'name';
+  const editingDesc  = sec.editing === 'description';
   const editingDates = sec.editing === 'dates';
+  const editingCatch = sec.editing === 'catchphrase';
+  const editingMotiv = sec.editing === 'motivationText';
 
   return `
     <section>
@@ -142,6 +144,68 @@ function _eventManagementSection(p, sec) {
             <span class="text-[14px] text-[#484545] font-bold whitespace-pre-wrap">${_formatDates(p.dates, p.dateTimes)}</span>
             ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 flex-shrink-0 self-start">変更</button>` : ''}
           </div>
+        </div>
+
+        <!-- キャッチコピー -->
+        <!-- 招待ページ（招待バナー・参加確認モーダル）の一番上に表示される -->
+        <div class="p-4">
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">キャッチコピー</p>
+          ${editingCatch ? `
+            <input id="ps-catch-input" type="text" maxlength="40" placeholder="例：つくる、をみせる。"
+              value="${_esc(sec.draftValue || '')}"
+              class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+            <div class="flex gap-2">
+              <button id="ps-catch-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
+              <button id="ps-catch-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+            </div>
+          ` : `
+            <div class="flex items-start justify-between gap-3">
+              <span class="text-[13px] flex-1 break-words ${p.catchphrase ? 'text-[#0CA1E3] font-bold' : 'text-[#484545]'}">${_esc(p.catchphrase || '(未設定)')}</span>
+              ${canMgr ? `<button data-ps-edit="catchphrase" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>` : ''}
+            </div>
+          `}
+        </div>
+
+        <!-- 意気込み（カード複数選択＋ひとこと）-->
+        <!-- ★招待相手に表示され、🔥で応援できる。意気込みが未入力だと🔥ボタン自体が
+             出ない（＝空のイベントでは応援できない）ので、ここから後追いで入れられるようにする。 -->
+        <div class="p-4">
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">意気込み</p>
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">招待した相手に表示され、🔥で応援してもらえます</p>
+          ${canMgr ? `
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              ${MOTIVATION_CARDS.map(c => {
+                const on = (p.motivationTags || []).includes(c.id);
+                return `
+                  <button data-ps-motiv="${c.id}"
+                    class="text-[11px] font-bold px-3 py-1.5 rounded-full border-2 transition-all active:scale-95
+                      ${on ? 'border-[#EE3E12] bg-[#EE3E12]/10 text-[#EE3E12]' : 'border-[#E1DFDC] bg-white text-[#A7AAAC]'}">
+                    ${_esc(c.label)}
+                  </button>`;
+              }).join('')}
+            </div>
+          ` : `
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              ${(p.motivationTags || []).map(id => {
+                const label = MOTIVATION_CARDS.find(c => c.id === id)?.label;
+                return label ? `<span class="text-[11px] font-bold text-[#EE3E12] bg-[#EE3E12]/10 px-2.5 py-1 rounded-full">${_esc(label)}</span>` : '';
+              }).join('') || '<span class="text-[13px] text-[#484545]">(未設定)</span>'}
+            </div>
+          `}
+          ${editingMotiv ? `
+            <input id="ps-motiv-input" type="text" maxlength="60" placeholder="ひとことで言うと？"
+              value="${_esc(sec.draftValue || '')}"
+              class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+            <div class="flex gap-2">
+              <button id="ps-motiv-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
+              <button id="ps-motiv-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+            </div>
+          ` : `
+            <div class="flex items-start justify-between gap-3">
+              <span class="text-[13px] text-[#484545] flex-1 break-words">${p.motivationText ? `「${_esc(p.motivationText)}」` : '(ひとこと未設定)'}</span>
+              ${canMgr ? `<button data-ps-edit="motivationText" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>` : ''}
+            </div>
+          `}
         </div>
 
         <!-- イベントの種別 -->
@@ -412,7 +476,12 @@ function _bindEvents(p, sec) {
     el.addEventListener('click', () => {
       const f = el.dataset.psEdit;
       sec.editing = f;
-      sec.draftValue = f === 'name' ? p.name : (p.description || '');
+      // 編集開始時の初期値。フィールドを増やしたらここにも足すこと
+      sec.draftValue =
+        f === 'name'           ? p.name
+      : f === 'catchphrase'    ? (p.catchphrase || '')
+      : f === 'motivationText' ? (p.motivationText || '')
+      :                          (p.description || '');
       state.render();
     });
   });
@@ -438,6 +507,40 @@ function _bindEvents(p, sec) {
     await state.saveNow();
     sec.editing = null;
     sec.draftValue = null;
+    state.render();
+  });
+
+  // キャッチコピー 保存・キャンセル
+  document.getElementById('ps-catch-input')?.addEventListener('input', e => sec.draftValue = e.target.value);
+  document.getElementById('ps-catch-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
+  document.getElementById('ps-catch-save')?.addEventListener('click', async () => {
+    // 空にするときも空文字を入れる（delete だと LWW でサーバー側の古い値が残る）
+    p.catchphrase = String(sec.draftValue || '').trim();
+    await state.saveNow();
+    sec.editing = null; sec.draftValue = null;
+    state.render();
+  });
+
+  // 意気込みカードのトグル（押した時点で即保存）
+  document.querySelectorAll('[data-ps-motiv]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ev = state.events.find(x => x.id === p.id);
+      if (!ev) return;
+      const id  = btn.dataset.psMotiv;
+      const cur = Array.isArray(ev.motivationTags) ? ev.motivationTags : [];
+      ev.motivationTags = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
+      await state.saveNow();
+      state.render();
+    });
+  });
+
+  // 意気込みのひとこと 保存・キャンセル
+  document.getElementById('ps-motiv-input')?.addEventListener('input', e => sec.draftValue = e.target.value);
+  document.getElementById('ps-motiv-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
+  document.getElementById('ps-motiv-save')?.addEventListener('click', async () => {
+    p.motivationText = String(sec.draftValue || '').trim();
+    await state.saveNow();
+    sec.editing = null; sec.draftValue = null;
     state.render();
   });
 
