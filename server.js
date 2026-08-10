@@ -507,6 +507,44 @@ async function _notifyAssignmentDecided(p, mid, m, decidedUserIds, actor) {
   });
 }
 
+// ===== 提案生成に渡すラベル =====
+// AI プロンプトは人間が読む日本語を受け取るほうが精度が出るため、id をラベルに直す。
+// ★public/js/constants.js の EVENT_TYPES / EXPECTED_SCALES / MOTIVATION_CARDS と
+//   対応させること（選択肢を足したらここにも足す。未知の id は null になり行ごと省略される）。
+const _EVENT_TYPE_LABELS = {
+  exhibit:          '作品展示会・展覧会',
+  festival_market:  'フェス・マーケット（物販・飲食の出店あり）',
+  live_performance: 'ライブ・公演（音楽・演劇）',
+  contest:          '大会・コンテスト',
+  social:           '交流会・パーティー',
+  other:            'その他',
+};
+
+const _SCALE_LABELS = {
+  small:  '身内中心（5〜30人）',
+  medium: '学校全体（100〜500人）',
+  large:  '地域・一般客（1,000人〜）',
+};
+
+const _MOTIVATION_LABELS = {
+  show_work: '自分たちの作ったものを見てほしい',
+  memory:    '仲間との思い出をつくりたい',
+  inspire:   '誰かの一歩のきっかけになりたい',
+  fun:       'とにかく楽しいことがしたい',
+  grow:      '経験を積んで力をつけたい',
+  local:     'この場所・この街を盛り上げたい',
+};
+
+/** 意気込み（カード＋一言）を1行にまとめる。何も無ければ null（行ごと省略される） */
+function _motivationLine(flat) {
+  const tags = (Array.isArray(flat.motivationTags) ? flat.motivationTags : [])
+    .map(id => _MOTIVATION_LABELS[id]).filter(Boolean);
+  const text = (flat.motivationText || '').trim();
+  const parts = [...tags];
+  if (text) parts.push(`「${text}」`);
+  return parts.length ? parts.join('／') : null;
+}
+
 // ===== ミッションヘルパ =====
 
 function _missionToFlat(cm, mid) {
@@ -1655,6 +1693,14 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       const aiProps = await aiProposalClient.generateMissionProposals({
         name:        flat.name || '',
         description: flat.description || '',
+        // 作成フローで聞いた項目（未設定なら null。プロンプト側で行ごと省略される）
+        eventTypeLabel:     _EVENT_TYPE_LABELS[flat.eventType] || null,
+        expectedScaleLabel: _SCALE_LABELS[flat.expectedScale] || null,
+        catchphrase:        (flat.catchphrase || '').trim() || null,
+        motivation:         _motivationLine(flat),
+        // ★運営メンバー数は members の実測値（作成時に人数は尋ねない。
+        //   作成時点では必ず1人で、計画を聞いても数日で陳腐化するため）
+        memberCount: (p.members || []).length,
         phase:       proposalEngine.detectPhase({
                        eventDates: Array.isArray(flat.dates) ? flat.dates : [],
                        daysLeft:   typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
@@ -1686,6 +1732,9 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       const r = proposalEngine.generateProposals({
         name:           flat.name        || '',
         description:    flat.description || '',
+        // 明示された種別があればキーワード推測（detectCategory）より優先される
+        eventType:      typeof flat.eventType === 'string' ? flat.eventType : null,
+        expectedScale:  typeof flat.expectedScale === 'string' ? flat.expectedScale : null,
         existingTitles: fallbackAvoid,
         usedProposalIds,
         eventDates:     Array.isArray(flat.dates) ? flat.dates : [],
