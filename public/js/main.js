@@ -51,6 +51,7 @@ import { openVerifyEmailModal } from './modals/verifyEmailModal.js';
 import { openJoinByCodeModal } from './modals/joinByCodeModal.js';
 import { openEventCalendarSheet } from './modals/eventCalendarSheet.js';
 import { checkPurposeReminderModal } from './modals/purposeReminderModal.js';
+import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/leaderMotivationModal.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 import { showConfirmDialog } from './dialog.js';
@@ -283,15 +284,9 @@ window._app = {
   },
 
   // STEP 5: キャッチコピー。入力のたびに再描画すると入力欄のフォーカスが飛ぶので、
-  // state 更新とプレビューの差し替えだけを行い、再描画はしない。
+  // state を更新するだけで再描画はしない（プレビューは廃止済み）。
   updateDraftCatchphrase: (v) => {
     state.draftEvent.catchphrase = v;
-    const el = document.getElementById('cp-preview-catch');
-    if (!el) return;
-    const t = String(v || '').trim();
-    el.textContent = t || 'ここにキャッチコピーが入ります';
-    el.classList.toggle('text-[#0CA1E3]', !!t);
-    el.classList.toggle('text-[#D3D6D8]', !t);
   },
   useCatchphraseExample: (text) => {
     state.draftEvent.catchphrase = text;
@@ -1148,6 +1143,9 @@ window._app = {
 
   // --- 目的リマインドモーダル（全メンバー向け）---
   checkPurposeReminderModal: () => checkPurposeReminderModal(),
+  // 参加直後にリーダーの意気込みを見せて🔥を送れるようにする（表示可否はモーダル側が判定）
+  checkLeaderMotivationModal: () => checkLeaderMotivationModal(),
+  openLeaderMotivationModal:  () => openLeaderMotivationModal(),
 
   // --- 開催日リマインドモーダル（全メンバー向け・初日/最終日翌日）---
   checkEventDateReminderModal: () => checkEventDateReminderModal(),
@@ -1520,41 +1518,9 @@ async function _hydrateJoinModalMotivation(inviteToken) {
 
   const box = document.getElementById('jec-motivation');
   if (!box) return;
-  const block = motivationBlockHtml(ctx);
-  if (!block) return;               // 意気込みが未入力なら🔥も出さない
-
-  let count = Number(ctx.motivationReactionCount) || 0;
-  let mine  = false;
-
-  const paint = () => {
-    box.innerHTML = `
-      ${block}
-      <button id="jec-fire"
-        class="mt-3 px-4 py-2 rounded-full text-[13px] font-bold border-2 transition-all active:scale-95
-          ${mine ? 'border-[#EE3E12] bg-[#EE3E12]/10 text-[#EE3E12]' : 'border-[#E1DFDC] bg-white text-[#A7AAAC]'}">
-        🔥 ${count > 0 ? count : ''} <span class="text-[11px]">${mine ? '送った！' : '応援する'}</span>
-      </button>`;
-    document.getElementById('jec-fire').onclick = async () => {
-      const btn = document.getElementById('jec-fire');
-      btn.disabled = true;
-      try {
-        const r = await api.toggleMotivationReaction(ctx.eventId, '🔥', inviteToken);
-        if (r?.ok) {
-          count = r.count; mine = r.mine;
-          // 取り消しは記録しない（「送った」数を数えたいので on になった時だけ）
-          if (mine) logEvent('motivation_reaction_added', { emoji: '🔥' });
-          paint();
-        }
-        else window._app?.showToast(r?.error || '送信に失敗しました', 'error');
-      } catch (_) {
-        window._app?.showToast('通信エラーが発生しました', 'error');
-      } finally {
-        const b = document.getElementById('jec-fire');
-        if (b) b.disabled = false;
-      }
-    };
-  };
-  paint();
+  // ★🔥はここには置かない。参加が承認されてイベントページに入った直後に
+  //   modals/leaderMotivationModal.js が出す（申請時点ではまだ仲間ではないため）。
+  box.innerHTML = motivationBlockHtml(ctx);
 }
 
 // ===== プロジェクト（フォルダ）ヘルパ =====

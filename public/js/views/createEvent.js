@@ -358,55 +358,9 @@ function _bindCalendarDrag(container) {
 }
 
 // =====================================================
-// 招待ページのライブプレビュー（STEP 5・6 で共用）
-// この時点ではイベント未作成（作成は STEP 7 到達時）なので、state.draftEvent から
-// クライアント側だけで組み立てる。サーバーには問い合わせない。
-// =====================================================
-function _invitePreviewHtml(d) {
-  const tagLabels = (d.motivationTags || [])
-    .map(id => MOTIVATION_CARDS.find(c => c.id === id)?.label)
-    .filter(Boolean);
-
-  return `
-    <div class="rounded-2xl border border-[#E1DFDC] bg-white shadow-sm overflow-hidden">
-      <div class="px-4 pt-3 pb-2 border-b border-[#F0EEEB] flex items-center gap-1.5">
-        <span class="w-1.5 h-1.5 rounded-full bg-[#0CA1E3]"></span>
-        <span class="text-[10px] text-[#A7AAAC] font-bold">招待ページのプレビュー</span>
-      </div>
-      <div class="px-5 py-5 text-center">
-        <p id="cp-preview-catch"
-          class="text-[15px] font-bold leading-snug mb-2 ${d.catchphrase?.trim() ? 'text-[#0CA1E3]' : 'text-[#D3D6D8]'}"
-          >${_esc(d.catchphrase?.trim() || 'ここにキャッチコピーが入ります')}</p>
-        <p class="text-[13px] text-[#484545] font-bold mb-1">${_esc(d.name || '（イベント名）')}</p>
-        <p class="text-[11px] text-[#A7AAAC] font-bold">${_esc(_previewDateLabel(d.dates))}</p>
-        <div id="cp-preview-motivation" class="mt-3">${_previewMotivationHtml(tagLabels, d.motivationText)}</div>
-      </div>
-    </div>`;
-}
-
-function _previewMotivationHtml(tagLabels, text) {
-  if (!tagLabels.length && !text?.trim()) return '';
-  return `
-    <div class="pt-3 border-t border-[#F0EEEB]">
-      <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">この人たちの想い</p>
-      <div class="flex flex-wrap gap-1.5 justify-center">
-        ${tagLabels.map(l => `
-          <span class="text-[10px] font-bold text-[#EE3E12] bg-[#EE3E12]/10 px-2.5 py-1 rounded-full">${_esc(l)}</span>
-        `).join('')}
-      </div>
-      ${text?.trim() ? `<p class="text-[12px] text-[#484545] font-bold mt-2.5 leading-relaxed">「${_esc(text.trim())}」</p>` : ''}
-    </div>`;
-}
-
-function _previewDateLabel(dates) {
-  const ds = Array.isArray(dates) ? [...dates].sort() : [];
-  if (ds.length === 0) return '開催日は未定';
-  const fmt = (s) => { const [, m, d] = s.split('-'); return `${Number(m)}月${Number(d)}日`; };
-  return ds.length === 1 ? fmt(ds[0]) : `${fmt(ds[0])}〜${fmt(ds[ds.length - 1])}`;
-}
-
-// =====================================================
-// STEP 5: キャッチコピー（ライブプレビュー付き・スキップ可）
+// STEP 5: キャッチコピー（スキップ可）
+// ★入力中のプレビューは出さない（かつて「招待ページのプレビュー」を出していたが、
+//   そもそも招待ページという画面が存在せず、実体と食い違っていたため撤去した）。
 // =====================================================
 export function renderCreateEventCatchphrase(container) {
   const d = state.draftEvent;
@@ -425,14 +379,12 @@ export function renderCreateEventCatchphrase(container) {
           class="w-full text-left px-4 py-3 rounded-xl border border-[#E1DFDC] bg-white text-[13px] font-bold text-[#484545] active:bg-[#FDFBF8] active:scale-[.99] transition-all">
           ${_esc(ex)}
         </button>`).join('')}
-    </div>
-
-    ${_invitePreviewHtml(d)}`;
+    </div>`;
 
   container.innerHTML = _stepShell({
     step: 5, stepLabel: 'イベント作成（5/6）',
     heading: 'キャッチコピーを<br>つけよう',
-    sub: '招待ページの一番上に表示されます<br>あとで変更できます',
+    sub: '招待した相手に表示されます<br>あとで変更できます',
     body,
     footer: `
       <button onclick="window._app.proceedFromCatchphrase()"
@@ -449,7 +401,10 @@ export function renderCreateEventCatchphrase(container) {
 }
 
 // =====================================================
-// STEP 6: なんでやりたい？（意気込み・スキップ可）
+// STEP 6: リーダーの意気込み（スキップ可）
+// ★「なぜこのイベントをやりたいか」ではなく「リーダーとしてどう臨むか」を聞く。
+//   参加が承認された直後にメンバーへ見せ、🔥で応援してもらうための言葉なので、
+//   イベントの動機ではなく“この人がどういう姿勢でやるか”が伝わるほうがよい。
 // ★自由記述を2連続にしないため、カード選択（複数可）＋任意の一言の二段構えにする。
 //   カード0件・一言なしでも次へ進める。
 // =====================================================
@@ -480,14 +435,12 @@ export function renderCreateEventMotivation(container) {
     <input type="text" id="cp-motiv-input" placeholder="例：全部出しきる"
       value="${_esc(d.motivationText || '')}" maxlength="60"
       oninput="window._app.updateDraftMotivationText(this.value)"
-      class="input-field w-full px-5 py-4 focus:outline-none mb-5">
-
-    ${_invitePreviewHtml(d)}`;
+      class="input-field w-full px-5 py-4 focus:outline-none">`;
 
   container.innerHTML = _stepShell({
     step: 6, stepLabel: 'イベント作成（6/6）',
-    heading: 'このイベント、<br>なんでやりたい？',
-    sub: '当てはまるものを選んでね（複数可）<br>参加してくれる人にも伝わります',
+    heading: 'リーダーとしての<br>意気込みは？',
+    sub: '当てはまるものを選んでね（複数可）<br>参加してくれた仲間に届きます',
     body,
     footer: `
       <button onclick="window._app.proceedFromMotivation()"

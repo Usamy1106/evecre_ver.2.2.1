@@ -63,8 +63,9 @@ function _render(overlay, ctx) {
       ctx.error = '';
       _render(overlay, ctx);
     });
+    // ★🔥はここには置かない。参加が承認されてイベントページに入った直後に
+    //   modals/leaderMotivationModal.js が出す（申請時点ではまだ仲間ではないため）。
     document.getElementById('jbc-accept')?.addEventListener('click', () => _accept(overlay, ctx));
-    document.getElementById('jbc-fire')?.addEventListener('click', () => _toggleFire(overlay, ctx));
   }
 }
 
@@ -98,7 +99,6 @@ function _renderConfirm(ctx) {
         に招待しています
       </p>
       ${motivationBlockHtml(inv)}
-      ${_fireButtonHtml(ctx)}
     </div>
 
     ${ctx.error ? `<p class="text-[11px] text-[#EE3E12] mb-2 font-bold text-center">${_esc(ctx.error)}</p>` : ''}
@@ -111,46 +111,6 @@ function _renderConfirm(ctx) {
         ${ctx.sending ? '参加中…' : '参加申請する'}
       </button>
     </div>`;
-}
-
-/**
- * 意気込みへの🔥ボタン。意気込みが未入力のイベントでは出さない。
- * サーバーは「メンバー or そのイベント宛の有効な招待トークン保持者」を許可するので、
- * まだ参加していないこの画面からでも押せる。
- */
-function _fireButtonHtml(ctx) {
-  const inv = ctx.info;
-  const hasMotivation = (inv.motivationLabels?.length || 0) > 0 || !!(inv.motivationText || '').trim();
-  if (!hasMotivation) return '';
-  const count = ctx._fireCount ?? (Number(inv.motivationReactionCount) || 0);
-  const mine  = !!ctx._fireMine;
-  return `
-    <div class="text-center mt-3">
-      <button id="jbc-fire"
-        class="px-4 py-2 rounded-full text-[13px] font-bold border-2 transition-all active:scale-95
-          ${mine ? 'border-[#EE3E12] bg-[#EE3E12]/10 text-[#EE3E12]' : 'border-[#E1DFDC] bg-white text-[#A7AAAC]'}">
-        🔥 ${count > 0 ? count : ''} <span class="text-[11px]">${mine ? '送った！' : '応援する'}</span>
-      </button>
-    </div>`;
-}
-
-async function _toggleFire(overlay, ctx) {
-  const btn = document.getElementById('jbc-fire');
-  if (btn) btn.disabled = true;
-  try {
-    const r = await api.toggleMotivationReaction(ctx.info.eventId, '🔥', ctx._token);
-    if (r?.ok) {
-      ctx._fireCount = r.count;
-      ctx._fireMine  = r.mine;
-      _render(overlay, ctx);
-    } else {
-      window._app?.showToast(r?.error || '送信に失敗しました', 'error');
-      if (btn) btn.disabled = false;
-    }
-  } catch (_) {
-    window._app?.showToast('通信エラーが発生しました', 'error');
-    if (btn) btn.disabled = false;
-  }
 }
 
 /**

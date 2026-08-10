@@ -69,6 +69,7 @@ export const state = {
   mainBoardTab: 'MAIN',
   _infoModalShownForEvent: null,
   _purposeReminderCheckedForEvent: null, // 目的リマインドモーダルのチェックをこのイベントで実施済みか（セッション1回）
+  _leaderMotivationCheckedForEvent: null, // リーダーの意気込みモーダルのチェック済みフラグ（セッション1回）
   _eventDateReminderCheckedForEvent: null, // 開催日リマインドモーダル（初日/翌日）のチェック実施済みか（セッション1回）
   _devAnnouncementChecked: false, // 開発者からのお知らせモーダルのチェックを実施済みか（セッション1回、イベント非依存）
   missionViewMode: 'all',      // 'all' | 'mine'  ミッション表示モード
@@ -847,6 +848,16 @@ export const state = {
         this._eventDateReminderCheckedForEvent !== this.selectedEventId) {
       this._eventDateReminderCheckedForEvent = this.selectedEventId;
       setTimeout(() => window._app?.checkEventDateReminderModal?.(), 900);
+    }
+
+    // 参加が承認されてイベントページに入った直後、リーダーの意気込みを見せて🔥を送れるようにする。
+    // 表示可否（意気込みの有無・オーナー本人か・既読か）はモーダル側が判定する。
+    // ★他モーダルより先に出す（歓迎の演出なので、入った直後に見せたい）。
+    if (this.currentView === 'MAIN_BOARD' &&
+        this.selectedEventId &&
+        this._leaderMotivationCheckedForEvent !== this.selectedEventId) {
+      this._leaderMotivationCheckedForEvent = this.selectedEventId;
+      setTimeout(() => window._app?.checkLeaderMotivationModal?.(), 300);
     }
 
     // アカウント作成の完了直後：ホーム画面追加 → 通知許可 を順に案内する。
