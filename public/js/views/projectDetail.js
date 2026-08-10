@@ -2,6 +2,7 @@
 // フォルダに所属するイベント一覧と設定を表示する。
 import { state } from '../state.js';
 import { Components } from '../components.js';
+import { bindEventLongPress } from '../modals/eventActions.js';
 
 export function renderProjectDetail(container) {
   const folder = (state.folders || []).find(f => f.id === state.selectedFolderId);
@@ -63,13 +64,19 @@ export function renderProjectDetail(container) {
           </svg>
         </button>` : ''}
     </div>`;
+
+  // イベントカードの長押しメニュー（プロジェクトから外す / 名前を変更 / 削除）。
+  // inFolder: true で1項目目が「プロジェクトに追加」→「プロジェクトから外す」に変わる。
+  bindEventLongPress({ inFolder: true });
 }
 
 function _renderEventList(list) {
   return list.map(p => {
     return `
-      <div onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
-        class="flex items-center gap-4 px-4 py-4 bg-white rounded-2xl shadow-sm mb-3 active:scale-[0.98] transition-transform cursor-pointer border border-[#E1DFDC]">
+      <div data-event-card data-event-id="${p.id}"
+        onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
+        style="touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"
+        class="flex items-center gap-4 px-4 py-4 bg-white rounded-2xl shadow-sm mb-3 active:scale-[0.98] transition-transform cursor-pointer border border-[#E1DFDC] select-none">
         <!-- サムネイル（3:2）。横並びリストなので幅基準で置く -->
         <div class="w-20 flex-shrink-0">
           ${Components.EventThumbnail(p, { rounded: 'rounded-lg' })}

@@ -48,11 +48,15 @@ function attachLongPress(el, onLongPress) {
 }
 
 /**
- * ホーム画面のイベントカードに長押しを紐付ける。
+ * イベントカードに長押しを紐付ける。
  * - 通常タップ → カードの onclick（ビュー遷移）が動く
  * - 長押し    → pressConsumed=true に設定し、onclickをキャンセルしてメニュー表示
+ *
+ * @param {{inFolder?: boolean}} [opts]
+ *   inFolder … プロジェクト（フォルダ）詳細から呼ぶとき true。
+ *              メニューの1項目目が「プロジェクトに追加」→「プロジェクトから外す」に変わる。
  */
-export function bindEventLongPress() {
+export function bindEventLongPress(opts = {}) {
   document.querySelectorAll('[data-event-card]').forEach(card => {
     const projectId = card.dataset.eventId;
     if (!projectId) return;
@@ -61,7 +65,7 @@ export function bindEventLongPress() {
       e.preventDefault();
       // 触覚フィードバック（対応端末のみ）
       if (navigator.vibrate) navigator.vibrate(15);
-      openEventMenu(projectId);
+      openEventMenu(projectId, opts);
     });
 
     // 長押し直後のclickを無効化する（タップとの誤爆防止）
@@ -107,13 +111,17 @@ export function bindFolderLongPress() {
 /**
  * イベント長押しメニューを表示
  * @param {string} projectId
+ * @param {{inFolder?: boolean}} [opts]
+ *   inFolder … プロジェクト詳細から開いたとき。「プロジェクトに追加」の代わりに
+ *              「プロジェクトから外す」を出す（今いるフォルダから外すのが自然なため）
  */
-function openEventMenu(projectId) {
+function openEventMenu(projectId, opts = {}) {
   const p = state.events.find(x => x.id === projectId);
   if (!p) return;
 
-  const canMgr  = state.canManageCurrentEvent(projectId);
-  const isOwner = p.ownerId === state.currentUser?.id;
+  const canMgr   = state.canManageCurrentEvent(projectId);
+  const isOwner  = p.ownerId === state.currentUser?.id;
+  const inFolder = !!opts.inFolder && !!p.folderId;
 
   // 既存メニューを除去
   document.getElementById('event-action-sheet')?.remove();
@@ -126,6 +134,14 @@ function openEventMenu(projectId) {
     <div data-sheet class="bg-white w-full max-w-md rounded-t-[32px] p-4 pb-8 shadow-2xl animate-fadeIn">
       <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
       <p class="text-center text-[12px] text-[#A7AAAC] font-bold mb-3 truncate px-6">${p.name}</p>
+      ${inFolder ? `<button id="pa-remove-from-project"
+        class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FDFBF8] text-[15px] font-bold text-[#484545] flex items-center gap-3">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          <line x1="9" y1="14" x2="15" y2="14"/>
+        </svg>
+        プロジェクトから外す
+      </button>` : ''}
       ${canMgr ? `<button id="pa-rename"
         class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FDFBF8] text-[15px] font-bold text-[#484545] flex items-center gap-3">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -133,13 +149,13 @@ function openEventMenu(projectId) {
         </svg>
         名前を変更
       </button>` : ''}
-      <button id="pa-add-to-project"
+      ${inFolder ? '' : `<button id="pa-add-to-project"
         class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FDFBF8] text-[15px] font-bold text-[#484545] flex items-center gap-3">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
         プロジェクトに追加
-      </button>
+      </button>`}
       ${isOwner ? `
       <button id="pa-delete"
         class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FFEEEA] text-[15px] font-bold text-[#EE3E12] flex items-center gap-3">
@@ -165,7 +181,13 @@ function openEventMenu(projectId) {
   document.body.appendChild(overlay);
 
   document.getElementById('pa-rename')?.addEventListener('click', () => { overlay.remove(); openRenameDialog(projectId); });
-  document.getElementById('pa-add-to-project').onclick = () => { overlay.remove(); openAddToProjectModal(projectId); };
+  document.getElementById('pa-remove-from-project')?.addEventListener('click', async () => {
+    overlay.remove();
+    // setEventFolder(id, null) がサーバー更新と render() まで行う。
+    // プロジェクト詳細を開いたままならリストからこのイベントが消える。
+    await state.setEventFolder(projectId, null);
+  });
+  document.getElementById('pa-add-to-project')?.addEventListener('click', () => { overlay.remove(); openAddToProjectModal(projectId); });
   document.getElementById('pa-delete')?.addEventListener('click', () => { overlay.remove(); openDeleteConfirm(projectId); });
   document.getElementById('pa-leave')?.addEventListener('click', () => { overlay.remove(); state.leaveEvent(projectId); });
   document.getElementById('pa-cancel').onclick = () => overlay.remove();
