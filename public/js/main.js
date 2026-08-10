@@ -255,7 +255,9 @@ window._app = {
       window._app?.showToast('イベント名を入力してください', 'error');
       return;
     }
+    // project_info_completed は旧フローからの継続イベント（既存の集計との互換のため残す）
     logEvent('project_info_completed', { hasDates: (d.dates?.length > 0) });
+    logEvent('event_create_step_completed', { step: 'name' });
     state.setView('CREATE_EVENT_TYPE');
   },
 
@@ -263,17 +265,20 @@ window._app = {
   // 選択を見せてから遷移したいので、描画を1フレーム挟んでから移動する。
   selectEventType: (id) => {
     state.draftEvent.eventType = id;
+    logEvent('event_create_step_completed', { step: 'type', value: id });
     state.render();
     setTimeout(() => state.setView('CREATE_EVENT_SCALE'), 180);
   },
   selectExpectedScale: (id) => {
     state.draftEvent.expectedScale = id;
+    logEvent('event_create_step_completed', { step: 'scale', value: id });
     state.render();
     setTimeout(() => state.setView('CREATE_EVENT_DATES'), 180);
   },
 
   tryProceedFromDates: () => {
     // 開催日は任意。何も選択していなくても進める。
+    logEvent('event_create_step_completed', { step: 'dates', count: state.draftEvent.dates?.length || 0 });
     state.setView('CREATE_EVENT_CATCHPHRASE');
   },
 
@@ -295,6 +300,8 @@ window._app = {
   },
   proceedFromCatchphrase: () => {
     state.draftEvent.catchphrase = (state.draftEvent.catchphrase || '').trim();
+    // 「次へ」でも空のまま進めるので、入力の有無を props に持たせる
+    logEvent('event_create_step_completed', { step: 'catchphrase', filled: !!state.draftEvent.catchphrase });
     state.setView('CREATE_EVENT_MOTIVATION');
   },
 
@@ -310,12 +317,18 @@ window._app = {
   },
   proceedFromMotivation: () => {
     state.draftEvent.motivationText = (state.draftEvent.motivationText || '').trim();
+    logEvent('event_create_step_completed', {
+      step: 'motivation',
+      tagCount: state.draftEvent.motivationTags?.length || 0,
+      hasText:  !!state.draftEvent.motivationText,
+    });
     state.setView('CREATE_EVENT_INVITE');
   },
 
   // スキップ：その項目の入力を捨てて次へ進む（あとで設定画面から編集できる）
   skipStep: (step) => {
     const d = state.draftEvent;
+    logEvent('event_create_step_skipped', { step });
     if (step === 'dates')      { d.dates = [];          state.setView('CREATE_EVENT_CATCHPHRASE'); }
     if (step === 'catchphrase'){ d.catchphrase = '';    state.setView('CREATE_EVENT_MOTIVATION'); }
     if (step === 'motivation') { d.motivationTags = []; d.motivationText = ''; state.setView('CREATE_EVENT_INVITE'); }
@@ -1526,7 +1539,12 @@ async function _hydrateJoinModalMotivation(inviteToken) {
       btn.disabled = true;
       try {
         const r = await api.toggleMotivationReaction(ctx.eventId, '🔥', inviteToken);
-        if (r?.ok) { count = r.count; mine = r.mine; paint(); }
+        if (r?.ok) {
+          count = r.count; mine = r.mine;
+          // 取り消しは記録しない（「送った」数を数えたいので on になった時だけ）
+          if (mine) logEvent('motivation_reaction_added', { emoji: '🔥' });
+          paint();
+        }
         else window._app?.showToast(r?.error || '送信に失敗しました', 'error');
       } catch (_) {
         window._app?.showToast('通信エラーが発生しました', 'error');
@@ -1702,8 +1720,16 @@ const _LOG_LABELS = {
   otp_failed:             '確認コードの入力に失敗',
   otp_deferred:           'メール認証をあとまわしにした',
   logout:                 'ログアウトした',
-  event_create_started:   'イベント作成を開始',
-  project_info_completed: 'イベント情報を入力',
+  // イベント作成フロー（views/createEvent.js、STEP 1〜7）。
+  // signup_step_* と同じ考え方で、どのステップで落ちるか・何をスキップするかを追う。
+  // props の step は 'name' / 'type' / 'scale' / 'dates' / 'catchphrase' / 'motivation'。
+  event_create_started:        'イベント作成を開始',
+  project_info_completed:      'イベント情報を入力',
+  event_create_step_completed: 'イベント作成の項目を入力',
+  event_create_step_skipped:   'イベント作成の項目をスキップ',
+  event_create_completed:      'イベント作成を完了した',
+  catchphrase_suggestion_used: 'キャッチコピーの例文を使った',
+  motivation_reaction_added:   '意気込みに応援を送った',
   event_created:          'イベントを作成した',
   mission_created:        'ミッションを作成した',
   mission_edited:         'ミッションを編集した',

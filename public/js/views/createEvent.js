@@ -20,6 +20,7 @@ import { api } from '../api.js';
 import { Components } from '../components.js';
 import { getConsecutiveGroups } from '../utils.js';
 import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, CATCHPHRASE_EXAMPLES } from '../constants.js';
+import { logEvent } from '../logger.js';
 
 const TOTAL_STEPS = 6;   // 招待リンク（STEP 7）は分母に含めない
 
@@ -630,6 +631,19 @@ async function _createAndIssueInvite() {
     sec.creating = false;
     sec.inviteUrl = `${window.location.origin}/invite/${r.invite.token}`;
     sec.eventId   = eventId;
+
+    // フロー全体の完走を1件で記録する（各ステップの入力有無つき）。
+    // ★draftEvent のリセットは _finishAndGoToEvent なので、ここではまだ回答が残っている。
+    const d = state.draftEvent || {};
+    logEvent('event_create_completed', {
+      eventType:          d.eventType || null,
+      expectedScale:      d.expectedScale || null,
+      hasDates:           (d.dates?.length || 0) > 0,
+      hasCatchphrase:     !!(d.catchphrase || '').trim(),
+      motivationTagCount: d.motivationTags?.length || 0,
+      hasMotivationText:  !!(d.motivationText || '').trim(),
+    });
+
     state.render();
   } catch (e) {
     console.error('イベント作成エラー:', e);

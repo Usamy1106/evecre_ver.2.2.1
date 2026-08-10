@@ -27,7 +27,9 @@ const ENRICHED_PIPELINE = [
   { $lookup: { from: 'events', localField: 'projectId', foreignField: '_id', as: '_e' } },
   { $set: {
       username:   { $ifNull: [ { $first: '$_u.username' }, '(匿名/未ログイン)' ] },
-      eventName:  { $ifNull: [ { $first: '$_e.name' },     '(イベント未選択)' ] },
+      // ★events はイベント名を CRDT セルで持つ（fields.name.v）。'$_e.name' は常に
+      //   undefined になる（過去にこの参照ミスで eventName が全行空だった）。
+      eventName:  { $ifNull: [ { $first: '$_e.fields.name.v' }, '(イベント未選択)' ] },
       source:     { $ifNull: [ '$ctx.source', 'client' ] },
       buttonName: '$props.name',   // event === 'button_tapped' のときボタン名
       day:  { $dateTrunc: { date: '$ts', unit: 'day', timezone: 'Asia/Tokyo' } },
@@ -38,7 +40,8 @@ const ENRICHED_PIPELINE = [
 
 // ── ビュー2: ミッションを平坦化して分析しやすくする ────────────
 const MISSION_PIPELINE = [
-  { $project: { eventName: '$name', m: { $objectToArray: { $ifNull: ['$missions', {}] } } } },
+  // ★eventName は CRDT セル（fields.name.v）から取る。'$name' は存在しない
+  { $project: { eventName: '$fields.name.v', m: { $objectToArray: { $ifNull: ['$missions', {}] } } } },
   { $unwind: '$m' },
   { $match: { 'm.v.deletedAt': null } },   // 非削除のみ（欠損も null 扱いでマッチ）
   { $project: {
@@ -134,7 +137,19 @@ const SESSION_FLOW_PIPELINE = [
 // ── ビュー4: イベント別 行動×成果 ────────────────────────────
 // 1ドキュメント=1イベント。行動ログ指標とミッション成果を1行に合成。
 const EVENT_SUMMARY_PIPELINE = [
-  { $project: { eventName: '$name' } },
+  // ★eventName は CRDT セル（fields.name.v）から取る。'$name' は存在しない。
+  //   イベント作成フローで聞いた項目もここに出す（★events に列を足したらここにも足すこと）
+  { $project: {
+      eventName:     '$fields.name.v',
+      eventType:     '$fields.eventType.v',
+      expectedScale: '$fields.expectedScale.v',
+      eventPhase:    '$fields.eventPhase.v',
+      hasCatchphrase:    { $gt: [ { $strLenCP: { $ifNull: [ '$fields.catchphrase.v', '' ] } }, 0 ] },
+      motivationTagCount: { $size: { $ifNull: [ '$fields.motivationTags.v', [] ] } },
+      hasMotivationText:  { $gt: [ { $strLenCP: { $ifNull: [ '$fields.motivationText.v', '' ] } }, 0 ] },
+      motivationReactions: { $size: { $ifNull: [ '$motivationReactions', [] ] } },
+      memberCount:         { $size: { $ifNull: [ '$members', [] ] } },
+  } },
   { $lookup: {
       from: 'event_logs',
       let: { eid: '$_id' },
@@ -368,6 +383,42 @@ const SURVEY_SUMMARY_PIPELINE = [
   { $sort: { question: 1, count: -1 } },
 ];
 
+// ── ビュー: イベント作成フローのファネル ────────────────────────
+// signup_funnel と同じ考え方。1ドキュメント=1回のイベント作成試行。
+// ★sessionId で束ねる（作成途中はイベントがまだ存在せず projectId が null のため）。
+// STEP は 'name' / 'type' / 'scale' / 'dates' / 'catchphrase' / 'motivation'。
+const EVENT_CREATE_FUNNEL_PIPELINE = [
+  { $match: { event: { $in: [
+    'event_create_started', 'event_create_step_completed', 'event_create_step_skipped',
+    'catchphrase_suggestion_used', 'event_create_completed', 'event_created',
+  ] } } },
+  { $group: {
+      _id: '$sessionId',
+      startedAt: { $min: '$ts' },
+      lastAt:    { $max: '$ts' },
+      userId:    { $max: '$userId' },
+      stepsDone:    { $addToSet: { $cond: [ { $eq: [ '$event', 'event_create_step_completed' ] }, '$props.step', '$$REMOVE' ] } },
+      stepsSkipped: { $addToSet: { $cond: [ { $eq: [ '$event', 'event_create_step_skipped' ] },   '$props.step', '$$REMOVE' ] } },
+      // 完了時のスナップショット（どの項目が埋まったか）
+      eventType:          { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.eventType', null ] } },
+      expectedScale:      { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.expectedScale', null ] } },
+      hasDates:           { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.hasDates', null ] } },
+      hasCatchphrase:     { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.hasCatchphrase', null ] } },
+      motivationTagCount: { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.motivationTagCount', null ] } },
+      hasMotivationText:  { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.hasMotivationText', null ] } },
+      usedSuggestion:     { $max: { $cond: [ { $eq: [ '$event', 'catchphrase_suggestion_used' ] }, true, false ] } },
+      completed:          { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, true, false ] } },
+  } },
+  { $set: {
+      sessionId: '$_id',
+      stepsDoneCount:    { $size: '$stepsDone' },
+      stepsSkippedCount: { $size: '$stepsSkipped' },
+      durationSec: { $round: [ { $divide: [ { $subtract: [ '$lastAt', '$startedAt' ] }, 1000 ] }, 0 ] },
+      day: { $dateToString: { date: '$startedAt', format: '%Y-%m-%d', timezone: 'Asia/Tokyo' } },
+  } },
+  { $sort: { startedAt: -1 } },
+];
+
 const VIEWS = [
   { name: 'event_logs_enriched', on: 'event_logs', pipeline: ENRICHED_PIPELINE },
   { name: 'mission_analytics',   on: 'events',     pipeline: MISSION_PIPELINE },
@@ -375,6 +426,7 @@ const VIEWS = [
   { name: 'event_summary',       on: 'events',     pipeline: EVENT_SUMMARY_PIPELINE },
   { name: 'user_summary',        on: 'users',      pipeline: USER_SUMMARY_PIPELINE },
   { name: 'signup_funnel',       on: 'event_logs', pipeline: SIGNUP_FUNNEL_PIPELINE },
+  { name: 'event_create_funnel', on: 'event_logs', pipeline: EVENT_CREATE_FUNNEL_PIPELINE },
   // ★survey_summary は survey_responses_all を参照するので、必ずこの順で作る
   { name: 'survey_responses_all', on: 'users',                 pipeline: SURVEY_ALL_PIPELINE },
   { name: 'survey_summary',       on: 'survey_responses_all',  pipeline: SURVEY_SUMMARY_PIPELINE },
