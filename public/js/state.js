@@ -570,6 +570,13 @@ export const state = {
       this.resetDraftEvent();
       logEvent('event_create_started');
     }
+    // ★selectedFolderId は _createEventAndReturnId が「作ったイベントをフォルダに入れる」
+    //   判定に使う。プロジェクト詳細を一度開くと残り続けるため、そこ以外から作成に入るときは
+    //   必ず消す（消さないと、HOME から作ったイベントが直前に見ていたフォルダに入ってしまう）。
+    //   プロジェクト詳細からの作成は createEventInFolder が直前にセットするので影響しない。
+    if (view === 'CREATE_EVENT_INFO' && this.currentView !== 'PROJECT_DETAIL') {
+      this.selectedFolderId = null;
+    }
     if (view === 'PROJECT_DETAIL') {
       this.selectedFolderId = id;
     } else if (view !== 'PROJECT_DETAIL') {

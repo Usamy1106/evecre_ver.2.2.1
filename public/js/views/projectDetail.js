@@ -27,6 +27,15 @@ export function renderProjectDetail(container) {
             <h1 class="text-[16px] font-bold text-[#484545] truncate">${_esc(folder.name)}</h1>
             ${folder.description ? `<p class="text-[11px] text-[#A7AAAC] truncate">${_esc(folder.description)}</p>` : ''}
           </div>
+          <!-- ★ここで作るとそのままこのプロジェクトに格納される（state の selectedFolderId 経由）-->
+          ${!!state.currentUser?.isVerified ? `
+            <button onclick="window._app.createEventInFolder('${folder.id}')"
+              class="flex items-center gap-1 text-[12px] font-bold text-[#0CA1E3] px-2.5 py-2 rounded-lg active:opacity-50 flex-shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              イベント
+            </button>` : ''}
           <button onclick="window._app.openProjectMenu('${folder.id}')"
             class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95 flex-shrink-0">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -45,7 +54,11 @@ export function renderProjectDetail(container) {
               </svg>
             </div>
             <p class="text-rs text-[#A7AAAC]">このプロジェクトにイベントがありません</p>
-            <p class="text-[11px] text-[#A7AAAC]">イベント一覧から長押しで追加できます</p>
+            <p class="text-[11px] text-[#A7AAAC] mb-2">ここで作るか、イベント一覧から長押しで追加できます</p>
+            ${!!state.currentUser?.isVerified ? `
+              <button onclick="window._app.createEventInFolder('${folder.id}')"
+                class="px-6 py-3 rounded-2xl text-white font-bold heading-r shadow-lg active:scale-95 transition-transform"
+                style="background-color:#0CA1E3; box-shadow:0 4px 20px rgba(12,161,227,0.4)">イベントを作成</button>` : ''}
           </div>
         ` : `
           <section>
