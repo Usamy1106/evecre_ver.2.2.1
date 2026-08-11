@@ -867,6 +867,14 @@ export const state = {
       setTimeout(() => window._app?.checkLeaderMotivationModal?.(), 300);
     }
 
+    // オンボーディング（使い方の案内）。表示可否・優先度は onboarding.js が判定する。
+    // ★他モーダルより後に出す（1300ms）。重なったらフラグを立てずに持ち越すので、
+    //   次の render() で再判定される。★セッション1回ゲートにしないこと
+    //   （1つ出したら次の段階のステップが控えているため、render のたびに評価する）。
+    if (this.currentView === 'MAIN_BOARD' && this.selectedEventId) {
+      setTimeout(() => window._app?.checkOnboarding?.(), 1300);
+    }
+
     // アカウント作成の完了直後：ホーム画面追加 → 通知許可 を順に案内する。
     // ★オンボーディングの途中では出さない（iOS は追加しないと許可できず、
     //   作成途中に共有シートへ誘導すると流れが切れるため）。

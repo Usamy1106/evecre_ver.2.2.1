@@ -54,6 +54,7 @@ import { checkPurposeReminderModal } from './modals/purposeReminderModal.js';
 import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/leaderMotivationModal.js';
 import { openJoinFormModal } from './modals/joinFormModal.js';
 import { SKILL_TAGS } from './constants.js';
+import { checkOnboarding } from './onboarding.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 import { showConfirmDialog } from './dialog.js';
@@ -1149,6 +1150,8 @@ window._app = {
   checkPurposeReminderModal: () => checkPurposeReminderModal(),
   // 参加直後にリーダーの意気込みを見せて🔥を送れるようにする（表示可否はモーダル側が判定）
   checkLeaderMotivationModal: () => checkLeaderMotivationModal(),
+  // オンボーディング（表示可否・優先度は onboarding.js が判定する）
+  checkOnboarding: () => checkOnboarding(),
   openLeaderMotivationModal:  () => openLeaderMotivationModal(),
 
   // --- 開催日リマインドモーダル（全メンバー向け・初日/最終日翌日）---
@@ -1741,6 +1744,12 @@ const _LOG_LABELS = {
 
   // 参加申請フォーム（modals/joinFormModal.js）。入口A/Bの両方から同じイベントが出る。
   // ★join_form_skipped_all が多ければフォーム自体が機能していないということなので必ず見る。
+  // オンボーディング（onboarding.js）。「出したが誰も押さないステップ」を特定するため
+  // shown / action / dismissed の3つを必ず揃えて記録する。
+  onboarding_shown:       'オンボーディングを表示',
+  onboarding_action:      'オンボーディングのボタンを押した',
+  onboarding_dismissed:   'オンボーディングを閉じた',
+
   join_form_shown:        '参加申請フォームを表示',
   join_form_submitted:    '参加を申請した',
   join_form_skipped_all:  '参加申請フォームを未回答で送信',
