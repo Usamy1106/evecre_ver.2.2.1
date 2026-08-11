@@ -1332,7 +1332,8 @@ window._app = {
         invite: previewCtx || { eventName },
         token:  inviteToken,
         entry:  'invite_link',
-        onDone: (r) => _afterJoinAccepted(r, eventName),
+        // 招待プレビューを渡して、承認待ちカード（M0）で見せる
+        onDone: (r) => _afterJoinAccepted(r, eventName, previewCtx),
       });
     };
   },
@@ -1554,7 +1555,7 @@ async function _hydrateJoinModalMotivation(inviteToken) {
  * @param {object} r        accept のレスポンス
  * @param {string} eventName 表示用のイベント名（レスポンスに無い場合のフォールバック）
  */
-async function _afterJoinAccepted(r, eventName) {
+async function _afterJoinAccepted(r, eventName, invite = null) {
   const name = r.eventName || eventName || 'イベント';
   if (r.alreadyMember) {
     // 既に参加済み → そのままイベント画面へ（承認待ちの文言は出さない）
@@ -1564,6 +1565,8 @@ async function _afterJoinAccepted(r, eventName) {
   }
   state.pendingApprovalMessage =
     `「${name}」への参加申請を送りました。管理者の承認後に参加できます。`;
+  // ★承認待ちの時間を空白にしない（M0）。取れていなければ従来どおり一文だけ出る
+  state.pendingApprovalInvite = invite || null;
   state.setView('HOME');
   state.render();
 }

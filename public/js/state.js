@@ -59,6 +59,10 @@ export const state = {
   pendingInviteToken: null,            // 招待リンク経由で来た場合のトークン保持
   pendingApprovalMessage: null,        // 承認待ち中メッセージ（HOME で表示）
   inviteContextForAuth: null,          // アカウント作成画面で「○○に招待されています」案内表示用
+  // 参加申請の直後に HOME で見せる承認待ちカードの中身（招待プレビュー）。
+  // ★承認までの待ち時間が空白だと、承認されても戻ってこない。イベントの顔と
+  //   リーダーの言葉を見せておくことで、承認通知が来たときに開く確率を上げる。
+  pendingApprovalInvite: null,
   inviteLinkError: null,               // 無効な招待リンクで来た時のエラーメッセージ
   signup: null,                        // アカウント作成フロー（views/signup.js）の下書き
   pushSubscribed: null,                // この端末が push を購読済みか（null=未判定）。
@@ -442,6 +446,7 @@ export const state = {
     this.pendingInviteToken = null;
     this.inviteContextForAuth = null;
     this.pendingApprovalMessage = null;
+    this.pendingApprovalInvite = null;
     this.pendingMissionLink = null;
     this.currentView = 'CREATE_ACCOUNT_INFO';
     this.render();

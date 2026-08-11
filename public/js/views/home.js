@@ -19,19 +19,7 @@ export function renderHome(container) {
            iOS は6割を占め、ホーム画面に追加しないと通知が届かないため、
            HOME から辿り直せる導線を常設している -->
       <div class="mx-4 mt-3">${pushBannerHtml()}</div>
-      ${state.pendingApprovalMessage ? `
-        <div class="mx-4 mt-3 bg-[#F0FDE8] border border-[#9EDF05]/60 rounded-2xl px-4 py-3 flex items-start gap-3">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="2.5" class="flex-shrink-0 mt-0.5">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
-          <p class="text-[12px] font-bold text-[#5b8104] flex-1">${state.pendingApprovalMessage}</p>
-          <button onclick="window.state.pendingApprovalMessage=null; window.state.render();"
-            class="text-[#A7AAAC] opacity-60 p-1">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>` : ''}
+      ${state.pendingApprovalMessage ? _pendingApprovalCard() : ''}
       <!-- タブバー -->
       <div class="flex border-b border-[#E1DFDC] mx-6 mt-3">
         <button onclick="window._app.setHomeTab('EVENTS')"
@@ -55,6 +43,66 @@ export function renderHome(container) {
 
   bindEventLongPress();
   bindFolderLongPress();
+}
+
+/**
+ * 承認待ちカード（M0）。
+ * ★「送信しました。承認されるまでお待ちください。」の一文だけだと、待ち時間が
+ *   まったくの空白になり、承認されても戻ってこない。イベントの顔（キャッチコピー）と
+ *   リーダーの意気込みを見せておくことで、承認通知が来たときに開く確率を上げる。
+ * 招待プレビューが取れていない場合（旧経路・取得失敗）は従来どおり一文だけ出す。
+ */
+function _pendingApprovalCard() {
+  const inv = state.pendingApprovalInvite;
+  const close = `
+    <button onclick="window.state.pendingApprovalMessage=null; window.state.pendingApprovalInvite=null; window.state.render();"
+      class="text-[#A7AAAC] opacity-60 p-1 flex-shrink-0">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>`;
+
+  if (!inv) return `
+    <div class="mx-4 mt-3 bg-[#F0FDE8] border border-[#9EDF05]/60 rounded-2xl px-4 py-3 flex items-start gap-3">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="2.5" class="flex-shrink-0 mt-0.5">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <p class="text-[12px] font-bold text-[#5b8104] flex-1">${state.pendingApprovalMessage}</p>
+      ${close}
+    </div>`;
+
+  const labels = Array.isArray(inv.motivationLabels) ? inv.motivationLabels : [];
+  const text   = (inv.motivationText || '').trim();
+
+  return `
+    <div class="mx-4 mt-3 bg-[#F0FDE8] border border-[#9EDF05]/60 rounded-2xl overflow-hidden">
+      <div class="px-4 py-3 flex items-start gap-3 border-b border-[#9EDF05]/30">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="2.5" class="flex-shrink-0 mt-0.5">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <div class="flex-1 min-w-0">
+          <p class="text-[12px] font-bold text-[#5b8104]">リーダーに通知しました</p>
+          <p class="text-[11px] font-bold text-[#5b8104]/70 mt-0.5">承認されるとイベントに入れます</p>
+        </div>
+        ${close}
+      </div>
+      <div class="bg-white px-5 py-4 text-center">
+        ${inv.catchphrase ? `
+          <p class="text-[14px] text-[#0CA1E3] font-bold leading-snug mb-2">${_esc(inv.catchphrase)}</p>` : ''}
+        <p class="text-[13px] text-[#484545] font-bold">${_esc(inv.eventName || 'イベント')}</p>
+        <p class="text-[11px] text-[#A7AAAC] font-bold mt-0.5">
+          ${_esc(inv.ownerName || 'リーダー')}さん${inv.memberCount > 1 ? ` ほか${inv.memberCount - 1}人が参加中` : 'が待っています'}
+        </p>
+        ${(labels.length || text) ? `
+          <div class="mt-3 pt-3 border-t border-[#F0EEEB]">
+            <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">${_esc(inv.ownerName || 'リーダー')}さんの意気込み</p>
+            <div class="flex flex-wrap gap-1.5 justify-center">
+              ${labels.map(l => `<span class="text-[10px] font-bold text-[#EE3E12] bg-[#EE3E12]/10 px-2.5 py-1 rounded-full">${_esc(l)}</span>`).join('')}
+            </div>
+            ${text ? `<p class="text-[12px] text-[#484545] font-bold mt-2.5 leading-relaxed">「${_esc(text)}」</p>` : ''}
+          </div>` : ''}
+      </div>
+    </div>`;
 }
 
 function _renderEventsTab() {

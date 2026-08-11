@@ -192,6 +192,8 @@ function _accept(overlay, ctx) {
         if (dctx._pending) {
           state.pendingApprovalMessage =
             `「${dctx._eventName || 'イベント'}」への参加申請を送信しました。管理者の承認後に参加できます。`;
+          // ★承認待ちの時間を空白にしない（M0）。確認画面で取得済みのプレビューを渡す
+          state.pendingApprovalInvite = ctx.info || null;
           _close(done);
           state.setView('HOME');
         } else {

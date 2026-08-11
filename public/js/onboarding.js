@@ -13,6 +13,7 @@
 //   モチベーションの可視化を悪化させる。
 
 import { state } from './state.js';
+import { SKILL_TAGS } from './constants.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
 
@@ -50,15 +51,59 @@ export function isSeen(userId, eventId, stepId) {
 export function markSeen(userId, eventId, stepId) {
   try { localStorage.setItem(_key(userId, eventId, stepId), String(Date.now())); } catch (_) {}
 }
+/** 最後に表示した時刻（未表示なら 0）。★繰り返し出すステップ（L4）で使う */
+export function lastSeenAt(userId, eventId, stepId) {
+  try { return Number(localStorage.getItem(_key(userId, eventId, stepId))) || 0; } catch (_) { return 0; }
+}
 
 // ── ステップ定義 ────────────────────────────────────────────
 // role: 'leader'（canManage true）/ 'member'
 // densities: そのステップを出す濃度。first は全部出す
 // match(ctx): 表示条件。ctx = { p, userId, canManage, density }
 // build(ctx): openOnboardingModal に渡す内容
+// repeatEveryMs: 指定すると既読でもこの間隔で再表示する（L4 のみ。承認されるまで催促する）
 //
 // ★優先度は配列の並び。放置されると被害が大きいものを先に置く。
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** スキルIDを日本語ラベルに直す（表示用。保存は英数キーのまま） */
+function _skillLabels(ids) {
+  return (Array.isArray(ids) ? ids : [])
+    .map(id => SKILL_TAGS.find(t => t.id === id)?.label).filter(Boolean);
+}
+
+/** 24時間以上ほったらかしになっている参加申請 */
+function _stalePending(p) {
+  const now = Date.now();
+  return (p.pendingMembers || []).filter(m => m.requestedAt && now - m.requestedAt >= DAY_MS);
+}
+
 const STEPS = [
+  {
+    // ★参加は承認制の1本道。リーダーが承認しない限りメンバーは1人も入れないのに、
+    //   リーダー側からは「招待したのに誰も来ない」ようにしか見えない。現状いちばんの
+    //   ボトルネックなので、濃度に関わらず必ず出し、承認されるまで24時間ごとに催促する。
+    id: 'L4',
+    role: 'leader',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    repeatEveryMs: DAY_MS,          // ★これがあるステップは「既読でも」再表示される
+    match: (ctx) => _stalePending(ctx.p).length > 0,
+    build: (ctx) => {
+      const stale = _stalePending(ctx.p);
+      const first = stale[0];
+      const good  = _skillLabels(first.skillsGood).slice(0, 2);
+      const more  = stale.length - 1;
+      return {
+        eyebrow: '承認をお待ちしています',
+        title: `${_escapeName(first.username)}さんが<br>参加を待っています`,
+        body: (good.length ? `${good.join('・')}が得意だそうです。` : '')
+          + (more > 0 ? `ほか${more}人が承認待ちです。` : '')
+          + '承認するまで、この人はイベントに入れません。',
+        primary: '承認画面をひらく',
+        action: 'openPendingMembers',
+      };
+    },
+  },
   {
     id: 'L1',
     role: 'leader',
@@ -84,6 +129,13 @@ const STEPS = [
   },
 ];
 
+/** title は raw で埋めるので、ユーザー名だけはここでエスケープする */
+function _escapeName(s) {
+  return String(s ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
 // ── 判定の入口 ──────────────────────────────────────────────
 /**
  * ★state.render() からのみ呼ぶこと。
@@ -105,7 +157,12 @@ export function checkOnboarding() {
   for (const step of STEPS) {
     if (step.role !== role) continue;
     if (!step.densities.includes(density)) continue;
-    if (isSeen(userId, p.id, step.id)) continue;
+    // 通常は一度きり。repeatEveryMs があるステップは、その間隔を空けて再表示する
+    if (step.repeatEveryMs) {
+      if (Date.now() - lastSeenAt(userId, p.id, step.id) < step.repeatEveryMs) continue;
+    } else if (isSeen(userId, p.id, step.id)) {
+      continue;
+    }
     let hit = false;
     try { hit = !!step.match(ctx); } catch (_) { hit = false; }
     if (!hit) continue;
