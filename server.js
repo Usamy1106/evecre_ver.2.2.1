@@ -535,6 +535,56 @@ const _MOTIVATION_LABELS = {
   trust:     '仲間を信じて任せる',
 };
 
+// ===== 参加申請フォームの回答 =====
+// ★public/js/constants.js の SKILL_TAGS と1対1で対応させること。
+//   保存は英数キーのみ。日本語ラベルは通知や承認画面の表示にだけ使う。
+const _SKILL_LABELS = {
+  design:      'デザイン',
+  planning:    '企画',
+  pr:          '広報・SNS',
+  writing:     '文章',
+  finance:     'お金の管理',
+  negotiation: '交渉・外部対応',
+  mc:          '司会・人前',
+  photo:       '写真・映像',
+  equipment:   '機材・設営',
+  admin:       '事務作業',
+  onsite:      '当日運営',
+  physical:    '力仕事',
+};
+const JOIN_MESSAGE_MAX = 200;
+
+/**
+ * 参加申請フォームの回答を検証して正規化する。
+ * ★クライアントから任意のキー・値を pendingMembers に書かせない
+ *  （users のオンボーディング回答と同じ方針）。
+ * 未回答なら空配列・空文字を返す（回答したが空、と区別する必要はない）。
+ */
+function _sanitizeJoinAnswers(body) {
+  const pick = (v) => (Array.isArray(v) ? v : [])
+    .map(String)
+    .filter(id => Object.prototype.hasOwnProperty.call(_SKILL_LABELS, id))
+    .filter((id, i, a) => a.indexOf(id) === i)          // 重複除去
+    .slice(0, Object.keys(_SKILL_LABELS).length);
+
+  const skillsGood = pick(body?.skillsGood);
+  // 同じタグが両方に入っていたら「得意」を優先（UIでは起きないが念のため）
+  const skillsWant = pick(body?.skillsWant).filter(id => !skillsGood.includes(id));
+  const joinMessage = String(body?.joinMessage ?? '').trim().slice(0, JOIN_MESSAGE_MAX);
+
+  return {
+    skillsGood,
+    skillsWant,
+    joinMessage,
+    joinedAnswersAt: (skillsGood.length || skillsWant.length || joinMessage) ? Date.now() : null,
+  };
+}
+
+/** スキルIDの配列を日本語ラベルに直す（通知・承認画面の表示用） */
+function _skillLabels(ids) {
+  return (Array.isArray(ids) ? ids : []).map(id => _SKILL_LABELS[id]).filter(Boolean);
+}
+
 /** 意気込み（カード＋一言）を1行にまとめる。何も無ければ null（行ごと省略される） */
 function _motivationLine(flat) {
   const tags = (Array.isArray(flat.motivationTags) ? flat.motivationTags : [])
@@ -2996,12 +3046,16 @@ app.post('/api/invites/:token/accept', requireAuth, async (req, res) => {
     }
 
     // 承認待ちリストに追加（即時参加しない）
+    // 参加申請フォームの回答も一緒に載せる。★承認時に members へ引き継ぐこと
+    //（approve 側でコピーし忘れると、承認した瞬間に回答が消える）。
+    const answers = _sanitizeJoinAnswers(req.body);
     const pendingEntry = {
       userId:      req.user.id,
       username:    req.user.username,
       avatarUrl:   req.user.avatarUrl || null,
       requestedAt: now,
       inviteToken: req.params.token,
+      ...answers,
     };
     await getDb().collection('events').updateOne(
       { _id: p.id },
@@ -3020,9 +3074,13 @@ app.post('/api/invites/:token/accept', requireAuth, async (req, res) => {
       .filter(m => eventStore.canManage(p, m.userId))
       .map(m => m.userId);
     if (managerIds.length > 0) {
+      // ★通知タイプは既存の member_applied のまま。得意タグを1〜2件だけ添えて、
+      //   承認画面を開く前に判断のとっかかりを作る（無回答なら従来どおりの文面）。
+      const goodLabels = _skillLabels(answers.skillsGood).slice(0, 2);
+      const suffix = goodLabels.length ? `（${goodLabels.join('・')}が得意）` : '';
       await notifStore.notifyAll(managerIds, {
         type:      'member_applied',
-        message:   `${req.user.username} さんが「${eventName}」への参加を申請しました`,
+        message:   `${req.user.username} さんが「${eventName}」への参加を申請しました${suffix}`,
         eventId: p.id,
         actorId:   req.user.id,
         actorName: req.user.username,
@@ -3071,7 +3129,21 @@ app.post('/api/events/:id/pending-members/:uid/approve', requireAuth, async (req
       },
       {
         $pull: { pendingMembers: { userId: req.params.uid } },
-        $push: { members: { userId: req.params.uid, role: roleIds[0], roles: roleIds, joinedAt: now } },
+        // ★参加申請フォームの回答を pendingMembers から members へ引き継ぐ。
+        //   ここでコピーし忘れると、承認した瞬間に回答が消える。
+        //   回答なしで申請した人（旧経路含む）は空配列・空文字で入る。
+        $push: {
+          members: {
+            userId: req.params.uid,
+            role:   roleIds[0],
+            roles:  roleIds,
+            joinedAt: now,
+            skillsGood:      Array.isArray(pending.skillsGood) ? pending.skillsGood : [],
+            skillsWant:      Array.isArray(pending.skillsWant) ? pending.skillsWant : [],
+            joinMessage:     pending.joinMessage || '',
+            joinedAnswersAt: pending.joinedAnswersAt || null,
+          },
+        },
       }
     );
     if (result.modifiedCount === 0) {
