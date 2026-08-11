@@ -25,7 +25,7 @@ import { SKILL_TAGS, JOIN_MESSAGE_EXAMPLES } from '../constants.js';
 import { bindCardSwipe, slideInCard } from '../swipeCard.js';
 
 const OVERLAY_ID = 'join-form-modal';
-const MAX_MESSAGE = 200;
+const MAX_MESSAGE = 50;   // ★キャッチコピー・意気込みと揃えて50字（server.js の JOIN_MESSAGE_MAX も同じ値にすること）
 const PLACEHOLDER_INTERVAL_MS = 3000;
 const LAST_STEP = 3;   // できること / やってみたいこと / 意気込み
 

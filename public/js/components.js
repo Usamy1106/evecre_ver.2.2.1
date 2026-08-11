@@ -82,7 +82,7 @@ export const Components = {
             <img src="/images/icon/iocn-Chevron.svg" class="w-4 h-4 brightness-0 opacity-50">
           </button>
           <div class="flex items-center gap-2">
-            ${this.MountainMini(project, { size: 22 })}
+            <!-- ★タイトル横の山イラストは削除した（MountainMini はホームのグリッド等では継続使用）-->
             <span class="text-[14px] font-bold truncate max-w-[180px]">${project.name}</span>
           </div>
         </div>

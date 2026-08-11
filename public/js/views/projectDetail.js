@@ -54,15 +54,9 @@ export function renderProjectDetail(container) {
           </section>
         `}
       </main>
-      <!-- FAB: 新規イベント作成 -->
-      ${!!state.currentUser?.isVerified ? `
-        <button onclick="window._app.createEventInFolder('${folder.id}')"
-          class="fab-safe fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
-          flex items-center justify-center text-white active:scale-90 transition-transform z-40">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>` : ''}
+      <!-- ★右下の＋ボタン（FAB）は廃止した。このフォルダにイベントを足すときは
+           HOME で作成し、イベントを長押し →「プロジェクトに追加」で入れる -->
+      ${''}
     </div>`;
 
   // イベントカードの長押しメニュー（プロジェクトから外す / 名前を変更 / 削除）。

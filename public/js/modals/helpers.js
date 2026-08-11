@@ -5,6 +5,7 @@ import { MISSION_DESCRIPTIONS } from '../constants.js';
 import { logEvent } from '../logger.js';
 import { openCalendarModal } from './calendar.js';
 import { showConfirmDialog } from '../dialog.js';
+import { getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue } from '../utils.js';
 
 // ===== アーカイブ直接編集 =====
 
@@ -22,20 +23,29 @@ export function editArchiveItem(type) {
     currentVal  = p.clearedData['def-2']?.content || p.name;
     titleLabel  = 'タイトル';
   } else if (type === 'summary') {
-    missionId   = 'def-3';
-    currentVal  = p.clearedData['def-3']?.content || p.description;
-    titleLabel  = '概要';
+    // ★イベント設定の「概要」と同じ場所を読み書きする（utils.js に集約）
+    openEditModal('概要', getArchiveSummary(p), 'text', (newVal) => {
+      setArchiveSummary(p, newVal);
+      state.save();
+      state.render();
+    });
+    return;
+  } else if (type === 'venue') {
+    // ★イベント設定の「開催場所」と同じ場所を読み書きする（utils.js に集約）。
+    //   以前はミッションをタイトルで探して venue-temp を作っていたが、アーカイブ側は
+    //   originProposalId==='p1' を読んでいたため、編集しても表示に反映されなかった。
+    openEditModal('開催場所', getArchiveVenue(p), 'text', (newVal) => {
+      setArchiveVenue(p, newVal);
+      state.save();
+      state.render();
+    });
+    return;
   } else if (type === 'url') {
     const m     = p.missions.find(x => x.title === '広報リンクを挿入');
     missionId   = m?.id || 'url-temp';
     currentVal  = p.clearedData[missionId]?.content || '';
     format      = 'link';
     titleLabel  = 'URL';
-  } else if (type === 'venue') {
-    const m     = p.missions.find(x => x.title === '開催場所を決める');
-    missionId   = m?.id || 'venue-temp';
-    currentVal  = p.clearedData[missionId]?.content || '';
-    titleLabel  = '場所';
   } else if (type === 'period') {
     // テキスト入力ではなくカレンダー UI で開催日を編集
     openCalendarModal('projectEdit');
@@ -51,8 +61,8 @@ export function editArchiveItem(type) {
     if (!m) {
       m = {
         id: missionId,
+        // venue / summary はここを通らない（上で早期 return して utils.js 経由で保存する）
         title: type === 'url' ? '広報リンクを挿入'
-             : type === 'venue' ? '開催場所を決める'
              : type === 'period' ? '開催日時' : type,
         tag: type === 'url' ? '広報' : '企画',
         clearFormat: format,

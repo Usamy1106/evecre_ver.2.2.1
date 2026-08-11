@@ -552,7 +552,7 @@ const _SKILL_LABELS = {
   onsite:      '当日運営',
   physical:    '力仕事',
 };
-const JOIN_MESSAGE_MAX = 200;
+const JOIN_MESSAGE_MAX = 50;   // ★クライアント（joinFormModal.js の MAX_MESSAGE）と同じ値にすること
 
 /**
  * 参加申請フォームの回答を検証して正規化する。

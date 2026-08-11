@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG } from '../constants.js';
-import { calculateDaysLeft, formatEventPeriodLines } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync } from '../mountainPath.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
@@ -723,12 +723,13 @@ function _renderArchiveTab(p) {
   const _pen   = (type) => canMgr ? Components.PenIcon(type) : '';
   // ── Layer 1 データ取得（固定IDで紐づけ）──────────────────────
   const title   = p.clearedData?.['def-2']?.content ?? '未設定';
-  const summary = p.clearedData?.['def-3']?.content ?? '未設定';
+  const summary = getArchiveSummary(p) || '未設定';
   const mainVisual = p.clearedData?.['archive-image']?.content
     ?? _getClearedByOrigin(p, 'p3')?.content
     ?? null;
   const url        = _getClearedByOrigin(p, 'p2')?.content ?? '未設定';
-  const venue      = _getClearedByOrigin(p, 'p1')?.content ?? '未設定';
+  // ★概要・開催場所は utils.js の getter を通す（イベント設定からも編集されるため）
+  const venue      = getArchiveVenue(p) || '未設定';
   // p.dates を優先し、旧 period-temp は後方互換フォールバック。時刻ありは日ごとに改行表示
   const period     = p.dates?.length > 0
     ? formatEventPeriodLines(p.dates, p.dateTimes).join('<br>')

@@ -41,15 +41,34 @@ function _renderDateTimeList(project) {
 function _bindDateTimeInputs(project) {
   const modal = document.getElementById('calendar-modal');
   if (!modal || !project) return;
-  modal.querySelectorAll('input[data-dt-date]').forEach(input => {
+  const inputs = [...modal.querySelectorAll('input[data-dt-date]')];
+
+  /** dateTimes への1件反映（空になったらキーごと消す） */
+  const apply = (dateStr, kind, value) => {
+    if (!project.dateTimes) project.dateTimes = {};
+    const cur = project.dateTimes[dateStr] || { start: '', end: '' };
+    cur[kind] = value || '';
+    if (!cur.start && !cur.end) delete project.dateTimes[dateStr];
+    else project.dateTimes[dateStr] = cur;
+  };
+
+  inputs.forEach(input => {
     input.addEventListener('change', () => {
       const dateStr = input.dataset.dtDate;
       const kind    = input.dataset.dtKind; // 'start' | 'end'
-      if (!project.dateTimes) project.dateTimes = {};
-      const cur = project.dateTimes[dateStr] || { start: '', end: '' };
-      cur[kind] = input.value || '';
-      if (!cur.start && !cur.end) delete project.dateTimes[dateStr];
-      else project.dateTimes[dateStr] = cur;
+      const value   = input.value || '';
+      apply(dateStr, kind, value);
+
+      // ★同じ種類（開始／終了）の**空欄だけ**を同じ時刻で埋める。
+      //   複数日イベントは同じ時間帯であることが多く、毎日入力させると手間なため。
+      //   ★すでに入力済みの欄は上書きしない（日ごとに違う時間を入れた人の指定を壊さない）。
+      if (!value) return;
+      inputs
+        .filter(o => o !== input && o.dataset.dtKind === kind && !o.value)
+        .forEach(o => {
+          o.value = value;
+          apply(o.dataset.dtDate, kind, value);
+        });
     });
   });
 }

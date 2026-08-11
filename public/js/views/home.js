@@ -46,23 +46,9 @@ export function renderHome(container) {
       <main class="flex-1 px-6 pt-4 pb-36 page-transition">
         ${tab === 'EVENTS' ? _renderEventsTab() : _renderProjectsTab()}
       </main>
-      ${tab === 'EVENTS' && !!state.currentUser?.isVerified ? `
-        <button onclick="window._app.setView('CREATE_EVENT_INFO')"
-          class="fab-safe fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
-          flex items-center justify-center text-white active:scale-90 transition-transform z-40">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>` : ''}
-      ${tab === 'PROJECTS' ? `
-        <button onclick="window._app.openNewProjectModal()"
-          class="fab-safe fixed bottom-10 right-6 w-14 h-14 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.15)]
-          flex items-center justify-center text-white active:scale-90 transition-transform z-40"
-          style="background-color:#484545">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>` : ''}
+      <!-- ★右下の丸い＋ボタン（FAB）は3画面とも廃止した。
+           イベント作成 → ヘッダーの「イベントを作成」
+           プロジェクト作成 → プロジェクトタブ見出し横の「＋ 新規作成」 -->
     </div>`;
 
   bindPushBanner();
@@ -111,6 +97,18 @@ function _renderEventsTab() {
 function _renderProjectsTab() {
   const folders = state.folders || [];
 
+  // ★FAB を廃止したので、ここがプロジェクトを新規作成する導線になる。消さないこと
+  //   （他の導線はイベント長押し →「プロジェクトに追加」→「新規プロジェクトを作成」だけで、
+  //     それだと空のプロジェクトを作れない）。
+  const createBtn = `
+    <button onclick="window._app.openNewProjectModal()"
+      class="flex items-center gap-1 text-[12px] font-bold text-[#0CA1E3] px-3 py-2 rounded-lg active:opacity-50">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+      新規作成
+    </button>`;
+
   if (folders.length === 0) return `
     <div class="flex flex-col items-center justify-center min-h-[55vh] gap-4 text-center">
       <div class="w-20 h-20 rounded-full bg-[#EBE8E5] flex items-center justify-center">
@@ -119,10 +117,18 @@ function _renderProjectsTab() {
         </svg>
       </div>
       <p class="heading-m text-[#484545] font-bold">プロジェクトを作ろう</p>
-      <p class="text-rs text-[#A7AAAC]">複数のイベントを1つにまとめて<br>管理できます</p>
+      <p class="text-rs text-[#A7AAAC] mb-2">複数のイベントを1つにまとめて<br>管理できます</p>
+      <button onclick="window._app.openNewProjectModal()"
+        class="px-6 py-3 rounded-2xl text-white font-bold heading-r shadow-lg active:scale-95 transition-transform"
+        style="background-color:#0CA1E3; box-shadow:0 4px 20px rgba(12,161,227,0.4)">プロジェクトを作成</button>
     </div>`;
 
-  return folders.map(f => `
+  return `
+    <div class="flex items-center justify-between mb-3 pl-1">
+      <h2 class="text-[#484545] heading-m font-bold">プロジェクト</h2>
+      ${createBtn}
+    </div>
+  ` + folders.map(f => `
     <div data-folder-card data-folder-id="${f.id}"
       onclick="window._app.setView('PROJECT_DETAIL', '${f.id}')"
       style="touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"

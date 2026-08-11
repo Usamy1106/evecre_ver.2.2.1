@@ -368,7 +368,7 @@ export function renderCreateEventCatchphrase(container) {
 
   const body = `
     <input type="text" id="cp-catch-input" placeholder="キャッチコピーを入力"
-      value="${_esc(d.catchphrase || '')}" maxlength="40"
+      value="${_esc(d.catchphrase || '')}" maxlength="50"
       oninput="window._app.updateDraftCatchphrase(this.value)"
       class="input-field w-full px-5 py-4 focus:outline-none mb-3">
 
@@ -433,7 +433,7 @@ export function renderCreateEventMotivation(container) {
       ひとことで言うと？ <span class="text-[#A7AAAC]">（任意）</span>
     </label>
     <input type="text" id="cp-motiv-input" placeholder="例：全部出しきる"
-      value="${_esc(d.motivationText || '')}" maxlength="60"
+      value="${_esc(d.motivationText || '')}" maxlength="50"
       oninput="window._app.updateDraftMotivationText(this.value)"
       class="input-field w-full px-5 py-4 focus:outline-none">`;
 

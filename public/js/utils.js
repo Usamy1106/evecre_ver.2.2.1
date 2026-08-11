@@ -86,3 +86,48 @@ export function calculateDaysLeft(dateStr) {
   const diff = target.getTime() - now.getTime();
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
+
+// ===== アーカイブの「概要」「開催場所」=====
+// ★イベント設定（eventSettings.js）とアーカイブのペン（modals/helpers.js）の
+//   両方から編集される。どちらから直しても同じ場所を読み書きするよう、
+//   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
+
+/** 概要。表示・編集の実体は clearedData['def-3']（初期ミッション「イベントの概要を決める」） */
+export function getArchiveSummary(project) {
+  return project?.clearedData?.['def-3']?.content ?? project?.description ?? '';
+}
+
+/**
+ * 概要を書き込む。
+ * ★description にも同じ値を入れる。提案エンジンの detectCategory と AI プロンプトが
+ *   description を読むため、こちらを空のままにすると提案の精度が落ちる。
+ */
+export function setArchiveSummary(project, value) {
+  const v = String(value ?? '').trim();
+  if (!project.clearedData) project.clearedData = {};
+  project.clearedData['def-3'] = {
+    content: v, timestamp: Date.now(), title: 'イベントの概要を決める', format: 'text',
+  };
+  project.description = v;
+}
+
+/**
+ * 開催場所。実体は clearedData['archive-venue']。
+ * ★旧データは提案 p1「開催場所を決める」由来の完了ミッションに入っているので、
+ *   そちらもフォールバックで読む（本番に3件ある）。この参照は消さないこと。
+ */
+export function getArchiveVenue(project) {
+  const direct = project?.clearedData?.['archive-venue']?.content;
+  if (direct) return direct;
+  const m = (project?.missions || []).find(x => x.originProposalId === 'p1' && x.status === 'cleared');
+  return (m ? project?.clearedData?.[m.id]?.content : '') || '';
+}
+
+/** 開催場所を書き込む（常に archive-venue へ。旧ミッション側は読むだけ） */
+export function setArchiveVenue(project, value) {
+  const v = String(value ?? '').trim();
+  if (!project.clearedData) project.clearedData = {};
+  project.clearedData['archive-venue'] = {
+    content: v, timestamp: Date.now(), title: '開催場所', format: 'text',
+  };
+}

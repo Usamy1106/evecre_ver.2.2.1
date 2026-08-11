@@ -1,7 +1,8 @@
 // ===== イベント設定ページ =====
 // メインボード歯車アイコンから遷移する設定ページ。
 // - 上部：メンバーアイコン一覧（重ね表示、最大5つ）
-// - イベント管理：イベント名 / 説明 / 開催日時
+// - イベント管理：イベント名 / 概要 / 開催日時 / 開催場所 / キャッチコピー / 意気込み / 種別 / 規模 / フェーズ
+//   ★概要と開催場所はアーカイブ側の表示と連動する（utils.js の getter/setter に集約）
 // - ユーザー管理：メンバーの招待 / メンバーのロール設定
 
 import { state } from '../state.js';
@@ -9,7 +10,10 @@ import { api }   from '../api.js';
 import { Components } from '../components.js';
 import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
 import { showConfirmDialog } from '../dialog.js';
-import { formatEventPeriodLines } from '../utils.js';
+import {
+  formatEventPeriodLines,
+  getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue,
+} from '../utils.js';
 import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS } from '../constants.js';
 
 export function renderEventSettings(container) {
@@ -95,6 +99,7 @@ function _eventManagementSection(p, sec) {
   const editingDesc  = sec.editing === 'description';
   const editingDates = sec.editing === 'dates';
   const editingCatch = sec.editing === 'catchphrase';
+  const editingVenue = sec.editing === 'venue';
   const editingMotiv = sec.editing === 'motivationText';
 
   return `
@@ -120,9 +125,11 @@ function _eventManagementSection(p, sec) {
           `}
         </div>
 
-        <!-- イベントの説明 -->
+        <!-- 概要（旧「イベントの説明」）-->
+        <!-- ★アーカイブの「概要」と同じ場所を読み書きする（utils.js の getter/setter 経由）。
+             description にも同じ値が入る（提案エンジンと AI プロンプトが参照するため）。 -->
         <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">イベントの説明</p>
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">概要</p>
           ${editingDesc ? `
             <textarea id="ps-desc-input" rows="3" class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2 resize-none">${_esc(sec.draftValue || '')}</textarea>
             <div class="flex gap-2">
@@ -131,7 +138,7 @@ function _eventManagementSection(p, sec) {
             </div>
           ` : `
             <div class="flex items-start justify-between gap-3">
-              <span class="text-[13px] text-[#484545] flex-1 whitespace-pre-wrap break-words">${_esc(p.description || '(未設定)')}</span>
+              <span class="text-[13px] text-[#484545] flex-1 whitespace-pre-wrap break-words">${_esc(getArchiveSummary(p) || '(未設定)')}</span>
               ${canMgr ? `<button data-ps-edit="description" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>` : ''}
             </div>
           `}
@@ -146,12 +153,32 @@ function _eventManagementSection(p, sec) {
           </div>
         </div>
 
+        <!-- 開催場所 -->
+        <!-- ★アーカイブの「場所」と同じ場所を読み書きする（utils.js の getter/setter 経由）-->
+        <div class="p-4">
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">開催場所</p>
+          ${editingVenue ? `
+            <input id="ps-venue-input" type="text" value="${_esc(sec.draftValue || '')}"
+              placeholder="例：造形大 12号館 ホール"
+              class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+            <div class="flex gap-2">
+              <button id="ps-venue-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
+              <button id="ps-venue-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+            </div>
+          ` : `
+            <div class="flex items-start justify-between gap-3">
+              <span class="text-[14px] text-[#484545] font-bold flex-1 break-words">${_esc(getArchiveVenue(p) || '(未設定)')}</span>
+              ${canMgr ? `<button data-ps-edit="venue" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>` : ''}
+            </div>
+          `}
+        </div>
+
         <!-- キャッチコピー -->
         <!-- 招待ページ（招待バナー・参加確認モーダル）の一番上に表示される -->
         <div class="p-4">
           <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">キャッチコピー</p>
           ${editingCatch ? `
-            <input id="ps-catch-input" type="text" maxlength="40" placeholder="例：つくる、をみせる。"
+            <input id="ps-catch-input" type="text" maxlength="50" placeholder="例：つくる、をみせる。"
               value="${_esc(sec.draftValue || '')}"
               class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
             <div class="flex gap-2">
@@ -193,7 +220,7 @@ function _eventManagementSection(p, sec) {
             </div>
           `}
           ${editingMotiv ? `
-            <input id="ps-motiv-input" type="text" maxlength="60" placeholder="ひとことで言うと？"
+            <input id="ps-motiv-input" type="text" maxlength="50" placeholder="ひとことで言うと？"
               value="${_esc(sec.draftValue || '')}"
               class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
             <div class="flex gap-2">
@@ -481,7 +508,8 @@ function _bindEvents(p, sec) {
         f === 'name'           ? p.name
       : f === 'catchphrase'    ? (p.catchphrase || '')
       : f === 'motivationText' ? (p.motivationText || '')
-      :                          (p.description || '');
+      : f === 'venue'          ? getArchiveVenue(p)
+      :                          getArchiveSummary(p);
       state.render();
     });
   });
@@ -503,10 +531,21 @@ function _bindEvents(p, sec) {
   document.getElementById('ps-desc-input')?.addEventListener('input', e => sec.draftValue = e.target.value);
   document.getElementById('ps-desc-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
   document.getElementById('ps-desc-save')?.addEventListener('click', async () => {
-    p.description = String(sec.draftValue || '').trim();
+    // アーカイブの「概要」と同じ場所に書く（description にも同じ値が入る）
+    setArchiveSummary(p, sec.draftValue);
     await state.saveNow();
     sec.editing = null;
     sec.draftValue = null;
+    state.render();
+  });
+
+  // 開催場所 保存・キャンセル（アーカイブの「場所」と同じ場所に書く）
+  document.getElementById('ps-venue-input')?.addEventListener('input', e => sec.draftValue = e.target.value);
+  document.getElementById('ps-venue-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
+  document.getElementById('ps-venue-save')?.addEventListener('click', async () => {
+    setArchiveVenue(p, sec.draftValue);
+    await state.saveNow();
+    sec.editing = null; sec.draftValue = null;
     state.render();
   });
 
