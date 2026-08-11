@@ -9,6 +9,7 @@
 // 「表示済み」を覚えておく（他モーダルと衝突する場合は表示をスキップし、次回チェック時に再判定する）。
 
 import { state } from '../state.js';
+import { isAnyAutoModalOpen } from '../modalGuard.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_TARGET_DAYS = 30; // 開催日未設定時の基準日数
@@ -65,8 +66,9 @@ export function checkPurposeReminderModal() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p || !state.currentUser) return;
   // 他のモーダルと重ねない（表示できなければ次回チェック時まで持ち越す＝フラグは立てない）
-  if (document.getElementById('purpose-reminder-overlay')) return;
-  if (document.getElementById('info-modal-overlay')) return;
+  // 他の自動表示モーダルが開いていたら、フラグを立てずに持ち越す（次の render() で再判定）。
+  // ★列挙は modalGuard.js に集約してある。ここに個別のIDを書き足さないこと
+  if (isAnyAutoModalOpen()) return;
 
   const uid = state.currentUser.id;
   const quarterKey = _storageKey(uid, p.id, 'quarter');

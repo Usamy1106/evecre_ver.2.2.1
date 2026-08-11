@@ -8,6 +8,7 @@
 // 既読は「開いた時点」で記録するため、途中で閉じても同じ version は再表示されない。
 
 import { state } from '../state.js';
+import { isAnyAutoModalOpen } from '../modalGuard.js';
 import {
   pushSetupPhase, pushSetupContentHtml, bindPushSetupContent, recordPushSkipped,
 } from './pushSetupModal.js';
@@ -42,10 +43,9 @@ export function checkDeveloperAnnouncementModal() {
   if (!version || !state.currentUser) return;
   if (_getPages().length === 0) return;   // 中身が無ければ出さない
   // イベント固有のモーダルと重ねない（表示できなければフラグを立てず、次回チェック時に再判定させる）
-  if (document.getElementById('dev-announcement-overlay')) return;
-  if (document.getElementById('info-modal-overlay')) return;
-  if (document.getElementById('purpose-reminder-overlay')) return;
-  if (document.getElementById('event-date-reminder-overlay')) return;
+  // 他の自動表示モーダルが開いていたら、フラグを立てずに持ち越す（次の render() で再判定）。
+  // ★列挙は modalGuard.js に集約してある。ここに個別のIDを書き足さないこと
+  if (isAnyAutoModalOpen()) return;
 
   const key = _storageKey(state.currentUser.id);
   if (localStorage.getItem(key) === version) return;

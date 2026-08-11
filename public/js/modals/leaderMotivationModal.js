@@ -15,6 +15,7 @@
 // CLAUDE.md「ミッション提案」節・purposeReminderModal と同じ方針）。
 
 import { state } from '../state.js';
+import { isAnyAutoModalOpen } from '../modalGuard.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 import { MOTIVATION_CARDS } from '../constants.js';
@@ -49,10 +50,9 @@ export function checkLeaderMotivationModal() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p || !state.currentUser) return;
 
-  // 他のモーダルと重ねない（出せなければフラグを立てず、次回チェック時に再判定）
-  if (document.getElementById(OVERLAY_ID)) return;
-  if (document.getElementById('info-modal-overlay')) return;
-  if (document.getElementById('purpose-reminder-overlay')) return;
+  // 他の自動表示モーダルが開いていたら、フラグを立てずに持ち越す（次の render() で再判定）。
+  // ★列挙は modalGuard.js に集約してある。ここに個別のIDを書き足さないこと
+  if (isAnyAutoModalOpen()) return;
 
   if (!_hasMotivation(p)) return;                       // 意気込みが無ければ出さない
   if (p.ownerId === state.currentUser.id) return;       // 書いた本人には見せない

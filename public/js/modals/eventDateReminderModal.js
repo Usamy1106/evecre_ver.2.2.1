@@ -6,6 +6,7 @@
 // 表示済みフラグは localStorage（ユーザー×イベント単位）に永続化し、1イベントにつき各1回。
 
 import { state } from '../state.js';
+import { isAnyAutoModalOpen } from '../modalGuard.js';
 
 function _storageKey(userId, eventId, suffix) {
   return `evecre:eventDateReminder:v1:${userId}:${eventId}:${suffix}`;
@@ -33,9 +34,9 @@ export function checkEventDateReminderModal() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p || !state.currentUser) return;
   // 他のモーダルと重ねない（表示できなければフラグを立てず、次回チェック時に再判定させる）
-  if (document.getElementById('event-date-reminder-overlay')) return;
-  if (document.getElementById('info-modal-overlay')) return;
-  if (document.getElementById('purpose-reminder-overlay')) return;
+  // 他の自動表示モーダルが開いていたら、フラグを立てずに持ち越す（次の render() で再判定）。
+  // ★列挙は modalGuard.js に集約してある。ここに個別のIDを書き足さないこと
+  if (isAnyAutoModalOpen()) return;
 
   const dates = Array.isArray(p.dates) ? [...p.dates].filter(Boolean).sort() : [];
   if (dates.length === 0) return;
