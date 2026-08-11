@@ -91,6 +91,36 @@ export const CATCHPHRASE_EXAMPLES = {
   other:            ['まだ、誰も知らない。', 'その日、何かが起こる', 'とりあえず、来てみて'],
 };
 
+// ===== 参加申請フォームのスキルタグ =====
+// ★保存は英数キー（id）のみ。表示名は必ずこのマスタから引くこと。
+//   日本語ラベルを直接保存すると、あとで文言を変えられなくなる。
+// ★server.js の _SKILL_LABELS と1対1で対応させること（通知の文面で使う）。
+// 状態は「得意」「やってみたい」の2つだけ。「苦手」「まかせたい」に相当する
+// 選択肢は置かない（消極的な宣言を強いないため。選ばれなかったタグ＝未選択で
+// 同じ情報が取れる）。
+export const SKILL_TAGS = [
+  { id: 'design',      label: 'デザイン' },
+  { id: 'planning',    label: '企画' },
+  { id: 'pr',          label: '広報・SNS' },
+  { id: 'writing',     label: '文章' },
+  { id: 'finance',     label: 'お金の管理' },
+  { id: 'negotiation', label: '交渉・外部対応' },
+  { id: 'mc',          label: '司会・人前' },
+  { id: 'photo',       label: '写真・映像' },
+  { id: 'equipment',   label: '機材・設営' },
+  { id: 'admin',       label: '事務作業' },
+  { id: 'onsite',      label: '当日運営' },
+  { id: 'physical',    label: '力仕事' },
+];
+
+// 参加申請フォームの意気込み欄のプレースホルダー（順に切り替えて書き出しを促す）
+export const JOIN_MESSAGE_EXAMPLES = [
+  'みんなで最高の一日にしたい',
+  'はじめてだけど頑張ります',
+  '得意なことで力になれたら',
+  '楽しみにしています！',
+];
+
 export const LABEL_CONFIG = {
   '企画': { color: '#0CA1E3', bg: 'bg-[#0CA1E3]/10', border: 'border-[#0CA1E3]', text: 'text-[#0CA1E3]' },
   '運営': { color: '#EE3E12', bg: 'bg-[#EE3E12]/10', border: 'border-[#EE3E12]', text: 'text-[#EE3E12]' },

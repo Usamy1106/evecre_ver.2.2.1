@@ -5,6 +5,7 @@
 import { state } from '../state.js';
 import { api }   from '../api.js';
 import { motivationBlockHtml, inviteMembersHtml } from '../views/auth.js';
+import { openJoinFormModal } from './joinFormModal.js';
 
 const OVERLAY_ID = 'join-by-code-modal';
 
@@ -30,9 +31,15 @@ export function openJoinByCodeModal() {
 
 function _render(overlay, ctx) {
   if (ctx.success) {
+    // ★既にメンバーだった場合に「承認されるまでお待ちください」と出るのは誤り。
+    //   ctx._pending を見て文言を出し分ける（以前は success だけで判定していた）。
     overlay.innerHTML = `
       <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center animate-fadeIn">
-        <p class="text-[14px] font-bold text-[#484545]">送信しました。<br>承認されるまでお待ちください。</p>
+        <p class="text-[14px] font-bold text-[#484545]">${
+          ctx._pending
+            ? '送信しました。<br>承認されるまでお待ちください。'
+            : 'すでに参加しています。<br>イベントを開きます。'
+        }</p>
       </div>`;
     return;
   }
@@ -107,10 +114,9 @@ function _renderConfirm(ctx) {
     <div class="flex gap-2">
       <button id="jbc-cancel" class="flex-1 py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-[#EBE8E5]"
         ${ctx.sending ? 'disabled' : ''}>戻る</button>
+      <!-- 押すと参加申請フォームへ。accept はフォーム側が呼ぶ -->
       <button id="jbc-accept" class="flex-1 py-3 rounded-xl text-[13px] font-bold text-white bg-[#0CA1E3]"
-        ${ctx.sending ? 'disabled style="opacity:.5"' : ''}>
-        ${ctx.sending ? '参加中…' : '参加申請する'}
-      </button>
+        ${ctx.sending ? 'disabled style="opacity:.5"' : ''}>次へ</button>
     </div>`;
 }
 
@@ -162,44 +168,41 @@ async function _verify(overlay, ctx) {
   }
 }
 
-async function _accept(overlay, ctx) {
+/**
+ * 「参加申請する」→ 参加申請フォームへ。
+ * ★ここでは accept を呼ばない。入口A（招待リンク）と同じフォームを通し、
+ *   フォームの送信ボタンが accept する（片方だけ通すとデータが欠けるため）。
+ */
+function _accept(overlay, ctx) {
   if (ctx.sending) return;
-  ctx.sending = true;
-  ctx.error = '';
-  _render(overlay, ctx);
-
-  try {
-    const r = await api.acceptInvite(ctx._token);
-    if (r.ok && r.eventId) {
-      ctx.success = true;
-      ctx._pending = !!r.pending;
-      ctx._eventName = r.eventName || '';
-      ctx._eventId = r.eventId;
-      _render(overlay, ctx);
+  _close(overlay);
+  openJoinFormModal({
+    invite: ctx.info,
+    token:  ctx._token,
+    entry:  'code',
+    onDone: async (r) => {
+      // 送信結果を伝えるため、このモーダルを結果表示だけで開き直す
+      const done = document.createElement('div');
+      done.id = OVERLAY_ID;
+      done.className = 'fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-6';
+      document.body.appendChild(done);
+      const dctx = { ...ctx, success: true, _pending: !!r.pending, _eventName: r.eventName || '', _eventId: r.eventId };
+      _render(done, dctx);
       setTimeout(async () => {
-        if (ctx._pending) {
-          // 承認待ち → HOME へ遷移し pendingApprovalMessage を表示
+        if (dctx._pending) {
           state.pendingApprovalMessage =
-            `「${ctx._eventName || 'イベント'}」への参加申請を送信しました。管理者の承認後に参加できます。`;
-          _close(overlay);
+            `「${dctx._eventName || 'イベント'}」への参加申請を送信しました。管理者の承認後に参加できます。`;
+          _close(done);
           state.setView('HOME');
         } else {
           // 既にメンバー → MAIN_BOARD へ直接遷移
           try { await state.silentReloadEvents(); } catch (_) {}
-          _close(overlay);
-          state.setView('MAIN_BOARD', ctx._eventId);
+          _close(done);
+          state.setView('MAIN_BOARD', dctx._eventId);
         }
       }, 900);
-    } else {
-      ctx.sending = false;
-      ctx.error = _explainError(r.error);
-      _render(overlay, ctx);
-    }
-  } catch (e) {
-    ctx.sending = false;
-    ctx.error = 'ネットワークエラーが発生しました';
-    _render(overlay, ctx);
-  }
+    },
+  });
 }
 
 function _close(overlay) {

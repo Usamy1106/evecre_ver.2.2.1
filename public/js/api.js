@@ -311,8 +311,10 @@ export const api = {
     const { json } = await _send('GET', `/api/invites/${token}`);
     return json || { ok: false };
   },
-  async acceptInvite(token) {
-    const { json } = await _send('POST', `/api/invites/${token}/accept`);
+  // answers は参加申請フォームの回答（{ skillsGood, skillsWant, joinMessage }）。
+  // 省略可（旧経路・回答なしの申請でも通る）。サーバーが pendingMembers に載せる。
+  async acceptInvite(token, answers = null) {
+    const { json } = await _send('POST', `/api/invites/${token}/accept`, answers || {});
     return json || { ok: false };
   },
   // 意気込みへのリアクション（トグル）。まだメンバーでない招待相手も押せるよう

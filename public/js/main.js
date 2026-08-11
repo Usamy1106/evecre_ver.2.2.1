@@ -52,6 +52,8 @@ import { openJoinByCodeModal } from './modals/joinByCodeModal.js';
 import { openEventCalendarSheet } from './modals/eventCalendarSheet.js';
 import { checkPurposeReminderModal } from './modals/purposeReminderModal.js';
 import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/leaderMotivationModal.js';
+import { openJoinFormModal } from './modals/joinFormModal.js';
+import { SKILL_TAGS } from './constants.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 import { showConfirmDialog } from './dialog.js';
@@ -829,7 +831,8 @@ window._app = {
               <button data-approve-pending="${_escH(m.userId)}" data-username="${_escH(m.username)}"
                 class="px-3 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg active:scale-95 transition-transform">承認</button>
             </div>
-          </div>`;
+          </div>
+          ${_pendingAnswersHtml(m)}`;
         list?.prepend(card);
         // 拒否ハンドラ（既存の _removeCard を呼ぶため、ここでは直接処理）
         card.querySelector('[data-reject-pending]').addEventListener('click', async (ev) => {
@@ -884,6 +887,7 @@ window._app = {
               class="px-3 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg active:scale-95 transition-transform">承認</button>
           </div>
         </div>
+        ${_pendingAnswersHtml(m)}
       </div>`).join('');
 
     overlay.innerHTML = `
@@ -1301,47 +1305,32 @@ window._app = {
         <p id="jec-catch" class="text-[14px] text-[#0CA1E3] font-bold leading-snug mb-2 hidden"></p>
         <p class="text-[13px] text-[#484545] font-bold mb-1">「${_escH(eventName || 'イベント')}」</p>
         <p class="text-[12px] text-[#A7AAAC] font-bold mb-4">への参加を申請しますか？<br>管理者の承認後に参加できます。</p>
-        <!-- 意気込み＋🔥（招待プレビューを取得できたときだけ差し込む） -->
+        <!-- 参加中メンバー＋リーダーの意気込み（招待プレビューを取得できたときだけ差し込む） -->
         <div id="jec-motivation" class="mb-6"></div>
         <div class="flex gap-3">
           <button id="jec-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-          <button id="jec-confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md bg-[#0CA1E3]">参加申請する</button>
+          <button id="jec-confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md bg-[#0CA1E3]">次へ</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
 
-    // 意気込み・キャッチコピー・🔥 は招待プレビューから後追いで差し込む。
+    // メンバー・意気込み・キャッチコピーは招待プレビューから後追いで差し込む。
     // 取得に失敗しても参加フロー自体は従来どおり動く（表示が増えないだけ）。
-    _hydrateJoinModalMotivation(inviteToken);
+    // ここで得た invite は参加申請フォームにも渡す（再取得しない）。
+    let previewCtx = null;
+    _hydrateJoinModalMotivation(inviteToken).then(ctx => { previewCtx = ctx; });
 
     document.getElementById('jec-cancel').onclick = () => overlay.remove();
-    document.getElementById('jec-confirm').onclick = async () => {
-      const btn = document.getElementById('jec-confirm');
-      btn.disabled = true;
-      btn.textContent = '送信中…';
-      try {
-        const r = await api.acceptInvite(inviteToken);
-        overlay.remove();
-        if (r.ok) {
-          if (r.pending) {
-            state.pendingApprovalMessage = `「${eventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
-            state.setView('HOME');
-            state.render();
-          } else if (r.alreadyMember) {
-            // 既に参加済み → イベント画面へ
-            await state.silentReloadEvents?.();
-            state.setView('MAIN_BOARD', r.eventId);
-          } else {
-            state.pendingApprovalMessage = `「${eventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
-            state.setView('HOME');
-            state.render();
-          }
-        } else {
-          window._app?.showToast(r.error || '参加申請に失敗しました', 'error');
-        }
-      } catch (e) {
-        window._app?.showToast('通信エラーが発生しました', 'error');
-      }
+    // ★ここでは accept を呼ばない。参加申請フォーム（入口A・B共通）へ渡し、
+    //   フォームの送信ボタンが accept を呼ぶ。
+    document.getElementById('jec-confirm').onclick = () => {
+      overlay.remove();
+      openJoinFormModal({
+        invite: previewCtx || { eventName },
+        token:  inviteToken,
+        entry:  'invite_link',
+        onDone: (r) => _afterJoinAccepted(r, eventName),
+      });
     };
   },
 
@@ -1489,6 +1478,40 @@ function _cleanChecklist(list) {
   return list.map(s => String(s ?? '').trim()).filter(s => s.length > 0);
 }
 
+/**
+ * 承認待ちメンバーの申請内容（得意／やってみたい／意気込み）。
+ * 「知らない人が申請してきた」ではなく「デザインができる人が来た」と判断できるようにする。
+ * ★申請者カードは openPendingMembersSheet 内の2箇所（SSEでの追加時／シート新規作成時）で
+ *   組み立てられるので、必ず両方でこの関数を使うこと。片方だけだと
+ *   「シートを開いたまま新しい申請が来たとき」だけタグが出ない不整合になる。
+ * 回答なしで申請した人（旧経路含む）は何も出さない。
+ */
+function _pendingAnswersHtml(m) {
+  const label = (id) => SKILL_TAGS.find(t => t.id === id)?.label;
+  const good = (m.skillsGood || []).map(label).filter(Boolean);
+  const want = (m.skillsWant || []).map(label).filter(Boolean);
+  const msg  = (m.joinMessage || '').trim();
+  if (!good.length && !want.length && !msg) return '';
+
+  const chips = (labels, cls) => labels.map(l =>
+    `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${cls}">${_escH(l)}</span>`).join('');
+
+  return `
+    <div class="mt-3 pt-3 border-t border-[#E1DFDC] space-y-2">
+      ${good.length ? `
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-[10px] font-bold text-[#A7AAAC] shrink-0">得意</span>
+          ${chips(good, 'text-[#0CA1E3] bg-[#0CA1E3]/10')}
+        </div>` : ''}
+      ${want.length ? `
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="text-[10px] font-bold text-[#A7AAAC] shrink-0">やってみたい</span>
+          ${chips(want, 'text-[#7BB100] bg-[#9EDF05]/15')}
+        </div>` : ''}
+      ${msg ? `<p class="text-[12px] text-[#484545] font-bold leading-relaxed break-words">「${_escH(msg)}」</p>` : ''}
+    </div>`;
+}
+
 /** HTML 属性・テキストのエスケープ */
 function _escH(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1502,13 +1525,13 @@ function _escH(s) {
  *   サーバーはメンバーでなくても有効な招待トークンがあれば受け付ける。
  */
 async function _hydrateJoinModalMotivation(inviteToken) {
-  if (!inviteToken) return;
+  if (!inviteToken) return null;
   let ctx = null;
   try {
     const r = await api.previewInvite(inviteToken);
     if (r?.ok) ctx = r.invite;
-  } catch (_) { return; }           // 取得できなければ何も足さない（従来の見た目）
-  if (!ctx) return;
+  } catch (_) { return null; }      // 取得できなければ何も足さない（従来の見た目）
+  if (!ctx) return null;
 
   const catchEl = document.getElementById('jec-catch');
   if (catchEl && ctx.catchphrase) {
@@ -1517,10 +1540,29 @@ async function _hydrateJoinModalMotivation(inviteToken) {
   }
 
   const box = document.getElementById('jec-motivation');
-  if (!box) return;
   // ★🔥はここには置かない。参加が承認されてイベントページに入った直後に
   //   modals/leaderMotivationModal.js が出す（申請時点ではまだ仲間ではないため）。
-  box.innerHTML = inviteMembersHtml(ctx) + motivationBlockHtml(ctx);
+  if (box) box.innerHTML = inviteMembersHtml(ctx) + motivationBlockHtml(ctx);
+  return ctx;
+}
+
+/**
+ * 参加申請 accept 成功後の遷移。入口A・B で同じ扱いにするためここに集約する。
+ * @param {object} r        accept のレスポンス
+ * @param {string} eventName 表示用のイベント名（レスポンスに無い場合のフォールバック）
+ */
+async function _afterJoinAccepted(r, eventName) {
+  const name = r.eventName || eventName || 'イベント';
+  if (r.alreadyMember) {
+    // 既に参加済み → そのままイベント画面へ（承認待ちの文言は出さない）
+    await state.silentReloadEvents?.();
+    state.setView('MAIN_BOARD', r.eventId);
+    return;
+  }
+  state.pendingApprovalMessage =
+    `「${name}」への参加申請を送りました。管理者の承認後に参加できます。`;
+  state.setView('HOME');
+  state.render();
 }
 
 // ===== プロジェクト（フォルダ）ヘルパ =====
@@ -1696,6 +1738,12 @@ const _LOG_LABELS = {
   event_create_completed:      'イベント作成を完了した',
   catchphrase_suggestion_used: 'キャッチコピーの例文を使った',
   motivation_reaction_added:   '意気込みに応援を送った',
+
+  // 参加申請フォーム（modals/joinFormModal.js）。入口A/Bの両方から同じイベントが出る。
+  // ★join_form_skipped_all が多ければフォーム自体が機能していないということなので必ず見る。
+  join_form_shown:        '参加申請フォームを表示',
+  join_form_submitted:    '参加を申請した',
+  join_form_skipped_all:  '参加申請フォームを未回答で送信',
   event_created:          'イベントを作成した',
   mission_created:        'ミッションを作成した',
   mission_edited:         'ミッションを編集した',
