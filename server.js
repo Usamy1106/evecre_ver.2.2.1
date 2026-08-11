@@ -2854,6 +2854,22 @@ app.get('/api/invites/:token', async (req, res) => {
 
     const owner = await userStore.findById(p.ownerId);
     const flat  = crdt.crdtToFlat(p);
+
+    // 参加中メンバーのアバター（先頭8人まで）。招待トークンを持つ相手＝これから
+    // 仲間になる人なので、誰がいるかを見せてよい。username はイニシャル表示の
+    // フォールバックにも使うため一緒に返す。
+    // ★members には username/avatarUrl が保存されていないので users から引く
+    //   （/api/data と同じ合成。ここで手を抜くと「?」だらけの一覧になる）。
+    const AVATAR_LIMIT = 8;
+    const memberIds = (p.members || []).map(m => m.userId).slice(0, AVATAR_LIMIT);
+    const memberUsers = memberIds.length ? await userStore.findManyByIds(memberIds) : [];
+    const userMap = {};
+    for (const u of memberUsers) userMap[u.id] = u;
+    const memberPreviews = memberIds
+      .map(id => userMap[id])
+      .filter(Boolean)
+      .map(u => ({ username: u.username, avatarUrl: u.avatarUrl || null }));
+
     res.json({
       ok: true,
       invite: {
@@ -2863,7 +2879,9 @@ app.get('/api/invites/:token', async (req, res) => {
         eventName: flat.name,
         seedType:    flat.seedType,
         ownerName:   owner?.username || '不明',
+        ownerAvatarUrl: owner?.avatarUrl || null,
         memberCount: (p.members || []).length,
+        members:     memberPreviews,   // 先頭8人ぶん。memberCount とは別（全員ではない）
         expiresAt:   inv.expiresAt,
         // ★既存項目は削らないこと（inviteContextForAuth の他の利用箇所が壊れる）
         // 作成フローで入力された「どんなイベントか」を招待相手にも見せる（すべて任意）

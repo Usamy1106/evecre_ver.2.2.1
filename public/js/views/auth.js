@@ -2,6 +2,7 @@
 import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
+import { Components } from '../components.js';
 
 /**
  * ★入力欄の値を DOM から読み取って draft に同期する（送信直前に必ず呼ぶ）。
@@ -331,8 +332,52 @@ export function _inviteContextBanner() {
         「<span class="text-[#0CA1E3]">${_esc(ctx.eventName || ctx.projectName || '')}</span>」<br>
         への招待を受けています
       </p>
+      ${inviteMembersHtml(ctx)}
       ${motivationBlockHtml(ctx)}
-      <p class="text-[10px] text-[#A7AAAC] font-bold text-center mt-2">アカウント作成で参加が完了します</p>
+      <p class="text-[10px] text-[#A7AAAC] font-bold text-center mt-3">アカウント作成で参加を申請できます</p>
+    </div>`;
+}
+
+/**
+ * 招待の「参加中メンバー」ブロック。3つの表示箇所（招待バナー／参加確認モーダル／
+ * 招待コード入力の確認画面）で共用する。
+ *
+ * ★リーダー1人だけのイベントでも寂しくならないよう出し分ける。
+ *   アバターを1個だけ並べると「誰もいない」感が出るので、その場合はリーダーを
+ *   大きく見せて「待っています」と伝える。
+ *
+ * @param {object} ctx 招待プレビュー（GET /api/invites/:token の invite）
+ */
+export function inviteMembersHtml(ctx) {
+  const count = Number(ctx?.memberCount) || 0;
+  const list  = Array.isArray(ctx?.members) ? ctx.members : [];
+  if (count === 0) return '';   // 通常は起こらない（オーナーが必ずメンバー）
+
+  if (count === 1) {
+    const leader = list[0] || { username: ctx?.ownerName || '', avatarUrl: ctx?.ownerAvatarUrl || null };
+    return `
+      <div class="flex flex-col items-center gap-2 mt-4">
+        <div class="relative">${Components.UserAvatar(leader, { size: 56, ring: true })}</div>
+        <p class="text-[11px] text-[#A7AAAC] font-bold">
+          <span class="text-[#484545]">${_esc(leader.username || '')}</span>さんが待っています
+        </p>
+      </div>`;
+  }
+
+  const shown = list.slice(0, 5);
+  const rest  = count - shown.length;
+  return `
+    <div class="flex flex-col items-center gap-2 mt-4">
+      <div class="flex items-center">
+        ${shown.map((u, i) => `
+          <div class="${i > 0 ? '-ml-2' : ''} relative">${Components.UserAvatar(u, { size: 32, ring: true })}</div>
+        `).join('')}
+        ${rest > 0 ? `
+          <div class="-ml-2 w-8 h-8 rounded-full bg-[#EBE8E5] ring-2 ring-white flex items-center justify-center
+            text-[10px] font-bold text-[#A7AAAC]">+${rest}</div>
+        ` : ''}
+      </div>
+      <p class="text-[11px] text-[#A7AAAC] font-bold">${count}人が参加中</p>
     </div>`;
 }
 

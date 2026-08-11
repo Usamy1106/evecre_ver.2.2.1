@@ -4,7 +4,7 @@
 
 import { state } from '../state.js';
 import { api }   from '../api.js';
-import { motivationBlockHtml } from '../views/auth.js';
+import { motivationBlockHtml, inviteMembersHtml } from '../views/auth.js';
 
 const OVERLAY_ID = 'join-by-code-modal';
 
@@ -98,6 +98,7 @@ function _renderConfirm(ctx) {
         「<span class="text-[#0CA1E3]">${_esc(inv.eventName || inv.projectName || '')}</span>」<br>
         に招待しています
       </p>
+      ${inviteMembersHtml(inv)}
       ${motivationBlockHtml(inv)}
     </div>
 

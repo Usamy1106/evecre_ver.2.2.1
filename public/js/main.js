@@ -15,7 +15,7 @@ import {
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
 import { renderMainBoard }          from './views/mainBoard.js';
-import { renderLogin, motivationBlockHtml } from './views/auth.js';
+import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
 import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
@@ -1520,7 +1520,7 @@ async function _hydrateJoinModalMotivation(inviteToken) {
   if (!box) return;
   // ★🔥はここには置かない。参加が承認されてイベントページに入った直後に
   //   modals/leaderMotivationModal.js が出す（申請時点ではまだ仲間ではないため）。
-  box.innerHTML = motivationBlockHtml(ctx);
+  box.innerHTML = inviteMembersHtml(ctx) + motivationBlockHtml(ctx);
 }
 
 // ===== プロジェクト（フォルダ）ヘルパ =====
