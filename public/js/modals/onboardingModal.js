@@ -37,18 +37,22 @@ export function openOnboardingModal(o) {
   // 背景タップでも閉じられる（＝dismissed 扱い）
   overlay.onclick = (e) => { if (e.target === overlay) _dismiss(); };
 
+  // numbered: true なら手順（①②③）、false なら箇条（・）として出す。
+  // L1 は5ステップの手順、L5 は未割当ミッションの一覧なので見た目を変える。
+  const numbered = o.numbered !== false && !o.bullet;
   const stepsHtml = (o.steps || []).map(([label, desc], i) => `
     <div class="flex items-start gap-3 text-left">
-      <span class="w-6 h-6 rounded-full bg-[#0CA1E3] text-white text-[11px] font-bold
-        flex items-center justify-center flex-shrink-0 mt-0.5">${i + 1}</span>
+      <span class="w-6 h-6 rounded-full ${numbered ? 'bg-[#0CA1E3] text-white' : 'bg-[#EBE8E5] text-[#A7AAAC]'}
+        text-[11px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">${numbered ? i + 1 : '・'}</span>
       <div class="min-w-0">
-        <p class="text-[13px] font-bold text-[#484545]">${_esc(label)}</p>
-        <p class="text-[11px] text-[#A7AAAC] font-bold leading-relaxed">${_esc(desc)}</p>
+        <p class="text-[13px] font-bold text-[#484545] break-words">${_esc(label)}</p>
+        <p class="text-[11px] text-[#0CA1E3] font-bold leading-relaxed break-words">${_esc(desc)}</p>
       </div>
     </div>`).join('');
 
   overlay.innerHTML = `
     <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center max-h-[85vh] flex flex-col">
+      ${o.emoji ? `<p class="text-[44px] leading-none mb-3">${o.emoji}</p>` : ''}
       ${o.eyebrow ? `<p class="text-[11px] text-[#0CA1E3] font-bold mb-2">${_esc(o.eyebrow)}</p>` : ''}
       <h3 class="heading-m text-[#484545] mb-5 font-bold leading-snug">${o.title}</h3>
       <div class="flex-1 overflow-y-auto">
@@ -85,6 +89,17 @@ function _runAction(action) {
   }
   if (action === 'openPendingMembers') {
     window._app?.openPendingMembersSheet?.();
+    return;
+  }
+  if (action === 'openMissionList') {
+    // メインタブに戻すだけ。担当はミッションを開いて決めてもらう
+    state.mainBoardTab = 'MAIN';
+    state.render();
+    return;
+  }
+  if (action === 'openArchive') {
+    state.mainBoardTab = 'ARCHIVE';
+    state.render();
     return;
   }
   if (typeof action === 'function') action(state);

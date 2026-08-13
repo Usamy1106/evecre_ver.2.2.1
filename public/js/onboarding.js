@@ -78,6 +78,56 @@ function _stalePending(p) {
   return (p.pendingMembers || []).filter(m => m.requestedAt && now - m.requestedAt >= DAY_MS);
 }
 
+
+// ── L5 で使うヘルパ ────────────────────────────────────────
+// スキルタグ（12種）→ ミッションのタグ（4種）の対応。
+// ★ミッションのタグは 企画/運営/制作/広報 の4つしかないので、ここで寄せて突き合わせる。
+//   constants.js の SKILL_TAGS に足したらここにも足すこと（未定義は候補に出ないだけ）。
+const SKILL_TO_MISSION_TAG = {
+  design: '制作', photo: '制作', equipment: '制作',
+  planning: '企画',
+  pr: '広報', writing: '広報',
+  finance: '運営', negotiation: '運営', mc: '運営', admin: '運営', onsite: '運営', physical: '運営',
+};
+
+/** ミッションのタグ（tags 優先、無ければ tag） */
+function _missionTag(m) {
+  return (Array.isArray(m.tags) && m.tags[0]) || m.tag || null;
+}
+
+/** 担当が決まっているか（mainBoard の _isAssigned と同じ判定） */
+function _isAssigned(m) {
+  if (Array.isArray(m.assignees) && m.assignees.length > 0) return true;
+  if (m.assignee?.type === 'user') return true;
+  if (m.assignee?.type === 'role') return true;
+  return false;
+}
+
+/** 未完了で担当が空のミッション */
+function _unassigned(p) {
+  return (p.missions || []).filter(m =>
+    m.status !== 'cleared' && m.status !== 'pending_leader_check' && !_isAssigned(m));
+}
+
+/**
+ * そのミッションに向いていそうなメンバーを1人返す。
+ * 「得意」を優先し、いなければ「やってみたい」から選ぶ。
+ * ★やってみたい を含めるのが肝。経験が無くても挑戦したい人に機会が回る。
+ */
+function _suggestMember(p, mission, selfId) {
+  const tag = _missionTag(mission);
+  if (!tag) return null;
+  const members = (p.members || []).filter(m => m.userId !== selfId && m.username);
+  const hit = (key) => members.find(m =>
+    (m[key] || []).some(sk => SKILL_TO_MISSION_TAG[sk] === tag));
+  // ★接尾辞まで含めて持たせる（「やってみたい」に「な」を付けると日本語が壊れる）
+  const good = hit('skillsGood');
+  if (good) return { username: good.username, label: '得意な' };
+  const want = hit('skillsWant');
+  if (want) return { username: want.username, label: 'やってみたい' };
+  return null;
+}
+
 const STEPS = [
   {
     // ★参加は承認制の1本道。リーダーが承認しない限りメンバーは1人も入れないのに、
@@ -104,6 +154,63 @@ const STEPS = [
       };
     },
   },
+  {
+    // ★ここが起きないとイベクリはリーダー1人のToDoアプリになり、メンバーは
+    //   自分の担当が無いのでアプリを開く理由がない。「モチベーションが低い」の主因。
+    id: 'L5',
+    role: 'leader',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: (ctx) => {
+      const un = _unassigned(ctx.p);
+      // 未完了が4件以上あり、かつ**どれも担当が決まっていない**とき
+      const open = (ctx.p.missions || []).filter(m => m.status !== 'cleared');
+      return open.length >= 4 && un.length === open.length;
+    },
+    build: (ctx) => {
+      const un = _unassigned(ctx.p).slice(0, 3);
+      // 抽象的な促しで終わらせず、スキルタグから具体名を出す
+      const lines = un.map(m => {
+        const s = _suggestMember(ctx.p, m, ctx.userId);
+        return [m.title, s ? `${s.label} ${s.username}さん` : '担当を決めましょう'];
+      });
+      return {
+        eyebrow: '3つめのステップ「配る」',
+        title: '誰にお願いする？',
+        steps: lines,
+        bullet: true,     // 手順ではなく一覧なので番号を振らない
+        body: '担当が決まると、その人の画面にミッションが出ます。',
+        primary: 'ミッションを開く',
+        action: 'openMissionList',
+      };
+    },
+  },
+
+  {
+    // このアプリで最もモチベーションが上がる瞬間。演出を厚めにする
+    id: 'L6',
+    role: 'leader',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: (ctx) => {
+      const done = (ctx.p.missions || []).filter(m => m.status === 'cleared').length;
+      // ★既に何件も完了している既存イベントで「はじめての完了」と言わないよう上限を置く。
+      //   完了数は減らないので、超えたイベントでは以後も発火しない
+      return done >= 1 && done <= 3;
+    },
+    build: (ctx) => {
+      const done = (ctx.p.missions || []).filter(m => m.status === 'cleared')[0];
+      return {
+        emoji: '🎉',
+        eyebrow: 'はじめての完了',
+        title: 'ミッションが<br>ひとつ終わりました',
+        body: done?.title
+          ? `「${done.title}」が完了しました。アーカイブに記録が残ります。`
+          : 'アーカイブに記録が残ります。',
+        primary: 'アーカイブを見る',
+        action: 'openArchive',
+      };
+    },
+  },
+
   {
     id: 'L1',
     role: 'leader',
