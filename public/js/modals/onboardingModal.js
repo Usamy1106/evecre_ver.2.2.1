@@ -27,6 +27,9 @@ function _esc(s) {
  * @param {string} [o.body]    本文
  * @param {string} o.primary   主ボタンの文言
  * @param {string} [o.action]  主ボタンの動作（'openMissionModal' など。省略で閉じるだけ）
+ * @param {*} [o.actionArg]    動作に渡す引数（'openMission' のミッションIDなど）
+ * @param {string} [o.emoji]   見出しの上に出す絵文字（お祝いの演出用）
+ * @param {boolean} [o.bullet] steps を手順(①②③)ではなく一覧(・)として出す
  */
 export function openOnboardingModal(o) {
   document.getElementById(OVERLAY_ID)?.remove();
@@ -57,7 +60,7 @@ export function openOnboardingModal(o) {
       <h3 class="heading-m text-[#484545] mb-5 font-bold leading-snug">${o.title}</h3>
       <div class="flex-1 overflow-y-auto">
         ${stepsHtml ? `<div class="space-y-3 mb-5">${stepsHtml}</div>` : ''}
-        ${o.body ? `<p class="text-[12px] text-[#484545] font-bold leading-relaxed mb-6">${_esc(o.body)}</p>` : ''}
+        ${o.body ? `<p class="text-[12px] text-[#484545] font-bold leading-relaxed mb-6 whitespace-pre-line">${_esc(o.body)}</p>` : ''}
       </div>
       <button data-ob="primary" class="btn-primary w-full py-4 heading-rs font-bold shadow-lg">${_esc(o.primary)}</button>
       <button data-ob="close" class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]">あとで</button>
@@ -75,12 +78,12 @@ export function openOnboardingModal(o) {
   overlay.querySelector('[data-ob="primary"]').onclick = () => {
     logEvent('onboarding_action', { stepId: o.stepId });
     overlay.remove();
-    _runAction(o.action);
+    _runAction(o.action, o.actionArg);
   };
 }
 
 /** 主ボタンの動作。増えたらここに1行足す（モーダル側に処理を書かない） */
-function _runAction(action) {
+function _runAction(action, arg) {
   if (!action) return;
   if (action === 'openMissionModal') {
     // ★ミッションは自動追加しない。作成モーダルを開いてユーザーに作らせる
@@ -100,6 +103,13 @@ function _runAction(action) {
   if (action === 'openArchive') {
     state.mainBoardTab = 'ARCHIVE';
     state.render();
+    return;
+  }
+  if (action === 'openMission') {
+    // 削除済みなら詳細を開かず、メインタブに戻すだけにする
+    const p = state.events.find(x => x.id === state.selectedEventId);
+    if (arg && p?.missions?.some(m => m.id === arg)) state.openMissionDetail(arg);
+    else { state.mainBoardTab = 'MAIN'; state.render(); }
     return;
   }
   if (typeof action === 'function') action(state);

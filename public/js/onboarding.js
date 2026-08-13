@@ -13,7 +13,7 @@
 //   モチベーションの可視化を悪化させる。
 
 import { state } from './state.js';
-import { SKILL_TAGS } from './constants.js';
+import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
 
@@ -128,6 +128,28 @@ function _suggestMember(p, mission, selfId) {
   return null;
 }
 
+// ── メンバー向けのヘルパ ──────────────────────────────────
+/** 自分が担当している未完了ミッション */
+function _myMissions(p, userId) {
+  return (p.missions || []).filter(m =>
+    m.status !== 'cleared' && (
+      (Array.isArray(m.assignees) && m.assignees.includes(userId)) ||
+      (m.assignee?.type === 'user' && m.assignee.userId === userId)
+    ));
+}
+
+/**
+ * リーダーの意気込みを一行で。
+ * ★意気込み機能を最も活かす使い方。ひとことがあればそれを、無ければカードから1つ。
+ */
+function _leaderVoice(p) {
+  const text = (p.motivationText || '').trim();
+  if (text) return `リーダーの言葉：「${text}」`;
+  const first = (p.motivationTags || [])[0];
+  const label = MOTIVATION_CARDS.find(c => c.id === first)?.label;
+  return label ? `リーダーの意気込み：${label}` : '';
+}
+
 const STEPS = [
   {
     // ★参加は承認制の1本道。リーダーが承認しない限りメンバーは1人も入れないのに、
@@ -233,6 +255,52 @@ const STEPS = [
       primary: 'ミッションを作ってみよう！',
       action: 'openMissionModal',
     }),
+  },
+
+  // ── メンバー向け ────────────────────────────────────────
+  {
+    // 承認されて初めてイベントページに入ったとき。
+    // ★5ステップ全部は見せない。メンバーにとって「決める」「残す」は自分の仕事ではない。
+    id: 'M1',
+    role: 'member',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: () => true,
+    build: () => ({
+      eyebrow: 'ようこそ',
+      title: 'あなたのやることは<br>3つです',
+      steps: [
+        ['担当を受け取る', 'リーダーが割り当てるか、自分で応募します'],
+        ['やる',           '期限までに進めます'],
+        ['提出する',       '成果物を出すと完了になります'],
+      ],
+      body: 'まずは、どんなミッションがあるか見てみましょう。',
+      primary: 'ミッションを見る',
+      action: 'openMissionList',
+    }),
+  },
+
+  {
+    // 自分に初めて担当が付いたとき
+    id: 'M3',
+    role: 'member',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: (ctx) => _myMissions(ctx.p, ctx.userId).length > 0,
+    build: (ctx) => {
+      const mine  = _myMissions(ctx.p, ctx.userId);
+      const first = mine[0];
+      const voice = _leaderVoice(ctx.p);
+      return {
+        emoji: '📌',
+        eyebrow: 'あなたの担当が決まりました',
+        title: `「${_escapeName(first.title)}」を<br>お願いします`,
+        body: 'ミッションを開くと、やることと期限が見られます。'
+          + '終わったら成果物を出して完了にしてください。'
+          + (voice ? `\n${voice}` : ''),
+        primary: 'ミッションを開く',
+        action: 'openMission',
+        actionArg: first.id,
+      };
+    },
   },
 ];
 
