@@ -1749,6 +1749,21 @@ const _LOG_LABELS = {
   // ★join_form_skipped_all が多ければフォーム自体が機能していないということなので必ず見る。
   // オンボーディング（onboarding.js）。「出したが誰も押さないステップ」を特定するため
   // shown / action / dismissed の3つを必ず揃えて記録する。
+  // 初期オンボーディング（onboardingIntro.js）。イベント作成直後の4段階。
+  // ★「①は見たが FAB を押していない」人がどれだけいるかが最重要の指標。
+  //   ここで落ちているなら、コーチマークの見せ方が機能していない。
+  intro_usage_shown:       '使い方モーダルを表示',
+  intro_usage_ack:         '使い方モーダルで「わかった」',
+  intro_fab_coach_shown:   'FABコーチマークを表示',
+  intro_fab_tapped:        'FABをタップした',
+  intro_form_tour_shown:   '作成モーダルの案内を表示',
+  intro_form_tour_step:    '作成モーダルの案内を進めた',
+  intro_form_tour_skipped: '作成モーダルの案内をスキップ',
+  intro_board_coach_shown: 'ボードの案内を表示',
+  intro_board_coach_step:  'ボードの案内を進めた',
+  intro_board_coach_done:  'ボードの案内を完了',
+  intro_completed:         '初期オンボーディングを完了',
+
   onboarding_shown:       'オンボーディングを表示',
   onboarding_action:      'オンボーディングのボタンを押した',
   onboarding_dismissed:   'オンボーディングを閉じた',

@@ -320,21 +320,6 @@ const STEPS = [
   },
 
   {
-    // 提案を初めてミッション化した直後（自分でも作れると気づかせる）
-    id: 'L2',
-    role: 'leader',
-    densities: [DENSITY.FIRST],
-    match: (ctx) => (ctx.p.missions || []).some(m => m.originProposalId),
-    build: () => ({
-      eyebrow: '提案を採用しました',
-      title: '自分でも<br>ミッションを作れます',
-      body: '提案はきっかけです。やることを思いついたら、いつでも自由に追加できます。',
-      primary: 'ミッションを作る',
-      action: 'openMissionModal',
-    }),
-  },
-
-  {
     // 開催1週間前〜前日に初めて到達したとき
     id: 'L8',
     role: 'leader',

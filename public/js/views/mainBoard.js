@@ -150,7 +150,7 @@ export function renderMainBoard(container) {
         </main>
       `}
       ${state.mainBoardTab === 'MAIN' && state.canManageCurrentEvent() ? `
-        <button onclick="window._app.openMissionModal()" data-log="mission_add_open"
+        <button onclick="window._app.openMissionModal()" data-log="mission_add_open" data-coach="fab"
           class="fab-safe fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
           flex items-center justify-center text-white active:scale-90 transition-transform z-40">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -245,12 +245,12 @@ function _renderMainTab(p) {
 
   // ── ミッション表示モードの定義 ──────────────────────────────────
   // 'all'  : cleared・pending_leader_check 以外を全件表示
-  // 'mine' : 自分が担当 / 未割当 / 申告受付中のミッションのみ
+  // 'mine' : 自分が担当 / 未割当 /応募受付中のミッションのみ
   const viewMode = state.missionViewMode || 'all';
 
   const _isMyOrOpen = (m) => {
     if (m.selfClaim) {
-      if (!_isAssigned(m)) return true;  // 申告受付中
+      if (!_isAssigned(m)) return true;  // 応募受付中
       return _isMyMission(m);
     }
     const hasAssignee = (m.assignee?.type === 'user') ||
@@ -326,10 +326,10 @@ function _renderMainTab(p) {
         const myMission  = _isMyMission(m);
         const overdue    = m.claimDeadline && Date.now() > m.claimDeadline;
 
-        // 申告期間中／確定後の表示
+        // 応募期間中／確定後の表示
         let claimLine = '';
         if (m.selfClaim) {
-          const modeBadge = `<span class="text-[9px] text-[#0CA1E3] font-bold border border-[#0CA1E3] px-1.5 rounded">申告制</span>`;
+          const modeBadge = `<span class="text-[9px] text-[#0CA1E3] font-bold border border-[#0CA1E3] px-1.5 rounded">担当の応募型ミッション</span>`;
           let actionsBlock = '';
 
           if (!assigned) {
@@ -359,7 +359,7 @@ function _renderMainTab(p) {
           m._modeBadge = modeBadge;
         }
 
-        // 通常担当（申告制でない）の担当者表示
+        // 通常担当（担当応募型でない）の担当者表示
         let assigneeLine = '';
         if (!m.selfClaim) {
           if (assignees.length > 0) {
@@ -422,7 +422,7 @@ function _renderMainTab(p) {
             </div>`}
         </div>`;}).join('');
 
-  // 申告待ちミッション（selfClaim=true かつ applicants あり かつ未確定）
+  // 担当応募待ちミッション（selfClaim=true かつ applicants あり かつ未確定）
   const pendingClaimMissions = canMgr
     ? p.missions.filter(m =>
         m.selfClaim &&
@@ -470,7 +470,7 @@ function _renderMainTab(p) {
   // 上部固定領域：日付チップ・お知らせ・各バナー（スクロールしない）
   const pinnedAux = `
     <div class="px-6 pt-3 pb-2 space-y-3">
-      <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
+      <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
         class="cursor-pointer bg-white border border-[#D3D6D8] rounded-full px-4 py-2 flex items-center justify-center gap-3 shadow-sm mx-auto w-fit active:scale-95 transition-transform">
         <img src="/images/icon/icon-Calender.svg" class="w-4 h-4">
         ${_dateChip}
@@ -488,7 +488,7 @@ function _renderMainTab(p) {
       <!-- リーダーチェック待ちバナー（管理者のみ・該当がある場合のみ表示）-->
       ${leaderCheckMissions.length > 0 ? _renderLeaderCheckBanner(leaderCheckMissions) : ''}
 
-      <!-- 申告待ちアナウンスバナー（管理者のみ・該当がある場合のみ表示）-->
+      <!-- 応募待ちアナウンスバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}
     </div>`;
 
@@ -496,7 +496,7 @@ function _renderMainTab(p) {
   const bottomPanelInner = `
       <!-- 提案カード（管理者権限のあるユーザーのみ表示）-->
       ${canMgr ? `
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-3 gap-2" data-coach="proposals">
           ${proposalCards}
           ${(p.proposals.length < 3 && (!p.lastProposalGeneratedAt || state._proposalFetching))
             // 動的枠を AI 生成中：空きスロットにローディングカードを出す（静的提案は出さない）
@@ -515,7 +515,7 @@ function _renderMainTab(p) {
         </div>` : ''}
 
       <!-- ミッション一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
-      <section>
+      <section data-coach="mission-list">
         <div class="flex items-center justify-between mb-3">
           <h2 class="heading-m">ミッション</h2>
           <div class="relative">
@@ -588,7 +588,7 @@ function _renderLeaderCheckBanner(missions) {
     </div>`;
 }
 
-// ===== 申告待ちアナウンスバナー（管理者向け）=====
+// ===== 応募待ちアナウンスバナー（管理者向け）=====
 function _renderClaimAnnouncementBanner(p, missions) {
   const rows = missions.map(m => {
     const count = m.claimApplicants.length;
@@ -616,7 +616,7 @@ function _renderClaimAnnouncementBanner(p, missions) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5">
           <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
         </svg>
-        <p class="text-[12px] font-bold text-[#9b7700]">ミッションへの申告があります（${missions.length}件）</p>
+        <p class="text-[12px] font-bold text-[#9b7700]">ミッションへの応募があります（${missions.length}件）</p>
       </div>
       <div>${rows}</div>
     </div>`;
@@ -989,7 +989,7 @@ function _renderNotificationsTab(p) {
     ? p.missions.filter(m => m.status === 'pending_leader_check')
     : [];
 
-  // 申告待ちのミッション（管理者権限のあるユーザーのみ）
+  // 応募待ちのミッション（管理者権限のあるユーザーのみ）
   const claimingMissions = canMgr
     ? p.missions.filter(m =>
         m.selfClaim &&
@@ -1001,10 +1001,10 @@ function _renderNotificationsTab(p) {
       )
     : [];
 
-  // 申告待ちセクション
+  // 応募待ちセクション
   const claimingHtml = claimingMissions.length === 0 ? '' : `
     <section class="px-6 pt-6">
-      <h2 class="heading-rs font-bold text-[#484545] mb-3">申告待ち（${claimingMissions.length}件）</h2>
+      <h2 class="heading-rs font-bold text-[#484545] mb-3">応募待ち（${claimingMissions.length}件）</h2>
       <div class="space-y-3">
         ${claimingMissions.map(m => {
           const applicants = m.claimApplicants || [];
@@ -1015,7 +1015,7 @@ function _renderNotificationsTab(p) {
           return `
           <div class="bg-white border border-[#FFC300]/40 rounded-2xl p-4 shadow-sm">
             <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <span class="text-[9px] text-[#9b7700] font-bold border border-[#FFC300] px-1.5 rounded bg-[#FFF8E1]">申告あり</span>
+              <span class="text-[9px] text-[#9b7700] font-bold border border-[#FFC300] px-1.5 rounded bg-[#FFF8E1]">応募あり</span>
               <span class="text-[11px] text-[#A7AAAC] font-bold">${applicants.length}名が応募中</span>
             </div>
             <h3 class="text-[14px] font-bold text-[#484545] mb-2">${_esc(m.title)}</h3>
@@ -1244,7 +1244,7 @@ function _checkMissionDeadlineNotifications(missions) {
   });
 }
 
-// 申告期限の表示
+// 応募期限の表示
 function _fmtDeadline(ts) {
   if (!ts) return '';
   const d = new Date(ts);

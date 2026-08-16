@@ -250,7 +250,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
       <div class="space-y-4 flex-1">
         <div>
           <label class="heading-rs block mb-1 text-[#484545]">ミッション名</label>
-          <input type="text" id="mission-title-input" placeholder="ミッションを入力"
+          <input type="text" id="mission-title-input" data-coach="mission-title" placeholder="ミッションを入力"
             value="${state.draftMission.title}"
             oninput="state.draftMission.title=this.value; this.style.borderColor=''"
             class="input-field w-full px-4 py-3 focus:outline-none border-2 border-transparent transition-colors">
@@ -274,11 +274,11 @@ function _renderBasicTab(isEdit, dateDisplay) {
           <label class="heading-rs block mb-1 text-[#484545]">優先度</label>
           <div class="flex gap-1">${starButtons}</div>
         </div>
-        <div>
+        <div data-coach="assignee">
           <label class="heading-rs block mb-1 text-[#484545]">担当者</label>
           ${_renderAssigneeSelect()}
         </div>
-        <div>
+        <div data-coach="schedule">
           <label class="heading-rs block mb-1 text-[#484545]">スケジュール</label>
           <p class="text-[11px] text-[#A7AAAC] font-bold mb-2">ミッションを行う期間を設定します。</p>
           <div class="flex items-center gap-2 mb-2 cursor-pointer" onclick="window._app.openCalendarModal('mission')">
