@@ -76,20 +76,24 @@ export function showCoachMark(o) {
       ${o.counter ? `<p class="text-[11px] font-bold text-white/60 mb-2">${_esc(o.counter)}</p>` : ''}
       <p class="text-[17px] font-bold text-white leading-snug mb-1">${_esc(o.title)}</p>
       ${o.body ? `<p class="text-[13px] font-bold text-white/80 leading-relaxed">${_esc(o.body)}</p>` : ''}
-      ${o.finger ? `
-        <div data-coach-finger class="coach-finger mt-4 flex flex-col items-center gap-1">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 11V6a2 2 0 1 1 4 0v5"/>
-            <path d="M13 11V8a2 2 0 1 1 4 0v3"/>
-            <path d="M17 11v-1a2 2 0 1 1 4 0v6a5 5 0 0 1-5 5h-3a6 6 0 0 1-6-6v-4a2 2 0 1 1 4 0"/>
-          </svg>
-          ${o.hint ? `<span class="text-[11px] font-bold text-white/70">${_esc(o.hint)}</span>` : ''}
-        </div>` : (o.hint ? `<p class="text-[11px] font-bold text-white/70 mt-3">${_esc(o.hint)}</p>` : '')}
-    </div>`;
+      ${(!o.finger && o.hint) ? `<p class="text-[11px] font-bold text-white/70 mt-3">${_esc(o.hint)}</p>` : ''}
+    </div>
+    ${o.finger ? `
+      <!-- ★指は穴に隣接させる。コピー文の中に置くと穴から離れて「どこを指しているか」が伝わらない -->
+      <div data-coach-finger class="absolute pointer-events-none flex flex-col items-center gap-1">
+        <svg class="coach-finger" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+          style="filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));">
+          <path d="M9 11V6a2 2 0 1 1 4 0v5"/>
+          <path d="M13 11V8a2 2 0 1 1 4 0v3"/>
+          <path d="M17 11v-1a2 2 0 1 1 4 0v6a5 5 0 0 1-5 5h-3a6 6 0 0 1-6-6v-4a2 2 0 1 1 4 0"/>
+        </svg>
+        ${o.hint ? `<span class="text-[11px] font-bold text-white/80 whitespace-nowrap">${_esc(o.hint)}</span>` : ''}
+      </div>` : ''}`;
   document.body.appendChild(overlay);
 
   const hole   = overlay.querySelector('[data-coach-hole]');
+  const finger = overlay.querySelector('[data-coach-finger]');
   const pulse  = overlay.querySelector('[data-coach-pulse]');
   const hit    = overlay.querySelector('[data-coach-hit]');
   const copy   = overlay.querySelector('[data-coach-copy]');
@@ -108,6 +112,29 @@ export function showCoachMark(o) {
       box.style.left   = `${cx - size / 2}px`;
       box.style.top    = `${cy - size / 2}px`;
     }
+    // ★指は穴のすぐ隣に置き、指先が穴を向くように回す。
+    //   FAB は画面最下部にあり下に余白が無いことが多いので、下 → 左 → 右 の順で場所を選ぶ。
+    //   アイコンは「人差し指が上を向いた手」なので、下に置くときは無回転でそのまま穴を指す。
+    if (finger) {
+      const FW = 44, FH = 56;                       // 指＋ヒントのおおよその大きさ
+      const below = window.innerHeight - (cy + size / 2);
+      const left  = cx - size / 2;
+      if (below >= FH + 8) {
+        finger.style.left = `${cx - FW / 2}px`;
+        finger.style.top  = `${cy + size / 2 + 6}px`;
+        finger.style.transform = 'none';
+      } else if (left >= FW + 8) {
+        // 左に置き、指先が右上（穴）を向くように傾ける
+        finger.style.left = `${cx - size / 2 - FW - 6}px`;
+        finger.style.top  = `${cy - FH / 2 + 6}px`;
+        finger.style.transform = 'rotate(35deg)';
+      } else {
+        finger.style.left = `${cx + size / 2 + 6}px`;
+        finger.style.top  = `${cy - FH / 2 + 6}px`;
+        finger.style.transform = 'rotate(-35deg)';
+      }
+    }
+
     // 文言は穴の広い方の側に置く（画面下部の FAB なら上、上部の要素なら下）
     const spaceAbove = r.top;
     const spaceBelow = window.innerHeight - r.bottom;
