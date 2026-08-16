@@ -1290,17 +1290,41 @@ export function openSelectClaimModal(missionId) {
   overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[210] flex items-end';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-  const applicantRows = applicants.map(uid => {
+  // ★参加時回答からのおすすめ。応募者の中だけで採点し、該当者を上に寄せて理由を添える。
+  //   根拠が無ければ（ラベル未設定・誰も未回答・関係する回答なし）空配列が返り、
+  //   並びも表示も従来どおりになる。
+  const missionTags = (Array.isArray(m.tags) && m.tags.length > 0)
+    ? m.tags
+    : (m.tag ? [m.tag] : []);
+  const recs = suggestAssignees(p, missionTags, {
+    onlyUserIds: applicants,
+    limit: applicants.length,
+  });
+  const recIndex = new Map(recs.map((r, i) => [r.userId, { rank: i, reason: r.reason }]));
+
+  // おすすめを先頭へ（同順位は元の応募順を保つ）
+  const ordered = [...applicants].sort((a, b) => {
+    const ra = recIndex.has(a) ? recIndex.get(a).rank : Number.MAX_SAFE_INTEGER;
+    const rb = recIndex.has(b) ? recIndex.get(b).rank : Number.MAX_SAFE_INTEGER;
+    return ra - rb || applicants.indexOf(a) - applicants.indexOf(b);
+  });
+
+  const applicantRows = ordered.map(uid => {
     const member = (p.members || []).find(mem => mem.userId === uid);
     const name = member ? member.username : '(不明なユーザー)';
+    const rec = recIndex.get(uid) || null;
     const avatarHtml = member?.avatarUrl
       ? `<img src="${_escAttr(member.avatarUrl)}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover flex-shrink-0">`
       : `<div class="w-8 h-8 rounded-full bg-[#0CA1E3]/20 flex items-center justify-center flex-shrink-0 text-[12px] font-bold text-[#0CA1E3]">${_esc(name.charAt(0).toUpperCase())}</div>`;
     return `
-      <label class="flex items-center gap-3 px-4 py-3 border-b border-[#E1DFDC] cursor-pointer active:bg-[#FDFBF8]">
+      <label class="flex items-center gap-3 px-4 py-3 border-b border-[#E1DFDC] cursor-pointer active:bg-[#FDFBF8] ${rec ? 'bg-[#FDFBF8]' : ''}">
         <input type="checkbox" data-select-claim value="${_escAttr(uid)}" class="w-4 h-4 accent-[#0CA1E3]">
         ${avatarHtml}
-        <span class="text-[13px] font-bold text-[#484545] flex-1">@${_esc(name)}</span>
+        <span class="flex-1 min-w-0">
+          <span class="text-[13px] font-bold text-[#484545] block truncate">@${_esc(name)}</span>
+          ${rec ? `<span class="text-[10px] font-bold text-[#A7AAAC] block truncate">${_esc(rec.reason)}</span>` : ''}
+        </span>
+        ${rec ? '<span class="text-[9px] font-bold text-[#0CA1E3] border border-[#0CA1E3] px-1.5 py-0.5 rounded flex-shrink-0">おすすめ</span>' : ''}
       </label>`;
   }).join('');
 
