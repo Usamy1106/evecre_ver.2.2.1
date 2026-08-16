@@ -15,6 +15,7 @@ import { state } from './state.js';
 import { logEvent } from './logger.js';
 import { setIntroRunningProbe } from './modalGuard.js';
 import { showCoachMark, closeCoachMark } from './modals/coachMark.js';
+import { startTooltipTour, closeTooltipTour } from './modals/tooltipTour.js';
 
 // ── 進行状態 ────────────────────────────────────────────────
 export const INTRO = {
@@ -236,4 +237,59 @@ function isCoachOpen() {
 export function abortIntroVisuals() {
   closeCoachMark();
   setIntroRunning(false);
+}
+
+// ── ③ ミッション作成モーダルのツールチップ ──────────────────
+/**
+ * ミッション作成モーダルが開いた直後に呼ぶ（main.js の openMissionModal 経由）。
+ * ★初回のみ。2回目以降は出さない。
+ * ★中断（モーダルを閉じた）場合も「一度見た」として扱い、③完了として次へ進める。
+ */
+export function startMissionFormTour() {
+  const p = state.events.find(x => x.id === state.selectedEventId);
+  if (!p || !state.currentUser) return;
+  if (!isIntroEligible(state.currentUser.id, p)) return;
+  if (getIntroState(state.currentUser.id, p.id) !== INTRO.FAB) return;   // ②を済ませた直後だけ
+
+  setIntroRunning(true);
+  const ok = startTooltipTour({
+    steps: [
+      { selector: '[data-coach="mission-title"]',
+        title: 'ミッションの名前',
+        body:  '何をやるかを短く書こう。あとから変えられます' },
+      { selector: '[data-coach="assignee"]',
+        title: '担当者',
+        body:  '誰がやるか決めよう。「やりたい人が手を挙げる」形にもできます' },
+      // ★「期日」「締切」と読める語を使わないこと。ミッションのスケジュールは1日ではなく
+      //   期間で、ガントチャート（modals/eventCalendarSheet.js）に反映される。
+      //   締切だと誤解されると初日だけ／最終日だけを選んで確定されてしまう。
+      { selector: '[data-coach="schedule"]',
+        title: 'スケジュール',
+        body:  '取りかかる期間をなぞって選ぼう。ガントチャートに反映されます' },
+    ],
+    lastLabel: 'はじめる',
+    onStep:   (step) => logEvent('intro_form_tour_step', { step }),
+    onSkip:   () => { logEvent('intro_form_tour_skipped'); _finishFormTour(); },
+    onFinish: () => _finishFormTour(),
+  });
+
+  if (!ok) { _finishFormTour(); return; }   // 対象が1つも無ければ止めずに進める
+  logEvent('intro_form_tour_shown');
+}
+
+function _finishFormTour() {
+  setIntroRunning(false);
+  advanceIntro(INTRO.FORM);
+}
+
+/**
+ * ミッション作成モーダルが閉じられたときに呼ぶ。
+ * ★途中で閉じても「一度見た」として③を完了扱いにする（宙ぶらりんにしない）。
+ */
+export function onMissionFormClosed() {
+  closeTooltipTour();
+  const p = state.events.find(x => x.id === state.selectedEventId);
+  if (!p || !state.currentUser) return;
+  if (getIntroState(state.currentUser.id, p.id) === INTRO.FAB) _finishFormTour();
+  else setIntroRunning(false);
 }

@@ -1,5 +1,6 @@
 // ===== ミッションモーダル =====
 import { state } from '../state.js';
+import { startMissionFormTour, onMissionFormClosed } from '../onboardingIntro.js';
 import { api } from '../api.js';
 import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
 import { Components } from '../components.js';
@@ -107,12 +108,19 @@ export function openMissionModal(missionId = null, prefill = null) {
     document.getElementById('mission-panel')?.classList.remove('translate-y-full');
   });
   renderMissionModalContent();
+
+  // ★初期オンボーディング③：作成モーダルが開いた直後にツールチップを出す（初回のみ）。
+  //   条件（イントロ対象・②を済ませた直後か）は onboardingIntro 側が判定する。
+  //   描画が終わってから座標を測るため1フレーム置く。
+  requestAnimationFrame(() => startMissionFormTour());
 }
 
 /**
  * ミッションモーダルを閉じる
  */
 export function closeMissionModal() {
+  // ★途中で閉じても③は「一度見た」として完了扱いにする（状態を宙ぶらりんにしない）
+  onMissionFormClosed();
   const panel = document.getElementById('mission-panel');
   if (panel) panel.classList.add('translate-y-full');
   setTimeout(() => {
