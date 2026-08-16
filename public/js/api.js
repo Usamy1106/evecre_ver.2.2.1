@@ -313,6 +313,13 @@ export const api = {
   },
   // answers は参加申請フォームの回答（{ skillsGood, skillsWant, joinMessage }）。
   // 省略可（旧経路・回答なしの申請でも通る）。サーバーが pendingMembers に載せる。
+  // ★暫定：既存メンバーのスキル回収（modals/skillCollectModal.js）専用。
+  //   回収が済んだらこのラッパーごと削除すること。
+  async saveMySkills(eventId, skillsGood, skillsWant) {
+    const { json } = await _send('POST', `/api/events/${eventId}/my-skills`, { skillsGood, skillsWant });
+    return json || { ok: false };
+  },
+
   async acceptInvite(token, answers = null) {
     const { json } = await _send('POST', `/api/invites/${token}/accept`, answers || {});
     return json || { ok: false };

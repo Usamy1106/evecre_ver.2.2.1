@@ -2960,6 +2960,40 @@ app.get('/api/invites/:token', async (req, res) => {
 //
 // 宛先の考え方：招待ページから押されるので「まだメンバーでない人」も押せる必要がある。
 // メンバーであるか、そのイベント宛の有効な招待トークンを持っているかのどちらかを要求する。
+// ★暫定：既存メンバーのスキル回収（public/js/modals/skillCollectModal.js）専用。
+//
+//   参加申請フォームが入る前から居るメンバーは skillsGood / skillsWant を持たないため、
+//   担当者の「おすすめ」が機能しない。イベントを開いたときにモーダルで聞き、ここで保存する。
+//
+//   ★通常の参加フローはこのエンドポイントを使わない（accept → approve で引き継がれる）。
+//   ★回収が済んだらこのハンドラごと削除すること。
+app.post('/api/events/:id/my-skills', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    // 検証・正規化は参加申請フォームと同じ関数を使う（未知のタグを弾く）
+    const a = _sanitizeJoinAnswers(req.body);
+    // ★「何も選ばずに送信」も回答済みとして記録する。null のままだと毎回聞き直してしまう
+    const ok = await eventStore.setMemberJoinAnswers(req.params.id, req.user.id, {
+      skillsGood: a.skillsGood,
+      skillsWant: a.skillsWant,
+      joinedAnswersAt: Date.now(),
+    });
+    if (!ok) return res.status(404).json({ ok: false, error: 'member not found' });
+
+    logServerEvent(req.params.id, req.user.id, 'skills_collected', {
+      good: a.skillsGood.length, want: a.skillsWant.length,
+    });
+    res.json({ ok: true, skillsGood: a.skillsGood, skillsWant: a.skillsWant });
+  } catch (e) {
+    console.error('POST /api/events/:id/my-skills error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
 app.post('/api/events/:id/motivation-reactions', requireAuth, async (req, res) => {
   try {
     const p = await eventStore.loadEvent(req.params.id);

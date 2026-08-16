@@ -76,6 +76,7 @@ export const state = {
   _leaderMotivationCheckedForEvent: null, // リーダーの意気込みモーダルのチェック済みフラグ（セッション1回）
   _eventDateReminderCheckedForEvent: null, // 開催日リマインドモーダル（初日/翌日）のチェック実施済みか（セッション1回）
   _devAnnouncementChecked: false, // 開発者からのお知らせモーダルのチェックを実施済みか（セッション1回、イベント非依存）
+  _skillCollectCheckedForEvent: null, // ★暫定：既存メンバーのスキル回収チェック済みか（回収後に削除）
   missionViewMode: 'all',      // 'all' | 'mine'  ミッション表示モード
   missionFilterTag: null,      // ミッション絞り込みタグ（null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority' | 'assignee'
@@ -884,6 +885,17 @@ export const state = {
     //   （1つ出したら次の段階のステップが控えているため、render のたびに評価する）。
     if (this.currentView === 'MAIN_BOARD' && this.selectedEventId) {
       setTimeout(() => window._app?.checkOnboarding?.(), 1300);
+    }
+
+    // ★暫定：既存メンバーのスキル回収（modals/skillCollectModal.js）。
+    //   参加申請フォームが入る前から居るメンバーには skillsGood / skillsWant が無く、
+    //   担当者のおすすめが機能しないため、後追いで聞く。
+    //   ★他モーダルより後（1500ms）。重なったら表示せずスヌーズも記録しない。
+    //   ★回収が済んだらこのブロックごと削除すること。
+    if (this.currentView === 'MAIN_BOARD' && this.selectedEventId &&
+        this._skillCollectCheckedForEvent !== this.selectedEventId) {
+      this._skillCollectCheckedForEvent = this.selectedEventId;
+      setTimeout(() => window._app?.checkSkillCollectModal?.(), 1500);
     }
 
     // アカウント作成の完了直後：ホーム画面追加 → 通知許可 を順に案内する。

@@ -22,6 +22,7 @@ export const AUTO_MODAL_IDS = [
   'dev-announcement-overlay',      // 開発者からのお知らせ
   'leader-motivation-overlay',     // リーダーの意気込み＋🔥
   'onboarding-overlay',            // オンボーディング
+  'skill-collect-overlay',         // ★暫定：既存メンバーのスキル回収（回収後に削除）
 ];
 
 // ★初期オンボーディング（onboardingIntro.js）が進行中かを見るためのフック。

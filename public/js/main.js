@@ -58,6 +58,8 @@ import { checkOnboarding } from './onboarding.js';
 import { checkIntro } from './onboardingIntro.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
+// ★暫定：既存メンバーのスキル回収。回収が済んだらこの import ごと削除する
+import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
 import {
@@ -1162,6 +1164,8 @@ window._app = {
 
   // --- 開発者からのお知らせモーダル（全ユーザー向け）---
   checkDeveloperAnnouncementModal: () => checkDeveloperAnnouncementModal(),
+  // ★暫定：既存メンバーのスキル回収。回収が済んだらこの行ごと削除する
+  checkSkillCollectModal: () => checkSkillCollectModal(),
 
   // --- リーダーチェック：確認ボトムシート（管理者）---
   openLeaderCheckSheet: () => {
@@ -1766,6 +1770,11 @@ const _LOG_LABELS = {
   intro_board_coach_step:  'ボードの案内を進めた',
   intro_board_coach_done:  'ボードの案内を完了',
   intro_completed:         '初期オンボーディングを完了',
+  // ★暫定：既存メンバーのスキル回収（回収後に削除）
+  skill_collect_shown:     'スキル回収モーダルを表示',
+  skill_collect_submitted: 'スキルを回答した',
+  skill_collect_skipped:   'スキル回収を「あとで」',
+  skills_collected:        'スキルを保存した（サーバー記録）',
 
   onboarding_shown:       'オンボーディングを表示',
   onboarding_action:      'オンボーディングのボタンを押した',
