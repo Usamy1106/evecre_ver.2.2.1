@@ -14,6 +14,7 @@
 
 import { state } from './state.js';
 import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
+import { getArchiveSummary, getArchiveVenue } from './utils.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
 
@@ -57,7 +58,7 @@ export function lastSeenAt(userId, eventId, stepId) {
 }
 
 // ── ステップ定義 ────────────────────────────────────────────
-// role: 'leader'（canManage true）/ 'member'
+// role: 'leader'（canManage true）/ 'member' / 'any'（どちらにも出す）
 // densities: そのステップを出す濃度。first は全部出す
 // match(ctx): 表示条件。ctx = { p, userId, canManage, density }
 // build(ctx): openOnboardingModal に渡す内容
@@ -148,6 +149,49 @@ function _leaderVoice(p) {
   const first = (p.motivationTags || [])[0];
   const label = MOTIVATION_CARDS.find(c => c.id === first)?.label;
   return label ? `リーダーの意気込み：${label}` : '';
+}
+
+
+// ── フェーズ判定 ────────────────────────────────────────────
+// ★lib/proposalEngine.js の detectPhase と同じ区分に揃えること
+//   （early >21日 / mid 8〜21日 / late 〜7日 / during 開催中 / after 終了後）。
+//   サーバー側と食い違うと「直前チェック」が出るタイミングがズレる。
+function _todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function _detectPhase(p) {
+  const sorted = [...(p.dates || [])].filter(Boolean).sort();
+  const today = _todayStr();
+  if (sorted.length === 0) return null;              // 日程未設定は中立
+  if (today > sorted[sorted.length - 1]) return 'after';
+  if (today >= sorted[0]) return 'during';
+  const days = Math.ceil((new Date(sorted[0]) - new Date(today)) / DAY_MS);
+  return days > 21 ? 'early' : days > 7 ? 'mid' : 'late';
+}
+
+/** イベント作成からの経過日数 */
+function _daysSinceCreated(p) {
+  return p.createdAt ? Math.floor((Date.now() - p.createdAt) / DAY_MS) : 0;
+}
+
+/** 自分の skillsWant に合う未割当ミッション（M2 用） */
+function _wantMatches(p, userId) {
+  const me = (p.members || []).find(m => m.userId === userId);
+  const want = me?.skillsWant || [];
+  if (want.length === 0) return [];
+  const tags = new Set(want.map(sk => SKILL_TO_MISSION_TAG[sk]).filter(Boolean));
+  return _unassigned(p).filter(m => tags.has(_missionTag(m)));
+}
+
+/** 自分が担当していて完了済みのミッション（M4 用） */
+function _myCompleted(p, userId) {
+  return (p.missions || []).filter(m =>
+    (m.status === 'cleared' || m.status === 'pending_leader_check') && (
+      (Array.isArray(m.assignees) && m.assignees.includes(userId)) ||
+      (m.assignee?.type === 'user' && m.assignee.userId === userId) ||
+      (Array.isArray(m.individualClearedBy) && m.individualClearedBy.includes(userId))
+    ));
 }
 
 const STEPS = [
@@ -241,7 +285,7 @@ const STEPS = [
     match: () => true,
     build: () => ({
       eyebrow: 'イベクリの使い方',
-      title: 'イベントは<br>5つのステップで進みます',
+      title: 'イベントづくりは<br>5つのステップで進みます',
       steps: [
         ['決める', '何をやるかを決める'],
         ['積む',   'やることを洗い出して日付を入れる'],
@@ -251,10 +295,96 @@ const STEPS = [
       ],
       // ★def-1〜3 が最初から入っているので「最初の1件を作ろう」は不正確。
       //   「作ってみよう」に留める（指示どおり）。
-      body: 'まずは、やることをミッションとして書き出すところから。',
-      primary: 'ミッションを作ってみよう！',
+      body: 'やることをミッションとして書き出してスケジュールを作ってみましょう。',
+      primary: 'わかった',
       action: 'openMissionModal',
     }),
+  },
+
+  {
+    // 招待したのに誰も来ない状態を放置しない。L4（承認の催促）と対になる
+    id: 'L3',
+    role: 'leader',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: (ctx) => _daysSinceCreated(ctx.p) >= 3
+      && (ctx.p.members || []).length <= 1
+      && (ctx.p.pendingMembers || []).length === 0,
+    build: () => ({
+      eyebrow: 'まだひとりです',
+      title: '仲間を誘いませんか',
+      body: 'イベクリは、担当を配って進めると力を発揮します。'
+        + '招待リンクを送ると、相手は参加申請から入れます。',
+      primary: '招待リンクを発行する',
+      action: 'openInvite',
+    }),
+  },
+
+  {
+    // 提案を初めてミッション化した直後（自分でも作れると気づかせる）
+    id: 'L2',
+    role: 'leader',
+    densities: [DENSITY.FIRST],
+    match: (ctx) => (ctx.p.missions || []).some(m => m.originProposalId),
+    build: () => ({
+      eyebrow: '提案を採用しました',
+      title: '自分でも<br>ミッションを作れます',
+      body: '提案はきっかけです。やることを思いついたら、いつでも自由に追加できます。',
+      primary: 'ミッションを作る',
+      action: 'openMissionModal',
+    }),
+  },
+
+  {
+    // 開催1週間前〜前日に初めて到達したとき
+    id: 'L8',
+    role: 'leader',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: (ctx) => _detectPhase(ctx.p) === 'late',
+    build: (ctx) => {
+      const open = (ctx.p.missions || []).filter(m => m.status !== 'cleared');
+      const un   = _unassigned(ctx.p);
+      return {
+        emoji: '⏰',
+        eyebrow: '開催が近づいています',
+        title: '直前チェック',
+        steps: [
+          ['未完了のミッション', `${open.length}件`],
+          ['担当が決まっていない', `${un.length}件`],
+        ],
+        bullet: true,
+        body: open.length === 0
+          ? '準備は整っています。当日を楽しんでください。'
+          : '残っているものを確認して、必要なら担当を決めましょう。',
+        primary: 'ミッションを確認する',
+        action: 'openMissionList',
+      };
+    },
+  },
+
+  {
+    // 開催が終わったあと初めて開いたとき
+    id: 'L9',
+    role: 'leader',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: (ctx) => _detectPhase(ctx.p) === 'after',
+    build: (ctx) => {
+      const missing = [];
+      if (!getArchiveSummary(ctx.p)) missing.push(['概要', 'イベント設定から書けます']);
+      if (!getArchiveVenue(ctx.p))   missing.push(['開催場所', 'イベント設定から書けます']);
+      if (!ctx.p.clearedData?.['archive-image']) missing.push(['メインビジュアル', 'アーカイブから登録できます']);
+      return {
+        emoji: '📦',
+        eyebrow: 'おつかれさまでした',
+        title: '記録を残しましょう',
+        steps: missing.length ? missing : null,
+        bullet: true,
+        body: missing.length
+          ? 'アーカイブが埋まっていると、次のイベントの引き継ぎが楽になります。'
+          : 'アーカイブは埋まっています。振り返ってみましょう。',
+        primary: 'アーカイブを見る',
+        action: 'openArchive',
+      };
+    },
   },
 
   // ── メンバー向け ────────────────────────────────────────
@@ -280,9 +410,10 @@ const STEPS = [
   },
 
   {
-    // 自分に初めて担当が付いたとき
+    // 自分に初めて担当が付いたとき。
+    // ★リーダー／メンバーを問わず、担当が付いた人全員に出す（リーダーも実作業を持つため）。
     id: 'M3',
-    role: 'member',
+    role: 'any',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
     match: (ctx) => _myMissions(ctx.p, ctx.userId).length > 0,
     build: (ctx) => {
@@ -299,6 +430,56 @@ const STEPS = [
         primary: 'ミッションを開く',
         action: 'openMission',
         actionArg: first.id,
+      };
+    },
+  },
+  {
+    // 参加から1日たっても自分の担当が無い人に、合いそうなミッションを示す
+    id: 'M2',
+    role: 'member',
+    densities: [DENSITY.FIRST, DENSITY.FEW],
+    match: (ctx) => {
+      if (_myMissions(ctx.p, ctx.userId).length > 0) return false;
+      const me = (ctx.p.members || []).find(m => m.userId === ctx.userId);
+      const joined = me?.joinedAt || ctx.p.createdAt;
+      return joined ? (Date.now() - joined) >= DAY_MS : false;
+    },
+    build: (ctx) => {
+      const hits = _wantMatches(ctx.p, ctx.userId).slice(0, 3);
+      return {
+        eyebrow: 'まだ担当がありません',
+        title: hits.length ? 'こんなミッションが<br>空いています' : 'リーダーに<br>声をかけてみよう',
+        steps: hits.length ? hits.map(m => [m.title, 'やってみたいと答えた分野です']) : null,
+        bullet: true,
+        body: hits.length
+          ? '気になるものがあれば、リーダーに「やりたい」と伝えてみましょう。'
+          : 'いまは自分に合いそうな空きがありません。何を手伝えるか聞いてみましょう。',
+        primary: 'ミッションを見る',
+        action: 'openMissionList',
+      };
+    },
+  },
+
+  {
+    // メンバーが初めてミッションを完了したとき（褒める）
+    // ★M5（差し戻し時の案内）は実装しない方針
+    id: 'M4',
+    role: 'member',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: (ctx) => _myCompleted(ctx.p, ctx.userId).length > 0,
+    build: (ctx) => {
+      const done = _myCompleted(ctx.p, ctx.userId)[0];
+      const needsCheck = done?.status === 'pending_leader_check';
+      return {
+        emoji: '🎊',
+        eyebrow: 'はじめての完了',
+        title: 'おつかれさまでした！',
+        body: (done?.title ? `「${done.title}」を提出しました。` : '提出しました。')
+          + (needsCheck
+              ? 'リーダーの確認待ちです。承認されるとアーカイブに残ります。'
+              : 'アーカイブに記録が残ります。'),
+        primary: 'アーカイブを見る',
+        action: 'openArchive',
       };
     },
   },
@@ -330,7 +511,7 @@ export function checkOnboarding() {
   const ctx = { p, userId, canManage, density };
 
   for (const step of STEPS) {
-    if (step.role !== role) continue;
+    if (step.role !== 'any' && step.role !== role) continue;
     if (!step.densities.includes(density)) continue;
     // 通常は一度きり。repeatEveryMs があるステップは、その間隔を空けて再表示する
     if (step.repeatEveryMs) {

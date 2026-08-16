@@ -7,6 +7,7 @@
 
 import { state } from '../state.js';
 import { logEvent } from '../logger.js';
+import { openInviteIssueModal } from './inviteIssueModal.js';
 
 const OVERLAY_ID = 'onboarding-overlay';
 
@@ -103,6 +104,10 @@ function _runAction(action, arg) {
   if (action === 'openArchive') {
     state.mainBoardTab = 'ARCHIVE';
     state.render();
+    return;
+  }
+  if (action === 'openInvite') {
+    openInviteIssueModal(state.selectedEventId);
     return;
   }
   if (action === 'openMission') {
