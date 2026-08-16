@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { startMissionFormTour, onMissionFormClosed } from '../onboardingIntro.js';
 import { api } from '../api.js';
 import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
+import { suggestAssignees } from '../assigneeSuggest.js';
 import { Components } from '../components.js';
 import { logEvent } from '../logger.js';
 
@@ -907,6 +908,51 @@ export function openAssigneeSheet() {
 }
 
 /**
+ * 担当者シート上部の「参加時の回答からのおすすめ」。
+ *
+ * ★出す根拠が無ければ空文字を返す（suggestAssignees が空配列を返す）。
+ *   ラベル未選択・誰も参加時フォームに答えていない・関係する回答が無い、の3通り。
+ * ★行は下の一覧と同じ data-assignee-pick を使うので、選択ハンドラは共通のまま。
+ *
+ * @param {Array} members  assigneeCache のメンバー（表示名の正）
+ * @param {string[]} multiIds 選択中の userId
+ * @returns {string}
+ */
+function _assigneeSuggestHtml(members, multiIds) {
+  const p = state.events.find(x => x.id === state.selectedEventId);
+  const recs = suggestAssignees(p, state.draftMission.labels || [], {
+    // 脱退したメンバーを出さない（回答はイベント側に残るため）
+    onlyUserIds: members.map(m => m.userId),
+  });
+  if (recs.length === 0) return '';
+
+  const nameOf = (uid) => members.find(m => m.userId === uid)?.username || '';
+
+  return `
+    <div class="px-5 pt-4 pb-3 bg-[#FDFBF8] border-b border-[#E1DFDC]">
+      <p class="text-[11px] font-bold text-[#0CA1E3] mb-2">参加時の回答からのおすすめ</p>
+      <div class="space-y-2">
+        ${recs.map(r => {
+          const checked = multiIds.includes(r.userId);
+          return `
+            <button type="button" data-assignee-pick="user:${_escAttr(r.userId)}"
+              class="w-full text-left px-3 py-2.5 rounded-xl border flex items-center justify-between
+                active:scale-[0.99] transition-transform
+                ${checked ? 'border-[#0CA1E3] bg-[#EBF8FF]' : 'border-[#E1DFDC] bg-white'}">
+              <div class="min-w-0">
+                <p class="text-[13px] font-bold text-[#484545] truncate">${_esc(nameOf(r.userId))}</p>
+                <p class="text-[10px] font-bold text-[#A7AAAC] truncate">${_esc(r.reason)}</p>
+              </div>
+              ${checked
+                ? '<span class="text-[#0CA1E3] font-bold text-[16px] flex-shrink-0 ml-2">✓</span>'
+                : '<span class="w-4 h-4 rounded border border-[#D3D6D8] inline-block flex-shrink-0 ml-2"></span>'}
+            </button>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+/**
  * 担当者シートのタブとリスト部分を描画
  */
 function _renderAssigneeSheetList() {
@@ -939,6 +985,8 @@ function _renderAssigneeSheetList() {
   let html = '';
 
   if (tab === 'ACCOUNT') {
+    // ★参加時回答からのおすすめ（根拠が無ければ空文字を返す）
+    html += _assigneeSuggestHtml(members, multiIds);
     // ACCOUNTタブ：複数選択。チェックボックス風。
     const noneChecked = multiIds.length === 0 && !current?.type;
     html += `

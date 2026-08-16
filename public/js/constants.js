@@ -113,6 +113,19 @@ export const SKILL_TAGS = [
   { id: 'physical',    label: '力仕事' },
 ];
 
+// ミッションのラベル → 参加申請フォームのスキルタグ（担当者の「おすすめ」に使う）
+// ★キーは LABEL_CONFIG のビルトイン4種と一致させること。
+//   カスタムタグはここに無いので、名前が SKILL_TAGS のラベルと一致すれば拾う
+//   （utils.js の suggestAssignees を参照）。
+// ★並び順に意味は無い（一致した数で採点する）。増やしすぎると誰でも当たって
+//   おすすめが機能しなくなるので、その担当が実際に手を動かすものだけを入れる。
+export const TAG_SKILL_HINTS = {
+  '企画': ['planning', 'writing', 'negotiation'],
+  '運営': ['onsite', 'admin', 'equipment', 'physical', 'finance', 'mc'],
+  '制作': ['design', 'photo', 'equipment', 'writing'],
+  '広報': ['pr', 'writing', 'design', 'photo'],
+};
+
 // 参加申請フォームの意気込み欄のプレースホルダー（順に切り替えて書き出しを促す）
 export const JOIN_MESSAGE_EXAMPLES = [
   'みんなで最高の一日にしたい',
