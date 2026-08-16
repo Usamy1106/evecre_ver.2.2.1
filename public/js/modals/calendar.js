@@ -238,7 +238,13 @@ function _renderCalendarInner(target) {
             </button>
           </div>
         </div>
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">${helperText}</p>
+        ${target === 'mission' ? `
+          <!-- ★ミッションモーダルの基本設定と同じ説明を出す（同じことを2箇所で伝える）-->
+          <p class="text-[11px] text-[#484545] font-bold mb-1">ミッションを行う期間を設定します。</p>
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">日付をなぞってスワイプすると、期間をまとめて選べます。</p>
+        ` : `
+          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">${helperText}</p>
+        `}
         ${clearBtnHtml}
         <div class="grid grid-cols-7 gap-1 mb-2 mt-4 text-center text-[10px] text-[#A7AAAC] font-bold">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}

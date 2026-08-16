@@ -249,12 +249,19 @@ function _renderBasicTab(isEdit, dateDisplay) {
       </div>
       <div class="space-y-4 flex-1">
         <div>
-          <label class="heading-rs block mb-1 text-[#484545]">ミッション</label>
+          <label class="heading-rs block mb-1 text-[#484545]">ミッション名</label>
           <input type="text" id="mission-title-input" placeholder="ミッションを入力"
             value="${state.draftMission.title}"
             oninput="state.draftMission.title=this.value; this.style.borderColor=''"
             class="input-field w-full px-4 py-3 focus:outline-none border-2 border-transparent transition-colors">
           <p id="error-title" class="hidden text-[10px] font-bold mt-1" style="color: #e8383d;">※ミッション名は入力必須です</p>
+        </div>
+        <div>
+          <label class="heading-rs block mb-1 text-[#484545]">ミッションの説明</label>
+          <textarea id="mission-desc-input" rows="3"
+            placeholder="このミッションの目的・進め方など"
+            oninput="state.draftMission.description=this.value"
+            class="input-field w-full px-4 py-3 text-[13px] focus:outline-none resize-none">${_esc(state.draftMission.description || '')}</textarea>
         </div>
         <div>
           <div class="flex items-center gap-2 mb-1">
@@ -273,6 +280,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
         </div>
         <div>
           <label class="heading-rs block mb-1 text-[#484545]">スケジュール</label>
+          <p class="text-[11px] text-[#A7AAAC] font-bold mb-2">ミッションを行う期間を設定します。</p>
           <div class="flex items-center gap-2 mb-2 cursor-pointer" onclick="window._app.openCalendarModal('mission')">
             <img src="/images/icon/icon-Calender.svg" class="w-4 h-4 opacity-40">
             <span class="text-[12px] text-[#A7AAAC] font-bold">${dateDisplay}</span>
@@ -289,7 +297,6 @@ function _renderBasicTab(isEdit, dateDisplay) {
 function _renderDetailTab(isEdit) {
   const canDelete = isEdit && state.draftMission.isDeletable !== false;
   const checklist = Array.isArray(state.draftMission.checklist) ? state.draftMission.checklist : [];
-  const description = String(state.draftMission.description || '');
   const selfClaim = !!state.draftMission.selfClaim;
   const claimMode = state.draftMission.claimMode || 'selection';
   const claimDeadline = state.draftMission.claimDeadline || null;
@@ -306,7 +313,7 @@ function _renderDetailTab(isEdit) {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
 
-  // 申告期限の表示文字列
+  // 応募期限の表示文字列
   const _fmtDeadlineDisplay = (ts) => {
     if (!ts) return null;
     const d = new Date(ts);
@@ -323,91 +330,6 @@ function _renderDetailTab(isEdit) {
           class="text-[14px] font-bold pb-1 border-b-2 border-[#9EDF05] text-[#9EDF05]">詳細設定</button>
       </div>
       <div class="space-y-6 flex-1">
-
-        <!-- ミッションの説明 -->
-        <div>
-          <label class="heading-rs block mb-2 text-[#484545] font-bold">ミッションの説明</label>
-          <textarea id="mission-desc-input" rows="4"
-            placeholder="このミッションの目的・進め方など"
-            oninput="state.draftMission.description=this.value"
-            class="input-field w-full px-3 py-2.5 text-[13px] focus:outline-none resize-none">${_esc(description)}</textarea>
-        </div>
-
-        <!-- ワンタップ完了 -->
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">ワンタップ完了</label>
-            <button onclick="window._app.toggleMissionNoInput()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${noInput ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${noInput ? 'translate-x-5' : ''}"></span>
-            </button>
-          </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">テキスト・画像の入力欄はなく、完了ボタンのみで即完了するミッションになります。</p>
-        </div>
-
-        <!-- 個別完了 -->
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">個別完了</label>
-            <button onclick="window._app.toggleMissionIndividualClear()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${individualClear ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${individualClear ? 'translate-x-5' : ''}"></span>
-            </button>
-          </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">ユーザーごとに個別に回答・完了できるようになります。</p>
-        </div>
-
-        <!-- アナウンス -->
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">アナウンス</label>
-            <button onclick="window._app.toggleMissionAnnounce()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${announce ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${announce ? 'translate-x-5' : ''}"></span>
-            </button>
-          </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">担当者（無割当の場合は全員）のメインボード上部にアナウンスカードで表示します。</p>
-        </div>
-
-        <!-- リーダーによるチェック -->
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">リーダーによるチェック</label>
-            <button onclick="window._app.toggleMissionLeaderCheck()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${leaderCheck ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${leaderCheck ? 'translate-x-5' : ''}"></span>
-            </button>
-          </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">完了後すぐにはアーカイブされず、リーダーの確認待ちになります。</p>
-        </div>
-
-        <!-- 担当の申告制 -->
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <label class="heading-rs text-[#484545] font-bold">担当の申告制</label>
-            <button onclick="window._app.toggleMissionSelfClaim()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${selfClaim ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${selfClaim ? 'translate-x-5' : ''}"></span>
-            </button>
-          </div>
-
-          <p class="text-[11px] text-[#A7AAAC] mb-2" style="padding-right: 5em;">メンバーが担当申告し、管理者が担当者を選定する形式になります。</p>
-          ${selfClaim ? `
-            <!-- 応募期限（カレンダーUIで設定） -->
-            <div class="mt-1">
-              <label class="text-[12px] text-[#484545] font-bold block mb-2">応募期限（任意）</label>
-              <div class="flex items-center gap-2 cursor-pointer" onclick="window._app.openCalendarModal('claimDeadline')">
-                <img src="/images/icon/icon-Calender.svg" class="w-4 h-4 opacity-40">
-                ${deadlineDisplay
-                  ? `<span class="text-[12px] font-bold text-[#484545]">${deadlineDisplay} 23:59 まで</span>`
-                  : `<span class="text-[12px] font-bold text-[#A7AAAC]">カレンダーから設定する</span>`}
-              </div>
-              ${deadlineDisplay ? `
-                <button onclick="window._app.setMissionClaimDeadline('')" type="button"
-                  class="text-[10px] text-[#A7AAAC] underline mt-1">期限をクリア</button>` : ''}
-            </div>
-          ` : ''}
-        </div>
 
         <!-- チェック項目 -->
         <div>
@@ -437,6 +359,82 @@ function _renderDetailTab(isEdit) {
             <button onclick="window._app.addChecklistItem()"
               class="mt-2 text-[12px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50">+ 追加</button>
           `}
+        </div>
+
+        <!-- 担当の応募型 -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="heading-rs text-[#484545] font-bold">担当の応募型</label>
+            <button onclick="window._app.toggleMissionSelfClaim()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${selfClaim ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${selfClaim ? 'translate-x-5' : ''}"></span>
+            </button>
+          </div>
+
+          <p class="text-[11px] text-[#A7AAAC] mb-2" style="padding-right: 5em;">担当したいメンバーがこのミッションへ応募し、管理者が担当者を選定する形式になります。</p>
+          ${selfClaim ? `
+            <!-- 応募期限（カレンダーUIで設定） -->
+            <div class="mt-1">
+              <label class="text-[12px] text-[#484545] font-bold block mb-2">応募期限（任意）</label>
+              <div class="flex items-center gap-2 cursor-pointer" onclick="window._app.openCalendarModal('claimDeadline')">
+                <img src="/images/icon/icon-Calender.svg" class="w-4 h-4 opacity-40">
+                ${deadlineDisplay
+                  ? `<span class="text-[12px] font-bold text-[#484545]">${deadlineDisplay} 23:59 まで</span>`
+                  : `<span class="text-[12px] font-bold text-[#A7AAAC]">カレンダーから設定する</span>`}
+              </div>
+              ${deadlineDisplay ? `
+                <button onclick="window._app.setMissionClaimDeadline('')" type="button"
+                  class="text-[10px] text-[#A7AAAC] underline mt-1">期限をクリア</button>` : ''}
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- アナウンス -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="heading-rs text-[#484545] font-bold">アナウンス</label>
+            <button onclick="window._app.toggleMissionAnnounce()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${announce ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${announce ? 'translate-x-5' : ''}"></span>
+            </button>
+          </div>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">担当者（無割当の場合は全員）のメインボード上部にアナウンスカードで表示します。</p>
+        </div>
+
+        <!-- ワンタップ完了 -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="heading-rs text-[#484545] font-bold">ワンタップ完了</label>
+            <button onclick="window._app.toggleMissionNoInput()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${noInput ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${noInput ? 'translate-x-5' : ''}"></span>
+            </button>
+          </div>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">テキスト・画像の入力欄はなく、完了ボタンのみで即完了するミッションになります。</p>
+        </div>
+
+        <!-- 個別完了 -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="heading-rs text-[#484545] font-bold">個別完了</label>
+            <button onclick="window._app.toggleMissionIndividualClear()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${individualClear ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${individualClear ? 'translate-x-5' : ''}"></span>
+            </button>
+          </div>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">ユーザーごとに個別に回答・完了できるようになります。</p>
+        </div>
+
+        <!-- リーダーによるチェック -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="heading-rs text-[#484545] font-bold">リーダーによるチェック</label>
+            <button onclick="window._app.toggleMissionLeaderCheck()" type="button"
+              class="relative w-12 h-7 rounded-full transition-colors ${leaderCheck ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
+              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${leaderCheck ? 'translate-x-5' : ''}"></span>
+            </button>
+          </div>
+          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">完了後すぐにはアーカイブされず、リーダーの確認待ちになります。</p>
         </div>
 
         ${canDelete ? `
@@ -797,11 +795,11 @@ function _renderAssigneeSelect() {
     return `<p class="text-[11px] text-[#A7AAAC] py-2">読み込み中…</p>`;
   }
 
-  // 申告制ONの場合は無効化表示
+  // 応募制ONの場合は無効化表示
   if (selfClaim) {
     return `
       <div class="input-field w-full px-4 py-3 text-[13px] text-left flex items-center justify-between opacity-60 cursor-not-allowed">
-        <span class="text-[#A7AAAC]">申告制：メンバーが自分で割り当てます</span>
+        <span class="text-[#A7AAAC]">応募型：メンバーが自分で割り当てます</span>
       </div>`;
   }
 
@@ -1214,8 +1212,8 @@ export function getSortedMissions(missions) {
 }
 
 /**
- * 申告制（選定あり・複数人可）の選定モーダル。
- * 管理者が申告者リストから1名以上選んで割り当てる。
+ * 応募型（選定あり・複数人可）の選定モーダル。
+ * 管理者が応募者リストから1名以上選んで割り当てる。
  * selection モードと multi モードの両方に対応。
  */
 export function openSelectClaimModal(missionId) {
@@ -1257,7 +1255,7 @@ export function openSelectClaimModal(missionId) {
       <div data-sheet-handle class="flex justify-center pt-3 pb-1"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
       <h3 class="text-[15px] font-bold text-[#484545] text-center pt-2 pb-1">担当者を選定</h3>
       <div class="flex justify-center pb-2">
-        <span class="text-[9px] text-[#9b7700] font-bold border border-[#FFC300] px-2 py-0.5 rounded bg-[#FFF8E1]">申告制（${modeLabel}）</span>
+        <span class="text-[9px] text-[#9b7700] font-bold border border-[#FFC300] px-2 py-0.5 rounded bg-[#FFF8E1]">応募型（${modeLabel}）</span>
       </div>
       <p class="text-[11px] text-[#A7AAAC] text-center pb-3 px-6">「${_esc(m.title)}」<br>応募者から1名以上選んでください</p>
       <p class="text-[10px] text-center text-[#A7AAAC] pb-2">${applicants.length}名が応募中</p>

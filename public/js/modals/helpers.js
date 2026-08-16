@@ -433,7 +433,16 @@ export async function submitMissionClear(missionId) {
   await state.silentReloadEvents();
 
   document.getElementById('clear-mission-modal')?.remove();
-  state.render();
+
+  // ★ミッション詳細ページから完了したときは、そのページを自動で閉じてイベントページへ戻す。
+  //   完了した画面に留まり続ける理由がなく、戻ったところでオンボーディングの
+  //   「はじめての完了」（M4 / L6）を出したいため。
+  //   詳細ページ以外（アーカイブの一覧など）から完了した場合は現在地を維持する。
+  if (state.currentView === 'MISSION_DETAIL' && state.selectedMissionId === missionId) {
+    state.closeMissionDetail();
+  } else {
+    state.render();
+  }
 
   // トースト文言はサーバーが返した最新 status から判定
   const newStatus = r.mission?.status || 'yet';
