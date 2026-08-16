@@ -14,6 +14,7 @@
 import { state } from './state.js';
 import { logEvent } from './logger.js';
 import { setIntroRunningProbe } from './modalGuard.js';
+import { showCoachMark, closeCoachMark } from './modals/coachMark.js';
 
 // ── 進行状態 ────────────────────────────────────────────────
 export const INTRO = {
@@ -30,6 +31,8 @@ export const INTRO = {
 //     既存ユーザーが新しく作ったイベントでは出るのが正しい。
 //   ★デプロイ時に実際のリリース日時へ差し替えること（仮値のまま出さない）。
 export const ONBOARDING_INTRO_START_AT = Date.parse('2026-08-16T00:00:00+09:00');
+
+const USAGE_ID = 'intro-usage-overlay';
 
 function _key(userId, eventId) {
   return `evecre:onboardingIntro:v1:${userId}:${eventId}`;
@@ -114,4 +117,123 @@ export function advanceIntro(to, extra = {}) {
     setIntroRunning(false);
     logEvent('intro_completed', extra);
   }
+}
+
+// ── 判定の入口 ──────────────────────────────────────────────
+/**
+ * ★state.render() からのみ呼ぶこと。
+ * 進行状態に応じて①または②を出す。③はミッション作成モーダルを開いた時、
+ * ④はミッション保存後に別経路で開始する。
+ */
+export function checkIntro() {
+  const step = nextIntroStep();
+  if (!step) {
+    // 対象外／完了時は進行中フラグを落として、他モーダルを通す
+    if (isIntroRunning() && !document.getElementById('coach-mark-overlay')) setIntroRunning(false);
+    return;
+  }
+  if (step === 'usage') { showUsageModal(); return; }
+  if (step === 'fab')   { showFabCoach();   return; }
+  // 'board'（④）は Phase E で実装する
+}
+
+// ── ① 「イベクリの使い方」モーダル ──────────────────────────
+// ★出口は「わかった」だけ。閉じるボタンも背景タップも置かない
+//   （置くと②へ進まないまま放置され、状態が宙ぶらりんになる）。
+export function showUsageModal() {
+  if (document.getElementById(USAGE_ID)) return;
+  setIntroRunning(true);
+
+  const overlay = document.createElement('div');
+  overlay.id = USAGE_ID;
+  overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[420] flex items-center justify-center p-6';
+  overlay.innerHTML = `
+    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
+      <p class="text-[11px] text-[#0CA1E3] font-bold mb-2">イベクリの使い方</p>
+      <h3 class="heading-m text-[#484545] mb-5 font-bold leading-snug">イベントづくりは<br>5つのステップで進みます</h3>
+      <div class="space-y-3 mb-6">
+        ${[
+          ['決める', '何をやるかを決める'],
+          ['積む',   'やることを洗い出して日付を入れる'],
+          ['配る',   '誰がやるかを決める'],
+          ['こなす', '実行して提出する'],
+          ['残す',   '振り返って次に引き継ぐ'],
+        ].map(([label, desc], i) => `
+          <div class="flex items-start gap-3 text-left">
+            <span class="w-6 h-6 rounded-full bg-[#0CA1E3] text-white text-[11px] font-bold
+              flex items-center justify-center flex-shrink-0 mt-0.5">${i + 1}</span>
+            <div class="min-w-0">
+              <p class="text-[13px] font-bold text-[#484545]">${label}</p>
+              <p class="text-[11px] text-[#A7AAAC] font-bold leading-relaxed">${desc}</p>
+            </div>
+          </div>`).join('')}
+      </div>
+      <button data-intro="ack" class="btn-primary w-full py-4 heading-rs font-bold shadow-lg">わかった</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  logEvent('intro_usage_shown');
+
+  overlay.querySelector('[data-intro="ack"]').onclick = () => {
+    logEvent('intro_usage_ack');
+    overlay.remove();
+    advanceIntro(INTRO.USAGE);
+    // ★閉じるアニメーションと重ならないよう1フレーム置いてから②へ
+    requestAnimationFrame(() => showFabCoach());
+  };
+}
+
+// ── ② FAB コーチマーク ──────────────────────────────────────
+/**
+ * FAB をスポットライトで指し示す。出口は FAB のタップだけ。
+ *
+ * ★フェイルセーフ：FAB が取得できない場合はオーバーレイを出さず、状態を次へ進める。
+ *   出口がひとつしか無いので、出せないまま止めると操作不能になる。
+ * ★FAB は MAIN タブ・管理者のときだけ描画されるので、先に MAIN タブへ戻す。
+ */
+export function showFabCoach() {
+  const p = state.events.find(x => x.id === state.selectedEventId);
+  if (!p || !state.currentUser) return;
+  if (isCoachOpen()) return;
+
+  // FAB が無いタブにいると出せない。MAIN に戻して次の render に任せる
+  if (state.mainBoardTab !== 'MAIN') {
+    state.mainBoardTab = 'MAIN';
+    state.render();
+    return;
+  }
+
+  setIntroRunning(true);
+  const shown = showCoachMark({
+    selector: '[data-coach="fab"]',
+    title:   'まずはここから。',
+    body:    '最初のミッションをつくってみよう',
+    hint:    'タップしてね',
+    finger:  true,
+    advanceOn: 'target',
+    onAdvance: () => {
+      // ★FAB を実際にタップしたときだけ次の状態へ進める
+      logEvent('intro_fab_tapped');
+      advanceIntro(INTRO.FAB);
+      window._app?.openMissionModal?.();
+    },
+  });
+
+  if (!shown) {
+    // ★出せなかったら止めない。③から再開できるよう状態を進める
+    setIntroRunning(false);
+    advanceIntro(INTRO.FAB);
+    return;
+  }
+  logEvent('intro_fab_coach_shown');
+}
+
+/** コーチマークが開いているか（多重表示の防止） */
+function isCoachOpen() {
+  return !!document.getElementById('coach-mark-overlay');
+}
+
+/** イントロを中断する（画面遷移などで呼ぶ） */
+export function abortIntroVisuals() {
+  closeCoachMark();
+  setIntroRunning(false);
 }

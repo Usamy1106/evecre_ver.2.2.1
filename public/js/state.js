@@ -872,6 +872,12 @@ export const state = {
       setTimeout(() => window._app?.checkLeaderMotivationModal?.(), 300);
     }
 
+    // ★初期オンボーディング（イベント作成直後のチュートリアル）を最優先で評価する。
+    //   これが動いている間は modalGuard 経由で他の自動表示モーダルが止まる。
+    if (this.currentView === 'MAIN_BOARD' && this.selectedEventId) {
+      setTimeout(() => window._app?.checkIntro?.(), 250);
+    }
+
     // オンボーディング（使い方の案内）。表示可否・優先度は onboarding.js が判定する。
     // ★他モーダルより後に出す（1300ms）。重なったらフラグを立てずに持ち越すので、
     //   次の render() で再判定される。★セッション1回ゲートにしないこと

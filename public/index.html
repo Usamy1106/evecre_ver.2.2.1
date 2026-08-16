@@ -75,6 +75,25 @@
     .page-transition { animation: fadeIn 0.3s ease-out forwards; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+    /* コーチマーク（public/js/modals/coachMark.js）
+       ★くり抜きは box-shadow で外側を塗る方式。穴の部分だけが素の画面として残るので、
+       　clip-path や mask より崩れにくい。位置は getBoundingClientRect() で毎回実測する。 */
+    @keyframes coachPulse {
+      0%   { transform: scale(1);    opacity: .9; }
+      70%  { transform: scale(1.35); opacity: 0; }
+      100% { transform: scale(1.35); opacity: 0; }
+    }
+    .coach-pulse { animation: coachPulse 1.6s ease-out infinite; }
+    @keyframes coachFinger {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-8px); }
+    }
+    .coach-finger { animation: coachFinger 1.2s ease-in-out infinite; }
+    /* 動きを抑える設定の端末では止める */
+    @media (prefers-reduced-motion: reduce) {
+      .coach-pulse, .coach-finger { animation: none; }
+    }
+
     /* ボトムシートのドラッグハンドル：下スワイプで閉じる（public/js/sheet.js）。
        touch-action:none でハンドル上のスクロール/ジェスチャを抑止し、ドラッグを安定させる */
     [data-sheet-handle] { touch-action: none; cursor: grab; }

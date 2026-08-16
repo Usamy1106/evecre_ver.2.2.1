@@ -55,6 +55,7 @@ import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/
 import { openJoinFormModal } from './modals/joinFormModal.js';
 import { SKILL_TAGS } from './constants.js';
 import { checkOnboarding } from './onboarding.js';
+import { checkIntro } from './onboardingIntro.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 import { showConfirmDialog } from './dialog.js';
@@ -1152,6 +1153,8 @@ window._app = {
   checkLeaderMotivationModal: () => checkLeaderMotivationModal(),
   // オンボーディング（表示可否・優先度は onboarding.js が判定する）
   checkOnboarding: () => checkOnboarding(),
+  // 初期オンボーディング（イベント作成直後のチュートリアル）
+  checkIntro: () => checkIntro(),
   openLeaderMotivationModal:  () => openLeaderMotivationModal(),
 
   // --- 開催日リマインドモーダル（全メンバー向け・初日/最終日翌日）---

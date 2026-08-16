@@ -15,6 +15,7 @@
 import { state } from './state.js';
 import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
 import { getArchiveSummary, getArchiveVenue } from './utils.js';
+import { isIntroEligible } from './onboardingIntro.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
 
@@ -282,7 +283,10 @@ const STEPS = [
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
     // イベントを作った直後（＝管理者として初めてこのイベントを開いたとき）
-    match: () => true,
+    // ★初期オンボーディング（onboardingIntro.js）の①が同じ5ステップを出すので、
+    //   そちらが動くイベントでは出さない（二重表示になる）。
+    //   リリース日時より前に作られた既存イベントだけ、ここが担当する。
+    match: (ctx) => !isIntroEligible(ctx.userId, ctx.p),
     build: () => ({
       eyebrow: 'イベクリの使い方',
       title: 'イベントづくりは<br>5つのステップで進みます',
