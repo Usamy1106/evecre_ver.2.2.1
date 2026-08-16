@@ -42,6 +42,7 @@ export function closeCoachMark() {
  * @param {string} [o.hint]        穴のそばに出す小さな文字（例 'タップしてね'）
  * @param {boolean} [o.finger]     指アイコン＋パルスを出すか
  * @param {string} [o.counter]     '1/3' など
+ * @param {string} [o.cta]         文言の下に出すボタン（例 'はじめる'）。押すと必ず進む
  * @param {'target'|'anywhere'} [o.advanceOn='target']
  *        'target'  … 穴をタップしたときだけ進む（②。出口をひとつに絞る）
  *        'anywhere'… どこをタップしても進む（④。操作を強制しない）
@@ -77,6 +78,9 @@ export function showCoachMark(o) {
       <p class="text-[17px] font-bold text-white leading-snug mb-1">${_esc(o.title)}</p>
       ${o.body ? `<p class="text-[13px] font-bold text-white/80 leading-relaxed">${_esc(o.body)}</p>` : ''}
       ${(!o.finger && o.hint) ? `<p class="text-[11px] font-bold text-white/70 mt-3">${_esc(o.hint)}</p>` : ''}
+      ${o.cta ? `<button data-coach-cta
+        class="mt-5 px-8 py-3 rounded-full bg-white text-[#0CA1E3] text-[14px] font-bold shadow-lg
+        active:scale-95 transition-transform">${_esc(o.cta)}</button>` : ''}
     </div>
     ${o.finger ? `
       <!-- ★指は穴に隣接させる。コピー文の中に置くと穴から離れて「どこを指しているか」が伝わらない -->
@@ -151,6 +155,10 @@ export function showCoachMark(o) {
   const advance = () => { closeCoachMark(); o.onAdvance?.(); };
 
   hit.onclick = (e) => { e.stopPropagation(); advance(); };
+  // ★CTA は advanceOn に関わらず必ず進める（④の最後の「はじめる」用）
+  overlay.querySelector('[data-coach-cta]')?.addEventListener('click', (e) => {
+    e.stopPropagation(); advance();
+  });
   if (o.advanceOn === 'anywhere') {
     overlay.onclick = () => advance();
   } else {

@@ -135,7 +135,7 @@ export function checkIntro() {
   }
   if (step === 'usage') { showUsageModal(); return; }
   if (step === 'fab')   { showFabCoach();   return; }
-  // 'board'（④）は Phase E で実装する
+  if (step === 'board') { showBoardCoach(); return; }
 }
 
 // ── ① 「イベクリの使い方」モーダル ──────────────────────────
@@ -292,4 +292,99 @@ export function onMissionFormClosed() {
   if (!p || !state.currentUser) return;
   if (getIntroState(state.currentUser.id, p.id) === INTRO.FAB) _finishFormTour();
   else setIntroRunning(false);
+
+  // ★④はボードの実座標を測るので、モーダルの閉じるアニメーション(300ms)が
+  //   終わってから始める。createOrUpdateMission は closeMissionModal() の直後に
+  //   render() を呼ぶが、その時点ではまだ mission-overlay が残っていて測れない。
+  //   ここで一度だけ render() を促し、判定自体は checkIntro に任せる（render 駆動のまま）。
+  if (getIntroState(state.currentUser.id, p.id) === INTRO.FORM) {
+    setTimeout(() => state.render(), 350);
+  }
+}
+
+// ── ④ メインボードのコーチマーク3連 ────────────────────────
+// ★ここは②と違い操作を強制しない（どこをタップしても次へ）。
+//   ミッションを1件作り終えた直後なので、以降は自由に触れるべきだから。
+//
+// ★対象が無いステップは出さず、番号は残った数で詰める
+//   （2枚しか出ないのに 1/3 と表示されるのは不自然）。
+const BOARD_STEPS = [
+  {
+    selector: '[data-coach="days-left"]',
+    title: 'ここで開催日までの残りを確認できるよ',
+    // 開催日が未設定だとチップが「開催日時が設定されていません」になるので出さない
+    available: (p) => Array.isArray(p.dates) && p.dates.length > 0,
+  },
+  {
+    selector: '[data-coach="proposals"]',
+    title: 'AIからの提案があるよ',
+    body:  '使えそうならタップしてミッションにできる',
+    // 生成前・0件のときは枠だけ（ローディング／待ち時間表示）なので出さない
+    available: (p) => (p.proposals || []).length > 0,
+  },
+  {
+    selector: '[data-coach="mission-list"]',
+    title: '作成したミッションはここに並ぶよ',
+    available: () => true,
+  },
+];
+
+/**
+ * ミッションを保存してボードに戻った直後に呼ばれる（checkIntro 経由＝render 駆動）。
+ *
+ * ★出せない状況では**状態を進めない**で戻る。次の render() でやり直せばよい。
+ *   ②と違って出口が塞がるわけではないので、無理に出すより待つほうが安全。
+ */
+export function showBoardCoach() {
+  const p = state.events.find(x => x.id === state.selectedEventId);
+  if (!p || !state.currentUser) return;
+  if (isCoachOpen()) return;
+
+  // ミッション作成モーダルの閉じるアニメーション中は座標が取れない。
+  // 閉じ切ってから onMissionFormClosed() が render() を促すので、ここでは何もしない
+  if (document.getElementById('mission-overlay')) return;
+
+  // 対象は全て MAIN タブにある
+  if (state.mainBoardTab !== 'MAIN') {
+    state.mainBoardTab = 'MAIN';
+    state.render();
+    return;
+  }
+
+  const steps = BOARD_STEPS.filter(s => s.available(p) && document.querySelector(s.selector));
+  if (steps.length === 0) {
+    // 出すものが何も無い（＝ボードが未描画など）。完了にはせず次の render に任せる
+    return;
+  }
+
+  setIntroRunning(true);
+  logEvent('intro_board_coach_shown', { total: steps.length });
+
+  const show = (i) => {
+    const s = steps[i];
+    const isLast = i === steps.length - 1;
+    const ok = showCoachMark({
+      selector: s.selector,
+      title:    s.title,
+      body:     s.body,
+      counter:  `${i + 1}/${steps.length}`,
+      hint:     isLast ? '' : 'タップで次へ',
+      advanceOn: 'anywhere',
+      cta:      isLast ? 'はじめる' : '',
+      onAdvance: () => {
+        logEvent('intro_board_coach_step', { step: i + 1 });
+        if (isLast) _finishBoardCoach();
+        else show(i + 1);
+      },
+    });
+    // 途中で対象が消えた（再描画など）→ 止めずに次へ。最後だったら完了
+    if (!ok) { if (isLast) _finishBoardCoach(); else show(i + 1); }
+  };
+  show(0);
+}
+
+function _finishBoardCoach() {
+  logEvent('intro_board_coach_done');
+  setIntroRunning(false);
+  advanceIntro(INTRO.DONE);
 }
