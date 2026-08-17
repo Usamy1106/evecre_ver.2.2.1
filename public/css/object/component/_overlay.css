@@ -22,8 +22,11 @@
   padding: var(--space-6);
 }
 
+/* ★justify-content を忘れないこと。中身（c-dialog）は max-width を持つので、
+   指定しないと画面が広いときに左へ寄る（実際にそのバグを出した）。 */
 .c-overlay--bottom {
   align-items: flex-end;
+  justify-content: center;
 }
 
 /* すりガラス。端末によっては効かないので、暗幕だけでも読めることを前提にする */

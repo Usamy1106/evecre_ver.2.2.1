@@ -100,7 +100,10 @@ export function startTooltipTour(o) {
     const left = Math.min(Math.max(8, r.left + r.width / 2 - cw / 2), window.innerWidth - cw - 8);
     // 縦：下に入らなければ上へ
     const below = window.innerHeight - r.bottom;
-    const top = (below >= ch + GAP) ? r.bottom + GAP : Math.max(8, r.top - ch - GAP);
+    const raw = (below >= ch + GAP) ? r.bottom + GAP : r.top - ch - GAP;
+    // ★対象が画面外にあっても吹き出しだけは必ず画面内に置く。
+    //   出ているのに見えない状態が一番わかりにくいため。
+    const top = Math.min(Math.max(8, raw), Math.max(8, window.innerHeight - ch - 8));
     card.style.left = `${left}px`;
     card.style.top  = `${top}px`;
   };

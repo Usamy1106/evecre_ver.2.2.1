@@ -344,10 +344,16 @@ function _bindCalendarDrag(container) {
   document.addEventListener('mouseup', onUp);
 
   // タッチ
+  // ★preventDefault が要る。これが無いと、ブラウザが touchstart のあとに
+  //   互換用の mousedown を続けて発火させ、onDown が2回走る
+  //   （1回目で選択 → 2回目は「選択済み」と判定して解除 ＝ タップしても何も起きない）。
+  //   長押しだと互換イベントが抑止されるため、長押しでだけ選べる状態になっていた。
+  //   セルは touch-action:none なのでスクロールを妨げることはない。
   grid.addEventListener('touchstart', e => {
     if (e.touches.length !== 1) return;
+    e.preventDefault();
     onDown(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: true });
+  }, { passive: false });
   grid.addEventListener('touchmove', e => {
     if (e.touches.length !== 1) return;
     e.preventDefault();

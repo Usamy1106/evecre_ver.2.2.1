@@ -112,8 +112,19 @@ export function openMissionModal(missionId = null, prefill = null) {
 
   // ★初期オンボーディング③：作成モーダルが開いた直後にツールチップを出す（初回のみ）。
   //   条件（イントロ対象・②を済ませた直後か）は onboardingIntro 側が判定する。
-  //   描画が終わってから座標を測るため1フレーム置く。
-  requestAnimationFrame(() => startMissionFormTour());
+  //   ★スライドイン（.c-sheet の transform、150ms）が終わってから始めること。
+  //     途中で測ると入力欄はまだ画面の下にあり、1枚目の吹き出しだけが画面外に
+  //     置かれる（2枚目以降は「次へ」の時点で測り直すので正しく出る）。
+  const panel = document.getElementById('mission-panel');
+  if (panel) {
+    let started = false;
+    const start = () => { if (started) return; started = true; startMissionFormTour(); };
+    panel.addEventListener('transitionend', start, { once: true });
+    // transition が走らない環境（動きを抑える設定など）でも必ず始める
+    setTimeout(start, 400);
+  } else {
+    requestAnimationFrame(() => startMissionFormTour());
+  }
 }
 
 /**
