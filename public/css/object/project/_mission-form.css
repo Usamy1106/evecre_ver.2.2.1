@@ -242,3 +242,164 @@
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
 }
+
+/* --- 詳細設定タブ --------------------------------------------------------
+   ★詳細設定の見出しは緑（基本設定は青）。タブごとに色が違うのは元からの
+     仕様なので、揃えずそのまま残してある。 */
+
+.p-mission-form__tab--detail.is-active {
+  border-bottom-color: var(--color-success);
+  color: var(--color-success);
+}
+
+/* 詳細設定は項目ごとの塊が大きいので間隔を広く取る */
+.p-mission-form__fields--roomy > * + * {
+  margin-top: var(--space-6);
+}
+
+.p-mission-form__label--loose {
+  margin-bottom: var(--space-2);
+}
+
+/* 項目名とスイッチを左右に置く行 */
+.p-mission-form__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.p-mission-form__row--loose {
+  margin-bottom: var(--space-2);
+}
+
+/* ★右に 5em 空けているのは、上に重なるスイッチと文章がぶつからないため。
+   説明文が長いと最終行がスイッチの下に潜り込んで読めなくなる。 */
+.p-mission-form__desc {
+  margin-bottom: var(--space-3);
+  padding-right: 5em;
+  font-size: var(--font-size-xs);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+.p-mission-form__desc--tight {
+  margin-bottom: var(--space-2);
+}
+
+.p-mission-form__desc--flush {
+  margin-bottom: 0;
+}
+
+/* --- チェック項目 --------------------------------------------------------- */
+
+.p-mission-form__checklist > * + * {
+  margin-top: var(--space-2);
+}
+
+.p-mission-form__checklist-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.p-mission-form__checklist-input {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  font-size: 13px;
+}
+
+.p-mission-form__checklist-input:focus {
+  outline: none;
+}
+
+.p-mission-form__checklist-remove {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+}
+
+.p-mission-form__checklist-remove:active {
+  transform: scale(.95);
+}
+
+/* 1つも無いときの空の枠。破線で「ここに足せる」と分かるようにする */
+.p-mission-form__checklist-add {
+  width: 100%;
+  padding-block: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-mission-form__checklist-add:active {
+  opacity: .5;
+}
+
+/* 2つ目以降を足すリンク */
+.p-mission-form__checklist-more {
+  margin-top: var(--space-2);
+  padding: 6px var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-mission-form__checklist-more:active {
+  opacity: .5;
+}
+
+/* --- 応募期限 ------------------------------------------------------------- */
+
+.p-mission-form__sub-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 応募期限の行はスケジュールと同じ形だが、下の「期限をクリア」と近づける */
+.p-mission-form__date--flush {
+  margin-bottom: 0;
+}
+
+/* 設定済みの期限（未設定のときは薄いまま）*/
+.p-mission-form__date-text--set {
+  color: var(--color-text);
+}
+
+.p-mission-form__clear-deadline {
+  margin-top: var(--space-1);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+/* --- 削除 ----------------------------------------------------------------- */
+
+.p-mission-form__delete {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border: 1px solid var(--color-danger-tint2);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-danger-pale);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-mission-form__delete:active {
+  transform: scale(.95);
+}

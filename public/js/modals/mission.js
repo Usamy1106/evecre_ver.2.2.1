@@ -340,34 +340,34 @@ function _renderDetailTab(isEdit) {
   const deadlineDisplay = _fmtDeadlineDisplay(claimDeadline);
 
   return `
-    <div class="flex flex-col h-full">
-      <div class="flex justify-center gap-10 mb-6">
+    <div class="p-mission-form__inner">
+      <div class="p-mission-form__tabs">
         <button onclick="window._app.setMissionTab('BASIC')"
-          class="text-[14px] font-bold pb-1 border-b-2 border-transparent text-[#A7AAAC]">基本設定</button>
+          class="p-mission-form__tab">基本設定</button>
         <button onclick="window._app.setMissionTab('DETAIL')"
-          class="text-[14px] font-bold pb-1 border-b-2 border-[#9EDF05] text-[#9EDF05]">詳細設定</button>
+          class="p-mission-form__tab p-mission-form__tab--detail is-active">詳細設定</button>
       </div>
-      <div class="space-y-6 flex-1">
+      <div class="p-mission-form__fields p-mission-form__fields--roomy">
 
         <!-- チェック項目 -->
         <div>
-          <label class="heading-rs block mb-2 text-[#484545] font-bold">チェック項目</label>
-          <p class="text-[11px] text-[#A7AAAC] mb-3" style="padding-right: 5em;">完了時にチェックしないと提出できません</p>
+          <label class="heading-rs p-mission-form__label p-mission-form__label--loose">チェック項目</label>
+          <p class="p-mission-form__desc">完了時にチェックしないと提出できません</p>
           ${checklist.length === 0 ? `
             <button onclick="window._app.addChecklistItem()"
-              class="w-full text-[12px] text-[#A7AAAC] font-bold py-3 bg-[#FDFBF8] rounded-xl border border-dashed border-[#D3D6D8] active:opacity-50">
+              class="p-mission-form__checklist-add">
               チェック項目を追加
             </button>
           ` : `
-            <div class="space-y-2">
+            <div class="p-mission-form__checklist">
               ${checklist.map((item, i) => `
-                <div class="flex items-center gap-2">
-                  <input type="text" data-cl-input="${i}" value="${_esc(item)}"
+                <div class="p-mission-form__checklist-row">
+                  <input type="text" data-cl-input="${i}" value="${_escAttr(item)}"
                     oninput="window._app.updateChecklistItem(${i}, this.value)"
                     placeholder="例：〇〇はできているか"
-                    class="c-input flex-1 px-3 py-2 text-[13px] focus:outline-none">
+                    class="c-input p-mission-form__checklist-input">
                   <button onclick="window._app.removeChecklistItem(${i})"
-                    class="w-9 h-9 rounded-full bg-[#EBE8E5] flex items-center justify-center active:scale-95">
+                    class="p-mission-form__checklist-remove">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -375,90 +375,90 @@ function _renderDetailTab(isEdit) {
                 </div>`).join('')}
             </div>
             <button onclick="window._app.addChecklistItem()"
-              class="mt-2 text-[12px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50">+ 追加</button>
+              class="p-mission-form__checklist-more">+ 追加</button>
           `}
         </div>
 
         <!-- 担当の応募型 -->
         <div>
-          <div class="flex items-center justify-between mb-2">
-            <label class="heading-rs text-[#484545] font-bold">担当の応募型</label>
+          <div class="p-mission-form__row p-mission-form__row--loose">
+            <label class="heading-rs p-mission-form__label">担当の応募型</label>
             <button onclick="window._app.toggleMissionSelfClaim()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${selfClaim ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${selfClaim ? 'translate-x-5' : ''}"></span>
+              class="c-toggle${selfClaim ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
             </button>
           </div>
 
-          <p class="text-[11px] text-[#A7AAAC] mb-2" style="padding-right: 5em;">担当したいメンバーがこのミッションへ応募し、管理者が担当者を選定する形式になります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--tight">担当したいメンバーがこのミッションへ応募し、管理者が担当者を選定する形式になります。</p>
           ${selfClaim ? `
             <!-- 応募期限（カレンダーUIで設定） -->
-            <div class="mt-1">
-              <label class="text-[12px] text-[#484545] font-bold block mb-2">応募期限（任意）</label>
-              <div class="flex items-center gap-2 cursor-pointer" onclick="window._app.openCalendarModal('claimDeadline')">
-                <img src="/images/icon/icon-Calender.svg" class="w-4 h-4 opacity-40">
+            <div>
+              <label class="p-mission-form__sub-label">応募期限（任意）</label>
+              <div class="p-mission-form__date p-mission-form__date--flush" onclick="window._app.openCalendarModal('claimDeadline')">
+                <img src="/images/icon/icon-Calender.svg" class="p-mission-form__date-icon">
                 ${deadlineDisplay
-                  ? `<span class="text-[12px] font-bold text-[#484545]">${deadlineDisplay} 23:59 まで</span>`
-                  : `<span class="text-[12px] font-bold text-[#A7AAAC]">カレンダーから設定する</span>`}
+                  ? `<span class="p-mission-form__date-text p-mission-form__date-text--set">${_esc(deadlineDisplay)} 23:59 まで</span>`
+                  : `<span class="p-mission-form__date-text">カレンダーから設定する</span>`}
               </div>
               ${deadlineDisplay ? `
                 <button onclick="window._app.setMissionClaimDeadline('')" type="button"
-                  class="text-[10px] text-[#A7AAAC] underline mt-1">期限をクリア</button>` : ''}
+                  class="p-mission-form__clear-deadline">期限をクリア</button>` : ''}
             </div>
           ` : ''}
         </div>
 
         <!-- アナウンス -->
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">アナウンス</label>
+          <div class="p-mission-form__row">
+            <label class="heading-rs p-mission-form__label">アナウンス</label>
             <button onclick="window._app.toggleMissionAnnounce()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${announce ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${announce ? 'translate-x-5' : ''}"></span>
+              class="c-toggle${announce ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">担当者（無割当の場合は全員）のメインボード上部にアナウンスカードで表示します。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">担当者（無割当の場合は全員）のメインボード上部にアナウンスカードで表示します。</p>
         </div>
 
         <!-- ワンタップ完了 -->
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">ワンタップ完了</label>
+          <div class="p-mission-form__row">
+            <label class="heading-rs p-mission-form__label">ワンタップ完了</label>
             <button onclick="window._app.toggleMissionNoInput()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${noInput ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${noInput ? 'translate-x-5' : ''}"></span>
+              class="c-toggle${noInput ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">テキスト・画像の入力欄はなく、完了ボタンのみで即完了するミッションになります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">テキスト・画像の入力欄はなく、完了ボタンのみで即完了するミッションになります。</p>
         </div>
 
         <!-- 個別完了 -->
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">個別完了</label>
+          <div class="p-mission-form__row">
+            <label class="heading-rs p-mission-form__label">個別完了</label>
             <button onclick="window._app.toggleMissionIndividualClear()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${individualClear ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${individualClear ? 'translate-x-5' : ''}"></span>
+              class="c-toggle${individualClear ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">ユーザーごとに個別に回答・完了できるようになります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">ユーザーごとに個別に回答・完了できるようになります。</p>
         </div>
 
         <!-- リーダーによるチェック -->
         <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="heading-rs text-[#484545] font-bold">リーダーによるチェック</label>
+          <div class="p-mission-form__row">
+            <label class="heading-rs p-mission-form__label">リーダーによるチェック</label>
             <button onclick="window._app.toggleMissionLeaderCheck()" type="button"
-              class="relative w-12 h-7 rounded-full transition-colors ${leaderCheck ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}">
-              <span class="absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform ${leaderCheck ? 'translate-x-5' : ''}"></span>
+              class="c-toggle${leaderCheck ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
             </button>
           </div>
-          <p class="text-[11px] text-[#A7AAAC] leading-relaxed" style="padding-right: 5em;">完了後すぐにはアーカイブされず、リーダーの確認待ちになります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">完了後すぐにはアーカイブされず、リーダーの確認待ちになります。</p>
         </div>
 
         ${canDelete ? `
           <button onclick="window._app.deleteMission(event)"
-            class="w-full flex items-center justify-between p-4 bg-[#FFEEEA] text-[#EE3E12] rounded-2xl border border-[#EE3E12]/20 active:scale-95 transition-transform">
-            <span class="font-bold">このミッションを削除する</span>
+            class="p-mission-form__delete">
+            <span>このミッションを削除する</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -467,7 +467,7 @@ function _renderDetailTab(isEdit) {
           </button>` : ''}
       </div>
       <button onclick="window._app.createOrUpdateMission()"
-        class="c-button c-button--primary w-full py-4 heading-r font-bold mt-4 shadow-lg shadow-blue-200">
+        class="c-button c-button--primary p-mission-form__submit">
         ${isEdit ? '保存' : '作成'}
       </button>
     </div>`;

@@ -1,0 +1,37 @@
+/* ==========================================================================
+   Object / Component / toggle — オン・オフのスイッチ
+   使用箇所: public/js/modals/mission.js（詳細設定の5項目）
+
+   ★状態は .is-on。JS は class を付け外しするだけで、位置と色は CSS が持つ。
+   ★中の <input type="checkbox"> は無い（button で作ってある）。
+     読み上げ対応を足すなら aria-pressed を付けること。
+   ========================================================================== */
+
+.c-toggle {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.c-toggle.is-on {
+  background-color: var(--color-primary);
+}
+
+.c-toggle__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background-color: var(--white);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.c-toggle.is-on .c-toggle__knob {
+  transform: translateX(20px);
+}

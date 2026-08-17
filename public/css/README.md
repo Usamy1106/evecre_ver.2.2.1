@@ -97,6 +97,7 @@
 | 日付を選ぶモーダル（ミッション期間・開催日・応募期限） | `object/project/_date-picker.css` |
 | 通知セットアップの案内・HOME の通知バナー | `object/project/_push-setup.css` |
 | 操作を選ばせるボトムシート（長押しメニュー） | `object/component/_action-sheet.css` |
+| オン・オフのスイッチ | `object/component/_toggle.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -253,6 +254,7 @@ public/css/
 │  ├─ _tooltip.css              ✅ c-tooltip
 │  ├─ _settings-card.css        ✅ c-settings-card / c-settings-list
 │  ├─ _action-sheet.css         ✅ 操作を選ばせるボトムシート
+│  ├─ _toggle.css               ✅ オン・オフのスイッチ
 │  ├─ _context-menu.css         ✅ c-context-menu
 │  ├─ _emoji-picker.css         ✅ c-emoji-picker
 │  ├─ _coach-mark.css           ✅ coachMark.js
