@@ -42,16 +42,16 @@ export function renderEventSettings(container) {
   }
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <header class="flex items-center px-6 py-4 bg-[#FDFBF8] sticky top-0 z-20 border-b border-[#E1DFDC]" style="padding-top:calc(1rem + env(safe-area-inset-top))">
-        <button onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
-          class="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center mr-3">
-          <img src="/images/icon/iocn-Chevron.svg" class="w-4 h-4 brightness-0 opacity-50">
+    <div class="p-event-settings page-transition">
+      <header class="l-header l-header--sub">
+        <button type="button" onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
+          class="l-header__back" aria-label="メインボードへ戻る">
+          <img src="/images/icon/iocn-Chevron.svg" class="l-header__back-icon" alt="">
         </button>
-        <h1 class="heading-r font-bold text-[#484545]">イベント設定</h1>
+        <h1 class="l-header__heading">イベント設定</h1>
       </header>
 
-      <main class="flex-1 px-6 pt-6 pb-24 space-y-8">
+      <main class="p-event-settings__main">
         ${_membersAvatarsSection(sec)}
         ${_eventManagementSection(p, sec)}
         ${_userManagementSection(p, sec)}
@@ -67,7 +67,7 @@ export function renderEventSettings(container) {
 // =====================================================
 function _membersAvatarsSection(sec) {
   if (sec.loadingMembers) {
-    return `<div class="flex items-center gap-3"><div class="text-[12px] text-[#A7AAAC]">読み込み中…</div></div>`;
+    return `<p class="p-event-settings__loading">読み込み中…</p>`;
   }
   const members = sec.members || [];
   const MAX = 5;
@@ -76,17 +76,16 @@ function _membersAvatarsSection(sec) {
 
   return `
     <section>
-      <div class="flex items-center -space-x-3">
+      <div class="p-event-settings__avatars">
         ${visible.map(m => `
           <div title="${_esc(m.username)}">
             ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 44, ring: true })}
           </div>`).join('')}
         ${extra > 0 ? `
-          <div class="rounded-full bg-[#EBE8E5] ring-2 ring-white flex items-center justify-center text-[#484545] font-bold text-[12px]"
-            style="width:44px;height:44px;">+${extra}</div>` : ''}
-        ${members.length === 0 ? '<p class="text-[12px] text-[#A7AAAC] font-bold">メンバーがいません</p>' : ''}
+          <div class="p-event-settings__avatars-more">+${extra}</div>` : ''}
+        ${members.length === 0 ? '<p class="p-event-settings__loading">メンバーがいません</p>' : ''}
       </div>
-      <p class="text-[11px] text-[#A7AAAC] font-bold mt-2">参加メンバー（${members.length}人）</p>
+      <p class="p-event-settings__avatars-caption">参加メンバー（${members.length}人）</p>
     </section>`;
 }
 
@@ -104,23 +103,23 @@ function _eventManagementSection(p, sec) {
 
   return `
     <section>
-      <h2 class="heading-rs font-bold text-[#484545] mb-3 border-b border-[#E1DFDC] pb-1.5">イベント管理</h2>
-      <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] divide-y divide-[#E1DFDC]">
+      <h2 class="p-event-settings__section-title">イベント管理</h2>
+      <div class="c-settings-list">
 
         <!-- イベント名 -->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">イベント名</p>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">イベント名</p>
           ${editingName ? `
             <input id="ps-name-input" type="text" value="${_esc(sec.draftValue || '')}"
-              class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
-            <div class="flex gap-2">
-              <button id="ps-name-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-              <button id="ps-name-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+              class="c-input c-input--block c-settings-list__input">
+            <div class="c-settings-card__actions">
+              <button id="ps-name-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+              <button id="ps-name-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
             </div>
           ` : `
-            <div class="flex items-center justify-between">
-              <span class="text-[14px] text-[#484545] font-bold truncate">${_esc(p.name)}</span>
-              ${canMgr ? `<button data-ps-edit="name" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50">変更</button>` : ''}
+            <div class="c-settings-list__view c-settings-list__view--center">
+              <span class="c-settings-list__value c-settings-list__value--truncate">${_esc(p.name)}</span>
+              ${canMgr ? `<button data-ps-edit="name" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
@@ -128,67 +127,67 @@ function _eventManagementSection(p, sec) {
         <!-- 概要（旧「イベントの説明」）-->
         <!-- ★アーカイブの「概要」と同じ場所を読み書きする（utils.js の getter/setter 経由）。
              description にも同じ値が入る（提案エンジンと AI プロンプトが参照するため）。 -->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">概要</p>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">概要</p>
           ${editingDesc ? `
-            <textarea id="ps-desc-input" rows="3" class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2 resize-none">${_esc(sec.draftValue || '')}</textarea>
-            <div class="flex gap-2">
-              <button id="ps-desc-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-              <button id="ps-desc-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+            <textarea id="ps-desc-input" rows="3" class="c-input c-input--block c-settings-list__input c-settings-list__input--multiline">${_esc(sec.draftValue || '')}</textarea>
+            <div class="c-settings-card__actions">
+              <button id="ps-desc-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+              <button id="ps-desc-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
             </div>
           ` : `
-            <div class="flex items-start justify-between gap-3">
-              <span class="text-[13px] text-[#484545] flex-1 whitespace-pre-wrap break-words">${_esc(getArchiveSummary(p) || '(未設定)')}</span>
-              ${canMgr ? `<button data-ps-edit="description" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>` : ''}
+            <div class="c-settings-list__view">
+              <span class="c-settings-list__value c-settings-list__value--body">${_esc(getArchiveSummary(p) || '(未設定)')}</span>
+              ${canMgr ? `<button data-ps-edit="description" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
 
         <!-- 開催日時 -->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">開催日時</p>
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-[14px] text-[#484545] font-bold whitespace-pre-wrap">${_formatDates(p.dates, p.dateTimes)}</span>
-            ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 flex-shrink-0 self-start">変更</button>` : ''}
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">開催日時</p>
+          <div class="c-settings-list__view c-settings-list__view--center">
+            <span class="c-settings-list__value c-settings-list__value--pre">${_formatDates(p.dates, p.dateTimes)}</span>
+            ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="c-settings-list__edit">変更</button>` : ''}
           </div>
         </div>
 
         <!-- 開催場所 -->
         <!-- ★アーカイブの「場所」と同じ場所を読み書きする（utils.js の getter/setter 経由）-->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">開催場所</p>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">開催場所</p>
           ${editingVenue ? `
             <input id="ps-venue-input" type="text" value="${_esc(sec.draftValue || '')}"
               placeholder="例：造形大 12号館 ホール"
-              class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
-            <div class="flex gap-2">
-              <button id="ps-venue-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-              <button id="ps-venue-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+              class="c-input c-input--block c-settings-list__input">
+            <div class="c-settings-card__actions">
+              <button id="ps-venue-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+              <button id="ps-venue-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
             </div>
           ` : `
-            <div class="flex items-start justify-between gap-3">
-              <span class="text-[14px] text-[#484545] font-bold flex-1 break-words">${_esc(getArchiveVenue(p) || '(未設定)')}</span>
-              ${canMgr ? `<button data-ps-edit="venue" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>` : ''}
+            <div class="c-settings-list__view">
+              <span class="c-settings-list__value">${_esc(getArchiveVenue(p) || '(未設定)')}</span>
+              ${canMgr ? `<button data-ps-edit="venue" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
 
         <!-- キャッチコピー -->
         <!-- 招待ページ（招待バナー・参加確認モーダル）の一番上に表示される -->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">キャッチコピー</p>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">キャッチコピー</p>
           ${editingCatch ? `
             <input id="ps-catch-input" type="text" maxlength="50" placeholder="例：つくる、をみせる。"
               value="${_esc(sec.draftValue || '')}"
-              class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
-            <div class="flex gap-2">
-              <button id="ps-catch-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-              <button id="ps-catch-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+              class="c-input c-input--block c-settings-list__input">
+            <div class="c-settings-card__actions">
+              <button id="ps-catch-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+              <button id="ps-catch-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
             </div>
           ` : `
-            <div class="flex items-start justify-between gap-3">
-              <span class="text-[13px] flex-1 break-words ${p.catchphrase ? 'text-[#0CA1E3] font-bold' : 'text-[#484545]'}">${_esc(p.catchphrase || '(未設定)')}</span>
-              ${canMgr ? `<button data-ps-edit="catchphrase" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>` : ''}
+            <div class="c-settings-list__view">
+              <span class="c-settings-list__value ${p.catchphrase ? 'c-settings-list__value--accent' : 'c-settings-list__value--body'}">${_esc(p.catchphrase || '(未設定)')}</span>
+              ${canMgr ? `<button data-ps-edit="catchphrase" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
@@ -196,11 +195,11 @@ function _eventManagementSection(p, sec) {
         <!-- 意気込み（カード複数選択＋ひとこと）-->
         <!-- ★招待相手に表示され、🔥で応援できる。意気込みが未入力だと🔥ボタン自体が
              出ない（＝空のイベントでは応援できない）ので、ここから後追いで入れられるようにする。 -->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">意気込み</p>
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">招待した相手に表示され、🔥で応援してもらえます</p>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">意気込み</p>
+          <p class="p-event-settings__sub-title">招待した相手に表示され、🔥で応援してもらえます</p>
           ${canMgr ? `
-            <div class="flex flex-wrap gap-1.5 mb-3">
+            <div class="p-event-settings__motivation-tags p-event-settings__group">
               ${MOTIVATION_CARDS.map(c => {
                 const on = (p.motivationTags || []).includes(c.id);
                 return `
@@ -212,25 +211,25 @@ function _eventManagementSection(p, sec) {
               }).join('')}
             </div>
           ` : `
-            <div class="flex flex-wrap gap-1.5 mb-2">
+            <div class="p-event-settings__motivation-tags">
               ${(p.motivationTags || []).map(id => {
                 const label = MOTIVATION_CARDS.find(c => c.id === id)?.label;
-                return label ? `<span class="text-[11px] font-bold text-[#EE3E12] bg-[#EE3E12]/10 px-2.5 py-1 rounded-full">${_esc(label)}</span>` : '';
-              }).join('') || '<span class="text-[13px] text-[#484545]">(未設定)</span>'}
+                return label ? `<span class="p-event-settings__motivation-tag">${_esc(label)}</span>` : '';
+              }).join('') || '<span class="c-settings-list__value c-settings-list__value--body">(未設定)</span>'}
             </div>
           `}
           ${editingMotiv ? `
             <input id="ps-motiv-input" type="text" maxlength="50" placeholder="ひとことで言うと？"
               value="${_esc(sec.draftValue || '')}"
-              class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
-            <div class="flex gap-2">
-              <button id="ps-motiv-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-              <button id="ps-motiv-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+              class="c-input c-input--block c-settings-list__input">
+            <div class="c-settings-card__actions">
+              <button id="ps-motiv-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+              <button id="ps-motiv-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
             </div>
           ` : `
-            <div class="flex items-start justify-between gap-3">
-              <span class="text-[13px] text-[#484545] flex-1 break-words">${p.motivationText ? `「${_esc(p.motivationText)}」` : '(ひとこと未設定)'}</span>
-              ${canMgr ? `<button data-ps-edit="motivationText" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>` : ''}
+            <div class="c-settings-list__view">
+              <span class="c-settings-list__value c-settings-list__value--body">${p.motivationText ? `「${_esc(p.motivationText)}」` : '(ひとこと未設定)'}</span>
+              ${canMgr ? `<button data-ps-edit="motivationText" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
@@ -238,9 +237,9 @@ function _eventManagementSection(p, sec) {
         <!-- イベントの種別 -->
         <!-- ★ミッション提案のカテゴリ判定に直結する。作成フロー導入前のイベントは
              未設定のままなので、ここから後追いで入力できるようにしている。 -->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">イベントの種別</p>
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">ミッション提案の内容がこれに合わせて変わります</p>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">イベントの種別</p>
+          <p class="p-event-settings__sub-title">ミッション提案の内容がこれに合わせて変わります</p>
           ${canMgr ? `
             <select data-ps-select="eventType"
               class="c-input w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
@@ -250,13 +249,13 @@ function _eventManagementSection(p, sec) {
               `).join('')}
             </select>
           ` : `
-            <span class="text-[14px] text-[#484545] font-bold">${_esc(EVENT_TYPES.find(t => t.id === p.eventType)?.label || '(未設定)')}</span>
+            <span class="c-settings-list__value">${_esc(EVENT_TYPES.find(t => t.id === p.eventType)?.label || '(未設定)')}</span>
           `}
         </div>
 
         <!-- 来てほしい人数 -->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">来てほしい人数</p>
+        <div class="c-settings-list__row">
+          <p class="p-event-settings__sub-title">来てほしい人数</p>
           ${canMgr ? `
             <select data-ps-select="expectedScale"
               class="c-input w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
@@ -266,15 +265,15 @@ function _eventManagementSection(p, sec) {
               `).join('')}
             </select>
           ` : `
-            <span class="text-[14px] text-[#484545] font-bold">${_esc(EXPECTED_SCALES.find(s => s.id === p.expectedScale)?.label || '(未設定)')}</span>
+            <span class="c-settings-list__value">${_esc(EXPECTED_SCALES.find(s => s.id === p.expectedScale)?.label || '(未設定)')}</span>
           `}
         </div>
 
         <!-- フェーズ -->
-        <div class="p-4">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">フェーズ</p>
+        <div class="c-settings-list__row">
+          <p class="p-event-settings__sub-title">フェーズ</p>
           ${canMgr ? `
-            <div class="flex gap-2">
+            <div class="c-settings-card__actions">
               ${[
                 { phase: '企画準備', color: '#A7AAAC', activeColor: '#484545' },
                 { phase: '告知',     color: '#0CA1E3', activeColor: '#0CA1E3' },
@@ -292,17 +291,17 @@ function _eventManagementSection(p, sec) {
               }).join('')}
             </div>
           ` : `
-            <span class="text-[14px] text-[#484545] font-bold">${_esc(p.eventPhase || '企画準備')}</span>
+            <span class="c-settings-list__value">${_esc(p.eventPhase || '企画準備')}</span>
           `}
         </div>
 
         <!-- 操作履歴（管理者のみ） -->
         ${canMgr ? `
         <button onclick="window._app.openEventLogSheet()"
-          class="w-full p-4 flex items-center justify-between text-left active:bg-[#FDFBF8] transition-colors">
+          class="c-settings-list__link">
           <div>
-            <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">操作履歴</p>
-            <span class="text-[14px] text-[#484545] font-bold">誰がいつ何をしたか</span>
+            <p class="c-settings-list__label">操作履歴</p>
+            <span class="c-settings-list__value">誰がいつ何をしたか</span>
           </div>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </button>` : ''}
@@ -340,41 +339,41 @@ function _userManagementSection(p, sec) {
     if (isEditing && !isOwnerRow) {
       // チェックボックスリスト（owner は除外）
       const checks = roles.filter(r => r.id !== 'owner').map(r => `
-        <label class="flex items-center gap-2 py-1.5 cursor-pointer">
+        <label class="p-event-settings__check">
           <input type="checkbox" data-ps-mrole-check value="${_esc(r.id)}"
             ${editingSet.has(r.id) ? 'checked' : ''}>
-          <span class="text-[12px] text-[#484545] font-bold">${_esc(r.name)}</span>
-          ${r.canManage ? '<span class="text-[9px] text-[#0CA1E3] font-bold">管理者権限</span>' : '<span class="text-[9px] text-[#A7AAAC] font-bold">一般ユーザー</span>'}
+          <span class="p-event-settings__member-name">${_esc(r.name)}</span>
+          ${r.canManage ? '<span class="p-event-settings__member-sub p-event-settings__member-sub--accent">管理者権限</span>' : '<span class="p-event-settings__member-sub">一般ユーザー</span>'}
         </label>`).join('');
       return `
-        <div class="px-4 py-3 bg-[#FDFBF8]">
-          <div class="flex items-center gap-3 mb-3">
+        <div class="p-event-settings__form p-event-settings__form--flush">
+          <div class="p-event-settings__member-main p-event-settings__group">
             ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 32 })}
-            <p class="text-[13px] font-bold text-[#484545]">${_esc(m.username)}${isMe ? ' <span class="text-[10px] text-[#A7AAAC]">(あなた)</span>' : ''}</p>
+            <p class="p-event-settings__member-name">${_esc(m.username)}${isMe ? ' <span class="p-event-settings__sub-title">(あなた)</span>' : ''}</p>
           </div>
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">ロール（複数選択可）</p>
-          <div class="border border-[#E1DFDC] rounded-lg px-3 py-2 bg-white mb-3">${checks}</div>
-          <div class="flex gap-2">
-            <button data-ps-mrole-cancel class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-            <button data-ps-mrole-save="${m.userId}" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+          <p class="c-settings-list__label">ロール（複数選択可）</p>
+          <div class="p-event-settings__check-box">${checks}</div>
+          <div class="c-settings-card__actions">
+            <button data-ps-mrole-cancel class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+            <button data-ps-mrole-save="${m.userId}" class="c-settings-card__action c-settings-card__action--save">保存</button>
           </div>
         </div>`;
     }
 
     return `
-      <div class="flex items-center justify-between px-4 py-3">
-        <div class="flex items-center gap-3 flex-1 min-w-0">
+      <div class="p-event-settings__member">
+        <div class="p-event-settings__member-main">
           ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 32 })}
-          <div class="min-w-0">
-            <p class="text-[13px] font-bold text-[#484545] truncate">${_esc(m.username)}${isMe ? ' <span class="text-[10px] text-[#A7AAAC]">(あなた)</span>' : ''}</p>
-            <p class="text-[10px] text-[#A7AAAC] truncate">${_esc(labels)}</p>
+          <div class="p-event-settings__member-body">
+            <p class="p-event-settings__member-name c-settings-list__value--truncate">${_esc(m.username)}${isMe ? ' <span class="p-event-settings__sub-title">(あなた)</span>' : ''}</p>
+            <p class="p-event-settings__member-sub c-settings-list__value--truncate">${_esc(labels)}</p>
           </div>
         </div>
         ${(isOwner || canMgr) && !isOwnerRow ? `
-          <button data-ps-mrole-edit="${m.userId}" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">変更</button>
+          <button data-ps-mrole-edit="${m.userId}" class="c-settings-list__edit">変更</button>
         ` : ''}
       </div>`;
-  }).join('') || '<p class="text-[12px] text-[#A7AAAC] text-center py-4">メンバーがいません</p>';
+  }).join('') || '<p class="p-event-settings__empty">メンバーがいません</p>';
 
   // ロール一覧（編集UI付き）
   const rolesHtml = roles.map(r => {
@@ -383,94 +382,94 @@ function _userManagementSection(p, sec) {
     const disableDel = isOwnerRole || r.builtIn;
     if (isEditing) {
       return `
-        <div class="px-4 py-3 bg-[#FDFBF8]">
+        <div class="p-event-settings__form p-event-settings__form--flush">
           <input data-ps-role-name-input value="${_esc(sec.roleEditDraft?.name ?? r.name)}"
-            class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2" maxlength="20">
-          <label class="flex items-center gap-2 mb-3 cursor-pointer">
+            class="c-input c-input--block c-settings-list__input" maxlength="20">
+          <label class="p-event-settings__check p-event-settings__check--spaced">
             <input type="checkbox" data-ps-role-canmanage-input
               ${(sec.roleEditDraft?.canManage ?? r.canManage) ? 'checked' : ''}
               ${isOwnerRole ? 'disabled' : ''}>
-            <span class="text-[12px] text-[#484545] font-bold">管理者権限</span>
-            <span class="text-[10px] text-[#A7AAAC] ml-auto">${isOwnerRole ? '(オーナーは常にON)' : 'イベント管理・ミッション編集ができる'}</span>
+            <span class="p-event-settings__member-name">管理者権限</span>
+            <span class="p-event-settings__check-note">${isOwnerRole ? '(オーナーは常にON)' : 'イベント管理・ミッション編集ができる'}</span>
           </label>
-          <div class="flex gap-2">
-            <button data-ps-role-cancel class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-            <button data-ps-role-save="${r.id}" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
+          <div class="c-settings-card__actions">
+            <button data-ps-role-cancel class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+            <button data-ps-role-save="${r.id}" class="c-settings-card__action c-settings-card__action--save">保存</button>
           </div>
         </div>`;
     }
     return `
-      <div class="px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-3 flex-1 min-w-0">
-          <span class="text-[13px] font-bold text-[#484545] truncate">${_esc(r.name)}</span>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${r.canManage ? 'bg-[#E8F6FD] text-[#0CA1E3]' : 'bg-[#EBE8E5] text-[#A7AAAC]'}">
+      <div class="p-event-settings__member">
+        <div class="p-event-settings__member-main">
+          <span class="p-event-settings__member-name c-settings-list__value--truncate">${_esc(r.name)}</span>
+          <span class="p-event-settings__role-chip${r.canManage ? ' p-event-settings__role-chip--manager' : ''}">
             ${r.canManage ? '管理者権限' : '一般ユーザー'}
           </span>
-          ${r.builtIn ? '<span class="text-[9px] text-[#A7AAAC]">組込</span>' : ''}
+          ${r.builtIn ? '<span class="p-event-settings__member-sub">組込</span>' : ''}
         </div>
         ${canMgr ? `
-          <div class="flex gap-1">
-            ${!isOwnerRole ? `<button data-ps-role-edit="${r.id}" class="text-[11px] text-[#0CA1E3] font-bold px-2 py-1 active:opacity-50">編集</button>` : ''}
-            ${!disableDel ? `<button data-ps-role-delete="${r.id}" class="text-[11px] text-[#EE3E12] font-bold px-2 py-1 active:opacity-50">削除</button>` : ''}
+          <div class="p-event-settings__member-actions">
+            ${!isOwnerRole ? `<button data-ps-role-edit="${r.id}" class="c-settings-list__edit c-settings-list__edit--tight">編集</button>` : ''}
+            ${!disableDel ? `<button data-ps-role-delete="${r.id}" class="c-settings-list__edit c-settings-list__edit--tight c-settings-list__edit--danger">削除</button>` : ''}
           </div>` : ''}
       </div>`;
   }).join('');
 
   return `
     <section>
-      <h2 class="heading-rs font-bold text-[#484545] mb-3 border-b border-[#E1DFDC] pb-1.5">ユーザー管理</h2>
+      <h2 class="p-event-settings__section-title">ユーザー管理</h2>
 
       <!-- メンバーの招待 -->
-      <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-4 mb-3">
-        <div class="flex items-center justify-between">
+      <div class="c-settings-list c-settings-list__row p-event-settings__group">
+        <div class="c-settings-list__view c-settings-list__view--center">
           <div>
-            <p class="text-[13px] font-bold text-[#484545]">メンバーを招待</p>
-            <p class="text-[10px] text-[#A7AAAC] mt-0.5">招待リンクを発行して共有</p>
+            <p class="p-event-settings__member-name">メンバーを招待</p>
+            <p class="p-event-settings__member-sub">招待リンクを発行して共有</p>
           </div>
-          <button id="ps-invite-open" class="bg-[#0CA1E3] text-white text-[12px] font-bold px-4 py-2 rounded-full active:scale-95">招待する</button>
+          <button id="ps-invite-open" class="p-event-settings__invite">招待する</button>
         </div>
       </div>
 
       <!-- ロール定義 -->
-      <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] mb-3">
-        <div class="px-4 pt-4 pb-2 flex items-center justify-between">
+      <div class="c-settings-list p-event-settings__group">
+        <div class="p-event-settings__sub-head">
           <div>
-            <p class="text-[13px] font-bold text-[#484545]">ロール</p>
-            <p class="text-[10px] text-[#A7AAAC] mt-0.5">「管理者権限」がONのロールはイベント・ミッションを編集できます</p>
+            <p class="p-event-settings__member-name">ロール</p>
+            <p class="p-event-settings__member-sub">「管理者権限」がONのロールはイベント・ミッションを編集できます</p>
           </div>
           ${canMgr ? `
-            <button id="ps-role-add" class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1.5 active:opacity-50 whitespace-nowrap">+ 追加</button>
+            <button id="ps-role-add" class="c-settings-list__edit">+ 追加</button>
           ` : ''}
         </div>
         ${sec.roleAdding ? _renderRoleAddForm(sec) : ''}
-        <div class="divide-y divide-[#E1DFDC]">${rolesHtml}</div>
+        <div class="c-settings-list">${rolesHtml}</div>
       </div>
 
       <!-- メンバーのロール設定 -->
-      <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC]">
-        <div class="px-4 pt-4 pb-2">
-          <p class="text-[13px] font-bold text-[#484545]">メンバーのロール</p>
-          ${!isOwner && !canMgr ? '<p class="text-[10px] text-[#A7AAAC] mt-0.5">ロールの変更は管理者権限を持つメンバーのみ可能です</p>' : ''}
+      <div class="c-settings-list">
+        <div class="p-event-settings__sub-head">
+          <p class="p-event-settings__member-name">メンバーのロール</p>
+          ${!isOwner && !canMgr ? '<p class="p-event-settings__member-sub">ロールの変更は管理者権限を持つメンバーのみ可能です</p>' : ''}
         </div>
-        <div class="divide-y divide-[#E1DFDC]">${memberList}</div>
+        <div class="c-settings-list">${memberList}</div>
       </div>
     </section>`;
 }
 
 function _renderRoleAddForm(sec) {
   return `
-    <div class="px-4 py-3 bg-[#FDFBF8] border-t border-[#E1DFDC]">
+    <div class="p-event-settings__form">
       <input id="ps-role-new-name" value="${_esc(sec.roleAdding.name || '')}"
         placeholder="例: サブリーダーデザイナーなど"
-        class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2" maxlength="20">
-      <label class="flex items-center gap-2 mb-3 cursor-pointer">
+        class="c-input c-input--block c-settings-list__input" maxlength="20">
+      <label class="p-event-settings__check p-event-settings__check--spaced">
         <input id="ps-role-new-canmanage" type="checkbox" ${sec.roleAdding.canManage ? 'checked' : ''}>
-        <span class="text-[12px] text-[#484545] font-bold">管理者権限</span>
-        <span class="text-[10px] text-[#A7AAAC] ml-auto">イベント管理・ミッション編集</span>
+        <span class="p-event-settings__member-name">管理者権限</span>
+        <span class="p-event-settings__check-note">イベント管理・ミッション編集</span>
       </label>
-      <div class="flex gap-2">
-        <button id="ps-role-add-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-        <button id="ps-role-add-save" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">追加</button>
+      <div class="c-settings-card__actions">
+        <button id="ps-role-add-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+        <button id="ps-role-add-save" class="c-settings-card__action c-settings-card__action--save">追加</button>
       </div>
     </div>`;
 }
@@ -483,11 +482,11 @@ function _leaveSection(p) {
   if (isOwner) return ''; // オーナーは削除のみ（HOME長押しメニューから）
   return `
     <section>
-      <div class="bg-white rounded-2xl shadow-sm border border-[#EE3E12]/30 p-4">
-        <p class="text-[13px] font-bold text-[#484545] mb-1">このイベントから脱退する</p>
-        <p class="text-[11px] text-[#A7AAAC] font-bold mb-3">脱退後は再招待されないと参加できません</p>
+      <div class="p-event-settings__leave-box">
+        <p class="p-event-settings__member-name p-event-settings__group">このイベントから脱退する</p>
+        <p class="p-event-settings__section-note">脱退後は再招待されないと参加できません</p>
         <button onclick="window._app.leaveEvent('${_esc(p.id)}')"
-          class="w-full py-2.5 text-[13px] font-bold text-[#EE3E12] border border-[#EE3E12] rounded-xl active:scale-95 transition-transform">
+          class="p-event-settings__leave">
           脱退する
         </button>
       </div>

@@ -56,6 +56,7 @@
   --color-primary-faint: rgba(12, 161, 227, .2);
   --color-primary-wash: rgba(12, 161, 227, .05);
   --color-danger-wash: rgba(238, 62, 18, .05);
+  --color-danger-half: rgba(238, 62, 18, .3);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
   --color-alert: #E74C3C;          /* 締め切り超過・当日 */
   --color-warning-pale2: #FFF8E1;  /* --color-warning-pale と近い。統合は Phase 5 で判断 */

@@ -140,3 +140,128 @@
 .c-settings-card__badge--pending {
   color: var(--color-warning);
 }
+
+/* --- 一覧型（区切り線で仕切った複数行）-----------------------------------
+   使用箇所: public/js/views/eventSettings.js
+   カード型（上）は1項目=1カード、こちらは1カードに複数行を積む。
+   設定項目が多い画面で、カードを並べると余白ばかりになるため。 */
+
+.c-settings-list {
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.c-settings-list__row {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--bg-textbox);
+}
+
+.c-settings-list__row:last-child {
+  border-bottom: 0;
+}
+
+/* 行そのものを押せるタイプ（操作履歴・招待リンクなど）*/
+.c-settings-list__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--bg-textbox);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.c-settings-list__link:last-child {
+  border-bottom: 0;
+}
+
+.c-settings-list__link:active {
+  background-color: var(--color-bg);
+}
+
+.c-settings-list__label {
+  margin-bottom: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-settings-list__view {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.c-settings-list__view--center {
+  align-items: center;
+}
+
+.c-settings-list__value {
+  flex: 1;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.c-settings-list__value--truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.c-settings-list__value--pre {
+  white-space: pre-wrap;
+}
+
+/* 本文のように長くなる値（概要など）は少し小さくする */
+.c-settings-list__value--body {
+  font-size: 13px;
+  font-weight: var(--font-weight-normal);
+  white-space: pre-wrap;
+}
+
+/* 入力済みのキャッチコピーは目立たせる（招待相手に見える文言なので）*/
+.c-settings-list__value--accent {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* 行の「変更」。カード型と違い背景を敷かない（行数が多く、うるさくなるため）*/
+.c-settings-list__edit {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 6px var(--space-3);
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.c-settings-list__edit:active {
+  opacity: .5;
+}
+
+.c-settings-list__edit--danger {
+  color: var(--color-danger);
+}
+
+.c-settings-list__edit--tight {
+  padding: var(--space-1) var(--space-2);
+}
+
+/* 編集中の入力欄 */
+.c-settings-list__input {
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+}
+
+.c-settings-list__input--multiline {
+  resize: none;
+}

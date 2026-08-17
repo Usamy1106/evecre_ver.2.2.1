@@ -69,7 +69,7 @@
 | フォームの1項目（ラベル・エラー・`is-error`） | `object/component/_field.css` |
 | 読み込み中のくるくる（`c-spinner`） | `object/component/_spinner.css` |
 | 招待の中身（参加中メンバー・意気込み） | `object/component/_invite-preview.css` |
-| 設定の1項目（表示 → 変更 → 保存） | `object/component/_settings-card.css` |
+| 設定の1項目（カード型・一覧型どちらも） | `object/component/_settings-card.css` |
 | 長押し・右クリックのメニュー | `object/component/_context-menu.css` |
 | リアクションの絵文字を選ぶシート | `object/component/_emoji-picker.css` |
 | コーチマークの脈動・指の動き | `object/component/_coach-mark.css` |
@@ -80,6 +80,7 @@
 | アカウント設定（プロフィール・通知・退会） | `object/project/_account.css` |
 | イベント作成フロー（STEP 1〜7・開催日カレンダー） | `object/project/_create-event.css` |
 | ミッション詳細（完了入力・チャット・吹き出し） | `object/project/_mission-detail.css` |
+| イベント設定（イベント管理・メンバー・ロール・脱退） | `object/project/_event-settings.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -226,7 +227,7 @@ public/css/
 │  ├─ _field.css                ✅ c-field / c-input--block / .is-error
 │  ├─ _spinner.css              ✅ c-spinner
 │  ├─ _invite-preview.css       ✅ c-invite-members / c-invite-motivation
-│  ├─ _settings-card.css        ✅ c-settings-card（.is-editing）
+│  ├─ _settings-card.css        ✅ c-settings-card / c-settings-list
 │  ├─ _context-menu.css         ✅ c-context-menu
 │  ├─ _emoji-picker.css         ✅ c-emoji-picker
 │  ├─ _coach-mark.css           ✅ coachMark.js
@@ -242,6 +243,7 @@ public/css/
 │  ├─ _account.css              ✅ アカウント設定
 │  ├─ _create-event.css         ✅ イベント作成フロー
 │  ├─ _mission-detail.css       ✅ ミッション詳細
+│  ├─ _event-settings.css       ✅ イベント設定
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / _notification / _archive /
 │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
 │

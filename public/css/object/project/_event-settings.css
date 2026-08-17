@@ -1,0 +1,261 @@
+/* ==========================================================================
+   Object / Project / event-settings — イベント設定
+   使用箇所: public/js/views/eventSettings.js
+
+   ★このファイルは過去に閉じタグの取り残しで全体が壊れたことがある。
+     マークアップを触ったら node --check と配信確認（curl）を必ず通すこと。
+   ★行の形は c-settings-list（Component）。ここには画面固有のものだけを置く。
+   ========================================================================== */
+
+.p-event-settings {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.p-event-settings__main {
+  flex: 1;
+  padding: var(--space-6) var(--space-6) 96px;
+}
+
+.p-event-settings__main > * + * {
+  margin-top: var(--space-8);
+}
+
+.p-event-settings__section-title {
+  margin-bottom: var(--space-3);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--bg-textbox);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-event-settings__section-note {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- メンバーのアイコン一覧（重ねて最大5つ）------------------------------ */
+
+.p-event-settings__avatars {
+  display: flex;
+  align-items: center;
+}
+
+.p-event-settings__avatars > * + * {
+  margin-left: -12px;
+}
+
+.p-event-settings__avatars-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  box-shadow: 0 0 0 2px var(--white);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-event-settings__avatars-caption {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-event-settings__loading {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* --- 意気込みのタグ ------------------------------------------------------ */
+
+.p-event-settings__motivation-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.p-event-settings__motivation-tag {
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger-tint);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+}
+
+/* --- メンバー・ロールの一覧 ---------------------------------------------- */
+
+.p-event-settings__member {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--bg-textbox);
+}
+
+.p-event-settings__member:last-child {
+  border-bottom: 0;
+}
+
+.p-event-settings__member-body {
+  min-width: 0;
+}
+
+.p-event-settings__member-name {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-event-settings__member-sub {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.p-event-settings__role-chip {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 管理者権限は色を変える。ラベル自体も「管理者権限」と書くので色だけに頼らない */
+.p-event-settings__role-chip--manager {
+  background-color: var(--color-primary-pale);
+  color: var(--color-primary);
+}
+
+.p-event-settings__sub-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-4) var(--space-2);
+}
+
+.p-event-settings__sub-title {
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-event-settings__empty {
+  padding-block: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ロール追加フォーム */
+.p-event-settings__form {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--bg-textbox);
+  background-color: var(--color-bg);
+}
+
+.p-event-settings__form--flush {
+  border-top: 0;
+}
+
+/* --- 脱退 ---------------------------------------------------------------- */
+
+.p-event-settings__leave {
+  width: 100%;
+  padding-block: 10px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-event-settings__leave:active {
+  transform: scale(.95);
+}
+
+/* --- ロール編集（チェックボックスの並び）--------------------------------- */
+
+.p-event-settings__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: 6px;
+  cursor: pointer;
+}
+
+.p-event-settings__check--spaced {
+  margin-bottom: var(--space-3);
+  padding-block: 0;
+}
+
+.p-event-settings__check-note {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.p-event-settings__check-box {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+}
+
+.p-event-settings__member-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.p-event-settings__member-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.p-event-settings__invite {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-event-settings__invite:active {
+  transform: scale(.95);
+}
+
+/* 脱退のまわりだけ枠の色を変える（取り消せない操作なので）*/
+.p-event-settings__leave-box {
+  padding: var(--space-4);
+  border: 1px solid var(--color-danger-half);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-event-settings__group {
+  margin-bottom: var(--space-3);
+}
+
+.p-event-settings__member-sub--accent {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
