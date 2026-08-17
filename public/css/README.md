@@ -76,6 +76,7 @@
 | ホーム（イベント一覧・プロジェクト一覧・承認待ちカード） | `object/project/_home.css` |
 | ログイン・アカウント作成・パスワードリセット | `object/project/_auth.css` |
 | アカウント設定（プロフィール・通知・退会） | `object/project/_account.css` |
+| イベント作成フロー（STEP 1〜7・開催日カレンダー） | `object/project/_create-event.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -234,8 +235,8 @@ public/css/
 │  ├─ _home.css                 ✅ ホーム
 │  ├─ _auth.css                 ✅ ログイン前の画面（auth / passwordReset）
 │  ├─ _account.css              ✅ アカウント設定
-│  └─ _main-board / _mission-detail / _mission-modal / _create-event /
-│     _event-settings / _signup / _notification / _archive /
+│  ├─ _create-event.css         ✅ イベント作成フロー
+│  └─ _main-board / _mission-detail / _mission-modal / │     _event-settings / _signup / _notification / _archive /
 │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
 │
 └─ object/utility/

@@ -1,0 +1,623 @@
+/* ==========================================================================
+   Object / Project / create-event — イベント作成フロー（STEP 1〜7）
+   使用箇所: public/js/views/createEvent.js
+
+   STEP 1 イベント名 / 2 種類 / 3 規模 / 4 開催日 / 5 キャッチコピー /
+   6 意気込み / 7 招待リンク。4〜6 はスキップ可、2・3 は選んだ瞬間に次へ進む。
+
+   ★進捗の分母は6（STEP 7 は「完了」扱いで分母外）。
+   ========================================================================== */
+
+.p-create-event {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.p-create-event__header {
+  padding: var(--space-10) var(--space-6) var(--space-6);
+  text-align: center;
+}
+
+/* STEP 1 だけ下の余白が広い（入力欄1つで縦に余裕があるため）*/
+.p-create-event__header--roomy {
+  padding-bottom: var(--space-8);
+}
+
+.p-create-event__brand {
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+}
+
+.p-create-event__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2) var(--space-6) 48px;
+}
+
+.p-create-event__main--wide {
+  padding-inline: var(--space-8);
+}
+
+.p-create-event__heading {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-create-event__sub {
+  margin-bottom: var(--space-5);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 説明文が無いステップでも、見出しと本文の間隔を揃える */
+.p-create-event__sub-spacer {
+  margin-bottom: var(--space-5);
+}
+
+.p-create-event__body {
+  width: 100%;
+  max-width: 384px;
+}
+
+.p-create-event__body--full {
+  max-width: none;
+}
+
+/* 画面下に貼り付く操作列（進捗ドット＋ボタン）*/
+.p-create-event__footer {
+  width: 100%;
+  max-width: 384px;
+  margin-top: auto;
+  padding-top: var(--space-8);
+}
+
+.p-create-event__footer--tight {
+  padding-top: 0;
+}
+
+.p-create-event__footer > * + * {
+  margin-top: var(--space-3);
+}
+
+/* --- ボタン -------------------------------------------------------------- */
+
+.p-create-event__next {
+  width: 100%;
+  padding-block: var(--space-5);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  box-shadow: var(--shadow-md);
+}
+
+.p-create-event__next:disabled {
+  opacity: .5;
+}
+
+.p-create-event__back {
+  width: 100%;
+  padding-block: var(--space-4);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* スキップは「押さなくてよい」と分かるよう控えめにする */
+.p-create-event__skip {
+  width: 100%;
+  padding-block: var(--space-3);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- 選択肢（STEP 2 / 3）------------------------------------------------
+   ★選ぶと即座に次のステップへ進む。確定ボタンは無い。 */
+
+.p-create-event__choice {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: var(--space-4) var(--space-5);
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  text-align: left;
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-create-event__choice:active {
+  transform: scale(.99);
+}
+
+.p-create-event__choice.is-selected {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-wash);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-create-event__choice-label {
+  display: block;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-create-event__choice.is-selected .p-create-event__choice-label {
+  color: var(--color-primary);
+}
+
+/* STEP 3 は選択肢が少なく1つが大きい */
+.p-create-event__choice--roomy {
+  margin-bottom: var(--space-3);
+  padding-block: var(--space-5);
+}
+
+.p-create-event__choice--roomy .p-create-event__choice-hint {
+  margin-top: var(--space-1);
+}
+
+.p-create-event__choice-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- STEP 1 の入力欄 ------------------------------------------------------ */
+
+.p-create-event__field {
+  width: 100%;
+  margin-bottom: 48px;
+}
+
+.p-create-event__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.p-create-event__input {
+  padding: var(--space-4) var(--space-5);
+}
+
+.p-create-event__note {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- STEP 4：開催日のカレンダー -------------------------------------------
+   ★セルは Pointer Events でタップ／ドラッグを受ける（_bindCalendarDrag）。
+     touch-action:none が無いと、なぞっている最中にページがスクロールする。
+   ★選択済みの見た目は .is-selected。以前は JS が Tailwind のクラス文字列を
+     組み立てて className ごと差し替えていた。 */
+
+.p-create-event__calendar {
+  width: 100%;
+  max-width: 384px;
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-create-event__calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.p-create-event__calendar-month {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-create-event__calendar-nav {
+  padding: var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-create-event__calendar-nav:active {
+  transform: scale(.95);
+}
+
+.p-create-event__calendar-nav-icon {
+  width: 12px;
+  height: 12px;
+  opacity: .5;
+  filter: brightness(0);
+}
+
+.p-create-event__calendar-nav-icon--next {
+  transform: rotate(180deg);
+}
+
+.p-create-event__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  text-align: center;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-create-event__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.p-create-event__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-create-event__day:active {
+  background-color: var(--color-bg);
+}
+
+/* 前月ぶんの空きマス（高さだけ合わせる）*/
+.p-create-event__day--blank {
+  height: 40px;
+}
+
+.p-create-event__day.is-selected {
+  background-color: var(--create-red);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-inverse);
+}
+
+/* --- 選択済みの日付（タグ表示・×で削除）---------------------------------- */
+
+.p-create-event__selected {
+  width: 100%;
+  max-width: 384px;
+  margin-bottom: var(--space-2);
+}
+
+.p-create-event__selected-label {
+  margin-bottom: var(--space-2);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-create-event__selected-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.p-create-event__date-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-create-event__date-tag-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-create-event__date-tag-remove {
+  padding: var(--space-1);
+  opacity: .5;
+}
+
+.p-create-event__date-tag-remove:active {
+  opacity: 1;
+}
+
+/* 見出し内の「（任意）」 */
+.p-create-event__optional {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-create-event__selected-empty {
+  padding-block: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* --- STEP 5：キャッチコピーの例文 -----------------------------------------
+   ★ここで AI を呼ばないこと（イベント作成のたびに Neurons を消費する）。
+     例文は constants.js の CATCHPHRASE_EXAMPLES から出す。 */
+
+.p-create-event__examples-label {
+  margin-bottom: var(--space-2);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-create-event__examples {
+  margin-bottom: var(--space-5);
+}
+
+.p-create-event__examples > * + * {
+  margin-top: var(--space-2);
+}
+
+.p-create-event__example {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  text-align: left;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-create-event__example:active {
+  transform: scale(.99);
+  background-color: var(--color-bg);
+}
+
+/* --- STEP 6：意気込みのカード ---------------------------------------------
+   ★複数選べる。0件でも次へ進める（自由記述を2連続にしないための二段構え）。
+   ★色だけでなくチェックマークでも選択が分かるようにする。 */
+
+.p-create-event__cards {
+  margin-bottom: var(--space-5);
+}
+
+.p-create-event__cards > * + * {
+  margin-top: var(--space-2);
+}
+
+.p-create-event__card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 14px var(--space-4);
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  text-align: left;
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-create-event__card:active {
+  transform: scale(.99);
+}
+
+.p-create-event__card.is-selected {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-wash);
+}
+
+.p-create-event__card-check {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.p-create-event__card.is-selected .p-create-event__card-check {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger);
+  color: var(--color-text-inverse);
+}
+
+.p-create-event__card-label {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-create-event__card.is-selected .p-create-event__card-label {
+  color: var(--color-danger);
+}
+
+.p-create-event__inline-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 下に例文が続く入力欄 */
+.p-create-event__input--spaced {
+  margin-bottom: var(--space-3);
+}
+
+/* --- STEP 7：招待リンク ---------------------------------------------------
+   ★この画面に着いた瞬間にイベント作成＋招待リンク発行が走る。
+     作成中は「戻る」を押せない（作成が二重に走るため）。 */
+
+.p-create-event__state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 384px;
+  padding-block: 48px;
+}
+
+.p-create-event__state-text {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-create-event__error {
+  width: 100%;
+  max-width: 384px;
+  padding-block: var(--space-8);
+}
+
+.p-create-event__error-symbol {
+  margin-bottom: var(--space-3);
+  font-size: 40px;
+  text-align: center;
+}
+
+.p-create-event__error-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-create-event__error-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-create-event__done {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.p-create-event__share-lead {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-create-event__link-box {
+  width: 100%;
+  max-width: 384px;
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-create-event__link-label {
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-create-event__link-url {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: var(--color-text);
+  text-align: center;
+  word-break: break-all;
+}
+
+.p-create-event__share {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 384px;
+}
+
+.p-create-event__share-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.p-create-event__share-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-create-event__share-button:active {
+  transform: scale(.95);
+}
+
+.p-create-event__share-button--copy {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.p-create-event__share-button--native {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+/* LINE のブランド色。ここだけは他で使わないので直値をトークン化してある */
+.p-create-event__share-button--line {
+  background-color: var(--color-line);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-inverse);
+}
+
+.p-create-event__heading--spaced {
+  margin-bottom: var(--space-6);
+}
+
+/* 大きめのスピナー（作成中）*/
+.p-create-event__state-spinner {
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--space-4);
+}

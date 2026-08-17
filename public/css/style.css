@@ -49,6 +49,7 @@
 @import url("./object/component/_coach-mark.css");
 
 /* Object: Project ---------------------------------------------------------- */
+@import url("./object/project/_create-event.css");
 @import url("./object/project/_account.css");
 @import url("./object/project/_auth.css");
 @import url("./object/project/_home.css");

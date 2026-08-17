@@ -31,16 +31,17 @@ function _steps(step, label) {
 
 /** 選択式・入力式ステップの共通の外枠（STEP 2/3/5/6 で使う） */
 function _stepShell({ step, stepLabel, heading, sub = '', body, footer }) {
+  // スタイル: public/css/object/project/_create-event.css
   return `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
-      <header class="px-6 pt-10 pb-6 text-center">
-        <h1 class="heading-l text-[#0CA1E3]">新規イベントの作成</h1>
+    <div class="p-create-event">
+      <header class="p-create-event__header">
+        <h1 class="p-create-event__brand">新規イベントの作成</h1>
       </header>
-      <main class="flex-1 px-6 pt-2 pb-12 flex flex-col page-transition items-center">
-        <h2 class="heading-m mb-2 text-[#484545] font-bold text-center">${heading}</h2>
-        ${sub ? `<p class="text-[11px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">${sub}</p>` : '<div class="mb-5"></div>'}
-        <div class="w-full max-w-sm">${body}</div>
-        <div class="mt-auto w-full max-w-sm space-y-3 pt-8">
+      <main class="p-create-event__main page-transition">
+        <h2 class="p-create-event__heading">${heading}</h2>
+        ${sub ? `<p class="p-create-event__sub">${sub}</p>` : '<div class="p-create-event__sub-spacer"></div>'}
+        <div class="p-create-event__body">${body}</div>
+        <div class="p-create-event__footer">
           ${_steps(step, stepLabel)}
           ${footer}
         </div>
@@ -55,27 +56,25 @@ export function renderCreateEventInfo(container) {
   const canNext = !!state.draftEvent.name;
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
-      <header class="px-6 pt-10 pb-8 text-center">
-        <h1 class="heading-l text-[#0CA1E3]">新規イベントの作成</h1>
+    <div class="p-create-event">
+      <header class="p-create-event__header p-create-event__header--roomy">
+        <h1 class="p-create-event__brand">新規イベントの作成</h1>
       </header>
-      <main class="flex-1 px-8 pt-2 pb-12 flex flex-col page-transition items-center">
-        <div class="w-full space-y-3 mb-12">
-          <div>
-            <label class="heading-rs block mb-2 text-[#484545]">イベント名</label>
-            <input type="text" placeholder="イベント名を入力"
-              value="${_esc(state.draftEvent.name)}"
-              oninput="window._app.updateDraftInfo('name', this.value)"
-              class="c-input w-full px-5 py-4 focus:outline-none">
-            <p class="text-[11px] text-[#A7AAAC] font-bold mt-2">あとで変更できます</p>
-          </div>
+      <main class="p-create-event__main p-create-event__main--wide page-transition">
+        <div class="p-create-event__field">
+          <label class="p-create-event__label" for="cp-event-name">イベント名</label>
+          <input id="cp-event-name" type="text" placeholder="イベント名を入力"
+            value="${_esc(state.draftEvent.name)}"
+            oninput="window._app.updateDraftInfo('name', this.value)"
+            class="c-input c-input--block p-create-event__input">
+          <p class="p-create-event__note">あとで変更できます</p>
         </div>
-        <div class="mt-auto w-full max-w-sm space-y-3">
+        <div class="p-create-event__footer p-create-event__footer--tight">
           ${_steps(1, 'イベント作成（1/6）')}
-          <button id="cp-info-next" onclick="window._app.tryProceedFromInfo()"
-            class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg" ${canNext ? '' : 'disabled style="opacity:.5"'}>次へ</button>
-          <button onclick="window._app.setView('HOME')"
-            class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>
+          <button type="button" id="cp-info-next" onclick="window._app.tryProceedFromInfo()"
+            class="c-button c-button--primary p-create-event__next" ${canNext ? '' : 'disabled'}>次へ</button>
+          <button type="button" onclick="window._app.setView('HOME')"
+            class="c-button c-button--secondary p-create-event__back">戻る</button>
         </div>
       </main>
     </div>`;
@@ -89,13 +88,10 @@ export function renderCreateEventInfo(container) {
 export function renderCreateEventType(container) {
   const cur = state.draftEvent.eventType;
   const body = EVENT_TYPES.map(t => `
-    <button data-cp-type="${t.id}"
-      class="w-full text-left px-5 py-4 mb-2.5 rounded-2xl border-2 transition-all active:scale-[.99]
-        ${cur === t.id
-          ? 'border-[#0CA1E3] bg-[#0CA1E3]/5 shadow-sm'
-          : 'border-[#E1DFDC] bg-white'}">
-      <span class="block text-[14px] font-bold ${cur === t.id ? 'text-[#0CA1E3]' : 'text-[#484545]'}">${_esc(t.label)}</span>
-      <span class="block text-[11px] text-[#A7AAAC] font-bold mt-0.5">${_esc(t.hint)}</span>
+    <button type="button" data-cp-type="${t.id}"
+      class="p-create-event__choice${cur === t.id ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">${_esc(t.label)}</span>
+      <span class="p-create-event__choice-hint">${_esc(t.hint)}</span>
     </button>`).join('');
 
   container.innerHTML = _stepShell({
@@ -105,7 +101,7 @@ export function renderCreateEventType(container) {
     body,
     footer: `
       <button onclick="window._app.setView('CREATE_EVENT_INFO')"
-        class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
 
   container.querySelectorAll('[data-cp-type]').forEach(el =>
@@ -120,12 +116,9 @@ export function renderCreateEventScale(container) {
   const cur = state.draftEvent.expectedScale;
   const body = EXPECTED_SCALES.map(s => `
     <button data-cp-scale="${s.id}"
-      class="w-full text-left px-5 py-5 mb-3 rounded-2xl border-2 transition-all active:scale-[.99]
-        ${cur === s.id
-          ? 'border-[#0CA1E3] bg-[#0CA1E3]/5 shadow-sm'
-          : 'border-[#E1DFDC] bg-white'}">
-      <span class="block text-[14px] font-bold ${cur === s.id ? 'text-[#0CA1E3]' : 'text-[#484545]'}">${_esc(s.label)}</span>
-      <span class="block text-[11px] text-[#A7AAAC] font-bold mt-1">${_esc(s.hint)}</span>
+      class="p-create-event__choice p-create-event__choice--roomy${cur === s.id ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">${_esc(s.label)}</span>
+      <span class="p-create-event__choice-hint">${_esc(s.hint)}</span>
     </button>`).join('');
 
   container.innerHTML = _stepShell({
@@ -135,7 +128,7 @@ export function renderCreateEventScale(container) {
     body,
     footer: `
       <button onclick="window._app.setView('CREATE_EVENT_TYPE')"
-        class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
 
   container.querySelectorAll('[data-cp-scale]').forEach(el =>
@@ -173,27 +166,24 @@ export function renderCreateEventDates(container) {
 
   // 日付セル: 選択時は --create-red 色
   let cellsHtml = '';
-  for (let i = 0; i < firstDay; i++) cellsHtml += `<div class="h-10"></div>`;
+  for (let i = 0; i < firstDay; i++) cellsHtml += `<div class="p-create-event__day--blank"></div>`;
   for (let d = 1; d <= lastDate; d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const isSel   = selected.includes(dateStr);
     cellsHtml += `
-      <div data-cp-day="${dateStr}"
-        class="h-10 w-full flex items-center justify-center rounded-lg cursor-pointer transition-colors text-[13px] font-bold select-none
-        ${isSel ? 'text-white shadow-md' : 'bg-white text-[#484545] active:bg-[#FDFBF8]'}"
-        style="${isSel ? 'background-color: var(--create-red);' : ''} touch-action: none; -webkit-user-select: none; user-select: none;">${d}</div>`;
+      <div data-cp-day="${dateStr}" class="p-create-event__day${isSel ? ' is-selected' : ''}">${d}</div>`;
   }
 
   // 選択済み日付（個別削除付き）
   const selectedListHtml = groups.length === 0
-    ? `<p class="text-[11px] text-[#A7AAAC] text-center py-2">日付が選択されていません</p>`
+    ? `<p class="p-create-event__selected-empty">日付が選択されていません</p>`
     : groups.map((g, i) => {
         const label = g[0] === g[g.length - 1] ? g[0] : `${g[0]}〜${g[g.length - 1]}`;
         const groupJson = encodeURIComponent(JSON.stringify(g));
         return `
-          <div class="inline-flex items-center gap-1 bg-white border border-[#D3D6D8] pl-3 pr-1 py-1 rounded-full shadow-sm animate-fadeIn">
-            <span class="text-[11px] text-[#484545] font-bold">${label}</span>
-            <button data-cp-remove-group="${groupJson}" class="p-1 opacity-50 active:opacity-100">
+          <div class="p-create-event__date-tag animate-fadeIn">
+            <span class="p-create-event__date-tag-label">${label}</span>
+            <button type="button" data-cp-remove-group="${groupJson}" class="p-create-event__date-tag-remove" aria-label="削除">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
@@ -202,48 +192,47 @@ export function renderCreateEventDates(container) {
       }).join('');
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
-      <header class="px-6 pt-10 pb-8 text-center">
-        <h1 class="heading-l text-[#0CA1E3]">新規イベントの作成</h1>
+    <div class="p-create-event">
+      <header class="p-create-event__header p-create-event__header--roomy">
+        <h1 class="p-create-event__brand">新規イベントの作成</h1>
       </header>
-      <main class="flex-1 px-6 pt-2 pb-12 flex flex-col page-transition items-center">
-        <h2 class="heading-m mb-2 text-[#484545] font-bold">開催日はいつ？ <span class="text-[#A7AAAC] text-[11px]">（任意）</span></h2>
-        <p class="text-[11px] text-[#A7AAAC] font-bold text-center mb-4">
+      <main class="p-create-event__main page-transition">
+        <h2 class="p-create-event__heading">開催日はいつ？ <span class="p-create-event__optional">（任意）</span></h2>
+        <p class="p-create-event__sub">
           タップまたはスライドで複数日選択<br>
           後から設定することもできます
         </p>
 
-        <!-- カレンダー -->
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-4 w-full max-w-sm mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <button id="cp-cal-prev" class="p-2 bg-[#FDFBF8] rounded-full active:scale-95">
-              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 brightness-0 opacity-50">
+        <div class="p-create-event__calendar">
+          <div class="p-create-event__calendar-head">
+            <button type="button" id="cp-cal-prev" class="p-create-event__calendar-nav" aria-label="前の月">
+              <img src="/images/icon/iocn-Chevron.svg" class="p-create-event__calendar-nav-icon" alt="">
             </button>
-            <h3 class="heading-r text-[#484545] font-bold">${year}年 ${month + 1}月</h3>
-            <button id="cp-cal-next" class="p-2 bg-[#FDFBF8] rounded-full active:scale-95">
-              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-50">
+            <h3 class="p-create-event__calendar-month">${year}年 ${month + 1}月</h3>
+            <button type="button" id="cp-cal-next" class="p-create-event__calendar-nav" aria-label="次の月">
+              <img src="/images/icon/iocn-Chevron.svg" class="p-create-event__calendar-nav-icon p-create-event__calendar-nav-icon--next" alt="">
             </button>
           </div>
-          <div class="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] text-[#A7AAAC] font-bold">
+          <div class="p-create-event__weekdays">
             ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
           </div>
-          <div id="cp-cal-grid" class="grid grid-cols-7 gap-1">${cellsHtml}</div>
+          <div id="cp-cal-grid" class="p-create-event__grid">${cellsHtml}</div>
         </div>
 
         <!-- 選択済みの日付（タグ表示・×で削除） -->
-        <div class="w-full max-w-sm mb-2">
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">選択中の日付</p>
-          <div class="flex flex-wrap gap-2">${selectedListHtml}</div>
+        <div class="p-create-event__selected">
+          <p class="p-create-event__selected-label">選択中の日付</p>
+          <div class="p-create-event__selected-list">${selectedListHtml}</div>
         </div>
 
-        <div class="mt-auto w-full max-w-sm space-y-3 pt-6">
+        <div class="p-create-event__footer">
           ${_steps(4, 'イベント作成（4/6）')}
-          <button id="cp-dates-next" onclick="window._app.tryProceedFromDates()"
-            class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg" ${canNext ? '' : 'disabled style="opacity:.5"'}>次へ</button>
-          <button onclick="window._app.skipStep('dates')"
-            class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">あとで決める</button>
-          <button onclick="window._app.setView('CREATE_EVENT_SCALE')"
-            class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>
+          <button type="button" id="cp-dates-next" onclick="window._app.tryProceedFromDates()"
+            class="c-button c-button--primary p-create-event__next" ${canNext ? '' : 'disabled'}>次へ</button>
+          <button type="button" onclick="window._app.skipStep('dates')"
+            class="p-create-event__skip">あとで決める</button>
+          <button type="button" onclick="window._app.setView('CREATE_EVENT_SCALE')"
+            class="c-button c-button--secondary p-create-event__back">戻る</button>
         </div>
       </main>
     </div>`;
@@ -301,8 +290,9 @@ function _bindCalendarDrag(container) {
     const selected = state.draftEvent.dates;
     grid.querySelectorAll('[data-cp-day]').forEach(cell => {
       const isSel = selected.includes(cell.dataset.cpDay);
-      cell.className = `h-10 w-full flex items-center justify-center rounded-lg cursor-pointer transition-colors text-[13px] font-bold select-none ${isSel ? 'text-white shadow-md' : 'bg-white text-[#484545] active:bg-[#FDFBF8]'}`;
-      cell.style.cssText = `${isSel ? 'background-color: var(--create-red);' : ''} touch-action: none; -webkit-user-select: none; user-select: none;`;
+      // ★状態だけ切り替える。以前はクラス文字列を組み立てて className ごと
+      //   差し替えていたため、見た目を変えるのに JS を直す必要があった。
+      cell.classList.toggle('is-selected', isSel);
     });
   };
 
@@ -377,13 +367,12 @@ export function renderCreateEventCatchphrase(container) {
     <input type="text" id="cp-catch-input" placeholder="キャッチコピーを入力"
       value="${_esc(d.catchphrase || '')}" maxlength="50"
       oninput="window._app.updateDraftCatchphrase(this.value)"
-      class="c-input w-full px-5 py-4 focus:outline-none mb-3">
+      class="c-input c-input--block p-create-event__input p-create-event__input--spaced">
 
-    <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">例文（タップで使う）</p>
-    <div class="space-y-2 mb-5">
+    <p class="p-create-event__examples-label">例文（タップで使う）</p>
+    <div class="p-create-event__examples">
       ${examples.map(ex => `
-        <button data-cp-example="${_esc(ex)}"
-          class="w-full text-left px-4 py-3 rounded-xl border border-[#E1DFDC] bg-white text-[13px] font-bold text-[#484545] active:bg-[#FDFBF8] active:scale-[.99] transition-all">
+        <button type="button" data-cp-example="${_esc(ex)}" class="p-create-event__example">
           ${_esc(ex)}
         </button>`).join('')}
     </div>`;
@@ -395,11 +384,11 @@ export function renderCreateEventCatchphrase(container) {
     body,
     footer: `
       <button onclick="window._app.proceedFromCatchphrase()"
-        class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg">次へ</button>
+        class="c-button c-button--primary p-create-event__next">次へ</button>
       <button onclick="window._app.skipStep('catchphrase')"
-        class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">スキップする</button>
+        class="p-create-event__skip">スキップする</button>
       <button onclick="window._app.setView('CREATE_EVENT_DATES')"
-        class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
 
   container.querySelectorAll('[data-cp-example]').forEach(el =>
@@ -420,29 +409,27 @@ export function renderCreateEventMotivation(container) {
   const sel = new Set(d.motivationTags || []);
 
   const body = `
-    <div class="space-y-2 mb-5">
+    <div class="p-create-event__cards">
       ${MOTIVATION_CARDS.map(c => {
         const on = sel.has(c.id);
         return `
-          <button data-cp-motiv="${c.id}"
-            class="w-full text-left px-4 py-3.5 rounded-2xl border-2 transition-all active:scale-[.99] flex items-center gap-3
-              ${on ? 'border-[#EE3E12] bg-[#EE3E12]/5' : 'border-[#E1DFDC] bg-white'}">
-            <span class="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center border-2
-              ${on ? 'bg-[#EE3E12] border-[#EE3E12]' : 'border-[#D3D6D8]'}">
-              ${on ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>` : ''}
+          <button type="button" data-cp-motiv="${c.id}"
+            class="p-create-event__card${on ? ' is-selected' : ''}">
+            <span class="p-create-event__card-check">
+              ${on ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>` : ''}
             </span>
-            <span class="text-[13px] font-bold ${on ? 'text-[#EE3E12]' : 'text-[#484545]'}">${_esc(c.label)}</span>
+            <span class="p-create-event__card-label">${_esc(c.label)}</span>
           </button>`;
       }).join('')}
     </div>
 
-    <label class="text-[11px] text-[#484545] font-bold block mb-2">
-      ひとことで言うと？ <span class="text-[#A7AAAC]">（任意）</span>
+    <label class="p-create-event__inline-label" for="cp-motiv-input">
+      ひとことで言うと？ <span class="p-create-event__optional">（任意）</span>
     </label>
     <input type="text" id="cp-motiv-input" placeholder="例：全部出しきる"
       value="${_esc(d.motivationText || '')}" maxlength="50"
       oninput="window._app.updateDraftMotivationText(this.value)"
-      class="c-input w-full px-5 py-4 focus:outline-none">`;
+      class="c-input c-input--block p-create-event__input">`;
 
   container.innerHTML = _stepShell({
     step: 6, stepLabel: 'イベント作成（6/6）',
@@ -451,11 +438,11 @@ export function renderCreateEventMotivation(container) {
     body,
     footer: `
       <button onclick="window._app.proceedFromMotivation()"
-        class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg">次へ</button>
+        class="c-button c-button--primary p-create-event__next">次へ</button>
       <button onclick="window._app.skipStep('motivation')"
-        class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">スキップする</button>
+        class="p-create-event__skip">スキップする</button>
       <button onclick="window._app.setView('CREATE_EVENT_CATCHPHRASE')"
-        class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
 
   container.querySelectorAll('[data-cp-motiv]').forEach(el =>
@@ -477,28 +464,28 @@ export function renderCreateEventInvite(container) {
   }
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
-      <header class="px-6 pt-10 pb-8 text-center">
-        <h1 class="heading-l text-[#0CA1E3]">新規イベントの作成</h1>
+    <div class="p-create-event">
+      <header class="p-create-event__header p-create-event__header--roomy">
+        <h1 class="p-create-event__brand">新規イベントの作成</h1>
       </header>
-      <main class="flex-1 px-8 pt-2 pb-12 flex flex-col items-center page-transition">
-        <h2 class="heading-m mb-6 text-[#484545] font-bold">チームメンバーを招待しよう！</h2>
+      <main class="p-create-event__main p-create-event__main--wide page-transition">
+        <h2 class="p-create-event__heading p-create-event__heading--spaced">チームメンバーを招待しよう！</h2>
 
         ${sec.creating ? _renderCreating()
           : sec.error    ? _renderError(sec.error)
                          : _renderShare(sec.inviteUrl)}
 
-        <div class="mt-auto w-full max-w-sm space-y-3 pt-8">
+        <div class="p-create-event__footer">
           ${_steps(TOTAL_STEPS + 1, '完了')}
           ${sec.inviteUrl ? `
-            <button id="cpi-finish"
-              class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg">イベント画面へ</button>
+            <button type="button" id="cpi-finish"
+              class="c-button c-button--primary p-create-event__next">イベント画面へ</button>
           ` : sec.error ? `
-            <button id="cpi-retry"
-              class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg">もう一度試す</button>
+            <button type="button" id="cpi-retry"
+              class="c-button c-button--primary p-create-event__next">もう一度試す</button>
           ` : ''}
-          <button onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
-            class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]" ${sec.creating ? 'disabled style="opacity:.5"' : ''}>戻る</button>
+          <button type="button" onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
+            class="c-button c-button--secondary p-create-event__back" ${sec.creating ? 'disabled' : ''}>戻る</button>
         </div>
       </main>
     </div>`;
@@ -523,46 +510,40 @@ export function renderCreateEventInvite(container) {
 
 function _renderCreating() {
   return `
-    <div class="w-full max-w-sm flex flex-col items-center py-12">
-      <div class="w-12 h-12 border-4 border-[#0CA1E3] border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p class="text-[13px] text-[#484545] font-bold">イベントを作成中…</p>
+    <div class="p-create-event__state">
+      <div class="c-spinner p-create-event__state-spinner"></div>
+      <p class="p-create-event__state-text">イベントを作成中…</p>
     </div>`;
 }
 
 function _renderError(msg) {
   return `
-    <div class="w-full max-w-sm py-8">
-      <p class="text-[40px] text-center mb-3">⚠️</p>
-      <p class="text-[14px] text-[#484545] font-bold text-center mb-2">作成に失敗しました</p>
-      <p class="text-[12px] text-[#A7AAAC] font-bold text-center">${_esc(msg)}</p>
+    <div class="p-create-event__error">
+      <p class="p-create-event__error-symbol">⚠️</p>
+      <p class="p-create-event__error-title">作成に失敗しました</p>
+      <p class="p-create-event__error-text">${_esc(msg)}</p>
     </div>`;
 }
 
 function _renderShare(url) {
   return `
-    <p class="text-[12px] text-[#0CA1E3] font-bold text-center mb-2">✓ イベントを作成しました</p>
-    <p class="text-[12px] text-[#A7AAAC] font-bold text-center leading-relaxed mb-4">
+    <p class="p-create-event__done">✓ イベントを作成しました</p>
+    <p class="p-create-event__share-lead">
       下のリンクをメンバーに送って<br>
       参加してもらいましょう
     </p>
-    <div class="bg-white border border-[#D3D6D8] p-3 rounded-xl shadow-sm w-full max-w-sm mb-3">
-      <p class="text-[10px] text-[#A7AAAC] font-bold mb-1.5 text-center">招待リンク</p>
-      <p class="text-[10px] font-mono text-[#484545] text-center break-all">${_esc(url)}</p>
+    <div class="p-create-event__link-box">
+      <p class="p-create-event__link-label">招待リンク</p>
+      <p class="p-create-event__link-url">${_esc(url)}</p>
     </div>
-    <div class="grid grid-cols-1 gap-2 w-full max-w-sm">
-      <button data-copy="${_esc(url)}"
-          class="bg-white border border-[#0CA1E3] text-[#0CA1E3] py-3 rounded-full font-bold text-[13px] active:scale-95 transition-transform">
-          コピー
-        </button>
-      <div class="grid grid-cols-2 gap-2">
-        <button data-native-share="${_esc(url)}"
-          class="bg-[#0CA1E3] text-white py-3 rounded-full font-bold text-[13px] active:scale-95 transition-transform">
-          他のアプリで共有
-        </button>
-        <button data-line-share="${_esc(url)}"
-        class="flex items-center justify-center gap-2 bg-[#06C755] text-white px-6 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-transform">
-        LINE で送る
-      </button>
+    <div class="p-create-event__share">
+      <button type="button" data-copy="${_esc(url)}"
+        class="p-create-event__share-button p-create-event__share-button--copy">コピー</button>
+      <div class="p-create-event__share-row">
+        <button type="button" data-native-share="${_esc(url)}"
+          class="p-create-event__share-button p-create-event__share-button--native">他のアプリで共有</button>
+        <button type="button" data-line-share="${_esc(url)}"
+          class="p-create-event__share-button p-create-event__share-button--line">LINE で送る</button>
       </div>
     </div>`;
 }

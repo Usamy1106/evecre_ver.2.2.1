@@ -54,6 +54,9 @@
   --color-pending-divider: rgba(158, 223, 5, .3);
   --color-danger-tint: rgba(238, 62, 18, .1);
   --color-primary-faint: rgba(12, 161, 227, .2);
+  --color-primary-wash: rgba(12, 161, 227, .05);
+  --color-danger-wash: rgba(238, 62, 18, .05);
+  --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
   --color-primary-half: rgba(12, 161, 227, .3);
   --color-primary-pale2: #EBF7FE;   /* --color-primary-pale と近い。統合は Phase 5 で判断 */
   --color-warning-dark: #9B7700;
