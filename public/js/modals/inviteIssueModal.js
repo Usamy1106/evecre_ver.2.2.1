@@ -87,17 +87,17 @@ async function _issueInvite(overlay, ctx) {
 function _render(overlay, ctx) {
   if (ctx.issuing) {
     overlay.innerHTML = `
-      <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center animate-fadeIn">
-        <p class="text-[14px] font-bold text-[#484545]">招待リンクを発行中…</p>
+      <div class="c-modal animate-fadeIn">
+        <p class="c-modal__note">招待リンクを発行中…</p>
       </div>`;
     return;
   }
 
   if (ctx.error) {
     overlay.innerHTML = `
-      <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-fadeIn">
-        <p class="text-[14px] font-bold text-[#EE3E12] mb-3 text-center">${_esc(ctx.error)}</p>
-        <button id="iim-close" class="w-full py-3 rounded-xl text-[14px] font-bold text-[#484545] bg-[#EBE8E5]">閉じる</button>
+      <div class="c-modal c-modal--compact animate-fadeIn">
+        <p class="p-invite__error">${_esc(ctx.error)}</p>
+        <button type="button" id="iim-close" class="p-invite__close">閉じる</button>
       </div>`;
     document.getElementById('iim-close')?.addEventListener('click', () => _close(overlay));
     return;
@@ -105,39 +105,38 @@ function _render(overlay, ctx) {
 
   const url = ctx.inviteUrl;
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative animate-fadeIn">
-      <button id="iim-close" class="absolute top-3 right-3 p-2 opacity-40">
+    <div class="c-modal c-modal--compact animate-fadeIn">
+      <button type="button" id="iim-close" class="c-modal__close" aria-label="閉じる">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-      <h2 class="heading-r text-[#484545] font-bold mb-2 text-center">チームメンバーを招待</h2>
-      <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-4 leading-relaxed">
+      <h2 class="c-modal__heading c-modal__heading--center">チームメンバーを招待</h2>
+      <p class="p-invite__lead">
         下のリンクを送って<br>メンバーに参加してもらいましょう
       </p>
 
-      <div class="bg-[#FDFBF8] border border-[#E1DFDC] p-3 rounded-xl mb-4">
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-1.5 text-center">招待リンク</p>
-        <p class="text-[10px] font-mono text-[#484545] text-center break-all">${_esc(url)}</p>
+      <div class="p-invite__link-box">
+        <p class="p-invite__link-label">招待リンク</p>
+        <p class="p-invite__link-url">${_esc(url)}</p>
       </div>
 
-      <div class="space-y-2">
-        <button id="iim-line"
-          class="w-full flex items-center justify-center gap-2 bg-[#06C755] text-white py-3 rounded-full font-bold text-[14px] active:scale-95 transition-transform">
+      <div class="p-invite__share">
+        <button type="button" id="iim-line"
+          class="p-invite__share-button p-invite__share-button--line">
           LINE で送る
         </button>
-        <div class="grid grid-cols-2 gap-2">
-          <button id="iim-share"
-            class="bg-[#0CA1E3] text-white py-2.5 rounded-full font-bold text-[12px] active:scale-95 transition-transform">
+        <div class="p-invite__share-row">
+          <button type="button" id="iim-share"
+            class="p-invite__share-button p-invite__share-button--sm p-invite__share-button--native">
             他のアプリで共有
           </button>
-          <button id="iim-copy"
-            class="bg-white border border-[#0CA1E3] text-[#0CA1E3] py-2.5 rounded-full font-bold text-[12px] active:scale-95 transition-transform">
+          <button type="button" id="iim-copy"
+            class="p-invite__share-button p-invite__share-button--sm p-invite__share-button--copy">
             コピー
           </button>
         </div>
-        <button id="iim-skip"
-          class="w-full py-3 mt-2 text-[12px] font-bold text-[#A7AAAC]">
+        <button type="button" id="iim-skip" class="p-invite__later">
           後で招待する
         </button>
       </div>

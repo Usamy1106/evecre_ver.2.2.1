@@ -90,7 +90,8 @@
 | 通知タブ（応募待ち・確認待ち・通知一覧） | `object/project/_notification.css` |
 | アカウント作成フロー（STEP 0〜8） | `object/project/_signup.css` |
 | 山登りパスビジュアル（背景・マス・スクロール窓） | `object/project/_mountain.css` |
-| 参加まわりのモーダル（🔥・意気込み） | `object/project/_invite.css` |
+| 参加・招待まわりのモーダル（🔥・招待リンク） | `object/project/_invite.css` |
+| 開発者からのお知らせ | `object/project/_announcement.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -267,7 +268,8 @@ public/css/
 │  ├─ _notification.css         ✅ 通知タブ
 │  ├─ _signup.css               ✅ アカウント作成フロー
 │  ├─ _mountain.css             ✅ 山登りパスビジュアル
-│  └─ _invite.css               ✅ 参加まわりのモーダル
+│  ├─ _invite.css               ✅ 参加・招待まわりのモーダル
+│  └─ _announcement.css         ✅ 開発者からのお知らせ
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _onboarding                            ⬜ Phase 4
 │
 └─ object/utility/

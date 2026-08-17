@@ -59,7 +59,7 @@ function _openModal() {
 
   const overlay = document.createElement('div');
   overlay.id = 'dev-announcement-overlay';
-  overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[180] flex items-center justify-center p-5';
+  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   document.body.appendChild(overlay);
 
@@ -79,21 +79,21 @@ function _renderPage(overlay, pages, index, opts = {}) {
   const pushMode = !!opts.pushSetup;
 
   const dots = !multi ? '' : `
-    <div class="flex items-center justify-center gap-1.5 mb-4">
-      ${pages.map((_, i) => `<div class="w-1.5 h-1.5 rounded-full ${i === index ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}"></div>`).join('')}
+    <div class="p-announcement__dots">
+      ${pages.map((_, i) => `<div class="p-announcement__dot${i === index ? ' is-active' : ''}"></div>`).join('')}
     </div>`;
 
   if (pushMode) {
     const phase = pushSetupPhase();
     overlay.innerHTML = `
-      <div data-ann-card class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col text-center"
+      <div data-ann-card class="p-announcement"
         style="max-height:92vh">
-        <div class="p-6 pt-6 overflow-y-auto flex-1">
+        <div class="p-announcement__body p-announcement__body--roomy">
           <div data-psm-body>${pushSetupContentHtml(phase)}</div>
         </div>
-        <div class="px-6 pb-6 pt-1 flex-shrink-0">
+        <div class="p-announcement__footer">
           ${dots}
-          <button data-action="next" class="w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]">
+          <button data-action="next" class="p-announcement__secondary">
             ${isLast ? '閉じる' : '次へ'}
           </button>
         </div>
@@ -126,32 +126,32 @@ function _renderPage(overlay, pages, index, opts = {}) {
   }
 
   const image = page.imageUrl ? `
-    <div class="w-full bg-[#F5F3F0] flex items-center justify-center" style="max-height:45vh">
+    <div class="p-announcement__figure" style="max-height:45vh">
       <img src="${_esc(page.imageUrl)}" alt=""
-        class="w-full h-auto object-contain" style="max-height:45vh">
+        class="p-announcement__image" style="max-height:45vh">
     </div>` : '';
 
   overlay.innerHTML = `
-    <div data-ann-card class="bg-white rounded-3xl w-full max-w-sm shadow-2xl ${opts.enterFrom ? '' : 'animate-fadeIn'} overflow-hidden flex flex-col text-center"
+    <div data-ann-card class="p-announcement ${opts.enterFrom ? '' : 'animate-fadeIn'}"
       style="max-height:92vh">
       ${image}
-      <div class="p-6 pt-5 overflow-y-auto flex-1">
-        ${page.title ? `<h3 class="heading-m text-[#484545] mb-3 font-bold">${_esc(page.title)}</h3>` : ''}
-        ${page.body ? `<p class="text-rs text-[#484545] font-medium leading-relaxed whitespace-pre-wrap text-left">${_esc(page.body)}</p>` : ''}
+      <div class="p-announcement__body">
+        ${page.title ? `<h3 class="p-announcement__title">${_esc(page.title)}</h3>` : ''}
+        ${page.body ? `<p class="p-announcement__text">${_esc(page.body)}</p>` : ''}
       </div>
-      <div class="px-6 pb-6 pt-1 flex-shrink-0">
+      <div class="p-announcement__footer">
         ${dots}
         ${page.action === 'push-setup' ? `
           <!-- 押すと同じモーダルの中で通知セットアップに切り替わり、
                「次へ」で続きのお知らせに戻る（overlay は閉じない） -->
-          <button data-action="push-setup" class="c-button c-button--primary w-full py-3 heading-rs font-bold mb-2">
+          <button data-action="push-setup" class="c-button c-button--primary p-announcement__primary">
             ${_esc(page.actionLabel || '通知を設定する')}
           </button>` : ''}
-        <button data-action="next" class="${page.action ? 'w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]' : 'c-button c-button--primary w-full py-3 heading-rs font-bold'}">
+        <button data-action="next" class="${page.action ? 'p-announcement__secondary' : 'c-button c-button--primary p-announcement__primary'}">
           ${isLast ? '閉じる' : '次へ'}
         </button>
         ${!isLast && !page.action ? `
-          <button data-action="close" class="w-full pt-3 text-[12px] font-bold text-[#A7AAAC]">
+          <button data-action="close" class="p-announcement__skip">
             スキップ
           </button>` : ''}
       </div>

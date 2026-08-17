@@ -1,0 +1,120 @@
+/* ==========================================================================
+   Object / Project / announcement — 開発者からのお知らせ
+   使用箇所: public/js/modals/devAnnouncementModal.js
+             （中身は public/js/devAnnouncement.js。配信のたびに編集する運用ファイル）
+
+   ★複数ページある場合は「次へ」で切り替わり、左右スワイプでも移動できる
+     （swipeCard.js を共用）。ただし通知セットアップの案内ページは
+     スワイプ無効（誤操作で飛ばさないため）。
+   ★既読は「開いた時点」で記録する。途中で閉じても同じ version は再表示しない。
+   ========================================================================== */
+
+.p-announcement {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+  max-width: 384px;
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-2xl);
+  text-align: center;
+}
+
+/* ★縦長画像でも画面外に溢れないよう、本文だけスクロールさせる */
+.p-announcement__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-6);
+  padding-top: var(--space-5);
+}
+
+.p-announcement__body--roomy {
+  padding-top: var(--space-6);
+}
+
+.p-announcement__footer {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-6) var(--space-6);
+}
+
+/* 画像は全体が見えるように置く（切り取らない）*/
+.p-announcement__figure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background-color: var(--color-table-head);
+}
+
+.p-announcement__image {
+  width: 100%;
+  height: auto;
+  max-height: 45vh;
+  object-fit: contain;
+}
+
+.p-announcement__title {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 本文は左寄せ（読ませる文章なので）。改行はそのまま活かす */
+.p-announcement__text {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.625;
+  color: var(--color-text);
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+/* ページ番号のドット */
+.p-announcement__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+
+.p-announcement__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+}
+
+.p-announcement__dot.is-active {
+  background-color: var(--color-primary);
+}
+
+.p-announcement__primary {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding-block: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* action 付きページでは「次へ」を控えめにする（action の方が主導線）*/
+.p-announcement__secondary {
+  width: 100%;
+  padding-block: var(--space-3);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-announcement__skip {
+  width: 100%;
+  padding-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}

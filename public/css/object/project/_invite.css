@@ -156,3 +156,108 @@
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);
 }
+
+/* --- 招待リンクの発行（イベント設定から）--------------------------------
+   使用箇所: public/js/modals/inviteIssueModal.js
+   ★イベント作成フローの STEP 7 と同じ内容だが、あちらは画面・こちらはモーダル。
+     共有ボタンの見た目は _create-event.css の p-create-event__share-* と同じ。 */
+
+.p-invite__link-box {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+}
+
+.p-invite__link-label {
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-invite__link-url {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  color: var(--color-text);
+  text-align: center;
+  word-break: break-all;
+}
+
+.p-invite__share > * + * {
+  margin-top: var(--space-2);
+}
+
+.p-invite__share-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.p-invite__share-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding-block: var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-invite__share-button:active {
+  transform: scale(.95);
+}
+
+.p-invite__share-button--sm {
+  padding-block: 10px;
+  font-size: var(--font-size-sm);
+}
+
+.p-invite__share-button--line {
+  background-color: var(--color-line);
+  color: var(--color-text-inverse);
+}
+
+.p-invite__share-button--native {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.p-invite__share-button--copy {
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.p-invite__later {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding-block: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-invite__close {
+  width: 100%;
+  padding-block: var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--button-secondary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-invite__lead {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+  text-align: center;
+}
