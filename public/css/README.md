@@ -71,6 +71,8 @@
 | 読み込み中のくるくる（`c-spinner`） | `object/component/_spinner.css` |
 | 招待の中身（参加中メンバー・意気込み） | `object/component/_invite-preview.css` |
 | ワンタイムコードのマス目入力 | `object/component/_otp-input.css` |
+| 1問ずつ聞くモーダル・スキルタグ | `object/component/_step-modal.css` |
+| ツールチップ・ツアー（③作成モーダル） | `object/component/_tooltip.css` |
 | 設定の1項目（カード型・一覧型どちらも） | `object/component/_settings-card.css` |
 | 長押し・右クリックのメニュー | `object/component/_context-menu.css` |
 | リアクションの絵文字を選ぶシート | `object/component/_emoji-picker.css` |
@@ -241,6 +243,8 @@ public/css/
 │  ├─ _spinner.css              ✅ c-spinner
 │  ├─ _invite-preview.css       ✅ c-invite-members / c-invite-motivation
 │  ├─ _otp-input.css            ✅ c-otp（[data-otp-box]）
+│  ├─ _step-modal.css           ✅ c-step-modal / c-skill-tag
+│  ├─ _tooltip.css              ✅ c-tooltip
 │  ├─ _settings-card.css        ✅ c-settings-card / c-settings-list
 │  ├─ _context-menu.css         ✅ c-context-menu
 │  ├─ _emoji-picker.css         ✅ c-emoji-picker

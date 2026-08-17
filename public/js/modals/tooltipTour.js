@@ -45,9 +45,9 @@ export function startTooltipTour(o) {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  // 背景は暗くしない（操作を止めないため）。ミッション作成モーダル(z-200前後)より前に出す
-  overlay.className = 'fixed inset-0 z-[430]';
-  overlay.style.pointerEvents = 'none';
+  // 背景は暗くしない（操作を止めないため）。ミッション作成モーダルより前に出す
+  // スタイル: public/css/object/component/_tooltip.css
+  overlay.className = 'c-tooltip-tour';
   document.body.appendChild(overlay);
 
   let idx = 0;
@@ -66,19 +66,16 @@ export function startTooltipTour(o) {
 
     const isLast = idx === steps.length - 1;
     overlay.innerHTML = `
-      <div data-tt-card class="absolute bg-white rounded-2xl shadow-2xl p-4 max-w-[280px]"
-        style="pointer-events:auto;">
-        <button data-tt="skip"
-          class="absolute top-2 right-2 text-[10px] font-bold text-[#A7AAAC] px-2 py-1">スキップ</button>
-        <p class="text-[10px] font-bold text-[#0CA1E3] mb-1">${idx + 1}/${steps.length}</p>
-        <p class="text-[14px] font-bold text-[#484545] mb-1 pr-10">${_esc(step.title)}</p>
-        <p class="text-[11px] font-bold text-[#A7AAAC] leading-relaxed mb-3">${_esc(step.body)}</p>
-        <button data-tt="next"
-          class="w-full py-2.5 rounded-xl text-[13px] font-bold text-white bg-[#0CA1E3]">${
+      <div data-tt-card class="c-tooltip">
+        <button type="button" data-tt="skip" class="c-tooltip__skip">スキップ</button>
+        <p class="c-tooltip__counter">${idx + 1}/${steps.length}</p>
+        <p class="c-tooltip__title">${_esc(step.title)}</p>
+        <p class="c-tooltip__text">${_esc(step.body)}</p>
+        <button type="button" data-tt="next" class="c-tooltip__next">${
             isLast ? _esc(o.lastLabel || 'はじめる') : '次へ'}</button>
       </div>
       <!-- 吹き出しの外をタップしても次へ進む（詰まらせない） -->
-      <div data-tt="outside" class="absolute inset-0 -z-10" style="pointer-events:auto;"></div>`;
+      <div data-tt="outside" class="c-tooltip-tour__outside"></div>`;
 
     const card = overlay.querySelector('[data-tt-card]');
     place(el, card);

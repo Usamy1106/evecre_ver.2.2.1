@@ -72,3 +72,8 @@
   z-index: var(--z-welcome);
   background-color: rgba(0, 0, 0, .6);
 }
+
+/* 1問ずつ聞くフォーム（参加申請・スキル回収）。自動表示モーダルより前 */
+.c-overlay--form {
+  z-index: var(--z-form-modal);
+}

@@ -23,3 +23,108 @@
     animation: none;
   }
 }
+
+/* --- 文言と指（②FAB・④ボード）--------------------------------------------
+   ★穴の位置・指の位置はすべて JS が getBoundingClientRect() で実測して
+     インライン style で入れる。ここには座標を書かない（safe-area の影響で
+     PWA と Safari タブで実座標が変わるため）。 */
+
+.c-coach-mark {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-coach);
+}
+
+/* 暗幕は「穴の外側を box-shadow で塗る」方式。穴の部分だけが素の画面として残る */
+.c-coach-mark__hole {
+  position: absolute;
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .62);
+  pointer-events: none;
+}
+
+.c-coach-mark__pulse {
+  position: absolute;
+  border: 2px solid rgba(255, 255, 255, .7);
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+
+/* 穴の上に重ねる透明なボタン。実要素へイベントを通すと端末差で崩れるので、
+   ここから同じハンドラを呼ぶ */
+.c-coach-mark__hit {
+  position: absolute;
+  border-radius: var(--radius-full);
+  background: transparent;
+}
+
+.c-coach-mark__copy {
+  position: absolute;
+  right: 0;
+  left: 0;
+  padding-inline: var(--space-6);
+  text-align: center;
+}
+
+.c-coach-mark__counter {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: rgba(255, 255, 255, .6);
+}
+
+.c-coach-mark__title {
+  margin-bottom: var(--space-1);
+  font-size: 17px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--white);
+}
+
+.c-coach-mark__text {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: rgba(255, 255, 255, .8);
+}
+
+.c-coach-mark__hint {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: rgba(255, 255, 255, .7);
+}
+
+/* ★指は穴に隣接させる。コピー文の中に置くと穴から離れて
+   「どこを指しているか」が伝わらない（実際にその指摘を受けた）。 */
+.c-coach-mark__finger {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  pointer-events: none;
+}
+
+.c-coach-mark__finger-hint {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: rgba(255, 255, 255, .8);
+  white-space: nowrap;
+}
+
+.c-coach-mark__cta {
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-8);
+  border-radius: var(--radius-full);
+  background-color: var(--white);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.c-coach-mark__cta:active {
+  transform: scale(.95);
+}

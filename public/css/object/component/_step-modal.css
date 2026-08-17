@@ -1,0 +1,162 @@
+/* ==========================================================================
+   Object / Component / step-modal — 1問ずつ聞くモーダル
+   使用箇所: public/js/modals/joinFormModal.js（参加申請フォーム）
+             public/js/modals/skillCollectModal.js（★暫定：既存メンバーのスキル回収）
+
+   ヘッダー（固定）／本文（スクロール）／フッター（固定・進捗＋ボタン）の3段。
+
+   ★1問ずつ出すのは、いきなり複数の入力を並べると答える前に閉じられるため。
+     どの問いも未回答のまま進める（必須にしない）。
+   ========================================================================== */
+
+.c-step-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 384px;
+  max-height: 85vh;
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-2xl);
+}
+
+.c-step-modal__header {
+  flex-shrink: 0;
+  padding: 28px 28px var(--space-2);
+}
+
+.c-step-modal__context {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.c-step-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) 28px;
+}
+
+.c-step-modal__footer {
+  flex-shrink: 0;
+  padding: var(--space-2) 28px 28px;
+}
+
+.c-step-modal__title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.c-step-modal__lead {
+  margin-bottom: var(--space-5);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.c-step-modal__empty {
+  padding-block: var(--space-6);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.c-step-modal__error {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+/* 進捗のドット */
+.c-step-modal__dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+}
+
+.c-step-modal__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-textbox);
+}
+
+.c-step-modal__dot.is-active {
+  background-color: var(--color-primary);
+}
+
+.c-step-modal__primary {
+  width: 100%;
+  padding-block: var(--space-4);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  box-shadow: var(--shadow-md);
+}
+
+.c-step-modal__primary:disabled {
+  opacity: .6;
+}
+
+.c-step-modal__secondary {
+  width: 100%;
+  margin-top: var(--space-1);
+  padding-block: var(--space-3);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- スキルタグ ----------------------------------------------------------
+   ★「できること」と「やってみたいこと」を、色だけでなく
+     チェック／プラスのアイコンでも区別する。
+   ★「苦手」「まかせたい」に相当する選択肢は置かないこと（消極的な宣言を
+     強いる。選ばれなかったタグ＝未選択で同じ情報が取れる）。 */
+
+.c-skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.c-skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) 14px;
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.c-skill-tag:active {
+  transform: scale(.95);
+}
+
+/* できること：青＋チェック */
+.c-skill-tag.is-good {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-tint);
+  color: var(--color-primary);
+}
+
+/* やってみたいこと：黄緑＋プラス */
+.c-skill-tag.is-want {
+  border-color: var(--color-success);
+  background-color: var(--color-success-tint);
+  color: var(--color-success-dark);
+}

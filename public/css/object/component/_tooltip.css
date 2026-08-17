@@ -1,0 +1,78 @@
+/* ==========================================================================
+   Object / Component / tooltip — 対象のそばに出す吹き出し（ツアー）
+   使用箇所: public/js/modals/tooltipTour.js（初期オンボーディング③）
+
+   ★②のスポットライトと違い、背景操作を止めない。ここで詰まると
+     「ミッションを作る」という本来の目的が達成できなくなるため、
+     スキップを常設し、吹き出しの外をタップしても次へ進む。
+   ★位置は JS が実測して入れる（ここには座標を書かない）。
+   ========================================================================== */
+
+.c-tooltip-tour {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-tooltip);
+  /* 背景を操作できるよう、面では受けない。中の要素だけが受ける */
+  pointer-events: none;
+}
+
+.c-tooltip {
+  position: absolute;
+  max-width: 280px;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-2xl);
+  pointer-events: auto;
+}
+
+.c-tooltip__skip {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-tooltip__counter {
+  margin-bottom: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.c-tooltip__title {
+  margin-bottom: var(--space-1);
+  padding-right: var(--space-10);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.c-tooltip__text {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+.c-tooltip__next {
+  width: 100%;
+  padding-block: 10px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}
+
+/* 吹き出しの外をタップしても次へ進む（詰まらせない） */
+.c-tooltip-tour__outside {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: auto;
+}

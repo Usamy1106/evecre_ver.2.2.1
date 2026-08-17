@@ -47,10 +47,12 @@
 @import url("./object/component/_spinner.css");
 @import url("./object/component/_settings-card.css");
 @import url("./object/component/_otp-input.css");
+@import url("./object/component/_step-modal.css");
 @import url("./object/component/_invite-preview.css");
 @import url("./object/component/_context-menu.css");
 @import url("./object/component/_emoji-picker.css");
 @import url("./object/component/_coach-mark.css");
+@import url("./object/component/_tooltip.css");
 
 /* Object: Project ---------------------------------------------------------- */
 @import url("./object/project/_main-board.css");

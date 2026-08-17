@@ -75,7 +75,8 @@ export function openSkillCollectModal(project) {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  overlay.className = 'fixed inset-0 z-[240] bg-black/50 backdrop-blur-sm flex items-center justify-center p-6';
+  // スタイル: public/css/object/component/_step-modal.css
+  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--form';
   document.body.appendChild(overlay);
   logEvent('skill_collect_shown');
 
@@ -95,22 +96,17 @@ export function openSkillCollectModal(project) {
   const tagHtml = (tag, on, isGood) => {
     if (!on) {
       return `
-        <button data-sc-tag="${_esc(tag.id)}"
-          class="text-[12px] font-bold px-3.5 py-2 rounded-full border-2
-            border-[#E1DFDC] bg-white text-[#A7AAAC] active:scale-95 transition-all">
+        <button type="button" data-sc-tag="${_esc(tag.id)}" class="c-skill-tag">
           ${_esc(tag.label)}
         </button>`;
     }
     // ★色だけに頼らず、できる=チェック / やってみたい=プラス でも区別する
-    const cls = isGood
-      ? 'border-[#0CA1E3] bg-[#0CA1E3]/10 text-[#0CA1E3]'
-      : 'border-[#9EDF05] bg-[#9EDF05]/10 text-[#7BB100]';
     const icon = isGood
       ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>'
       : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
     return `
-      <button data-sc-tag="${_esc(tag.id)}"
-        class="flex items-center gap-1.5 text-[12px] font-bold px-3.5 py-2 rounded-full border-2 ${cls} active:scale-95 transition-all">
+      <button type="button" data-sc-tag="${_esc(tag.id)}"
+        class="c-skill-tag ${isGood ? 'is-good' : 'is-want'}">
         ${icon}${_esc(tag.label)}
       </button>`;
   };
@@ -121,39 +117,37 @@ export function openSkillCollectModal(project) {
     const sel  = isGood ? ctx.good : ctx.want;
 
     overlay.innerHTML = `
-      <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl max-h-[85vh] flex flex-col animate-fadeIn">
-        <div class="shrink-0 px-7 pt-7 pb-2">
-          <p class="text-[11px] text-[#A7AAAC] font-bold text-center">
+      <div class="c-step-modal animate-fadeIn">
+        <div class="c-step-modal__header">
+          <p class="c-step-modal__context">
             「${_esc(project.name || 'イベント')}」のメンバー情報
           </p>
         </div>
-        <div class="flex-1 overflow-y-auto px-7 py-4">
-          <h3 class="text-[16px] font-bold text-[#484545] text-center mb-2">
+        <div class="c-step-modal__body">
+          <h3 class="c-step-modal__title">
             ${isGood ? 'できることは？' : 'やってみたいことは？'}
           </h3>
-          <p class="text-[11px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
+          <p class="c-step-modal__lead">
             ${isGood
               ? 'タップで選べます（複数可）<br>担当を決めるときの参考になります'
               : 'まだ得意ではないけど挑戦したいこと<br>選ばなくても大丈夫です'}
           </p>
           ${tags.length === 0
-            ? '<p class="text-[12px] text-[#A7AAAC] font-bold text-center py-6">すべて「できること」に選びました</p>'
-            : `<div class="flex flex-wrap gap-2 justify-center">
+            ? '<p class="c-step-modal__empty">すべて「できること」に選びました</p>'
+            : `<div class="c-skill-tags">
                 ${tags.map(t => tagHtml(t, !!sel[t.id], isGood)).join('')}
               </div>`}
         </div>
-        <div class="shrink-0 px-7 pb-7 pt-2">
-          <div class="flex justify-center gap-1.5 mb-3">
-            ${[1, 2].map(i => `<span class="w-1.5 h-1.5 rounded-full ${
-              i === ctx.step ? 'bg-[#0CA1E3]' : 'bg-[#E1DFDC]'}"></span>`).join('')}
+        <div class="c-step-modal__footer">
+          <div class="c-step-modal__dots">
+            ${[1, 2].map(i => `<span class="c-step-modal__dot${i === ctx.step ? ' is-active' : ''}"></span>`).join('')}
           </div>
-          ${ctx.error ? `<p class="text-[11px] text-[#EE3E12] font-bold text-center mb-2">${_esc(ctx.error)}</p>` : ''}
-          <button data-sc="next" ${ctx.saving ? 'disabled' : ''}
-            class="c-button c-button--primary w-full py-4 heading-m font-bold shadow-lg ${ctx.saving ? 'opacity-60' : ''}">
+          ${ctx.error ? `<p class="c-step-modal__error">${_esc(ctx.error)}</p>` : ''}
+          <button type="button" data-sc="next" ${ctx.saving ? 'disabled' : ''}
+            class="c-button c-button--primary c-step-modal__primary">
             ${ctx.saving ? '保存中…' : (isGood ? '次へ' : '保存する')}
           </button>
-          <button data-sc="${isGood ? 'later' : 'back'}"
-            class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]">
+          <button type="button" data-sc="${isGood ? 'later' : 'back'}" class="c-step-modal__secondary">
             ${isGood ? 'あとで' : '戻る'}
           </button>
         </div>

@@ -67,24 +67,22 @@ export function showCoachMark(o) {
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   // 全面で操作を止める。既存モーダル（最大 z-400）より前に出す
-  overlay.className = 'fixed inset-0 z-[420]';
+  // スタイル: public/css/object/component/_coach-mark.css
+  overlay.className = 'c-coach-mark';
   overlay.innerHTML = `
-    <div data-coach-hole class="absolute rounded-full pointer-events-none"
-      style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.62);"></div>
-    <div data-coach-pulse class="absolute rounded-full pointer-events-none border-2 border-white/70 coach-pulse"></div>
-    <button data-coach-hit class="absolute rounded-full" style="background:transparent;"></button>
-    <div data-coach-copy class="absolute px-6 text-center" style="left:0; right:0;">
-      ${o.counter ? `<p class="text-[11px] font-bold text-white/60 mb-2">${_esc(o.counter)}</p>` : ''}
-      <p class="text-[17px] font-bold text-white leading-snug mb-1">${_esc(o.title)}</p>
-      ${o.body ? `<p class="text-[13px] font-bold text-white/80 leading-relaxed">${_esc(o.body)}</p>` : ''}
-      ${(!o.finger && o.hint) ? `<p class="text-[11px] font-bold text-white/70 mt-3">${_esc(o.hint)}</p>` : ''}
-      ${o.cta ? `<button data-coach-cta
-        class="mt-5 px-8 py-3 rounded-full bg-white text-[#0CA1E3] text-[14px] font-bold shadow-lg
-        active:scale-95 transition-transform">${_esc(o.cta)}</button>` : ''}
+    <div data-coach-hole class="c-coach-mark__hole"></div>
+    <div data-coach-pulse class="c-coach-mark__pulse coach-pulse"></div>
+    <button type="button" data-coach-hit class="c-coach-mark__hit"></button>
+    <div data-coach-copy class="c-coach-mark__copy">
+      ${o.counter ? `<p class="c-coach-mark__counter">${_esc(o.counter)}</p>` : ''}
+      <p class="c-coach-mark__title">${_esc(o.title)}</p>
+      ${o.body ? `<p class="c-coach-mark__text">${_esc(o.body)}</p>` : ''}
+      ${(!o.finger && o.hint) ? `<p class="c-coach-mark__hint">${_esc(o.hint)}</p>` : ''}
+      ${o.cta ? `<button type="button" data-coach-cta class="c-coach-mark__cta">${_esc(o.cta)}</button>` : ''}
     </div>
     ${o.finger ? `
       <!-- ★指は穴に隣接させる。コピー文の中に置くと穴から離れて「どこを指しているか」が伝わらない -->
-      <div data-coach-finger class="absolute pointer-events-none flex flex-col items-center gap-1">
+      <div data-coach-finger class="c-coach-mark__finger">
         <svg class="coach-finger" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white"
           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
           style="filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));">
@@ -92,7 +90,7 @@ export function showCoachMark(o) {
           <path d="M13 11V8a2 2 0 1 1 4 0v3"/>
           <path d="M17 11v-1a2 2 0 1 1 4 0v6a5 5 0 0 1-5 5h-3a6 6 0 0 1-6-6v-4a2 2 0 1 1 4 0"/>
         </svg>
-        ${o.hint ? `<span class="text-[11px] font-bold text-white/80 whitespace-nowrap">${_esc(o.hint)}</span>` : ''}
+        ${o.hint ? `<span class="c-coach-mark__finger-hint">${_esc(o.hint)}</span>` : ''}
       </div>` : ''}`;
   document.body.appendChild(overlay);
 
