@@ -1,0 +1,240 @@
+/* ==========================================================================
+   Object / Project / assignee — 担当者の選択
+   使用箇所: public/js/modals/mission.js
+     - 作成モーダルの「担当者」欄（_renderAssigneeSelect）
+     - 担当者を選ぶボトムシート（openAssigneeSheet）
+     - 参加時の回答からのおすすめ（_assigneeSuggestHtml）
+
+   ★行の data-assignee-pick は選択ハンドラが掴む属性。消さないこと。
+     おすすめの行も同じ属性を使うので、ハンドラは1つで足りている。
+   ★おすすめを出す根拠が無いときは、おすすめの塊ごと出さない
+     （判定は assigneeSuggest.js。ここでは空になった場合の見た目を持たない）。
+   ========================================================================== */
+
+/* --- 作成モーダルの「担当者」欄 -------------------------------------------- */
+
+.p-assignee__trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  text-align: left;
+  font-size: 13px;
+}
+
+.p-assignee__trigger:focus {
+  outline: none;
+}
+
+/* 応募型のときは選べない（メンバーが自分で応募するため）*/
+.p-assignee__trigger--disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.p-assignee__trigger-label {
+  color: var(--color-text-muted);
+}
+
+.p-assignee__trigger-label.is-set {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-assignee__chevron {
+  width: 12px;
+  height: 12px;
+  filter: brightness(0);
+  opacity: .4;
+  transform: rotate(180deg);
+}
+
+.p-assignee__loading {
+  padding-block: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- ボトムシート --------------------------------------------------------- */
+
+.p-assignee__sheet {
+  display: flex;
+  height: 85vh;
+  flex-direction: column;
+}
+
+.p-assignee__title {
+  flex-shrink: 0;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-3);
+  font-size: 15px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-assignee__tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--bg-textbox);
+}
+
+.p-assignee__tab {
+  flex: 1;
+  padding-block: var(--space-3);
+  /* 選択時に 2px の下線が入るぶんを先に確保し、切り替えで文字が動かないようにする */
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.p-assignee__tab.is-active {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.p-assignee__list {
+  flex: 1;
+  padding-bottom: var(--space-6);
+  overflow-y: auto;
+}
+
+/* アカウントタブだけに出る確定バー（ロールは選んだ時点で閉じる）*/
+.p-assignee__confirm-bar {
+  flex-shrink: 0;
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--bg-textbox);
+}
+
+.p-assignee__confirm {
+  width: 100%;
+  padding-block: var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- 参加時の回答からのおすすめ ------------------------------------------- */
+
+.p-assignee__suggest {
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--bg-textbox);
+  background-color: var(--color-bg);
+}
+
+.p-assignee__suggest-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-assignee__suggest-list > * + * {
+  margin-top: var(--space-2);
+}
+
+/* おすすめの行は下の一覧と違い、カードとして枠を持つ（推薦だと分かるように）*/
+.p-assignee__suggest-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--space-3);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--white);
+  text-align: left;
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-assignee__suggest-item:active {
+  transform: scale(.99);
+}
+
+.p-assignee__suggest-item.is-checked {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-pale6);
+}
+
+.p-assignee__name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「◯◯が得意」など、なぜおすすめなのかの一言 */
+.p-assignee__reason {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- 一覧の行 ------------------------------------------------------------- */
+
+.p-assignee__row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--bg-textbox);
+  text-align: left;
+}
+
+.p-assignee__row:active {
+  background-color: var(--color-bg);
+}
+
+.p-assignee__row.is-checked {
+  background-color: var(--color-primary-pale6);
+}
+
+.p-assignee__row-name {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-assignee__row-sub {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+/* 選ばれている印。★色だけでなく形（✓ と空の四角）でも区別する */
+.p-assignee__check {
+  flex-shrink: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-assignee__checkbox {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+/* おすすめの行だけ、名前と印の間を空ける */
+.p-assignee__suggest-item .p-assignee__check,
+.p-assignee__suggest-item .p-assignee__checkbox {
+  margin-left: var(--space-2);
+}
+
+.p-assignee__empty {
+  padding-block: var(--space-6);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+}

@@ -85,6 +85,7 @@
   --color-primary-pale3: #EAF6FF;  /* 押したリアクション。他の pale と近い（統合は Phase 5）*/
   --color-primary-half: rgba(12, 161, 227, .3);
   --color-primary-pale2: #EBF7FE;   /* --color-primary-pale と近い。統合は Phase 5 で判断 */
+  --color-primary-pale6: #EBF8FF;  /* 担当者シートの選択行。他の pale と近い（統合は Phase 5）*/
   --color-warning-dark: #9B7700;
   --color-primary-pale5: #E1F4FC;  /* 開催日のマス（スケジュール）。他の pale と近い（統合は Phase 5）*/
   --color-event-date: #CFD8FF;     /* イベントの開催日のマス（日付ピッカー）*/

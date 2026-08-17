@@ -809,14 +809,14 @@ function _renderAssigneeSelect() {
   const selfClaim = !!state.draftMission.selfClaim;
 
   if (cache.loading) {
-    return `<p class="text-[11px] text-[#A7AAAC] py-2">読み込み中…</p>`;
+    return `<p class="p-assignee__loading">読み込み中…</p>`;
   }
 
   // 応募制ONの場合は無効化表示
   if (selfClaim) {
     return `
-      <div class="c-input w-full px-4 py-3 text-[13px] text-left flex items-center justify-between opacity-60 cursor-not-allowed">
-        <span class="text-[#A7AAAC]">応募型：メンバーが自分で割り当てます</span>
+      <div class="c-input p-assignee__trigger p-assignee__trigger--disabled">
+        <span class="p-assignee__trigger-label">応募型：メンバーが自分で割り当てます</span>
       </div>`;
   }
 
@@ -840,9 +840,9 @@ function _renderAssigneeSelect() {
 
   return `
     <button type="button" onclick="window._app.openAssigneeSheet()"
-      class="c-input w-full px-4 py-3 focus:outline-none text-[13px] text-left flex items-center justify-between">
-      <span class="${hasValue ? 'text-[#484545] font-bold' : 'text-[#A7AAAC]'}">${_esc(label)}</span>
-      <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-40">
+      class="c-input p-assignee__trigger">
+      <span class="p-assignee__trigger-label${hasValue ? ' is-set' : ''}">${_esc(label)}</span>
+      <img src="/images/icon/iocn-Chevron.svg" class="p-assignee__chevron">
     </button>`;
 }
 
@@ -865,31 +865,27 @@ export function openAssigneeSheet() {
   overlay.onclick = (e) => { if (e.target === overlay) closeAssigneeSheet(); };
 
   overlay.innerHTML = `
-    <div id="assignee-sheet-panel" data-sheet
-      class="c-sheet"
-      style="height: 85vh; display: flex; flex-direction: column;">
+    <div id="assignee-sheet-panel" data-sheet class="c-sheet p-assignee__sheet">
       <div data-sheet-handle class="c-sheet__handle c-sheet__handle--low"><div class="c-sheet__grip"></div></div>
-      <h3 class="text-[15px] font-bold text-[#484545] text-center pt-2 pb-3 flex-shrink-0">担当者を選択</h3>
+      <h3 class="p-assignee__title">担当者を選択</h3>
 
       <!-- タブ -->
-      <div id="assignee-tabs" class="flex border-b border-[#E1DFDC] flex-shrink-0">
-        <button data-assignee-tab="ACCOUNT"
-          class="flex-1 py-3 text-[13px] font-bold transition-colors">
+      <div id="assignee-tabs" class="p-assignee__tabs">
+        <button data-assignee-tab="ACCOUNT" class="p-assignee__tab">
           アカウント
         </button>
-        <button data-assignee-tab="ROLE"
-          class="flex-1 py-3 text-[13px] font-bold transition-colors">
+        <button data-assignee-tab="ROLE" class="p-assignee__tab">
           ロール
         </button>
       </div>
 
       <!-- リスト -->
-      <div id="assignee-sheet-list" class="flex-1 overflow-y-auto pb-6"></div>
+      <div id="assignee-sheet-list" class="p-assignee__list"></div>
 
       <!-- 確定ボタン（ACCOUNTタブのみ表示） -->
-      <div id="assignee-confirm-bar" class="px-5 py-4 border-t border-[#E1DFDC] flex-shrink-0" style="display:none">
+      <div id="assignee-confirm-bar" class="p-assignee__confirm-bar" style="display:none">
         <button id="assignee-confirm-btn"
-          class="c-button c-button--primary w-full py-3 heading-r font-bold">確定</button>
+          class="c-button c-button--primary p-assignee__confirm">確定</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -937,23 +933,21 @@ function _assigneeSuggestHtml(members, multiIds) {
   const nameOf = (uid) => members.find(m => m.userId === uid)?.username || '';
 
   return `
-    <div class="px-5 pt-4 pb-3 bg-[#FDFBF8] border-b border-[#E1DFDC]">
-      <p class="text-[11px] font-bold text-[#0CA1E3] mb-2">参加時の回答からのおすすめ</p>
-      <div class="space-y-2">
+    <div class="p-assignee__suggest">
+      <p class="p-assignee__suggest-title">参加時の回答からのおすすめ</p>
+      <div class="p-assignee__suggest-list">
         ${recs.map(r => {
           const checked = multiIds.includes(r.userId);
           return `
             <button type="button" data-assignee-pick="user:${_escAttr(r.userId)}"
-              class="w-full text-left px-3 py-2.5 rounded-xl border flex items-center justify-between
-                active:scale-[0.99] transition-transform
-                ${checked ? 'border-[#0CA1E3] bg-[#EBF8FF]' : 'border-[#E1DFDC] bg-white'}">
-              <div class="min-w-0">
-                <p class="text-[13px] font-bold text-[#484545] truncate">${_esc(nameOf(r.userId))}</p>
-                <p class="text-[10px] font-bold text-[#A7AAAC] truncate">${_esc(r.reason)}</p>
+              class="p-assignee__suggest-item${checked ? ' is-checked' : ''}">
+              <div>
+                <p class="p-assignee__name">${_esc(nameOf(r.userId))}</p>
+                <p class="p-assignee__reason">${_esc(r.reason)}</p>
               </div>
               ${checked
-                ? '<span class="text-[#0CA1E3] font-bold text-[16px] flex-shrink-0 ml-2">✓</span>'
-                : '<span class="w-4 h-4 rounded border border-[#D3D6D8] inline-block flex-shrink-0 ml-2"></span>'}
+                ? '<span class="p-assignee__check">✓</span>'
+                : '<span class="p-assignee__checkbox"></span>'}
             </button>`;
         }).join('')}
       </div>
@@ -979,11 +973,7 @@ function _renderAssigneeSheetList() {
   // タブ active 状態
   overlay.querySelectorAll('[data-assignee-tab]').forEach(btn => {
     const active = btn.dataset.assigneeTab === tab;
-    btn.className = `flex-1 py-3 text-[13px] font-bold transition-colors ${
-      active
-        ? 'text-[#0CA1E3] border-b-2 border-[#0CA1E3]'
-        : 'text-[#A7AAAC]'
-    }`;
+    btn.classList.toggle('is-active', active);
   });
 
   // 確定バーはACCOUNTタブのみ表示
@@ -998,43 +988,41 @@ function _renderAssigneeSheetList() {
     // ACCOUNTタブ：複数選択。チェックボックス風。
     const noneChecked = multiIds.length === 0 && !current?.type;
     html += `
-      <button type="button" data-assignee-pick=""
-        class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between">
-        <p class="text-[13px] font-bold text-[#484545]">未割当</p>
-        ${noneChecked ? '<span class="text-[#0CA1E3] font-bold text-[16px]">✓</span>' : ''}
+      <button type="button" data-assignee-pick="" class="p-assignee__row">
+        <p class="p-assignee__row-name">未割当</p>
+        ${noneChecked ? '<span class="p-assignee__check">✓</span>' : ''}
       </button>`;
     if (members.length === 0) {
-      html += '<p class="text-[11px] text-[#A7AAAC] text-center py-6">アカウントがありません</p>';
+      html += '<p class="p-assignee__empty">アカウントがありません</p>';
     } else {
       html += members.map(m => {
         const checked = multiIds.includes(m.userId);
         return `
           <button type="button" data-assignee-pick="user:${_escAttr(m.userId)}"
-            class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between ${checked ? 'bg-[#EBF8FF]' : ''}">
-            <p class="text-[13px] font-bold text-[#484545]">${_esc(m.username)}</p>
-            ${checked ? '<span class="text-[#0CA1E3] font-bold text-[16px]">✓</span>' : '<span class="w-4 h-4 rounded border border-[#D3D6D8] inline-block"></span>'}
+            class="p-assignee__row${checked ? ' is-checked' : ''}">
+            <p class="p-assignee__row-name">${_esc(m.username)}</p>
+            ${checked ? '<span class="p-assignee__check">✓</span>' : '<span class="p-assignee__checkbox"></span>'}
           </button>`;
       }).join('');
     }
   } else if (tab === 'ROLE') {
     // ROLEタブ：単一選択（従来通り）
     html += `
-      <button type="button" data-assignee-pick=""
-        class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between">
-        <p class="text-[13px] font-bold text-[#484545]">未割当</p>
-        ${!currentRoleVal ? '<span class="text-[#0CA1E3] font-bold">✓</span>' : ''}
+      <button type="button" data-assignee-pick="" class="p-assignee__row">
+        <p class="p-assignee__row-name">未割当</p>
+        ${!currentRoleVal ? '<span class="p-assignee__check">✓</span>' : ''}
       </button>`;
     if (roles.length === 0) {
-      html += '<p class="text-[11px] text-[#A7AAAC] text-center py-6">ロールがありません</p>';
+      html += '<p class="p-assignee__empty">ロールがありません</p>';
     } else {
       html += roles.map(r => `
         <button type="button" data-assignee-pick="role:${_escAttr(r.id)}"
-          class="w-full text-left px-5 py-3 border-b border-[#E1DFDC] active:bg-[#FDFBF8] flex items-center justify-between">
+          class="p-assignee__row">
           <div>
-            <p class="text-[13px] font-bold text-[#484545]">${_esc(r.name)}</p>
-            <p class="text-[10px] text-[#A7AAAC]">${r.canManage ? '管理者権限' : '一般ユーザー'}</p>
+            <p class="p-assignee__row-name">${_esc(r.name)}</p>
+            <p class="p-assignee__row-sub">${r.canManage ? '管理者権限' : '一般ユーザー'}</p>
           </div>
-          ${currentRoleVal === `role:${r.id}` ? '<span class="text-[#0CA1E3] font-bold">✓</span>' : ''}
+          ${currentRoleVal === `role:${r.id}` ? '<span class="p-assignee__check">✓</span>' : ''}
         </button>`).join('');
     }
   }
