@@ -31,3 +31,10 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* 使用: object/component/_emoji-picker.css
+   下から出るシート。距離を短くして「せり上がる」程度に留める。 */
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

@@ -54,3 +54,9 @@
   z-index: var(--z-overlay);
   background-color: var(--color-bg);
 }
+
+/* 絵文字ピッカーの背面。長押しメニューより後ろ */
+.c-overlay--emoji {
+  z-index: var(--z-emoji-picker);
+  background-color: rgba(0, 0, 0, .4);
+}

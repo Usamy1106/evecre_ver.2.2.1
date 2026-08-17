@@ -68,25 +68,24 @@ export function renderMissionDetail(appEl) {
   const canMgr = state.canManageCurrentEvent();
 
   appEl.innerHTML = `
-    <div id="mission-detail-page" class="min-h-screen bg-[#FDFBF8] flex flex-col">
-      <!-- ヘッダー -->
-      <header class="sticky top-0 z-30 flex items-center justify-between px-5 py-4 bg-[#FDFBF8]/95 backdrop-blur border-b border-[#E1DFDC]" style="padding-top:calc(1rem + env(safe-area-inset-top))">
-        <button onclick="window._app.closeMissionDetail()" data-log="mission_detail_back"
-          class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95">
+    <div id="mission-detail-page" class="p-mission-detail">
+      <header class="p-mission-detail__header">
+        <button type="button" onclick="window._app.closeMissionDetail()" data-log="mission_detail_back"
+          class="p-mission-detail__round-button" aria-label="戻る">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
         ${canMgr ? `
-        <button onclick="window._app.toggleMissionMenu(event, '${m.id}')" data-log="mission_detail_menu"
-          class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95">
+        <button type="button" onclick="window._app.toggleMissionMenu(event, '${m.id}')" data-log="mission_detail_menu"
+          class="p-mission-detail__round-button" aria-label="メニュー">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>
           </svg>
         </button>` : `
-        <button onclick="window._app.copyMissionLink('${m.id}')"
-          class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95"
+        <button type="button" onclick="window._app.copyMissionLink('${m.id}')"
+          class="p-mission-detail__round-button"
           aria-label="ミッションリンクをコピー">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
@@ -96,34 +95,33 @@ export function renderMissionDetail(appEl) {
         </button>`}
       </header>
 
-      <!-- 本文 -->
-      <div class="flex-1 px-6 pt-5 pb-32 w-full max-w-lg mx-auto">
+      <div class="p-mission-detail__body">
         ${_renderMissionInfo(p, m)}
         ${_renderClearSection(p, m, canMgr)}
         ${_renderChatSection(p, m, canMgr)}
       </div>
 
       <!-- チャット入力バー（下部固定） -->
-      <div class="fixed bottom-0 left-0 right-0 z-30 bg-[#FDFBF8] border-t border-[#E1DFDC] px-4 py-3">
+      <div class="p-mission-detail__composer">
         ${_replyTarget ? `
-        <div class="flex items-center gap-2 w-full max-w-lg mx-auto mb-2 bg-[#EBE8E5] rounded-xl px-3 py-2">
-          <div class="flex-1 min-w-0 border-l-2 border-[#0CA1E3] pl-2">
-            <p class="text-[10px] font-bold text-[#0CA1E3]">${_esc(_replyTarget.username)} に返信</p>
-            <p class="text-[10px] text-[#A7AAAC] truncate">${_esc(_replyTarget.text)}</p>
+        <div class="p-mission-detail__reply">
+          <div class="p-mission-detail__reply-body">
+            <p class="p-mission-detail__reply-name">${_esc(_replyTarget.username)} に返信</p>
+            <p class="p-mission-detail__reply-text">${_esc(_replyTarget.text)}</p>
           </div>
-          <button onclick="window._app.cancelChatReply()" class="p-1 text-[#A7AAAC] flex-shrink-0 active:opacity-60" aria-label="返信をやめる">
+          <button type="button" onclick="window._app.cancelChatReply()" class="p-mission-detail__reply-cancel" aria-label="返信をやめる">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
         </div>` : ''}
-        <div class="flex items-end gap-2 w-full max-w-lg mx-auto">
+        <div class="p-mission-detail__composer-row">
           <textarea id="chat-input" rows="1" placeholder="メッセージを入力"
-            class="flex-1 resize-none rounded-2xl bg-[#EBE8E5] px-4 py-3 text-[13px] leading-relaxed focus:outline-none max-h-28"
+            class="p-mission-detail__composer-input"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,112)+'px'"></textarea>
-          <button onclick="window._app.sendChatMessage()"
-            class="w-11 h-11 rounded-full bg-[#0CA1E3] flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+          <button type="button" onclick="window._app.sendChatMessage()"
+            class="p-mission-detail__send" aria-label="送信">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"></line>
               <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -194,9 +192,10 @@ function _renderMissionInfo(p, m) {
     const target = new Date(end); target.setHours(0, 0, 0, 0);
     const now = new Date(); now.setHours(0, 0, 0, 0);
     const diff = Math.ceil((target - now) / 86_400_000);
-    if (diff < 0)   return `<span class="text-[11px] font-bold text-[#E74C3C]">${-diff}日超過</span>`;
-    if (diff === 0) return `<span class="text-[11px] font-bold text-[#E74C3C]">今日まで</span>`;
-    return `<span class="text-[11px] font-bold text-[#A7AAAC]">残り${diff}日</span>`;
+    const cls = 'p-mission-detail__deadline';
+    if (diff < 0)   return `<span class="${cls} ${cls}--urgent">${-diff}日超過</span>`;
+    if (diff === 0) return `<span class="${cls} ${cls}--urgent">今日まで</span>`;
+    return `<span class="${cls}">残り${diff}日</span>`;
   })();
 
   const desc = MISSION_DESCRIPTIONS[m.id]
@@ -204,10 +203,10 @@ function _renderMissionInfo(p, m) {
             || m.description || '';
 
   return `
-    <h1 class="heading-m text-[#484545] mb-2">${_esc(m.title)}</h1>
+    <h1 class="p-mission-detail__title">${_esc(m.title)}</h1>
     ${(tagsHtml || deadline) ? `
-      <div class="flex items-center gap-2 flex-wrap mb-3">${tagsHtml}${deadline}</div>` : ''}
-    ${desc ? `<p class="text-rs text-[#A7AAAC] font-bold whitespace-pre-wrap break-words mb-6">${_esc(desc)}</p>` : '<div class="mb-6"></div>'}`;
+      <div class="p-mission-detail__meta">${tagsHtml}${deadline}</div>` : ''}
+    ${desc ? `<p class="p-mission-detail__description">${_esc(desc)}</p>` : '<div class="p-mission-detail__spacer"></div>'}`;
 }
 
 // ===============================================
@@ -222,15 +221,15 @@ function _renderClearSection(p, m, canMgr) {
   if (m.status === 'cleared') {
     const cd = p.clearedData?.[m.id];
     return `
-      <div class="bg-white border border-[#E1DFDC] rounded-2xl p-4 mb-8">
-        <p class="text-[12px] font-bold text-[#5b8104] mb-1">✓ 完了済み</p>
+      <div class="p-mission-detail__status">
+        <p class="p-mission-detail__status-label">✓ 完了済み</p>
         ${_fmtClearedContent(cd)}
       </div>`;
   }
   if (m.status === 'pending_leader_check') {
     return `
-      <div class="bg-[#FFF8E1] border border-[#FFC300]/50 rounded-2xl p-4 mb-8">
-        <p class="text-[12px] font-bold text-[#9b7700]">リーダー確認待ちです</p>
+      <div class="p-mission-detail__status p-mission-detail__status--pending">
+        <p class="p-mission-detail__status-label p-mission-detail__status-label--waiting">リーダー確認待ちです</p>
       </div>`;
   }
 
@@ -239,17 +238,17 @@ function _renderClearSection(p, m, canMgr) {
   const myMission = (m.assignee?.type === 'user' && m.assignee.userId === meId) || assignees.includes(meId);
   if (m.selfClaim && !myMission) {
     return `
-      <div class="bg-white border border-[#E1DFDC] rounded-2xl p-4 mb-8">
-        <p class="text-[12px] font-bold text-[#A7AAAC]">応募型ミッションです（担当ではありません）</p>
+      <div class="p-mission-detail__status">
+        <p class="p-mission-detail__status-label p-mission-detail__status-label--muted">応募型ミッションです（担当ではありません）</p>
       </div>`;
   }
 
   // 入力なしで完了
   if (m.noInput) {
     return `
-      <div class="mb-8">
-        <button onclick="window._app.submitMissionClear('${m.id}')"
-          class="c-button c-button--primary w-full py-4 heading-r font-bold">完了する</button>
+      <div class="p-mission-detail__clear">
+        <button type="button" onclick="window._app.submitMissionClear('${m.id}')"
+          class="c-button c-button--primary p-mission-detail__submit">完了する</button>
       </div>`;
   }
 
@@ -261,37 +260,35 @@ function _renderClearSection(p, m, canMgr) {
 function _renderClearInput(m) {
   const checklist = Array.isArray(m.checklist) ? m.checklist : [];
   const checklistHtml = checklist.length === 0 ? '' : `
-    <div class="mt-5 mb-2">
-      <p class="text-rs text-[#484545] font-bold mb-2">チェック項目</p>
-      <div class="space-y-2 bg-white rounded-2xl border border-[#E1DFDC] p-3">
+    <div class="p-mission-detail__checklist">
+      <p class="p-mission-detail__checklist-title">チェック項目</p>
+      <div class="p-mission-detail__checklist-box">
         ${checklist.map((item, i) => `
-          <label class="flex items-start gap-3 cursor-pointer">
-            <span class="relative flex-shrink-0 mt-0.5 w-5 h-5">
-              <input type="checkbox" data-clear-checklist="${i}"
-                class="peer absolute inset-0 opacity-0 w-full h-full cursor-pointer m-0">
-              <span class="block w-5 h-5 rounded-full border-2 border-[#D3D6D8] bg-white
-                           peer-checked:bg-[#0CA1E3] peer-checked:border-[#0CA1E3] transition-colors"></span>
-              <svg class="absolute inset-0 w-5 h-5 pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity"
-                viewBox="0 0 20 20" fill="none">
+          <label class="p-mission-detail__check">
+            <span class="p-mission-detail__check-mark">
+              <input type="checkbox" data-clear-checklist="${i}" class="p-mission-detail__check-input">
+              <span class="p-mission-detail__check-box"></span>
+              <svg class="p-mission-detail__check-icon" viewBox="0 0 20 20" fill="none">
                 <polyline points="4.5 10.5 8 14 15.5 6.5" stroke="white" stroke-width="2.2"
                   stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </span>
-            <span class="text-[13px] text-[#484545] flex-1">${_esc(item)}</span>
+            <span class="p-mission-detail__check-label">${_esc(item)}</span>
           </label>`).join('')}
       </div>
-      <p id="clear-checklist-error" class="text-[12px] text-[#EE3E12] font-bold mt-2 hidden">
+      <!-- ★hidden は JS が付け外しする（Phase 5 で u-hidden へ）-->
+      <p id="clear-checklist-error" class="p-mission-detail__checklist-error hidden">
         チェック項目にチェックしてください。
       </p>
     </div>`;
 
   return `
-    <div id="clear-mission-modal" class="mb-8">
-      <!-- 画像チップ（画像が選択されたら表示） -->
-      <div id="img-chip" class="hidden mb-2 flex items-center gap-2 bg-[#EBE8E5] rounded-xl px-3 py-2">
-        <img id="preview-img" src="" class="w-9 h-9 rounded-lg object-cover flex-shrink-0">
-        <span class="text-[11px] text-[#484545] font-bold flex-1 truncate">画像</span>
-        <button onclick="window._app.clearImagePreview()" class="p-1 text-[#A7AAAC] hover:text-[#484545] transition-colors">
+    <div id="clear-mission-modal" class="p-mission-detail__clear">
+      <!-- 画像チップ（画像が選択されたら表示）。★hidden は JS が付け外しする -->
+      <div id="img-chip" class="hidden p-mission-detail__image-chip">
+        <img id="preview-img" src="" class="p-mission-detail__image-thumb" alt="">
+        <span class="p-mission-detail__image-name">画像</span>
+        <button type="button" onclick="window._app.clearImagePreview()" class="p-mission-detail__image-remove" aria-label="画像を外す">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -299,25 +296,24 @@ function _renderClearInput(m) {
       </div>
 
       <!-- 統合テキスト入力 + 画像ボタン -->
-      <div class="relative">
-        <textarea id="clear-input"
-          class="w-full h-32 p-4 pb-10 rounded-2xl bg-[#EBE8E5] focus:outline-none text-r resize-none leading-relaxed"
+      <div class="p-mission-detail__input-wrap">
+        <textarea id="clear-input" class="p-mission-detail__textarea"
           placeholder="内容を入力"></textarea>
-        <label for="file-input"
-          class="absolute bottom-3 right-3 cursor-pointer opacity-30 hover:opacity-70 transition-opacity">
+        <label for="file-input" class="p-mission-detail__image-pick">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
             <circle cx="8.5" cy="8.5" r="1.5"/>
             <polyline points="21 15 16 10 5 21"/>
           </svg>
         </label>
+        <!-- ★hidden は「見た目を消す」ためではなく、ファイル選択を自前のボタンで代替するため -->
         <input type="file" id="file-input" class="hidden" accept="image/*"
           onchange="window._app.handleImageSelect(this)">
       </div>
 
       ${checklistHtml}
-      <button onclick="window._app.submitMissionClear('${m.id}')"
-        class="c-button c-button--primary w-full py-4 mt-5 heading-r font-bold">完了する</button>
+      <button type="button" onclick="window._app.submitMissionClear('${m.id}')"
+        class="c-button c-button--primary p-mission-detail__submit p-mission-detail__submit--spaced">完了する</button>
     </div>`;
 }
 
@@ -336,44 +332,41 @@ function _renderIndividualSection(p, m, canMgr, meId) {
     const done = clearedBy.includes(uid);
     const cd = p.clearedData?.[m.id + '_u_' + uid];
     return `
-      <div class="py-3 border-b border-[#EBE8E5] last:border-0">
-        <div class="flex items-center gap-2">
-          <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] flex-shrink-0
-            ${done ? 'bg-[#0CA1E3] text-white' : 'bg-[#EBE8E5] text-[#A7AAAC]'}">
-            ${done ? '✓' : '–'}
-          </span>
-          <span class="text-[13px] font-bold text-[#484545] flex-1">${_esc(name)}</span>
-          <span class="text-[10px] font-bold ${done ? 'text-[#5b8104]' : 'text-[#A7AAAC]'}">${done ? '完了済み' : '未完了'}</span>
+      <div class="p-mission-detail__member">
+        <div class="p-mission-detail__member-row">
+          <span class="p-mission-detail__member-mark${done ? ' is-done' : ''}">${done ? '✓' : '–'}</span>
+          <span class="p-mission-detail__member-name">${_esc(name)}</span>
+          <span class="p-mission-detail__member-state${done ? ' is-done' : ''}">${done ? '完了済み' : '未完了'}</span>
         </div>
         ${(done && !m.noInput) ? _fmtClearedContent(cd) : ''}
       </div>`;
   }).join('');
 
   const countLine = hasAssignees
-    ? `<p class="text-[12px] font-bold text-[#484545] mb-2">完了状況：<span class="text-[#0CA1E3]">${clearedBy.length}</span> / ${assigneeIds.length} 人</p>`
+    ? `<p class="p-mission-detail__count">完了状況：<span class="p-mission-detail__count-done">${clearedBy.length}</span> / ${assigneeIds.length} 人</p>`
     : '';
 
   const isMeAssigned = !hasAssignees || assigneeIds.includes(meId);
   const meNotDone = isMeAssigned && !clearedBy.includes(meId) && m.status !== 'cleared';
   const myInput = meNotDone
     ? (m.noInput
-        ? `<button onclick="window._app.submitMissionClear('${m.id}')"
-             class="c-button c-button--primary w-full py-4 mb-5 heading-r font-bold">完了する</button>`
+        ? `<button type="button" onclick="window._app.submitMissionClear('${m.id}')"
+             class="c-button c-button--primary p-mission-detail__submit p-mission-detail__submit--below">完了する</button>`
         : _renderClearInput(m))
     : '';
 
   const adminBtn = canMgr && m.status !== 'cleared' ? `
-    <button onclick="window._app.forceCloseMission('${m.id}')"
-      class="w-full py-3 text-[13px] font-bold text-[#A7AAAC] border border-[#D3D6D8] rounded-2xl mt-2 active:opacity-60">
+    <button type="button" onclick="window._app.forceCloseMission('${m.id}')"
+      class="p-mission-detail__force-close">
       公開終了する
     </button>` : '';
 
   return `
-    <div class="mb-8">
+    <div class="p-mission-detail__clear">
       ${myInput}
       ${countLine}
-      <div class="bg-white rounded-2xl border border-[#E1DFDC] px-4">
-        ${rows || '<p class="text-[12px] text-[#A7AAAC] text-center py-4">まだ完了者はいません</p>'}
+      <div class="p-mission-detail__member-list">
+        ${rows || '<p class="p-mission-detail__member-empty">まだ完了者はいません</p>'}
       </div>
       ${adminBtn}
     </div>`;
@@ -381,9 +374,11 @@ function _renderIndividualSection(p, m, canMgr, meId) {
 
 function _fmtClearedContent(cd) {
   if (!cd?.content) return '';
-  if (cd.format === 'image') return `<img src="${cd.content}" class="w-full max-h-40 object-cover rounded-lg mt-2" loading="lazy">`;
-  if (cd.format === 'link' || cd.format === 'url') return `<a href="${_esc(cd.content)}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-[#0CA1E3] underline break-all block mt-1">${_esc(cd.content)}</a>`;
-  return `<p class="text-[11px] text-[#484545] bg-[#FDFBF8] p-2 rounded-lg whitespace-pre-wrap break-words mt-1">${_esc(cd.content)}</p>`;
+  // ★src / href もエスケープする（提出物はユーザーが入力した文字列で、
+  //   属性を閉じられると任意の HTML を差し込める）
+  if (cd.format === 'image') return `<img src="${_esc(cd.content)}" class="p-mission-detail__cleared-image" alt="提出画像" loading="lazy">`;
+  if (cd.format === 'link' || cd.format === 'url') return `<a href="${_esc(cd.content)}" target="_blank" rel="noopener noreferrer" class="p-mission-detail__cleared-link">${_esc(cd.content)}</a>`;
+  return `<p class="p-mission-detail__cleared-text">${_esc(cd.content)}</p>`;
 }
 
 // ===============================================
@@ -396,11 +391,11 @@ function _renderChatSection(p, m, canMgr) {
   let body = '';
   if (!chat || chat.missionId !== m.id || chat.loading) {
     body = `
-      <div class="flex justify-center py-8">
-        <div class="w-6 h-6 border-2 border-[#0CA1E3] border-t-transparent rounded-full animate-spin"></div>
+      <div class="p-mission-detail__chat-loading">
+        <div class="c-spinner c-spinner--sm"></div>
       </div>`;
   } else if (chat.messages.length === 0) {
-    body = `<p class="text-[12px] text-[#A7AAAC] text-center py-8">まだメッセージはありません。<br>最初のメッセージを送ってみましょう</p>`;
+    body = `<p class="p-mission-detail__chat-empty">まだメッセージはありません。<br>最初のメッセージを送ってみましょう</p>`;
   } else {
     // 時系列（古い→新しい）。最新は末尾。開いた時に最新を上端へピン留めする（_pinNewestToTop）。
     const sorted = [...chat.messages].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -409,11 +404,7 @@ function _renderChatSection(p, m, canMgr) {
       const d = new Date(msg.createdAt);
       const day = `${d.getMonth() + 1}月${d.getDate()}日`;
       const sep = day !== lastDay
-        ? `<div class="flex items-center gap-3 my-4">
-             <div class="flex-1 h-px bg-[#E1DFDC]"></div>
-             <span class="text-[10px] font-bold text-[#A7AAAC]">${day}</span>
-             <div class="flex-1 h-px bg-[#E1DFDC]"></div>
-           </div>`
+        ? `<div class="p-mission-detail__day"><span class="p-mission-detail__day-label">${day}</span></div>`
         : '';
       lastDay = day;
       // 最新メッセージの直前にアンカーを置き、上端ピン留めの基準にする
@@ -426,9 +417,9 @@ function _renderChatSection(p, m, canMgr) {
 
   // チャット欄のみ独立スクロール（長くなっても上部の完了入力欄が押し出されない）
   return `
-    <div class="border-t border-[#E1DFDC] pt-5">
-      <p class="text-rs text-[#484545] font-bold mb-3">チャット</p>
-      <div id="chat-messages" class="overflow-y-auto overscroll-contain pr-1" style="max-height: 45vh;">${body}</div>
+    <div class="p-mission-detail__chat">
+      <p class="p-mission-detail__chat-title">チャット</p>
+      <div id="chat-messages" class="p-mission-detail__chat-messages">${body}</div>
     </div>`;
 }
 
@@ -463,43 +454,42 @@ function _renderChatMessage(msg, meId, canMgr) {
   const reactions = msg.reactions || {};
   const chips = Object.entries(reactions).map(([emoji, users]) => {
     const reacted = users.includes(meId);
-    return `<button onclick="window._app.toggleChatReaction('${msg.id}', '${_esc(emoji)}')"
-      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-colors
-        ${reacted ? 'bg-[#EAF6FF] border-[#0CA1E3]/60 text-[#0CA1E3] font-bold' : 'bg-white border-[#E1DFDC] text-[#484545]'}">
-      <span>${_esc(emoji)}</span><span class="text-[10px]">${users.length}</span>
+    return `<button type="button" onclick="window._app.toggleChatReaction('${msg.id}', '${_esc(emoji)}')"
+      class="p-mission-detail__reaction${reacted ? ' is-reacted' : ''}">
+      <span>${_esc(emoji)}</span><span class="p-mission-detail__reaction-count">${users.length}</span>
     </button>`;
   }).join('');
 
   // アクション（リアクション追加。削除・返信・コピーはブロック長押しメニューから）
   const addBtn = `
-    <button onclick="window._app.openChatEmojiPicker('${msg.id}')"
-      class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-[#E1DFDC] bg-white text-[#A7AAAC] active:scale-95"
+    <button type="button" onclick="window._app.openChatEmojiPicker('${msg.id}')"
+      class="p-mission-detail__reaction-add"
       aria-label="リアクションを追加">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
         <line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
       </svg>
     </button>`;
-  const actionsRow = `<div class="flex items-center gap-1.5 flex-wrap mt-1 ${mine ? 'justify-end' : ''}">${chips}${addBtn}</div>`;
+  const actionsRow = `<div class="p-mission-detail__reactions${mine ? ' p-mission-detail__reactions--mine' : ''}">${chips}${addBtn}</div>`;
 
   // 返信の引用ブロック（送信時にサーバーが確定したスナップショット）
   const quote = msg.replyTo ? `
-    <div class="border-l-2 ${mine ? 'border-white/70' : 'border-[#0CA1E3]'} pl-2 mb-1.5 opacity-80">
-      <p class="text-[9px] font-bold">${_esc(msg.replyTo.username)}</p>
-      <p class="text-[10px] truncate">${_esc(msg.replyTo.text)}</p>
+    <div class="p-mission-detail__quote">
+      <p class="p-mission-detail__quote-name">${_esc(msg.replyTo.username)}</p>
+      <p class="p-mission-detail__quote-text">${_esc(msg.replyTo.text)}</p>
     </div>` : '';
 
-  const bubbleText = `${quote}<span class="whitespace-pre-wrap break-words">${_esc(msg.text)}</span>`;
-  // 長押しメニュー対象（select-none + touch-callout無効でOSの選択UIを抑止）
-  const pressAttrs = `data-chat-msg="${msg.id}" style="-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;"`;
+  const bubbleText = `${quote}<span class="p-mission-detail__bubble-text">${_esc(msg.text)}</span>`;
+  // 長押しメニューの対象。OS の選択 UI を抑止する指定は .p-mission-detail__bubble が持つ
+  const pressAttrs = `data-chat-msg="${msg.id}"`;
 
   if (mine) {
     // 自分：右寄せ・アバターなし（Google チャット同様）
     return `
-      <div class="mb-3 flex flex-col items-end">
-        <div class="flex items-end gap-1.5 max-w-[85%]">
-          <span class="text-[9px] text-[#A7AAAC] flex-shrink-0">${time}</span>
-          <div ${pressAttrs} class="bg-[#0CA1E3] text-white rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13px] leading-relaxed">${bubbleText}</div>
+      <div class="p-mission-detail__msg p-mission-detail__msg--mine">
+        <div class="p-mission-detail__msg-line">
+          <span class="p-mission-detail__msg-time">${time}</span>
+          <div ${pressAttrs} class="p-mission-detail__bubble p-mission-detail__bubble--mine">${bubbleText}</div>
         </div>
         ${actionsRow}
       </div>`;
@@ -507,16 +497,16 @@ function _renderChatMessage(msg, meId, canMgr) {
 
   // 他人：左にアバター + 名前
   return `
-    <div class="mb-3 flex gap-2 items-start">
-      <div class="flex-shrink-0 mt-0.5">
+    <div class="p-mission-detail__msg p-mission-detail__msg--theirs">
+      <div class="p-mission-detail__msg-avatar">
         ${Components.UserAvatar({ username: msg.username, avatarUrl: msg.avatarUrl }, { size: 28 })}
       </div>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-baseline gap-2 mb-0.5">
-          <span class="text-[11px] font-bold text-[#484545]">${_esc(msg.username)}</span>
-          <span class="text-[9px] text-[#A7AAAC]">${time}</span>
+      <div class="p-mission-detail__msg-main">
+        <div class="p-mission-detail__msg-head">
+          <span class="p-mission-detail__msg-name">${_esc(msg.username)}</span>
+          <span class="p-mission-detail__msg-time">${time}</span>
         </div>
-        <div ${pressAttrs} class="inline-block max-w-[85%] bg-white border border-[#E1DFDC] rounded-2xl rounded-tl-md px-3.5 py-2.5 text-[13px] text-[#484545] leading-relaxed">${bubbleText}</div>
+        <div ${pressAttrs} class="p-mission-detail__bubble p-mission-detail__bubble--theirs">${bubbleText}</div>
         ${actionsRow}
       </div>
     </div>`;
@@ -569,15 +559,14 @@ function _openChatMsgMenu(msgId, x, y) {
 
   const menu = document.createElement('div');
   menu.id = 'chat-msg-menu';
-  menu.className = 'fixed bg-white border border-[#D3D6D8] rounded-xl shadow-xl z-[260] overflow-hidden min-w-[140px] animate-fadeIn';
+  // スタイル: public/css/object/component/_context-menu.css
+  menu.className = 'c-context-menu animate-fadeIn';
   menu.style.visibility = 'hidden';
   menu.innerHTML = `
-    <button data-act="copy"
-      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">コピー</button>
-    <button data-act="reply"
-      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold ${canDelete ? 'border-b border-[#EBE8E5]' : ''}">返信</button>
-    ${canDelete ? `<button data-act="delete"
-      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold text-[#EE3E12]">削除</button>` : ''}`;
+    <button type="button" data-act="copy" class="c-context-menu__item">コピー</button>
+    <button type="button" data-act="reply" class="c-context-menu__item">返信</button>
+    ${canDelete ? `<button type="button" data-act="delete"
+      class="c-context-menu__item c-context-menu__item--danger">削除</button>` : ''}`;
   document.body.appendChild(menu);
 
   // 画面内にクランプして配置（openMissionMenuAt と同じ方式）
@@ -713,12 +702,12 @@ export function openChatEmojiPicker(messageId) {
 
   const overlay = document.createElement('div');
   overlay.id = 'chat-emoji-overlay';
-  overlay.className = 'fixed inset-0 z-[250] bg-black/40 flex items-end justify-center';
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--emoji';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
   const wrap = document.createElement('div');
-  wrap.className = 'w-full max-w-lg bg-white rounded-t-3xl p-3 pb-6';
-  wrap.style.animation = 'slideUp .2s ease-out';
+  // スタイル: public/css/object/component/_emoji-picker.css
+  wrap.className = 'c-emoji-picker';
 
   if (customElements.get('emoji-picker')) {
     const picker = document.createElement('emoji-picker');
@@ -733,9 +722,9 @@ export function openChatEmojiPicker(messageId) {
   } else {
     // フォールバック：よく使う絵文字グリッド
     const grid = document.createElement('div');
-    grid.className = 'grid grid-cols-6 gap-2 p-2';
+    grid.className = 'c-emoji-picker__grid';
     grid.innerHTML = FALLBACK_EMOJIS.map(e =>
-      `<button data-emoji="${e}" class="text-[26px] py-2 rounded-xl active:bg-[#EBE8E5]">${e}</button>`).join('');
+      `<button type="button" data-emoji="${e}" class="c-emoji-picker__item">${e}</button>`).join('');
     grid.addEventListener('click', (ev) => {
       const btn = ev.target.closest('[data-emoji]');
       if (!btn) return;

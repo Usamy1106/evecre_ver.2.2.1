@@ -57,6 +57,11 @@
   --color-primary-wash: rgba(12, 161, 227, .05);
   --color-danger-wash: rgba(238, 62, 18, .05);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
+  --color-alert: #E74C3C;          /* 締め切り超過・当日 */
+  --color-warning-pale2: #FFF8E1;  /* --color-warning-pale と近い。統合は Phase 5 で判断 */
+  --color-warning-half: rgba(255, 195, 0, .5);
+  --color-bg-translucent: rgba(253, 251, 248, .95);
+  --color-primary-pale3: #EAF6FF;  /* 押したリアクション。他の pale と近い（統合は Phase 5）*/
   --color-primary-half: rgba(12, 161, 227, .3);
   --color-primary-pale2: #EBF7FE;   /* --color-primary-pale と近い。統合は Phase 5 で判断 */
   --color-warning-dark: #9B7700;
@@ -128,6 +133,8 @@
   --z-overlay: 100;          /* ミッション作成モーダル（全画面）*/
   --z-sheet: 210;            /* 担当者シート */
   --z-sheet-stacked: 220;    /* シートの上に重ねるシート（タグ作成）*/
+  --z-emoji-picker: 250;     /* 絵文字ピッカー */
+  --z-context-menu: 260;     /* 長押しメニュー。ピッカーより前 */
   --z-modal: 300;            /* 確認ダイアログ。他のモーダルより前 */
   --z-toast: 400;            /* 操作の結果を伝えるので最前面に近い */
   --z-loading: 9999;

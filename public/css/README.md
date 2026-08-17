@@ -70,6 +70,8 @@
 | 読み込み中のくるくる（`c-spinner`） | `object/component/_spinner.css` |
 | 招待の中身（参加中メンバー・意気込み） | `object/component/_invite-preview.css` |
 | 設定の1項目（表示 → 変更 → 保存） | `object/component/_settings-card.css` |
+| 長押し・右クリックのメニュー | `object/component/_context-menu.css` |
+| リアクションの絵文字を選ぶシート | `object/component/_emoji-picker.css` |
 | コーチマークの脈動・指の動き | `object/component/_coach-mark.css` |
 | 利用規約・プライバシーポリシー（本文の見出し・表も） | `object/project/_legal.css` |
 | プロジェクト（フォルダ）詳細 | `object/project/_project-detail.css` |
@@ -77,6 +79,7 @@
 | ログイン・アカウント作成・パスワードリセット | `object/project/_auth.css` |
 | アカウント設定（プロフィール・通知・退会） | `object/project/_account.css` |
 | イベント作成フロー（STEP 1〜7・開催日カレンダー） | `object/project/_create-event.css` |
+| ミッション詳細（完了入力・チャット・吹き出し） | `object/project/_mission-detail.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -224,6 +227,8 @@ public/css/
 │  ├─ _spinner.css              ✅ c-spinner
 │  ├─ _invite-preview.css       ✅ c-invite-members / c-invite-motivation
 │  ├─ _settings-card.css        ✅ c-settings-card（.is-editing）
+│  ├─ _context-menu.css         ✅ c-context-menu
+│  ├─ _emoji-picker.css         ✅ c-emoji-picker
 │  ├─ _coach-mark.css           ✅ coachMark.js
 │  ├─ _card.css                 ⬜ Phase 3 — 各画面のカードを見てから切り出す
 │  ├─ _empty.css                ⬜ Phase 3 — 空状態
@@ -236,7 +241,8 @@ public/css/
 │  ├─ _auth.css                 ✅ ログイン前の画面（auth / passwordReset）
 │  ├─ _account.css              ✅ アカウント設定
 │  ├─ _create-event.css         ✅ イベント作成フロー
-│  └─ _main-board / _mission-detail / _mission-modal / │     _event-settings / _signup / _notification / _archive /
+│  ├─ _mission-detail.css       ✅ ミッション詳細
+│  └─ _main-board / _mission-modal / │     _event-settings / _signup / _notification / _archive /
 │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
 │
 └─ object/utility/

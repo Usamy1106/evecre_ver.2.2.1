@@ -24,3 +24,10 @@
   justify-content: center;
   padding-block: 48px;
 }
+
+/* 小さい読み込み（チャットの取得中など）*/
+.c-spinner--sm {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+}
