@@ -238,3 +238,163 @@
   color: var(--color-text-muted);
   text-align: center;
 }
+
+/* --- 応募者の選定モーダル ------------------------------------------------
+   使用箇所: public/js/modals/mission.js（openSelectClaimModal）
+   ★おすすめの採点は担当者シートと同じ assigneeSuggest.js。ここでは
+     応募者の中だけで採点し、該当者を上に寄せて「おすすめ」の印を付ける。
+     根拠が無ければ並びも表示も従来どおりになる（印が出ないだけ）。 */
+
+.p-assignee__select-sheet {
+  display: flex;
+  max-height: 85vh;
+  width: 100%;
+  flex-direction: column;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background-color: var(--white);
+  box-shadow: var(--shadow-2xl);
+}
+
+.p-assignee__select-title {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-1);
+  font-size: 15px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-assignee__select-badge-row {
+  display: flex;
+  justify-content: center;
+  padding-bottom: var(--space-2);
+}
+
+/* 「応募型（選定あり）」の印。ミッションの種類を取り違えないための表示 */
+.p-assignee__select-badge {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-warning-pale2);
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-warning-dark);
+}
+
+.p-assignee__select-lead {
+  padding-right: var(--space-6);
+  padding-bottom: var(--space-3);
+  padding-left: var(--space-6);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-assignee__select-count {
+  padding-bottom: var(--space-2);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-assignee__select-list {
+  flex: 1;
+  border-top: 1px solid var(--bg-textbox);
+  overflow-y: auto;
+}
+
+.p-assignee__applicant {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--bg-textbox);
+  cursor: pointer;
+}
+
+.p-assignee__applicant:active {
+  background-color: var(--color-bg);
+}
+
+/* おすすめの応募者は薄く塗って、上に寄っている理由が分かるようにする */
+.p-assignee__applicant.is-recommended {
+  background-color: var(--color-bg);
+}
+
+.p-assignee__applicant-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
+
+.p-assignee__applicant-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+/* 画像が無い人は頭文字を丸で出す */
+.p-assignee__applicant-initial {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-tint);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-assignee__applicant-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.p-assignee__applicant-name {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-assignee__applicant-reason {
+  display: block;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-assignee__applicant-badge {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-assignee__select-actions {
+  display: flex;
+  padding: var(--space-4);
+  gap: var(--space-2);
+  border-top: 1px solid var(--bg-textbox);
+}
+
+.p-assignee__select-actions > button {
+  flex: 1;
+  padding-block: var(--space-3);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+}

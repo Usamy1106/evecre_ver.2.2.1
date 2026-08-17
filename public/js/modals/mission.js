@@ -526,23 +526,23 @@ export function showProposalHelp(e, proposalId) {
 
   const overlay = document.createElement('div');
   overlay.id = 'help-modal';
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6 page-transition';
+  overlay.className = 'c-overlay c-overlay--help c-overlay--blur page-transition';
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-sm:w-[90%] max-w-sm p-8 shadow-2xl relative animate-fadeIn">
-      <button onclick="document.getElementById('help-modal').remove()" class="absolute top-4 right-4 p-2 opacity-40">
+    <div class="c-modal c-modal--left c-modal--fluid animate-fadeIn">
+      <button onclick="document.getElementById('help-modal').remove()" class="c-modal__close">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-      <div class="flex items-center gap-3 mb-4">
-        <img src="/images/icon/icon-Help.svg" class="w-6 h-6">
-        <h3 class="heading-m text-[#484545]">提案のヒント</h3>
+      <div class="p-main-board__help-head">
+        <img src="/images/icon/icon-Help.svg" class="p-main-board__help-icon">
+        <h3 class="c-modal__title c-modal__title--tight">提案のヒント</h3>
       </div>
-      <div class="bg-[#FDFBF8] p-5 rounded-2xl border border-[#D3D6D8]">
-        <p class="text-rs text-[#484545] font-bold leading-relaxed whitespace-pre-wrap">${desc}</p>
+      <div class="p-main-board__help-box">
+        <p class="text-rs p-main-board__help-text">${_esc(desc)}</p>
       </div>
       <button onclick="document.getElementById('help-modal').remove()"
-        class="c-button c-button--primary w-full py-4 mt-8 heading-r font-bold">わかった</button>
+        class="c-button c-button--primary p-main-board__help-close">わかった</button>
     </div>`;
   document.body.appendChild(overlay);
 }
@@ -561,15 +561,12 @@ export function openMissionMenuAt(missionId, x, y) {
   const menu = document.createElement('div');
   menu.id = 'mission-menu';
   menu.dataset.mid = missionId;
-  menu.className = 'fixed bg-white border border-[#D3D6D8] rounded-xl shadow-xl z-[250] overflow-hidden min-w-[120px] animate-fadeIn';
+  menu.className = 'c-context-menu c-context-menu--mission animate-fadeIn';
   menu.style.visibility = 'hidden';
   menu.innerHTML = `
-    <button id="mm-copy-link"
-      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">リンクをコピー</button>
-    <button id="mm-edit"
-      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">編集</button>
-    <button id="mm-delete"
-      class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold text-[#EE3E12]">削除</button>`;
+    <button id="mm-copy-link" class="c-context-menu__item">リンクをコピー</button>
+    <button id="mm-edit" class="c-context-menu__item">編集</button>
+    <button id="mm-delete" class="c-context-menu__item c-context-menu__item--danger">削除</button>`;
   document.body.appendChild(menu);
 
   // 画面内にクランプして配置
@@ -718,7 +715,7 @@ export function toggleSortMenu(e) {
 
   const menu = document.createElement('div');
   menu.id = 'sort-menu';
-  menu.className = 'absolute right-0 top-10 bg-white border border-[#D3D6D8] rounded-2xl shadow-xl z-[60] overflow-hidden min-w-[140px] animate-fadeIn';
+  menu.className = 'c-context-menu c-context-menu--dropdown animate-fadeIn';
   const modes = [
     { id: 'createdAt', label: '制作日順' },
     { id: 'deadline',  label: '締切順' },
@@ -726,8 +723,8 @@ export function toggleSortMenu(e) {
   ];
   menu.innerHTML = modes.map(m =>
     `<button onclick="window._app.changeMissionSort('${m.id}')"
-      class="w-full text-left px-5 py-4 hover:bg-[#FDFBF8] text-rs font-bold border-b border-[#FDFBF8] flex items-center justify-between">
-      ${m.label} ${state.missionSortMode === m.id ? '<span class="text-[#0CA1E3]">●</span>' : ''}
+      class="c-context-menu__item">
+      ${m.label} ${state.missionSortMode === m.id ? '<span class="c-context-menu__marker">●</span>' : ''}
     </button>`).join('');
   e.currentTarget.parentElement.appendChild(menu);
   const close = () => { menu.remove(); document.removeEventListener('click', close); };
@@ -742,7 +739,7 @@ export function showMissionListModal() {
   if (!p) return;
   const overlay = document.createElement('div');
   overlay.id = 'mission-list-modal';
-  overlay.className = 'fixed inset-0 bg-black/60 z-[150] flex items-end justify-center page-transition';
+  overlay.className = 'c-overlay c-overlay--list page-transition';
 
   const items = p.missions.map(m => {
     const cleared = p.clearedData[m.id];
@@ -752,38 +749,38 @@ export function showMissionListModal() {
       : (m.tag ? [m.tag] : []);
     const tagsHtml = tagNames.map(t => Components.Tag(t)).join('');
     return `
-      <div class="bg-[#FDFBF8] border border-[#D3D6D8] rounded-2xl p-5">
-        <div class="flex items-center gap-2 mb-2 flex-wrap">
+      <div class="p-main-board__list-card">
+        <div class="p-main-board__list-tags">
           ${tagsHtml}
-          ${m.status === 'cleared' ? '<span class="text-[8px] text-[#9EDF05] font-bold border border-[#9EDF05] px-1 rounded ml-1">CLEAR</span>' : ''}
+          ${m.status === 'cleared' ? '<span class="p-main-board__list-clear">CLEAR</span>' : ''}
         </div>
-        <h3 class="text-r font-bold text-[#484545] mb-2">${m.title}</h3>
+        <h3 class="text-r p-main-board__list-title">${_esc(m.title)}</h3>
         ${cleared ? `
-          <div class="mt-3 pt-3 border-t border-[#EBE8E5]">
-            <div class="flex items-center justify-between mb-2">
-              <p class="text-[10px] text-[#A7AAAC] font-bold">提出内容</p>
-              ${cleared.timestamp ? `<p class="text-[10px] text-[#A7AAAC] font-bold">${_formatClearedAt(cleared.timestamp)} に完了</p>` : ''}
+          <div class="p-main-board__list-submission">
+            <div class="p-main-board__list-submission-head">
+              <p class="p-main-board__list-meta">提出内容</p>
+              ${cleared.timestamp ? `<p class="p-main-board__list-meta">${_formatClearedAt(cleared.timestamp)} に完了</p>` : ''}
             </div>
             ${cleared.format === 'image'
-              ? `<img src="${cleared.content}" class="w-full h-32 object-cover rounded-xl mt-1 shadow-inner">`
-              : `<p class="text-rs text-[#484545] bg-white p-3 rounded-lg border border-[#EBE8E5] break-words">${cleared.content}</p>`
+              ? `<img src="${_escAttr(cleared.content)}" class="p-main-board__list-image">`
+              : `<p class="text-rs p-main-board__list-text">${_esc(cleared.content)}</p>`
             }
-          </div>` : '<p class="text-[10px] text-[#A7AAAC]">未提出</p>'}
+          </div>` : '<p class="p-main-board__list-meta">未提出</p>'}
       </div>`;
   }).join('');
 
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="bg-white w-full max-w-md rounded-t-[40px] shadow-2xl h-[80vh] flex flex-col animate-fadeIn">
-      <div class="shrink-0 px-6 pt-6 pb-4 flex items-center justify-between">
-        <h2 class="heading-m text-[#484545]">ミッション一覧</h2>
-        <button onclick="document.getElementById('mission-list-modal').remove()" class="p-2 opacity-40">
+    <div class="p-main-board__list-modal animate-fadeIn">
+      <div class="p-main-board__list-head">
+        <h2 class="c-modal__title c-modal__title--tight">ミッション一覧</h2>
+        <button onclick="document.getElementById('mission-list-modal').remove()" class="p-main-board__list-close">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
-      <div class="flex-1 overflow-y-auto px-6 pb-6 space-y-4">${items}</div>
+      <div class="p-main-board__list-body">${items}</div>
     </div>`;
   document.body.appendChild(overlay);
 }
@@ -1098,29 +1095,28 @@ export function openTagCreator() {
 
   overlay.innerHTML = `
     <div id="tag-creator-panel" data-sheet
-      class="c-sheet c-sheet--padded"
-      style="max-height: 85vh; overflow-y: auto;">
+      class="c-sheet c-sheet--padded p-tag-creator__sheet">
       <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
-      <h3 class="text-[15px] font-bold text-[#484545] text-center mb-5">新しいタグを作成</h3>
+      <h3 class="p-tag-creator__title">新しいタグを作成</h3>
 
-      <div class="mb-5">
-        <label class="text-[12px] text-[#484545] font-bold mb-2 block">タグ名</label>
+      <div class="p-tag-creator__field">
+        <label class="p-tag-creator__label">タグ名</label>
         <input id="tag-name-input" type="text" maxlength="20"
           placeholder="例：会計、デザインなど"
-          class="c-input w-full px-4 py-3 focus:outline-none text-[13px]"
-          value="${_esc(state.tagCreator.name)}">
+          class="c-input p-tag-creator__input"
+          value="${_escAttr(state.tagCreator.name)}">
       </div>
 
-      <div class="mb-5">
-        <label class="text-[12px] text-[#484545] font-bold mb-2 block">色（同じ色は選択できません）</label>
-        <div id="tag-color-grid" class="grid grid-cols-6 gap-3"></div>
+      <div class="p-tag-creator__field">
+        <label class="p-tag-creator__label">色（同じ色は選択できません）</label>
+        <div id="tag-color-grid" class="p-tag-creator__grid"></div>
       </div>
 
-      <div class="flex gap-2">
+      <div class="p-tag-creator__actions">
         <button onclick="window._app.closeTagCreator()"
-          class="flex-1 py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
+          class="c-button c-button--muted">キャンセル</button>
         <button id="tag-create-btn"
-          class="flex-1 py-3 rounded-xl text-[13px] font-bold text-white bg-[#0CA1E3] disabled:opacity-40"
+          class="c-button c-button--primary"
           disabled>作成</button>
       </div>
     </div>`;
@@ -1158,18 +1154,17 @@ function _renderTagColorGrid() {
   grid.innerHTML = TAG_PALETTE.map(color => {
     const isUsed   = used.has(color.toUpperCase());
     const isPicked = state.tagCreator.color === color;
-    const baseCls  = 'rounded-full transition-all flex items-center justify-center';
+    // 色はパレット（constants.js）から来るので CSS に書けない。--swatch で渡す
+    const sw = `--swatch:${_escAttr(color)}`;
     if (isUsed) {
-      return `<div class="${baseCls} opacity-30 cursor-not-allowed relative"
-        style="width:40px;height:40px;background-color:${color};">
+      return `<div class="p-tag-creator__swatch p-tag-creator__swatch--used" style="${sw}">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </div>`;
     }
-    return `<button data-tag-color="${color}"
-      class="${baseCls} active:scale-95 ${isPicked ? 'ring-4 ring-[#484545]/30' : ''}"
-      style="width:40px;height:40px;background-color:${color};">
+    return `<button data-tag-color="${_escAttr(color)}"
+      class="p-tag-creator__swatch${isPicked ? ' is-picked' : ''}" style="${sw}">
       ${isPicked ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
     </button>`;
   }).join('');
@@ -1283,7 +1278,7 @@ export function openSelectClaimModal(missionId) {
   if (overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'select-claim-overlay';
-  overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[210] flex items-end';
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action-dialog c-overlay--blur';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
   // ★参加時回答からのおすすめ。応募者の中だけで採点し、該当者を上に寄せて理由を添える。
@@ -1310,39 +1305,39 @@ export function openSelectClaimModal(missionId) {
     const name = member ? member.username : '(不明なユーザー)';
     const rec = recIndex.get(uid) || null;
     const avatarHtml = member?.avatarUrl
-      ? `<img src="${_escAttr(member.avatarUrl)}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover flex-shrink-0">`
-      : `<div class="w-8 h-8 rounded-full bg-[#0CA1E3]/20 flex items-center justify-center flex-shrink-0 text-[12px] font-bold text-[#0CA1E3]">${_esc(name.charAt(0).toUpperCase())}</div>`;
+      ? `<img src="${_escAttr(member.avatarUrl)}" referrerpolicy="no-referrer" class="p-assignee__applicant-avatar">`
+      : `<div class="p-assignee__applicant-initial">${_esc(name.charAt(0).toUpperCase())}</div>`;
     return `
-      <label class="flex items-center gap-3 px-4 py-3 border-b border-[#E1DFDC] cursor-pointer active:bg-[#FDFBF8] ${rec ? 'bg-[#FDFBF8]' : ''}">
-        <input type="checkbox" data-select-claim value="${_escAttr(uid)}" class="w-4 h-4 accent-[#0CA1E3]">
+      <label class="p-assignee__applicant${rec ? ' is-recommended' : ''}">
+        <input type="checkbox" data-select-claim value="${_escAttr(uid)}" class="p-assignee__applicant-check">
         ${avatarHtml}
-        <span class="flex-1 min-w-0">
-          <span class="text-[13px] font-bold text-[#484545] block truncate">@${_esc(name)}</span>
-          ${rec ? `<span class="text-[10px] font-bold text-[#A7AAAC] block truncate">${_esc(rec.reason)}</span>` : ''}
+        <span class="p-assignee__applicant-body">
+          <span class="p-assignee__applicant-name">@${_esc(name)}</span>
+          ${rec ? `<span class="p-assignee__applicant-reason">${_esc(rec.reason)}</span>` : ''}
         </span>
-        ${rec ? '<span class="text-[9px] font-bold text-[#0CA1E3] border border-[#0CA1E3] px-1.5 py-0.5 rounded flex-shrink-0">おすすめ</span>' : ''}
+        ${rec ? '<span class="p-assignee__applicant-badge">おすすめ</span>' : ''}
       </label>`;
   }).join('');
 
   const modeLabel = '選定あり';
 
   overlay.innerHTML = `
-    <div data-sheet class="bg-white w-full rounded-t-3xl shadow-2xl flex flex-col" style="max-height: 85vh">
-      <div data-sheet-handle class="flex justify-center pt-3 pb-1"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
-      <h3 class="text-[15px] font-bold text-[#484545] text-center pt-2 pb-1">担当者を選定</h3>
-      <div class="flex justify-center pb-2">
-        <span class="text-[9px] text-[#9b7700] font-bold border border-[#FFC300] px-2 py-0.5 rounded bg-[#FFF8E1]">応募型（${modeLabel}）</span>
+    <div data-sheet class="p-assignee__select-sheet">
+      <div data-sheet-handle class="c-sheet__handle c-sheet__handle--low"><div class="c-sheet__grip"></div></div>
+      <h3 class="p-assignee__select-title">担当者を選定</h3>
+      <div class="p-assignee__select-badge-row">
+        <span class="p-assignee__select-badge">応募型（${modeLabel}）</span>
       </div>
-      <p class="text-[11px] text-[#A7AAAC] text-center pb-3 px-6">「${_esc(m.title)}」<br>応募者から1名以上選んでください</p>
-      <p class="text-[10px] text-center text-[#A7AAAC] pb-2">${applicants.length}名が応募中</p>
-      <div class="flex-1 overflow-y-auto border-t border-[#E1DFDC]">
+      <p class="p-assignee__select-lead">「${_esc(m.title)}」<br>応募者から1名以上選んでください</p>
+      <p class="p-assignee__select-count">${applicants.length}名が応募中</p>
+      <div class="p-assignee__select-list">
         ${applicantRows}
       </div>
-      <div class="p-4 flex gap-2 border-t border-[#E1DFDC]">
+      <div class="p-assignee__select-actions">
         <button onclick="document.getElementById('select-claim-overlay').remove()"
-          class="flex-1 py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
+          class="c-button c-button--muted">キャンセル</button>
         <button onclick="window._app.submitSelectClaims('${missionId}')"
-          class="flex-1 py-3 rounded-xl text-[13px] font-bold text-white bg-[#FFC300]">担当者を確定する</button>
+          class="c-button c-button--warning">担当者を確定する</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);

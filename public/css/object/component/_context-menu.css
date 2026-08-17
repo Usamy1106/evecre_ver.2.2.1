@@ -41,3 +41,40 @@
 .c-context-menu__item--danger {
   color: var(--color-danger);
 }
+
+/* ミッションのメニュー（ミートボール ⋮ と長押し）。
+   ★z-index はカレンダー/ガントのシート（200）より前、絵文字ピッカーと同じ
+     250。元の値のままにしてある（重なり順を変えないため）。 */
+.c-context-menu--mission {
+  z-index: var(--z-mission-menu);
+  min-width: 120px;
+  box-shadow: var(--shadow-xl);
+}
+
+/* 並び替えのドロップダウン。ボードの中に絶対配置で開く（画面全体には出ない）*/
+.c-context-menu--dropdown {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: var(--z-sort-menu);
+  min-width: 140px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+}
+
+.c-context-menu--dropdown .c-context-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom-color: var(--color-bg);
+}
+
+.c-context-menu--dropdown .c-context-menu__item:hover {
+  background-color: var(--color-bg);
+}
+
+/* いま選ばれている並び順の印 */
+.c-context-menu__marker {
+  color: var(--color-primary);
+}

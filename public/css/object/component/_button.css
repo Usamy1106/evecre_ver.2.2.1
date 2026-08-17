@@ -35,6 +35,13 @@
   color: var(--color-text-inverse);
 }
 
+/* 確定・決定（応募者の選定など、取り消せるが重い操作）。
+   ★破壊的ではないので danger（赤）にしないこと。 */
+.c-button--warning {
+  background-color: var(--color-warning);
+  color: var(--color-text-inverse);
+}
+
 /* 打ち消し・キャンセル */
 .c-button--muted {
   background-color: var(--button-secondary);

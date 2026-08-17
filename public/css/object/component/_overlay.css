@@ -130,3 +130,19 @@
   padding: var(--space-6);
   background-color: rgba(0, 0, 0, .6);
 }
+
+/* ミッション一覧モーダル（下から出る大きなシート）*/
+.c-overlay--list {
+  z-index: var(--z-list-modal);
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* 提案のヒント。ボードの上に出る小さなモーダル */
+.c-overlay--help {
+  z-index: var(--z-help);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background-color: rgba(0, 0, 0, .6);
+}

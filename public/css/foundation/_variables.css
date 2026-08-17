@@ -90,6 +90,7 @@
   --color-primary-pale5: #E1F4FC;  /* 開催日のマス（スケジュール）。他の pale と近い（統合は Phase 5）*/
   --color-event-date: #CFD8FF;     /* イベントの開催日のマス（日付ピッカー）*/
   --color-error-input: #e8383d;    /* 未入力エラーの枠と文字（--create-red とは別の赤）*/
+  --color-picked-ring: rgba(72, 69, 69, .3);  /* 選んだ色の外側の輪（タグ作成）*/
   --color-saturday: #5C6BC0;       /* 土曜の文字。日曜は --create-red を使う */
 
   /* ガントの列の塗り。ヘッダー行は濃く、ミッション行は薄くする
@@ -141,6 +142,8 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, .08);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, .12);
+  /* Tailwind の shadow-xl。浮いたメニューで使う */
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, .1), 0 8px 10px -6px rgba(0, 0, 0, .1);
   /* ★Tailwind の shadow-lg + shadow-blue-200（色付きの影）。作成ボタンで使う */
   --shadow-primary: 0 10px 15px -3px rgb(191, 219, 254), 0 4px 6px -4px rgb(191, 219, 254);
   /* ★Tailwind の shadow-2xl。シート・トーストが使っており、--shadow-lg より
@@ -177,6 +180,7 @@
   --z-form-modal: 240;       /* 1問ずつ聞くフォーム（参加申請・スキル回収）*/
   --z-edit-modal: 150;       /* アーカイブの項目を編集するモーダル */
   --z-date-picker: 200;      /* 日付を選ぶモーダル */
+  --z-help: 200;             /* 提案のヒント */
   --z-action-sheet: 200;     /* イベントカードの長押しメニュー */
   --z-action-dialog: 210;    /* 名前の変更・削除確認（長押しメニューの上）*/
   --z-schedule: 200;         /* スケジュール（カレンダー・ガント）のシート */
@@ -185,6 +189,9 @@
   --z-welcome: 220;          /* 参加直後のリーダーの意気込み */
   --z-emoji-picker: 250;     /* 絵文字ピッカー */
   --z-push-setup: 260;       /* 通知セットアップの案内。他のシートより前 */
+  --z-mission-menu: 250;     /* ミッションのミートボール・長押しメニュー */
+  --z-sort-menu: 60;         /* 並び替えのドロップダウン（ボード内） */
+  --z-list-modal: 150;       /* ミッション一覧モーダル */
   --z-context-menu: 260;     /* 長押しメニュー。ピッカーより前 */
   --z-modal: 300;            /* 確認ダイアログ。他のモーダルより前 */
   --z-toast: 400;            /* 操作の結果を伝えるので最前面に近い */

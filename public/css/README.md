@@ -86,6 +86,7 @@
 | ミッション詳細（完了入力・チャット・吹き出し） | `object/project/_mission-detail.css` |
 | ミッションの作成・編集モーダル | `object/project/_mission-form.css` |
 | 担当者の選択・おすすめ | `object/project/_assignee.css` |
+| 新しいタグを作るシート | `object/project/_tag-creator.css` |
 | イベント設定（イベント管理・メンバー・ロール・脱退） | `object/project/_event-settings.css` |
 | メインボードのメインタブ（日付チップ・提案・ミッションカード） | `object/project/_main-board.css` |
 | アーカイブタブ（概要カード・ミッションの記録） | `object/project/_archive.css` |
@@ -273,6 +274,7 @@ public/css/
 │  ├─ _mission-detail.css       ✅ ミッション詳細
 │  ├─ _mission-form.css         ✅ ミッションの作成・編集モーダル
 │  ├─ _assignee.css             ✅ 担当者の選択・おすすめ
+│  ├─ _tag-creator.css          ✅ 新しいタグを作るシート
 │  ├─ _event-settings.css       ✅ イベント設定
 │  ├─ _main-board.css           ✅ メインタブ・バナー・アナウンス
 │  ├─ _archive.css              ✅ アーカイブタブ

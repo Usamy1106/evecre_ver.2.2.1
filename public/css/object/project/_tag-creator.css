@@ -1,0 +1,94 @@
+/* ==========================================================================
+   Object / Project / tag-creator — 新しいタグを作るシート
+   使用箇所: public/js/modals/mission.js（openTagCreator）
+             作成モーダルの「＋ 新しいタグ」から開く。担当者シートの上に重なる。
+
+   ★同じ色は選べない（既に使われている色は × を出して押せなくする）。
+     色で見分ける前提の機能なので、重複を許すとタグの意味が消える。
+   ========================================================================== */
+
+.p-tag-creator__sheet {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.p-tag-creator__title {
+  margin-bottom: var(--space-5);
+  font-size: 15px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-tag-creator__field {
+  margin-bottom: var(--space-5);
+}
+
+.p-tag-creator__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-tag-creator__input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  font-size: 13px;
+}
+
+.p-tag-creator__input:focus {
+  outline: none;
+}
+
+.p-tag-creator__grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+/* 色の丸。色そのものは JS から --swatch で渡す（パレットは constants.js）*/
+.p-tag-creator__swatch {
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--swatch);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-tag-creator__swatch:active {
+  transform: scale(.95);
+}
+
+/* 選んだ色。★塗りが変えられないので、外側の輪と ✓ で示す */
+.p-tag-creator__swatch.is-picked {
+  box-shadow: 0 0 0 4px var(--color-picked-ring);
+}
+
+/* 既に使われている色。押せないことを薄さと × の両方で示す */
+.p-tag-creator__swatch--used {
+  position: relative;
+  opacity: .3;
+  cursor: not-allowed;
+}
+
+.p-tag-creator__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.p-tag-creator__actions > button {
+  flex: 1;
+  padding-block: var(--space-3);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-tag-creator__actions > button:disabled {
+  opacity: .4;
+}
