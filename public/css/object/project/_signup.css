@@ -192,3 +192,487 @@
   line-height: 1.625;
   color: var(--color-text);
 }
+
+/* --- 見出し（1問ずつ出す画面。中央寄せしない）----------------------------- */
+
+.p-signup__question {
+  margin-bottom: var(--space-2);
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-signup__question-lead {
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-signup__input {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: 14px var(--space-4);
+}
+
+.p-signup__next {
+  margin-top: var(--space-6);
+}
+
+.p-signup__next--tight {
+  margin-top: var(--space-4);
+}
+
+/* --- パスワード ----------------------------------------------------------
+   ★要件は server.js の validatePassword と同じ条件に保つこと。
+     片方だけ変えると「画面は通るのにサーバーで弾かれる」状態になる。
+   ★何が足りないかを打ちながら分かるよう、メーターと項目の両方を出す。 */
+
+.p-signup__password-wrap {
+  position: relative;
+  margin-bottom: var(--space-2);
+}
+
+.p-signup__password-toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-3);
+  transform: translateY(-50%);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 表示/非表示ボタンのぶん右に余白を足す */
+.p-signup__input--with-action {
+  padding-right: 56px;
+}
+
+.p-signup__meter {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--space-2);
+}
+
+/* 色は強度で変わるので JS が --meter-color で渡す */
+.p-signup__meter-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background-color: var(--meter-color, var(--bg-textbox));
+}
+
+.p-signup__meter-label {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--meter-color, var(--color-text-muted));
+}
+
+.p-signup__requirements {
+  margin-bottom: var(--space-3);
+}
+
+.p-signup__requirements > * + * {
+  margin-top: var(--space-1);
+}
+
+/* ★満たしたかどうかは ●/○ の記号でも示す（色だけに頼らない）*/
+.p-signup__requirement {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-signup__requirement.is-ok {
+  color: var(--color-text);
+}
+
+.p-signup__requirement-mark {
+  color: var(--color-border);
+}
+
+.p-signup__requirement.is-ok .p-signup__requirement-mark {
+  color: var(--color-success);
+}
+
+.p-signup__requirement-sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-signup__hint {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-signup__hint-em {
+  color: var(--color-text);
+}
+
+/* --- STEP 3：確認コード --------------------------------------------------- */
+
+.p-signup__question-sub {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-signup__question-email {
+  color: var(--color-primary);
+}
+
+.p-signup__minor {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-signup__minor--error {
+  color: var(--color-danger);
+}
+
+.p-signup__resend {
+  width: 100%;
+  margin-bottom: var(--space-1);
+  padding-block: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-signup__resend:disabled {
+  color: var(--color-text-muted);
+}
+
+.p-signup__caption {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ★STEP 1 に戻さない。戻すと別メールで登録し直され、アカウントが二重にできる。
+   作成済みアカウントのメールアドレスをその場で差し替える。 */
+.p-signup__change-email {
+  margin-top: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+}
+
+.p-signup__change-email-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-signup__row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.p-signup__row-button {
+  flex: 1;
+  padding-block: 10px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-signup__row-button--cancel {
+  border: 1px solid var(--bg-textbox);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* 画面の一番下に置く「あとで」 */
+.p-signup__later {
+  width: 100%;
+  margin-top: auto;
+  padding-block: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- STEP 4：ニックネーム -------------------------------------------------- */
+
+.p-signup__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-signup__input--tight {
+  margin-bottom: var(--space-1);
+}
+
+.p-signup__note--under-input {
+  margin-bottom: var(--space-1);
+}
+
+/* --- STEP 5：アイコン -----------------------------------------------------
+   ★プリセットの一覧はサーバーから取る（ホワイトリストの実体はサーバー側）。 */
+
+.p-signup__presets {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.p-signup__preset {
+  flex: 1;
+  aspect-ratio: 1;
+  padding: var(--space-2);
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-signup__preset.is-selected {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-pale);
+}
+
+.p-signup__preset-image {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  object-fit: contain;
+}
+
+.p-signup__presets-loading {
+  width: 100%;
+  padding-block: var(--space-8);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-signup__shuffle {
+  width: 100%;
+  margin-bottom: var(--space-4);
+  padding-block: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* アップロードした画像のプレビュー */
+.p-signup__upload-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary-pale);
+}
+
+.p-signup__upload-image {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.p-signup__upload-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-signup__upload-button {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding-block: var(--space-3);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* --- 選択肢（STEP 6・7 は縦、STEP 8 は横2枚）------------------------------ */
+
+.p-signup__choice {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: var(--space-4);
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  text-align: left;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-signup__choice.is-selected {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-pale);
+  color: var(--color-primary);
+}
+
+.p-signup__quiz-count {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-signup__question--wide {
+  margin-bottom: var(--space-8);
+}
+
+.p-signup__quiz-options {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.p-signup__quiz-option {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-3);
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-signup__quiz-option.is-selected {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-pale);
+}
+
+.p-signup__quiz-emoji {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.p-signup__quiz-label {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+  white-space: pre-line;
+}
+
+.p-signup__quiz-option.is-selected .p-signup__quiz-label {
+  color: var(--color-primary);
+}
+
+/* --- 完了カード ----------------------------------------------------------
+   ★中の要素を時間差で出して「組み上がる」ように見せる。
+     初期状態（opacity:0 と transform）はここで持ち、JS は解除するだけにする。 */
+
+.p-signup__complete {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.p-signup__complete-lead {
+  margin-bottom: var(--space-5);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+  opacity: 0;
+}
+
+.p-signup__complete-card {
+  margin-bottom: var(--space-8);
+  padding: var(--space-8) var(--space-6);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.p-signup__complete-avatar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+  opacity: 0;
+  transform: scale(.8);
+}
+
+.p-signup__complete-name {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+  opacity: 0;
+}
+
+.p-signup__complete-catch {
+  margin-bottom: var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+  opacity: 0;
+}
+
+.p-signup__complete-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+/* 色は診断の結果ごとに違うので JS が --tag-color で渡す */
+.p-signup__complete-tag {
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: color-mix(in srgb, var(--tag-color) 10%, transparent);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--tag-color);
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.p-signup__complete-start {
+  width: 100%;
+  padding-block: var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  opacity: 0;
+}
+
+/* 選択肢の「その他」に付く自由記述 */
+.p-signup__input--nested {
+  margin-top: var(--space-1);
+  padding-block: var(--space-3);
+}

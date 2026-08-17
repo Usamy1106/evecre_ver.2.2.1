@@ -251,15 +251,15 @@ function _renderEntry(container, d) {
 function _renderEmail(container, d) {
   container.innerHTML = _shell(`
     ${_dots(1)}
-    <h1 class="heading-l text-[#484545] font-bold mb-2">メールアドレスを<br>教えてください</h1>
-    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">学校のメールでも個人のメールでもOK</p>
+    <h1 class="p-signup__question">メールアドレスを<br>教えてください</h1>
+    <p class="p-signup__question-lead">学校のメールでも個人のメールでもOK</p>
 
     <input id="su-email" type="email" autocomplete="email" inputmode="email"
-      class="c-input w-full px-4 py-3.5 focus:outline-none mb-2 ${d.errors.email ? 'ring-2 ring-[#EE3E12]' : ''}"
+      class="c-input p-signup__input${d.errors.email ? ' is-error' : ''}"
       placeholder="example@mail.com" value="${_esc(d.email)}" maxlength="100">
-    ${d.errors.email ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${d.errors.email}</p>` : ''}
+    ${d.errors.email ? `<p class="p-signup__error">${_esc(d.errors.email)}</p>` : ''}
 
-    <button id="su-email-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-6">次へ</button>
+    <button type="button" id="su-email-next" class="c-button c-button--primary p-signup__submit p-signup__next">次へ</button>
   `, { back: true });
 
   const input = document.getElementById('su-email');
@@ -320,50 +320,48 @@ function _renderPassword(container, d) {
   const sc = c.score;
   const label = ['要件を満たしていません', '使えます', 'よい強度です', '強力なパスワードです'][sc];
   const color = ['#D3D6D8', '#FFC300', '#9EDF05', '#9EDF05'][sc];
-  const mark = (okFlag) => okFlag
-    ? '<span class="text-[#9EDF05]">●</span>'
-    : '<span class="text-[#D3D6D8]">○</span>';
+  // ★満たしたかどうかは記号（●/○）でも示す。色だけに頼らない
+  const mark = (okFlag) => `<span class="p-signup__requirement-mark">${okFlag ? '●' : '○'}</span>`;
 
   container.innerHTML = _shell(`
     ${_dots(2)}
-    <h1 class="heading-l text-[#484545] font-bold mb-2">パスワードを<br>設定してください</h1>
-    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">安全のため、次の条件を満たしてください</p>
+    <h1 class="p-signup__question">パスワードを<br>設定してください</h1>
+    <p class="p-signup__question-lead">安全のため、次の条件を満たしてください</p>
 
-    <div class="relative mb-2">
+    <div class="p-signup__password-wrap">
       <input id="su-password" type="password" autocomplete="new-password"
-        class="c-input w-full px-4 py-3.5 pr-14 focus:outline-none ${d.errors.password ? 'ring-2 ring-[#EE3E12]' : ''}"
+        class="c-input p-signup__input p-signup__input--with-action${d.errors.password ? ' is-error' : ''}"
         placeholder="${PW_MIN_LEN}文字以上" value="${_esc(d.password)}" maxlength="100">
-      <button type="button" id="su-pw-toggle"
-        class="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-[#A7AAAC] font-bold px-2 py-1">表示</button>
+      <button type="button" id="su-pw-toggle" class="p-signup__password-toggle">表示</button>
     </div>
 
-    <!-- 強度メーター -->
-    <div id="su-pw-bars" class="flex gap-1.5 mb-2">
-      ${[1, 2, 3].map(i => `<div class="h-1 flex-1 rounded-full" style="background:${sc >= i ? color : '#E1DFDC'}"></div>`).join('')}
+    <!-- 強度メーター。色は強度で変わるので CSS 変数で渡す -->
+    <div id="su-pw-bars" class="p-signup__meter">
+      ${[1, 2, 3].map(i => `<div class="p-signup__meter-bar" style="--meter-color:${sc >= i ? color : 'var(--bg-textbox)'}"></div>`).join('')}
     </div>
-    <p id="su-pw-label" class="text-[11px] font-bold mb-3" style="color:${sc === 0 ? '#A7AAAC' : color}">${label}</p>
+    <p id="su-pw-label" class="p-signup__meter-label" style="--meter-color:${sc === 0 ? 'var(--color-text-muted)' : color}">${label}</p>
 
     <!-- 要件チェックリスト（何が足りないかを打ちながら分かるように） -->
-    <ul class="mb-3 space-y-1">
-      <li id="su-pw-req-len" class="text-[12px] font-bold ${c.lenOk ? 'text-[#484545]' : 'text-[#A7AAAC]'}">
+    <ul class="p-signup__requirements">
+      <li id="su-pw-req-len" class="p-signup__requirement${c.lenOk ? ' is-ok' : ''}">
         ${mark(c.lenOk)} ${PW_MIN_LEN}文字以上
       </li>
-      <li id="su-pw-req-kinds" class="text-[12px] font-bold ${c.kindsOk ? 'text-[#484545]' : 'text-[#A7AAAC]'}">
+      <li id="su-pw-req-kinds" class="p-signup__requirement${c.kindsOk ? ' is-ok' : ''}">
         ${mark(c.kindsOk)} 英大文字・英小文字・数字・記号のうち${PW_MIN_KINDS}種類以上
-        <span class="text-[11px] text-[#A7AAAC]">（現在 ${c.kinds} 種類）</span>
+        <span class="p-signup__requirement-sub">（現在 ${c.kinds} 種類）</span>
       </li>
     </ul>
 
-    ${d.errors.password ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.errors.password)}</p>` : ''}
+    ${d.errors.password ? `<p class="p-signup__error">${_esc(d.errors.password)}</p>` : ''}
     ${_otherErrorsHtml(d.errors, ['password'])}
     ${d.errors._toLogin ? `
-      <button id="su-to-login" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold underline mb-2">ログイン画面へ</button>` : ''}
+      <button type="button" id="su-to-login" class="p-signup__text-button">ログイン画面へ</button>` : ''}
 
-    <button id="su-pw-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-4">アカウントを作成</button>
+    <button type="button" id="su-pw-next" class="c-button c-button--primary p-signup__submit p-signup__next--tight">アカウントを作成</button>
 
     <!-- ここでコードを先に送っておくので、STEP 3 に着く頃には届いている -->
-    <p class="text-[11px] text-[#A7AAAC] font-bold text-center mt-4 leading-relaxed">
-      作成すると <span class="text-[#484545]">${_esc(d.email)}</span> に<br>確認コードを送信します
+    <p class="p-signup__hint">
+      作成すると <span class="p-signup__hint-em">${_esc(d.email)}</span> に<br>確認コードを送信します
     </p>
   `, { back: true });
 
@@ -394,24 +392,32 @@ function _renderPassword(container, d) {
 function _updateStrength(d) {
   const c     = _pwCheck(d.password);
   const sc    = c.score;
-  const color = ['#D3D6D8', '#FFC300', '#9EDF05', '#9EDF05'][sc];
+  const color = ['var(--color-border)', '#FFC300', '#9EDF05', '#9EDF05'][sc];
   const label = ['要件を満たしていません', '使えます', 'よい強度です', '強力なパスワードです'][sc];
+
+  // ★色は --meter-color で渡す（形と余白は CSS が持つ）。
+  //   以前はここで className ごと組み立てており、見た目を変えるのに JS を
+  //   触る必要があった。
   document.querySelectorAll('#su-pw-bars > div').forEach((el, i) => {
-    el.style.background = sc >= i + 1 ? color : '#E1DFDC';
+    el.style.setProperty('--meter-color', sc >= i + 1 ? color : 'var(--bg-textbox)');
   });
   const p = document.getElementById('su-pw-label');
-  if (p) { p.textContent = label; p.style.color = sc === 0 ? '#A7AAAC' : color; }
+  if (p) {
+    p.textContent = label;
+    p.style.setProperty('--meter-color', sc === 0 ? 'var(--color-text-muted)' : color);
+  }
 
   const paint = (el, okFlag, text) => {
     if (!el) return;
-    el.className = `text-[12px] font-bold ${okFlag ? 'text-[#484545]' : 'text-[#A7AAAC]'}`;
-    el.innerHTML = `<span class="${okFlag ? 'text-[#9EDF05]' : 'text-[#D3D6D8]'}">${okFlag ? '\u25cf' : '\u25cb'}</span> ${text}`;
+    el.classList.toggle('is-ok', okFlag);
+    el.innerHTML = `<span class="p-signup__requirement-mark">${okFlag ? '\u25cf' : '\u25cb'}</span> ${text}`;
   };
   paint(document.getElementById('su-pw-req-len'), c.lenOk, `${PW_MIN_LEN}文字以上`);
   paint(document.getElementById('su-pw-req-kinds'), c.kindsOk,
     `英大文字・英小文字・数字・記号のうち${PW_MIN_KINDS}種類以上`
-    + ` <span class="text-[11px] text-[#A7AAAC]">（現在 ${c.kinds} 種類）</span>`);
+    + ` <span class="p-signup__requirement-sub">（現在 ${c.kinds} 種類）</span>`);
 }
+
 
 async function _submitRegister(d) {
   _syncDraftFromDom({ 'su-password': 'password' }, d);
@@ -493,11 +499,11 @@ function _renderOtp(container, d) {
 
   container.innerHTML = _shell(`
     ${_dots(3)}
-    <h1 class="heading-l text-[#484545] font-bold mb-2">確認コードを<br>入力してください</h1>
-    <p class="text-rs text-[#A7AAAC] mb-1 font-bold">
-      <span class="text-[#0CA1E3]">${_esc(state.currentUser?.email || d.email)}</span> 宛に
+    <h1 class="p-signup__question">確認コードを<br>入力してください</h1>
+    <p class="p-signup__question-sub">
+      <span class="p-signup__question-email">${_esc(state.currentUser?.email || d.email)}</span> 宛に
     </p>
-    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">${d.otpSending ? '6桁のコードを送信しています…' : '6桁のコードを送信しました'}</p>
+    <p class="p-signup__question-lead">${d.otpSending ? '6桁のコードを送信しています…' : '6桁のコードを送信しました'}</p>
 
     <!-- ★入力は「1本の input」のまま、見た目だけ6分割にしている。
          input を透明にしてマスの上に重ねることで、iOS のキーボード上部サジェスト
@@ -516,38 +522,38 @@ function _renderOtp(container, d) {
         class="c-otp__input" value="${_esc(d.otp)}">
     </div>
 
-    ${d.mailError ? `<p class="text-[11px] text-[#EE3E12] mb-2 font-bold">⚠ メール送信に失敗：${_esc(d.mailError)}</p>` : ''}
-    ${d.devCode ? `<p class="text-[11px] text-[#A7AAAC] mb-2 font-bold">（開発用）コード: ${_esc(d.devCode)}</p>` : ''}
-    ${d.otpError ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold leading-relaxed">${_esc(d.otpError)}</p>` : ''}
+    ${d.mailError ? `<p class="p-signup__minor p-signup__minor--error">⚠ メール送信に失敗：${_esc(d.mailError)}</p>` : ''}
+    ${d.devCode ? `<p class="p-signup__minor">（開発用）コード: ${_esc(d.devCode)}</p>` : ''}
+    ${d.otpError ? `<p class="p-signup__error">${_esc(d.otpError)}</p>` : ''}
 
     <button id="su-otp-submit" class="c-button c-button--primary p-signup__submit">認証する</button>
 
-    <button id="su-otp-resend" class="w-full py-2 text-[12px] font-bold text-[#0CA1E3] disabled:text-[#A7AAAC] mb-1">
+    <button type="button" id="su-otp-resend" class="p-signup__resend">
       ${d.resendLeftSec > 0 ? `コードを再送する（${d.resendLeftSec}秒）` : 'コードを再送する'}
     </button>
 
-    <p class="text-[11px] text-[#A7AAAC] font-bold text-center leading-relaxed mb-1">
+    <p class="p-signup__caption">
       メールが見つからないときは、迷惑メールフォルダもご確認ください
     </p>
     ${d.changingEmail ? `
       <!-- ★STEP 1 に戻さない。戻すと別メールで登録し直され、アカウントが二重にできる。
            作成済みアカウントのメールアドレスをその場で差し替える。 -->
-      <div class="border border-[#E1DFDC] rounded-2xl p-4 mt-2">
-        <p class="text-[12px] text-[#484545] font-bold mb-2">別のメールアドレスに送り直す</p>
+      <div class="p-signup__change-email">
+        <p class="p-signup__change-email-title">別のメールアドレスに送り直す</p>
         <input id="su-newmail" type="email" autocomplete="email" inputmode="email"
-          class="c-input w-full px-4 py-3 focus:outline-none mb-2"
+          class="c-input c-input--block p-signup__input"
           placeholder="example@mail.com" value="${_esc(d.newEmail || '')}" maxlength="100">
-        ${d.newEmailError ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.newEmailError)}</p>` : ''}
-        <div class="flex gap-2">
-          <button id="su-newmail-cancel" class="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]">キャンセル</button>
-          <button id="su-newmail-save" class="flex-1 c-button c-button--primary py-2.5 text-[13px] font-bold">変更して再送信</button>
+        ${d.newEmailError ? `<p class="p-signup__error">${_esc(d.newEmailError)}</p>` : ''}
+        <div class="p-signup__row">
+          <button type="button" id="su-newmail-cancel" class="p-signup__row-button p-signup__row-button--cancel">キャンセル</button>
+          <button type="button" id="su-newmail-save" class="c-button c-button--primary p-signup__row-button">変更して再送信</button>
         </div>
       </div>` : `
-      <button id="su-otp-change-email" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold underline">
+      <button type="button" id="su-otp-change-email" class="p-signup__text-button">
         メールアドレスを変更する
       </button>`}
 
-    <button id="su-otp-later" class="w-full py-3 text-[12px] text-[#A7AAAC] font-bold mt-auto">
+    <button type="button" id="su-otp-later" class="p-signup__later">
       あとで認証する
     </button>
   `);
@@ -925,15 +931,14 @@ async function _saveStep(stepName, completed, fields = {}) {
 /** 選択肢カード（単一選択） */
 function _choice(id, label, selected) {
   return `
-    <button data-choice="${_esc(id)}"
-      class="w-full text-left px-4 py-4 rounded-2xl border-2 text-[14px] font-bold mb-2.5 transition-colors
-             ${selected ? 'border-[#0CA1E3] bg-[#E8F6FD] text-[#0CA1E3]' : 'border-[#E1DFDC] bg-white text-[#484545]'}">
+    <button type="button" data-choice="${_esc(id)}"
+      class="p-signup__choice${selected ? ' is-selected' : ''}">
       ${_esc(label)}
     </button>`;
 }
 
 function _skipButton(label = 'スキップ') {
-  return `<button id="su-skip" class="w-full py-3 text-[12px] text-[#A7AAAC] font-bold mt-auto">${label}</button>`;
+  return `<button type="button" id="su-skip" class="p-signup__later">${label}</button>`;
 }
 
 // ----- STEP 4：表示名 -----
@@ -941,18 +946,18 @@ function _skipButton(label = 'スキップ') {
 function _renderName(container, d) {
   container.innerHTML = _shell(`
     ${_profileDots(d, 4)}
-    <h1 class="heading-l text-[#484545] font-bold mb-2">イベクリへようこそ。<br>まずはあなたのニックネームを教えて</h1>
-    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">あとから変更できます</p>
+    <h1 class="p-signup__question">イベクリへようこそ。<br>まずはあなたのニックネームを教えて</h1>
+    <p class="p-signup__question-lead">あとから変更できます</p>
 
-    <label class="block text-rs text-[#484545] font-bold mb-2">みんなに表示される名前</label>
+    <label class="p-signup__label" for="su-name">みんなに表示される名前</label>
     <input id="su-name" type="text" autocomplete="nickname"
-      class="c-input w-full px-4 py-3.5 focus:outline-none mb-1 ${d.errors.name ? 'ring-2 ring-[#EE3E12]' : ''}"
+      class="c-input p-signup__input p-signup__input--tight${d.errors.name ? ' is-error' : ''}"
       placeholder="ニックネーム" value="${_esc(d.name || '')}" maxlength="20">
-    <p class="text-[11px] text-[#A7AAAC] font-bold mb-1">2〜20文字（英数字・日本語・全角OK）</p>
-    ${d.errors.name ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.errors.name)}</p>` : ''}
+    <p class="p-signup__note p-signup__note--under-input">2〜20文字（英数字・日本語・全角OK）</p>
+    ${d.errors.name ? `<p class="p-signup__error">${_esc(d.errors.name)}</p>` : ''}
     ${_otherErrorsHtml(d.errors, ['name'])}
 
-    <button id="su-name-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-6">次へ</button>
+    <button type="button" id="su-name-next" class="c-button c-button--primary p-signup__submit p-signup__next">次へ</button>
     ${_skipButton('あとで設定する')}
   `, { back: _canBack(d, 4) });
 
@@ -999,38 +1004,38 @@ function _renderAvatar(container, d) {
   const choices = d.avatarChoices || [];
   container.innerHTML = _shell(`
     ${_profileDots(d, 5)}
-    <h1 class="heading-l text-[#484545] font-bold mb-2">アイコンを<br>選んでください</h1>
-    <p class="text-rs text-[#A7AAAC] mb-6 font-bold">あとから変更できます</p>
+    <h1 class="p-signup__question">アイコンを<br>選んでください</h1>
+    <p class="p-signup__question-lead">あとから変更できます</p>
 
-    <div class="flex justify-between gap-3 mb-3">
+    <div class="p-signup__presets">
       ${choices.length === 0
-        ? '<p class="text-[12px] text-[#A7AAAC] font-bold py-8 w-full text-center">読み込み中…</p>'
+        ? '<p class="p-signup__presets-loading">読み込み中…</p>'
         : choices.map(p => `
-          <button data-preset="${_esc(p.id)}"
-            class="flex-1 aspect-square rounded-2xl border-2 p-2 transition-colors
-                   ${d.avatarPreset === p.id ? 'border-[#0CA1E3] bg-[#E8F6FD]' : 'border-[#E1DFDC] bg-white'}">
-            <img src="${_esc(p.url)}" alt="" class="w-full h-full object-contain rounded-full">
+          <button type="button" data-preset="${_esc(p.id)}"
+            class="p-signup__preset${d.avatarPreset === p.id ? ' is-selected' : ''}">
+            <img src="${_esc(p.url)}" alt="" class="p-signup__preset-image">
           </button>`).join('')}
     </div>
 
-    <button id="su-avatar-shuffle" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold mb-4">
+    <button type="button" id="su-avatar-shuffle" class="p-signup__shuffle">
       他の候補を見る
     </button>
 
     ${d.avatarUploadPreview ? `
-      <div class="flex items-center gap-3 mb-3 p-3 rounded-2xl border-2 border-[#0CA1E3] bg-[#E8F6FD]">
-        <img src="${_esc(d.avatarUploadPreview)}" class="w-14 h-14 rounded-full object-cover">
-        <p class="text-[12px] text-[#0CA1E3] font-bold">この画像を使います</p>
+      <div class="p-signup__upload-preview">
+        <img src="${_esc(d.avatarUploadPreview)}" class="p-signup__upload-image" alt="">
+        <p class="p-signup__upload-text">この画像を使います</p>
       </div>` : ''}
 
+    <!-- ★hidden は「見た目を消す」ためではなく、ファイル選択を自前のボタンで代替するため -->
     <input id="su-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
-    <button id="su-avatar-upload" class="w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC] mb-2">
+    <button type="button" id="su-avatar-upload" class="p-signup__upload-button">
       自分の画像をアップロードする
     </button>
 
-    ${d.errors.avatar ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.errors.avatar)}</p>` : ''}
+    ${d.errors.avatar ? `<p class="p-signup__error">${_esc(d.errors.avatar)}</p>` : ''}
 
-    <button id="su-avatar-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    <button type="button" id="su-avatar-next" class="c-button c-button--primary p-signup__submit p-signup__next--tight">次へ</button>
     ${_skipButton('あとで設定する')}
   `, { back: _canBack(d, 5) });
 
@@ -1124,16 +1129,16 @@ const CHANNELS = [
 function _renderChannel(container, d) {
   container.innerHTML = _shell(`
     ${_profileDots(d, 6)}
-    <h1 class="heading-l text-[#484545] font-bold mb-6">イベクリを<br>どこで知りましたか？</h1>
+    <h1 class="p-signup__question p-signup__question--wide">イベクリを<br>どこで知りましたか？</h1>
 
     ${CHANNELS.map(([id, label]) => _choice(id, label, d.acquisitionChannel === id)).join('')}
 
     ${d.acquisitionChannel === 'other' ? `
       <input id="su-channel-other" type="text" maxlength="100"
-        class="c-input w-full px-4 py-3 focus:outline-none mt-1 mb-2"
+        class="c-input c-input--block p-signup__input p-signup__input--nested"
         placeholder="よければ教えてください（任意）" value="${_esc(d.acquisitionChannelOther || '')}">` : ''}
 
-    <button id="su-channel-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    <button id="su-channel-next" class="c-button c-button--primary p-signup__submit p-signup__next--tight">次へ</button>
     ${_skipButton()}
   `, { back: _canBack(d, 6) });
 
@@ -1174,11 +1179,11 @@ const EXPERIENCES = [
 function _renderExperience(container, d) {
   container.innerHTML = _shell(`
     ${_profileDots(d, 7)}
-    <h1 class="heading-l text-[#484545] font-bold mb-6">イベント運営の<br>経験はありますか？</h1>
+    <h1 class="p-signup__question p-signup__question--wide">イベント運営の<br>経験はありますか？</h1>
 
     ${EXPERIENCES.map(([id, label]) => _choice(id, label, d.eventExperience === id)).join('')}
 
-    <button id="su-exp-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    <button id="su-exp-next" class="c-button c-button--primary p-signup__submit p-signup__next--tight">次へ</button>
     ${_skipButton()}
   `, { back: _canBack(d, 7) });
 
@@ -1226,17 +1231,15 @@ function _renderQuiz(container, d) {
 
   container.innerHTML = _shell(`
     ${_profileDots(d, 8)}
-    <p class="text-[12px] text-[#0CA1E3] font-bold mb-2">${qi + 1} / ${QUIZ.length}</p>
-    <h1 class="heading-l text-[#484545] font-bold mb-8">${q.title}</h1>
+    <p class="p-signup__quiz-count">${qi + 1} / ${QUIZ.length}</p>
+    <h1 class="p-signup__question p-signup__question--wide">${_esc(q.title)}</h1>
 
-    <div class="flex gap-3 mb-4">
+    <div class="p-signup__quiz-options">
       ${q.options.map(([id, label, emoji]) => `
-        <button data-choice="${_esc(id)}"
-          class="flex-1 rounded-3xl border-2 px-3 py-8 flex flex-col items-center justify-center gap-3 transition-colors
-                 ${selected === id ? 'border-[#0CA1E3] bg-[#E8F6FD]' : 'border-[#E1DFDC] bg-white'}">
-          <span class="text-[40px] leading-none">${emoji}</span>
-          <span class="text-[14px] font-bold whitespace-pre-line text-center
-                       ${selected === id ? 'text-[#0CA1E3]' : 'text-[#484545]'}">${_esc(label)}</span>
+        <button type="button" data-choice="${_esc(id)}"
+          class="p-signup__quiz-option${selected === id ? ' is-selected' : ''}">
+          <span class="p-signup__quiz-emoji">${emoji}</span>
+          <span class="p-signup__quiz-label">${_esc(label)}</span>
         </button>`).join('')}
     </div>
 
@@ -1311,35 +1314,33 @@ function _renderComplete(container, d) {
   const tags = _profileTags(u);
 
   container.innerHTML = _shell(`
-    <div class="flex-1 flex flex-col justify-center">
-      <p id="cc-lead" class="text-rs text-[#A7AAAC] font-bold text-center mb-5 opacity-0">
+    <div class="p-signup__complete">
+      <p id="cc-lead" class="p-signup__complete-lead">
         プロフィールができました！
       </p>
 
-      <!-- カード本体。中の要素を時間差で出して「組み上がる」ように見せる -->
-      <div id="cc-card"
-        class="bg-white rounded-3xl border border-[#E1DFDC] shadow-sm px-6 py-8 mb-8 opacity-0"
-        style="transform:translateY(12px)">
-        <div id="cc-avatar" class="flex justify-center mb-4 opacity-0" style="transform:scale(.8)">
+      <!-- カード本体。中の要素を時間差で出して「組み上がる」ように見せる。
+           初期状態（透明・少し下／小さい）は CSS が持ち、JS は解除するだけ -->
+      <div id="cc-card" class="p-signup__complete-card">
+        <div id="cc-avatar" class="p-signup__complete-avatar">
           ${Components.UserAvatar(u, { size: 96 })}
         </div>
-        <p id="cc-name" class="heading-r text-[#484545] font-bold text-center mb-1 opacity-0">
+        <p id="cc-name" class="p-signup__complete-name">
           ${_esc(u.username || '')}
         </p>
-        <p id="cc-catch" class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 opacity-0">
+        <p id="cc-catch" class="p-signup__complete-catch">
           ${_esc(_profileCatch(u))}
         </p>
-        <div id="cc-tags" class="flex flex-wrap justify-center gap-2">
+        <div id="cc-tags" class="p-signup__complete-tags">
           ${tags.map((t, i) => `
-            <span data-tag-i="${i}"
-              class="px-3 py-1.5 rounded-full text-[12px] font-bold opacity-0"
-              style="background:${t.color}1A;color:${t.color};transform:translateY(6px)">
+            <span data-tag-i="${i}" class="p-signup__complete-tag"
+              style="--tag-color:${_esc(t.color)}">
               ${_esc(t.label)}
             </span>`).join('')}
         </div>
       </div>
 
-      <button id="cc-start" class="c-button c-button--primary w-full py-4 heading-rs font-bold opacity-0">
+      <button type="button" id="cc-start" class="c-button c-button--primary p-signup__complete-start">
         イベクリをはじめる
       </button>
     </div>

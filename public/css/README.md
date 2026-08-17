@@ -257,7 +257,7 @@ public/css/
 │  ├─ _main-board.css           ✅ メインタブ・バナー・アナウンス
 │  ├─ _archive.css              ✅ アーカイブタブ
 │  ├─ _notification.css         ✅ 通知タブ
-│  ├─ _signup.css               🔶 ガワと STEP 0（残りは次）
+│  ├─ _signup.css               ✅ アカウント作成フロー
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
 │
 └─ object/utility/
