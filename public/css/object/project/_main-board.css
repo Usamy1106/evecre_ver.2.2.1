@@ -1,0 +1,490 @@
+/* ==========================================================================
+   Object / Project / main-board — メインボード（メインタブ）
+   使用箇所: public/js/views/mainBoard.js
+
+   ★MAIN タブは3層構成（mountainPath.js と組で読むこと）:
+       背景レイヤー（山）／上部固定領域（日付チップ・お知らせ・バナー）／
+       山スクロール窓／下部パネル（提案＋ミッション一覧）
+     ページ自体はスクロールしない（h-screen + overflow:hidden）。
+     下部パネルと FAB は layout/_fixed-bottom.css。
+
+   ★通知タブ・アーカイブタブは従来どおりページスクロール（3層構成は MAIN だけ）。
+   ========================================================================== */
+
+.p-main-board {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+/* MAIN タブ：ページを固定して、中の窓だけスクロールさせる */
+.p-main-board--fixed {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.p-main-board--scroll {
+  min-height: 100vh;
+}
+
+/* コンテンツは山（背景）より前に出す */
+.p-main-board__layer {
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+/* 上部固定領域（日付チップ・お知らせ・各バナー）。スクロールしない */
+.p-main-board__pinned {
+  padding: var(--space-3) var(--space-6) var(--space-2);
+}
+
+.p-main-board__pinned > * + * {
+  margin-top: var(--space-3);
+}
+
+/* アーカイブ／通知タブの本文 */
+.p-main-board__page {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 128px;
+}
+
+/* --- 開催日チップ --------------------------------------------------------
+   ★5通りに出し分ける（開催前／Day1／中間日／最終日／終了後）。
+     押すとカレンダー・ガントのシートが開く。 */
+
+.p-main-board__date-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  width: fit-content;
+  margin-inline: auto;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-main-board__date-chip:active {
+  transform: scale(.95);
+}
+
+.p-main-board__date-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.p-main-board__date-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-main-board__date-text--muted {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-main-board__date-count {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-xl);
+}
+
+/* --- タグフィルタ --------------------------------------------------------
+   ★横スクロール。スクロールバーは隠す（細いバーが宙に浮いて見えるため）。 */
+
+.p-main-board__tag-filter {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  margin-inline: calc(var(--space-6) * -1);
+  margin-bottom: var(--space-3);
+  padding: 0 var(--space-6) var(--space-2);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.p-main-board__tag-filter::-webkit-scrollbar {
+  display: none;
+}
+
+.p-main-board__tag {
+  flex-shrink: 0;
+  padding: 6px var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+/* 「全て」だけは色を持たないので、選択時は黒く塗る */
+.p-main-board__tag--all.is-active {
+  background-color: var(--color-text);
+  color: var(--color-text-inverse);
+}
+
+/* タグ色は JS が --tag-color で渡す（ユーザーが作れるため） */
+.p-main-board__tag--colored {
+  border-color: var(--tag-color-faint, var(--color-border));
+  background-color: var(--color-surface);
+}
+
+.p-main-board__tag--colored.is-active {
+  border-color: var(--tag-color);
+  background-color: var(--tag-color);
+  color: var(--color-text-inverse);
+}
+
+/* --- 提案カード（3枠）----------------------------------------------------
+   ★管理者だけに出る。タップすると内容を事前入力した作成シートが開く
+     （即時追加はしない）。12時間ごとに3枠すべて入れ替わる。 */
+
+.p-main-board__proposals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.p-main-board__proposal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-main-board__proposal:active {
+  background-color: var(--color-bg);
+}
+
+.p-main-board__proposal-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.p-main-board__proposal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.p-main-board__proposal-no {
+  font-size: 7.5px;
+  font-weight: var(--font-weight-heavy);
+  color: rgba(0, 0, 0, .4);
+}
+
+.p-main-board__proposal-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  word-break: break-word;
+}
+
+.p-main-board__proposal-help {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  padding: var(--space-1);
+  opacity: .4;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.p-main-board__proposal-help:hover {
+  opacity: 1;
+}
+
+.p-main-board__proposal-help-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* AI 生成の待ち時間 */
+.p-main-board__proposal-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 120px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-main-board__proposal-loading-text {
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.25;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-main-board__proposal-wait {
+  grid-column: span 3;
+  padding-block: var(--space-4);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+  animation: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
+}
+
+/* --- ミッション一覧 ------------------------------------------------------ */
+
+.p-main-board__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.p-main-board__section-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.p-main-board__sort {
+  padding: var(--space-1);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-main-board__sort:active {
+  transform: scale(.95);
+}
+
+.p-main-board__sort-icon {
+  width: 20px;
+  height: 16px;
+}
+
+/* 私のミッション / 全てのミッション の切り替え */
+.p-main-board__view-toggle {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background-color: var(--button-secondary);
+}
+
+.p-main-board__view-button {
+  flex: 1;
+  padding-block: 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-main-board__view-button.is-active {
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text);
+}
+
+.p-main-board__empty {
+  padding-block: var(--space-10);
+  font-size: var(--font-size-md);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-main-board__empty--tight {
+  padding-block: var(--space-6);
+}
+
+/* --- ミッションカード ---------------------------------------------------- */
+
+.p-main-board__mission {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-main-board__mission:active {
+  background-color: var(--color-bg);
+}
+
+.p-main-board__mission-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+/* ★2行で打ち切る。長いミッション名でカードの高さが揃わなくなるため */
+.p-main-board__mission-title {
+  display: -webkit-box;
+  overflow: hidden;
+  padding-right: var(--space-8);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-main-board__mission-assignee {
+  margin-top: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 右上のメニュー（管理者）／リンクコピー（一般） */
+.p-main-board__mission-action {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  padding: var(--space-2);
+  opacity: .4;
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.p-main-board__mission-action:hover {
+  opacity: 1;
+}
+
+/* 締め切り。超過・当日は赤にするが「N日超過」と日数も併記するので
+   色だけの情報にはなっていない。
+   ★通常時の色は黒40%（--color-text-muted ではない。実測値）。 */
+.p-main-board__deadline {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: rgba(0, 0, 0, .4);
+}
+
+.p-main-board__deadline--urgent {
+  color: var(--color-alert);
+}
+
+/* --- 応募型（申告制）の行 ------------------------------------------------ */
+
+.p-main-board__claim {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.p-main-board__badge {
+  padding-inline: 6px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-main-board__chip {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-main-board__chip--applied {
+  background-color: var(--color-success-tint);
+  color: var(--color-success-dark);
+}
+
+.p-main-board__chip--done {
+  background-color: var(--color-success-tint2);
+  color: var(--color-success-dark);
+}
+
+.p-main-board__claim-note {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.p-main-board__claim-note--done {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-success-dark);
+}
+
+.p-main-board__claim-note--closed {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+}
+
+.p-main-board__claim-link {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+.p-main-board__claim-link--action {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-main-board__claim-button {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-main-board__claim-button:active {
+  transform: scale(.95);
+}
+
+.p-main-board--loading {
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.p-main-board__loading {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-main-board__mission-list {
+  padding-bottom: var(--space-10);
+}
+
+.p-main-board__mission-list > * + * {
+  margin-top: var(--space-3);
+}

@@ -38,3 +38,9 @@
   from { transform: translateY(12px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
+
+/* 使用: object/project/_main-board.css（AI 提案の待ち時間表示）
+   ★Tailwind の animate-pulse と同じ。 */
+@keyframes pulse {
+  50% { opacity: .5; }
+}

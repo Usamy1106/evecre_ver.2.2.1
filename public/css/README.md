@@ -81,6 +81,7 @@
 | イベント作成フロー（STEP 1〜7・開催日カレンダー） | `object/project/_create-event.css` |
 | ミッション詳細（完了入力・チャット・吹き出し） | `object/project/_mission-detail.css` |
 | イベント設定（イベント管理・メンバー・ロール・脱退） | `object/project/_event-settings.css` |
+| メインボードのメインタブ（日付チップ・提案・ミッションカード） | `object/project/_main-board.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -244,6 +245,7 @@ public/css/
 │  ├─ _create-event.css         ✅ イベント作成フロー
 │  ├─ _mission-detail.css       ✅ ミッション詳細
 │  ├─ _event-settings.css       ✅ イベント設定
+│  ├─ _main-board.css           🔶 メインタブのみ移行済み（アーカイブ／通知は未）
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / _notification / _archive /
 │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
 │

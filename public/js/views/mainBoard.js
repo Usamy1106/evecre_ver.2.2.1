@@ -96,8 +96,8 @@ export function renderMainBoard(container) {
       }, 500);
       // ローディング表示
       container.innerHTML = `
-        <div class="flex items-center justify-center min-h-screen bg-[#FDFBF8]">
-          <p class="text-[13px] text-[#A7AAAC] font-bold">読み込み中…</p>
+        <div class="p-main-board p-main-board--loading">
+          <p class="p-main-board__loading">読み込み中…</p>
         </div>`;
       return;
     }
@@ -117,7 +117,7 @@ export function renderMainBoard(container) {
   const mainLayout = isMain ? _renderMainTab(p) : null;
 
   container.innerHTML = `
-    <div class="flex flex-col ${isMain ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#FDFBF8]">
+    <div class="p-main-board ${isMain ? 'p-main-board--fixed' : 'p-main-board--scroll'}">
       <!-- standalone（ホーム画面から起動）ではステータスバー領域にコンテンツが潜るため、
            safe-area 分の余白を足す。ブラウザ表示では env() が 0 なので見た目は変わらない。 -->
       <!-- ヘッダー＋タブ。★js-mountain-sticky は mountainPath.js が山の上端を
@@ -129,10 +129,10 @@ export function renderMainBoard(container) {
       </div>
       <!-- 山ビジュアルの背景レイヤー（ヘッダー下〜画面全体。コンテンツ(z-10)の裏側） -->
       ${isMain ? renderMountainBg(p) : ''}
-      ${Components.VerifyBanner() ? `<div class="relative z-10 flex-shrink-0">${Components.VerifyBanner()}</div>` : ''}
+      ${Components.VerifyBanner() ? `<div class="p-main-board__layer">${Components.VerifyBanner()}</div>` : ''}
       ${isMain ? `
         <!-- 上部固定：日付チップ・お知らせ・各バナー（スクロールしない） -->
-        <div class="relative z-10 flex-shrink-0">${mainLayout.pinnedAux}</div>
+        <div class="p-main-board__layer">${mainLayout.pinnedAux}</div>
         <!-- 山スクロール窓（透明・上部領域を占める）。ここのスクロールで山を遡れる -->
         ${renderMountainScrollWindow(p)}
         <!-- 下部パネル：提案＋ミッション一覧（独立スクロール・上ドラッグで拡大） -->
@@ -147,7 +147,7 @@ export function renderMainBoard(container) {
           </div>
         </div>
       ` : `
-        <main class="relative z-10 flex-1 overflow-y-auto no-scrollbar pb-32">
+        <main class="p-main-board__page no-scrollbar">
           ${state.mainBoardTab === 'ARCHIVE' ? _renderArchiveTab(p) : ''}
           ${state.mainBoardTab === 'NOTIFICATIONS' ? _renderNotificationsTab(p) : ''}
         </main>
@@ -281,42 +281,43 @@ function _renderMainTab(p) {
     });
   }
   const tagFilterHtml = allTags.length > 1 ? `
-    <div class="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6 mb-3" style="scrollbar-width:none;-webkit-overflow-scrolling:touch">
-      <button onclick="window._app.setMissionFilterTag(null)"
-        class="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ${!state.missionFilterTag ? 'bg-[#484545] text-white' : 'bg-[#EBE8E5] text-[#484545]'}">
+    <div class="p-main-board__tag-filter">
+      <button type="button" onclick="window._app.setMissionFilterTag(null)"
+        class="p-main-board__tag p-main-board__tag--all${!state.missionFilterTag ? ' is-active' : ''}">
         全て
       </button>
       ${allTags.map(tag => {
         const active = state.missionFilterTag === tag;
         const cfg = LABEL_CONFIG[tag] || { color: '#A7AAAC' };
-        return `<button onclick="window._app.setMissionFilterTag('${_esc(tag)}')"
-          class="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${active ? 'text-white' : 'text-[#484545] bg-white'}"
-          style="${active ? `background-color:${cfg.color};border-color:${cfg.color}` : `border-color:${cfg.color}40`}">
+        // ★タグ色はユーザーが作れるので CSS 変数で渡す（--tag-color-faint は枠線用の薄い方）
+        return `<button type="button" onclick="window._app.setMissionFilterTag('${_esc(tag)}')"
+          class="p-main-board__tag p-main-board__tag--colored${active ? ' is-active' : ''}"
+          style="--tag-color:${_esc(cfg.color)};--tag-color-faint:${_esc(cfg.color)}40">
           ${_esc(tag)}</button>`;
       }).join('')}
     </div>` : '';
 
   const proposalCards = p.proposals.map((pr, i) => `
-    <div class="relative bg-white border border-[#D3D6D8] rounded-2xl p-2.5 shadow-sm flex flex-col min-h-[120px] active:bg-[#FDFBF8] transition-colors group">
-      <div onclick="window._app.addProposalToMission('${pr.id}')" class="cursor-pointer flex-1 flex flex-col">
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[7.5px] text-black/40 font-bold">提案${i + 1}</span>
+    <div class="p-main-board__proposal">
+      <div onclick="window._app.addProposalToMission('${pr.id}')" class="p-main-board__proposal-body">
+        <div class="p-main-board__proposal-head">
+          <span class="p-main-board__proposal-no">提案${i + 1}</span>
           ${Components.Tag(pr.tag)}
         </div>
-        <h3 class="text-[13px] font-bold leading-snug flex-1 break-words">${pr.title}</h3>
+        <h3 class="p-main-board__proposal-title">${_esc(pr.title)}</h3>
       </div>
-      <button onclick="window._app.showProposalHelp(event, '${pr.id}')"
-        class="absolute bottom-2 right-2 p-1 opacity-40 hover:opacity-100 transition-opacity">
-        <img src="/images/icon/icon-Help.svg" class="w-4 h-4">
+      <button type="button" onclick="window._app.showProposalHelp(event, '${pr.id}')"
+        class="p-main-board__proposal-help" aria-label="この提案について">
+        <img src="/images/icon/icon-Help.svg" class="p-main-board__proposal-help-icon" alt="">
       </button>
     </div>`).join('');
 
   const missionCards = displayMissions.length === 0
     ? (state.missionFilterTag
-        ? `<p class="text-center py-6 text-[#A7AAAC] text-rs">このタグのミッションはありません</p>`
+        ? `<p class="p-main-board__empty p-main-board__empty--tight">このタグのミッションはありません</p>`
         : viewMode === 'mine'
-          ? `<p class="text-center py-10 text-[#A7AAAC] text-rs">あなたに割り当てられたミッションはありません</p>`
-          : '<p class="text-center py-10 text-[#A7AAAC] text-rs">全てのミッションが完了されました！</p>')
+          ? `<p class="p-main-board__empty">あなたに割り当てられたミッションはありません</p>`
+          : '<p class="p-main-board__empty">全てのミッションが完了されました！</p>')
     : displayMissions.map(m => {
         const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
         const applicants = Array.isArray(m.claimApplicants) ? m.claimApplicants : [];
@@ -329,33 +330,33 @@ function _renderMainTab(p) {
         // 応募期間中／確定後の表示
         let claimLine = '';
         if (m.selfClaim) {
-          const modeBadge = `<span class="text-[9px] text-[#0CA1E3] font-bold border border-[#0CA1E3] px-1.5 rounded">担当の応募型ミッション</span>`;
+          const modeBadge = `<span class="p-main-board__badge">担当の応募型ミッション</span>`;
           let actionsBlock = '';
 
           if (!assigned) {
             const deadlineTxt = m.claimDeadline ? `期限 ${_fmtDeadline(m.claimDeadline)}` : '期限なし';
             if (iApplied) {
               actionsBlock = `
-                <span class="px-2 py-0.5 rounded-full bg-[#9EDF05]/20 text-[#5b8104] text-[10px] font-bold">応募中</span>
-                <button onclick="event.stopPropagation(); window._app.unclaimMissionAsSelf('${m.id}')"
-                  class="text-[10px] text-[#A7AAAC] underline">取り消し</button>`;
+                <span class="p-main-board__chip p-main-board__chip--applied">応募中</span>
+                <button type="button" onclick="event.stopPropagation(); window._app.unclaimMissionAsSelf('${m.id}')"
+                  class="p-main-board__claim-link">取り消し</button>`;
             } else if (overdue) {
-              actionsBlock = `<span class="text-[10px] text-[#EE3E12] font-bold">応募期限終了</span>`;
+              actionsBlock = `<span class="p-main-board__claim-note p-main-board__claim-note--closed">応募期限終了</span>`;
             } else {
-              actionsBlock = `<button onclick="event.stopPropagation(); window._app.claimMissionAsSelf('${m.id}')"
-                class="px-3 py-1 rounded-full bg-[#0CA1E3] text-white text-[11px] font-bold active:scale-95">応募する</button>`;
+              actionsBlock = `<button type="button" onclick="event.stopPropagation(); window._app.claimMissionAsSelf('${m.id}')"
+                class="p-main-board__claim-button">応募する</button>`;
             }
-            actionsBlock += `<span class="text-[10px] text-[#A7AAAC]">応募 ${applicants.length}名・${deadlineTxt}</span>`;
+            actionsBlock += `<span class="p-main-board__claim-note">応募 ${applicants.length}名・${deadlineTxt}</span>`;
             if (canMgr && applicants.length > 0) {
-              actionsBlock += `<button onclick="event.stopPropagation(); window._app.openSelectClaimModal('${m.id}')"
-                class="text-[10px] text-[#0CA1E3] underline font-bold">選定する</button>`;
+              actionsBlock += `<button type="button" onclick="event.stopPropagation(); window._app.openSelectClaimModal('${m.id}')"
+                class="p-main-board__claim-link p-main-board__claim-link--action">選定する</button>`;
             }
           } else {
             const names = _resolveUsernames(p, assignees);
-            actionsBlock = `<span class="text-[10px] text-[#5b8104] font-bold">担当：${names}</span>`;
+            actionsBlock = `<span class="p-main-board__claim-note p-main-board__claim-note--done">担当：${names}</span>`;
           }
 
-          claimLine = `<div class="mt-2 flex flex-wrap items-center gap-2">${actionsBlock}</div>`;
+          claimLine = `<div class="p-main-board__claim">${actionsBlock}</div>`;
           m._modeBadge = modeBadge;
         }
 
@@ -364,10 +365,10 @@ function _renderMainTab(p) {
         if (!m.selfClaim) {
           if (assignees.length > 0) {
             const names = _resolveUsernames(p, assignees);
-            assigneeLine = `<p class="text-[10px] text-[#484545] font-bold mt-1">担当：${names}</p>`;
+            assigneeLine = `<p class="p-main-board__mission-assignee">担当：${names}</p>`;
           } else if (m.assignee?.type === 'role') {
             const roleObj = (p.roles || []).find(r => r.id === m.assignee.roleId);
-            if (roleObj) assigneeLine = `<p class="text-[10px] text-[#484545] font-bold mt-1">担当：${roleObj.name}</p>`;
+            if (roleObj) assigneeLine = `<p class="p-main-board__mission-assignee">担当：${_esc(roleObj.name)}</p>`;
           }
         }
 
@@ -379,40 +380,40 @@ function _renderMainTab(p) {
 
         // 全カードタップ可：ミッション詳細ページへ遷移（完了入力欄はページ側で出し分け）
         const cardOnClick = `onclick="window._app.openMissionDetail('${m.id}')"`;
-        const cursorCls = 'cursor-pointer active:bg-[#FDFBF8]';
+
 
         const _indivHasAssignees = (Array.isArray(m.assignees) && m.assignees.length > 0) || m.assignee?.type === 'user';
         const _indivTotal = Array.isArray(m.assignees) && m.assignees.length > 0
           ? m.assignees.length : (m.assignee?.type === 'user' ? 1 : 0);
         const indivProgressBadge = m.individualClear
           ? (iIndivDone
-              ? `<span class="text-[10px] font-bold text-[#5b8104] bg-[#F0FCD4] px-2 py-0.5 rounded-full">自分済み ✓</span>`
+              ? `<span class="p-main-board__chip p-main-board__chip--done">自分済み ✓</span>`
               : (_indivHasAssignees
-                  ? `<span class="text-[10px] font-bold text-[#A7AAAC] bg-[#EBE8E5] px-2 py-0.5 rounded-full">${indivClearedBy.length}/${_indivTotal}人完了</span>`
+                  ? `<span class="p-main-board__chip">${indivClearedBy.length}/${_indivTotal}人完了</span>`
                   : ''))
           : '';
 
         return `
         <div ${cardOnClick} data-mission-id="${m.id}"
-          class="bg-white border border-[#D3D6D8] rounded-xl p-4 flex flex-col shadow-sm relative animate-fadeIn group ${cursorCls}">
-          <div class="flex items-center gap-2 mb-2 flex-wrap">
+          class="p-main-board__mission animate-fadeIn">
+          <div class="p-main-board__mission-meta">
             ${tagNames.map(t => Components.Tag(t)).join('')}
             ${_missionDeadlineText(m)}
             ${modeBadgeHtml}
             ${indivProgressBadge}
           </div>
-          <h3 class="text-[14px] font-bold text-[#484545] pr-8" style="text-overflow:ellipsis;-webkit-line-clamp: 2;overflow: hidden;">${m.title}</h3>
+          <h3 class="p-main-board__mission-title">${_esc(m.title)}</h3>
           ${assigneeLine}
           ${claimLine}
           ${canMgr ? `
             <div onclick="event.stopPropagation(); window._app.toggleMissionMenu(event, '${m.id}')"
-              class="absolute right-4 top-4 opacity-40 p-2 cursor-pointer hover:opacity-100 transition-opacity">
+              class="p-main-board__mission-action">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
               </svg>
             </div>` : `
             <div onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
-              class="absolute right-4 top-4 opacity-40 p-2 cursor-pointer hover:opacity-100 transition-opacity"
+              class="p-main-board__mission-action"
               aria-label="ミッションリンクをコピー">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -442,7 +443,7 @@ function _renderMainTab(p) {
 
   const hasDates = Array.isArray(p.dates) && p.dates.length > 0;
   const _dateChip = (() => {
-    if (!hasDates) return `<span class="text-[11px] font-bold text-[#A7AAAC]">開催日時が設定されていません</span>`;
+    if (!hasDates) return `<span class="p-main-board__date-text p-main-board__date-text--muted">開催日時が設定されていません</span>`;
     const d = new Date();
     const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const sorted = [...p.dates].sort();
@@ -453,26 +454,26 @@ function _renderMainTab(p) {
       const dayNum = todayIdx + 1;
       const isFirst = dayNum === 1;
       const isLast  = todayIdx === sorted.length - 1;
-      if (isFirst) return `<span class="text-[12px] font-bold">Day${dayNum} / いよいよ今日から！</span>`;
-      if (isLast)  return `<span class="text-[12px] font-bold">Day${dayNum} / ついに最終日！</span>`;
-      return `<span class="text-[12px] font-bold"><span class="text-[18px] font-mono">Day${dayNum}</span></span>`;
+      if (isFirst) return `<span class="p-main-board__date-text">Day${dayNum} / いよいよ今日から！</span>`;
+      if (isLast)  return `<span class="p-main-board__date-text">Day${dayNum} / ついに最終日！</span>`;
+      return `<span class="p-main-board__date-text"><span class="p-main-board__date-count">Day${dayNum}</span></span>`;
     }
     if (todayStr > lastDate) {
       const fmt = s => { const [, m, day] = s.split('-'); return `${parseInt(m)}月${parseInt(day)}日`; };
       const range = (firstDate === lastDate)
         ? `${fmt(firstDate)}開催`
         : `${fmt(firstDate)}〜${fmt(lastDate)}開催`;
-      return `<span class="text-[12px] font-bold text-[#A7AAAC]">${range}</span>`;
+      return `<span class="p-main-board__date-text p-main-board__date-text--muted">${range}</span>`;
     }
     // 開催前：保存値 p.daysLeft は stale になるので firstDate から当日基準で再計算する
-    return `<span class="text-[12px] font-bold">開催まで残り <span class="text-[18px] font-mono">${calculateDaysLeft(firstDate)}</span> 日</span>`;
+    return `<span class="p-main-board__date-text">開催まで残り <span class="p-main-board__date-count">${calculateDaysLeft(firstDate)}</span> 日</span>`;
   })();
   // 上部固定領域：日付チップ・お知らせ・各バナー（スクロールしない）
   const pinnedAux = `
-    <div class="px-6 pt-3 pb-2 space-y-3">
+    <div class="p-main-board__pinned">
       <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
-        class="cursor-pointer bg-white border border-[#D3D6D8] rounded-full px-4 py-2 flex items-center justify-center gap-3 shadow-sm mx-auto w-fit active:scale-95 transition-transform">
-        <img src="/images/icon/icon-Calender.svg" class="w-4 h-4">
+        class="p-main-board__date-chip">
+        <img src="/images/icon/icon-Calender.svg" class="p-main-board__date-icon" alt="">
         ${_dateChip}
       </div>
 
@@ -496,49 +497,45 @@ function _renderMainTab(p) {
   const bottomPanelInner = `
       <!-- 提案カード（管理者権限のあるユーザーのみ表示）-->
       ${canMgr ? `
-        <div class="grid grid-cols-3 gap-2" data-coach="proposals">
+        <div class="p-main-board__proposals" data-coach="proposals">
           ${proposalCards}
           ${(p.proposals.length < 3 && (!p.lastProposalGeneratedAt || state._proposalFetching))
             // 動的枠を AI 生成中：空きスロットにローディングカードを出す（静的提案は出さない）
             ? Array.from({ length: 3 - p.proposals.length }).map(() => `
-                <div class="bg-white border border-[#D3D6D8] rounded-2xl p-2.5 shadow-sm flex flex-col items-center justify-center gap-2 min-h-[120px]">
-                  <div class="w-6 h-6 border-2 border-[#0CA1E3] border-t-transparent rounded-full animate-spin"></div>
-                  <span class="text-[9px] text-[#A7AAAC] font-bold text-center leading-tight">AIが提案を<br>生成中</span>
+                <div class="p-main-board__proposal-loading">
+                  <div class="c-spinner c-spinner--sm"></div>
+                  <span class="p-main-board__proposal-loading-text">AIが提案を<br>生成中</span>
                 </div>`).join('')
             : (p.proposals.length === 0 ? (() => {
                 const nextAt  = (p.lastProposalGeneratedAt || 0) + 12 * 60 * 60 * 1000;
                 const remMs   = Math.max(0, nextAt - Date.now());
                 const remHr   = Math.ceil(remMs / (1000 * 60 * 60));
                 const label   = remMs <= 0 ? '準備中...' : `${remHr}時間後に新しい提案が届きます`;
-                return `<div class="col-span-3 py-4 text-center text-[#A7AAAC] text-[10px] font-bold animate-pulse">${label}</div>`;
+                return `<div class="p-main-board__proposal-wait">${label}</div>`;
               })() : '')}
         </div>` : ''}
 
       <!-- ミッション一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
       <section data-coach="mission-list">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="heading-m">ミッション</h2>
-          <div class="relative">
-            <button onclick="window._app.toggleSortMenu(event)" class="p-1 active:scale-95 transition-transform">
-              <img src="/images/icon/icon-Filter.svg" class="w-5 h-4">
-            </button>
-          </div>
+        <div class="p-main-board__section-head">
+          <h2 class="p-main-board__section-title">ミッション</h2>
+          <button type="button" onclick="window._app.toggleSortMenu(event)" class="p-main-board__sort" aria-label="並び替え">
+            <img src="/images/icon/icon-Filter.svg" class="p-main-board__sort-icon" alt="">
+          </button>
         </div>
         <!-- 表示モード切替（私のみ / 全て）-->
-        <div class="flex gap-1 bg-[#EBE8E5] rounded-xl p-1 mb-3">
-          <button onclick="window._app.setMissionViewMode('mine')"
-            class="flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all
-            ${viewMode === 'mine' ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
+        <div class="p-main-board__view-toggle">
+          <button type="button" onclick="window._app.setMissionViewMode('mine')"
+            class="p-main-board__view-button${viewMode === 'mine' ? ' is-active' : ''}">
             私のミッション
           </button>
-          <button onclick="window._app.setMissionViewMode('all')"
-            class="flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all
-            ${viewMode === 'all' ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
+          <button type="button" onclick="window._app.setMissionViewMode('all')"
+            class="p-main-board__view-button${viewMode === 'all' ? ' is-active' : ''}">
             全てのミッション
           </button>
         </div>
         ${tagFilterHtml}
-        <div class="space-y-3 pb-10">${missionCards}</div>
+        <div class="p-main-board__mission-list">${missionCards}</div>
       </section>`;
 
   return { pinnedAux, bottomPanelInner };
@@ -1182,7 +1179,7 @@ function _esc(s) {
 // ミッションの残り日数テキスト（dates をソートし最終日から計算）
 function _missionDeadlineText(m) {
   if (!Array.isArray(m.dates) || m.dates.length === 0) {
-    return '<span class="text-[11px] text-black/40 font-bold">スケジュール未設定</span>';
+    return '<span class="p-main-board__deadline">スケジュール未設定</span>';
   }
   const endDate = [...m.dates].sort().at(-1);
   const target = new Date(endDate);
@@ -1190,9 +1187,10 @@ function _missionDeadlineText(m) {
   target.setHours(0, 0, 0, 0);
   now.setHours(0, 0, 0, 0);
   const diff = Math.ceil((target.getTime() - now.getTime()) / 86_400_000);
-  if (diff < 0)  return `<span class="text-[11px] font-bold" style="color:#E74C3C">${-diff}日超過</span>`;
-  if (diff === 0) return `<span class="text-[11px] font-bold" style="color:#E74C3C">今日まで</span>`;
-  return `<span class="text-[11px] text-black/40 font-bold">残り${diff}日</span>`;
+  const cls = 'p-main-board__deadline';
+  if (diff < 0)   return `<span class="${cls} ${cls}--urgent">${-diff}日超過</span>`;
+  if (diff === 0) return `<span class="${cls} ${cls}--urgent">今日まで</span>`;
+  return `<span class="${cls}">残り${diff}日</span>`;
 }
 
 // 締め切り系トースト（sessionStorage でセッション内重複抑制）
