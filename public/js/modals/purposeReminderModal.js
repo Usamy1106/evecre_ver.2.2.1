@@ -117,7 +117,7 @@ function _openModal(p) {
        </div>`;
 
   overlay.innerHTML = `
-    <div class="c-modal animate-fadeIn">
+    <div class="c-modal u-animate-fade">
       <div class="c-modal__icon" style="--icon-bg:var(--color-warning-pale2)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFC300" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="#FFC300"/>

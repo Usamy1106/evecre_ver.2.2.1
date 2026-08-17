@@ -40,7 +40,7 @@ export function openVerifyEmailModal() {
 function _render(overlay, ctx) {
   if (ctx.success) {
     overlay.innerHTML = `
-      <div class="c-modal animate-fadeIn">
+      <div class="c-modal u-animate-fade">
         <p class="c-modal__emoji">✓</p>
         <p class="c-modal__note">認証が完了しました</p>
       </div>`;
@@ -48,7 +48,7 @@ function _render(overlay, ctx) {
   }
 
   overlay.innerHTML = `
-    <div class="c-modal c-modal--compact animate-fadeIn">
+    <div class="c-modal c-modal--compact u-animate-fade">
       <button type="button" id="vem-close" class="c-modal__close" aria-label="閉じる">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>

@@ -55,7 +55,7 @@ export function openOnboardingModal(o) {
     </div>`).join('');
 
   overlay.innerHTML = `
-    <div class="c-modal c-modal--scroll animate-fadeIn">
+    <div class="c-modal c-modal--scroll u-animate-fade">
       ${o.emoji ? `<p class="c-modal__emoji">${o.emoji}</p>` : ''}
       ${o.eyebrow ? `<p class="c-modal__eyebrow">${_esc(o.eyebrow)}</p>` : ''}
       <!-- ★title は _esc しないこと。改行のための <br> を意図的に含んでいる

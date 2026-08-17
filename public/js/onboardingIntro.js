@@ -149,7 +149,7 @@ export function showUsageModal() {
   overlay.id = USAGE_ID;
   overlay.className = 'c-overlay c-overlay--intro c-overlay--blur';
   overlay.innerHTML = `
-    <div class="c-modal animate-fadeIn">
+    <div class="c-modal u-animate-fade">
       <p class="c-modal__eyebrow">イベクリの使い方</p>
       <!-- ★<br> を含むので esc しないこと（ユーザー入力は入らない） -->
       <h3 class="c-modal__title">イベントづくりは<br>5つのステップで進みます</h3>

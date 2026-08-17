@@ -37,7 +37,7 @@ function _stepShell({ step, stepLabel, heading, sub = '', body, footer }) {
       <header class="p-create-event__header">
         <h1 class="p-create-event__brand">新規イベントの作成</h1>
       </header>
-      <main class="p-create-event__main page-transition">
+      <main class="p-create-event__main u-page-transition">
         <h2 class="p-create-event__heading">${heading}</h2>
         ${sub ? `<p class="p-create-event__sub">${sub}</p>` : '<div class="p-create-event__sub-spacer"></div>'}
         <div class="p-create-event__body">${body}</div>
@@ -60,7 +60,7 @@ export function renderCreateEventInfo(container) {
       <header class="p-create-event__header p-create-event__header--roomy">
         <h1 class="p-create-event__brand">新規イベントの作成</h1>
       </header>
-      <main class="p-create-event__main p-create-event__main--wide page-transition">
+      <main class="p-create-event__main p-create-event__main--wide u-page-transition">
         <div class="p-create-event__field">
           <label class="p-create-event__label" for="cp-event-name">イベント名</label>
           <input id="cp-event-name" type="text" placeholder="イベント名を入力"
@@ -181,7 +181,7 @@ export function renderCreateEventDates(container) {
         const label = g[0] === g[g.length - 1] ? g[0] : `${g[0]}〜${g[g.length - 1]}`;
         const groupJson = encodeURIComponent(JSON.stringify(g));
         return `
-          <div class="p-create-event__date-tag animate-fadeIn">
+          <div class="p-create-event__date-tag u-animate-fade">
             <span class="p-create-event__date-tag-label">${label}</span>
             <button type="button" data-cp-remove-group="${groupJson}" class="p-create-event__date-tag-remove" aria-label="削除">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -196,7 +196,7 @@ export function renderCreateEventDates(container) {
       <header class="p-create-event__header p-create-event__header--roomy">
         <h1 class="p-create-event__brand">新規イベントの作成</h1>
       </header>
-      <main class="p-create-event__main page-transition">
+      <main class="p-create-event__main u-page-transition">
         <h2 class="p-create-event__heading">開催日はいつ？ <span class="p-create-event__optional">（任意）</span></h2>
         <p class="p-create-event__sub">
           タップまたはスライドで複数日選択<br>
@@ -468,7 +468,7 @@ export function renderCreateEventInvite(container) {
       <header class="p-create-event__header p-create-event__header--roomy">
         <h1 class="p-create-event__brand">新規イベントの作成</h1>
       </header>
-      <main class="p-create-event__main p-create-event__main--wide page-transition">
+      <main class="p-create-event__main p-create-event__main--wide u-page-transition">
         <h2 class="p-create-event__heading p-create-event__heading--spaced">チームメンバーを招待しよう！</h2>
 
         ${sec.creating ? _renderCreating()

@@ -45,7 +45,7 @@ export function renderProjectDetail(container) {
         </div>
       </header>
       ${Components.VerifyBanner()}
-      <main class="p-project-detail__main page-transition">
+      <main class="p-project-detail__main u-page-transition">
         ${folderEvents.length === 0 ? `
           <div class="p-project-detail__empty">
             <div class="p-project-detail__empty-icon">

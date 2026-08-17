@@ -127,7 +127,7 @@ export function renderMountainBg(p) {
 export function renderMountainScrollWindow(p) {
   const { canvasH } = _layout(p);
   return `
-    <div id="mountain-path-scroll" class="p-mountain__scroll no-scrollbar">
+    <div id="mountain-path-scroll" class="p-mountain__scroll u-no-scrollbar">
       <div style="height:${canvasH}px"></div>
     </div>`;
 }

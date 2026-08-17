@@ -117,7 +117,7 @@ export function openSkillCollectModal(project) {
     const sel  = isGood ? ctx.good : ctx.want;
 
     overlay.innerHTML = `
-      <div class="c-step-modal animate-fadeIn">
+      <div class="c-step-modal u-animate-fade">
         <div class="c-step-modal__header">
           <p class="c-step-modal__context">
             「${_esc(project.name || 'イベント')}」のメンバー情報

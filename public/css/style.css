@@ -23,7 +23,6 @@
 /* Layout ------------------------------------------------------------------- */
 @import url("./layout/_app.css");
 @import url("./layout/_loading.css");
-@import url("./layout/_page.css");
 @import url("./layout/_header.css");
 @import url("./layout/_tabs.css");
 @import url("./layout/_fixed-bottom.css");
@@ -83,6 +82,7 @@
 @import url("./object/project/_legal.css");
 
 /* Object: Utility ---------------------------------------------------------- */
-@import url("./object/utility/_animation.css");
+@import url("./object/utility/_transition.css");
+@import url("./object/utility/_display.css");
 @import url("./object/utility/_safe-area.css");
 @import url("./object/utility/_scroll.css");

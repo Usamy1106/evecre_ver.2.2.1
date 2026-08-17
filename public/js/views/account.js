@@ -17,7 +17,7 @@ export function renderAccount(container) {
   const sec = state.accountScreen || {};
 
   container.innerHTML = `
-    <div class="p-account page-transition">
+    <div class="p-account u-page-transition">
       <header class="l-header l-header--sub">
         <button type="button" onclick="window._app.setView('HOME')" class="l-header__back" aria-label="ホームへ戻る">
           <img src="/images/icon/iocn-Chevron.svg" class="l-header__back-icon" alt="">
@@ -137,7 +137,7 @@ function _avatarSection(u, sec) {
       ${Components.UserAvatar(u, { size: 72 })}
       <div class="p-account__avatar-actions">
         <!-- ★hidden は見た目のためではなく「ファイル選択を自前のボタンで代替する」ため -->
-        <input id="acc-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
+        <input id="acc-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="u-hidden">
         <button type="button" id="acc-avatar-pick" class="p-account__avatar-pick"
           ${sec.avatarSaving ? 'disabled' : ''}>
           ${sec.avatarSaving ? '保存中…' : '画像を選択'}
@@ -578,7 +578,7 @@ function _bindOtp(id, onChange) {
 
 function _toast(msg) {
   const t = document.createElement('div');
-  t.className = 'fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#484545] text-white px-5 py-3 rounded-full shadow-2xl text-[13px] font-bold z-[300] animate-fadeIn';
+  t.className = 'fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#484545] text-white px-5 py-3 rounded-full shadow-2xl text-[13px] font-bold z-[300] u-animate-fade';
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2500);

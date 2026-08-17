@@ -91,9 +91,9 @@ function _openArchiveImageDialog(p) {
 
   const current = p.clearedData?.['archive-image']?.content;
   overlay.innerHTML = `
-    <div class="c-modal c-modal--left animate-fadeIn">
+    <div class="c-modal c-modal--left u-animate-fade">
       <h3 class="c-modal__title c-modal__title--loose">メインビジュアルを設定</h3>
-      <div id="arch-img-preview" class="p-archive__image-preview${current ? '' : ' hidden'}">
+      <div id="arch-img-preview" class="p-archive__image-preview${current ? '' : ' u-hidden'}">
         <img id="arch-img-src" src="${_esc(current || '')}" class="p-archive__image-thumb">
       </div>
       <label class="p-archive__file-label">
@@ -104,7 +104,7 @@ function _openArchiveImageDialog(p) {
           </svg>
           <span class="p-archive__dropzone-text">画像を選択</span>
         </div>
-        <input type="file" id="arch-file-input" class="hidden" accept="image/*">
+        <input type="file" id="arch-file-input" class="u-hidden" accept="image/*">
       </label>
       <div class="c-modal__actions c-modal__actions--spaced">
         <button data-action="cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
@@ -122,7 +122,7 @@ function _openArchiveImageDialog(p) {
     reader.onload = (ev) => {
       selectedBase64 = ev.target.result;
       overlay.querySelector('#arch-img-src').src = selectedBase64;
-      overlay.querySelector('#arch-img-preview').classList.remove('hidden');
+      overlay.querySelector('#arch-img-preview').classList.remove('u-hidden');
       overlay.querySelector('[data-action="save"]').disabled = false;
     };
     reader.readAsDataURL(file);
@@ -150,7 +150,7 @@ export function openEditModal(title, currentVal, format, onSave) {
   const overlay = document.createElement('div');
   overlay.id = 'edit-archive-modal';
   // スタイル: public/css/object/project/_archive.css
-  overlay.className = 'c-overlay c-overlay--edit c-overlay--blur page-transition';
+  overlay.className = 'c-overlay c-overlay--edit c-overlay--blur u-page-transition';
 
   // ★currentVal はユーザーが入れた値。属性・本文どちらにもエスケープして差し込む
   const val = _esc(currentVal ?? '');
@@ -167,7 +167,7 @@ export function openEditModal(title, currentVal, format, onSave) {
   }
 
   overlay.innerHTML = `
-    <div class="c-modal c-modal--left c-modal--fluid animate-fadeIn">
+    <div class="c-modal c-modal--left c-modal--fluid u-animate-fade">
       <button onclick="document.getElementById('edit-archive-modal').remove()" class="c-modal__close">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
@@ -202,7 +202,7 @@ export function initClearDraft(missionId, container) {
       if (chip && preview) {
         preview.src = imgData;
         preview.dataset.base64 = imgData;
-        chip.classList.remove('hidden');
+        chip.classList.remove('u-hidden');
       }
     }
     // チェックボックス復元
@@ -232,7 +232,7 @@ export function initClearDraft(missionId, container) {
  * 画像チップをクリアする（×ボタンから呼ばれる）
  */
 export function clearImagePreview() {
-  document.getElementById('img-chip')?.classList.add('hidden');
+  document.getElementById('img-chip')?.classList.add('u-hidden');
   const preview = document.getElementById('preview-img');
   if (preview) { preview.src = ''; preview.dataset.base64 = ''; }
   const fi = document.getElementById('file-input');
@@ -258,10 +258,10 @@ export async function submitMissionClear(missionId) {
     const allChecked = checked.length === checklist.length && checked.every(c => c.checked);
     const errorEl = document.getElementById('clear-checklist-error');
     if (!allChecked) {
-      if (errorEl) errorEl.classList.remove('hidden');
+      if (errorEl) errorEl.classList.remove('u-hidden');
       return;
     }
-    if (errorEl) errorEl.classList.add('hidden');
+    if (errorEl) errorEl.classList.add('u-hidden');
   }
 
   // ── フォーマット自動判別 ──────────────────────────────────
@@ -399,7 +399,7 @@ export function handleImageSelect(input) {
     if (chip && preview) {
       preview.src = resized;
       preview.dataset.base64 = resized;
-      chip.classList.remove('hidden');
+      chip.classList.remove('u-hidden');
     }
     // ドラフト保存
     const overlay = document.getElementById('clear-mission-modal');

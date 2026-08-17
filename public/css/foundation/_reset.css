@@ -1,7 +1,19 @@
 /* ==========================================================================
    Foundation / reset — 要素の初期化
-   ★Tailwind の Preflight と並走している間は、見た目が変わらない範囲に留める。
-     Preflight を撤去する Phase 5 で、崩れた分をここに足して吸収する。
+
+   ★Tailwind の Preflight を置き換えたもの。CDN を外した Phase 5 で、
+     それまで Preflight が担っていた初期化をここに移した。
+     以下は「好みの正規化」ではなく、**外すと実際に崩れる**ものだけを書いている。
+     消す前に必ず画面で確かめること。
+
+   Preflight から引き継いだ理由：
+   - 余白の全消し … 見出し・段落・リストの余白を各コンポーネントが自前で
+     持っている前提でできている。ブラウザ既定の margin が復活すると全画面がずれる
+   - 見出しのサイズ継承 … h1〜h6 のサイズはタイプスケール（heading-*）や
+     コンポーネント側が決める。既定の 2em/1.5em が出ると見出しだけ巨大になる
+   - ボタンの素化 … アプリ内のボタンはすべて c-button などで見た目を作る。
+     ブラウザ既定の枠と灰色の背景が出ると、全ボタンが OS 標準の見た目に戻る
+   - フォームのフォント継承 … input/textarea が Times などに化けるのを防ぐ
    ========================================================================== */
 
 *,
@@ -10,8 +22,184 @@
   box-sizing: border-box;
 }
 
+/* --- 余白の全消し --------------------------------------------------------
+   ★コンポーネント側が余白を持つ前提なので、ここを緩めないこと。 */
+
+blockquote,
+dd,
+dl,
+figure,
+h1, h2, h3, h4, h5, h6,
+hr,
+p,
+pre {
+  margin: 0;
+}
+
+ol,
+ul,
+menu {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 条文など、記号と番号が要る場所は個別に戻す（例: p-legal__body）*/
+
+fieldset,
+legend {
+  margin: 0;
+  padding: 0;
+}
+
+/* --- 文字 ----------------------------------------------------------------- */
+
+html {
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  /* iOS で横向きにしたとき文字が勝手に大きくならないようにする */
+  text-size-adjust: 100%;
+}
+
+/* 見出しの大きさはタイプスケール（heading-*）とコンポーネントが決める */
+h1, h2, h3, h4, h5, h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+small {
+  font-size: 80%;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1em;
+}
+
+/* リンクは各所で色を指定している。既定の青と下線は出さない */
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/* --- ボタン・フォーム ----------------------------------------------------
+   ★button の見た目は c-button などが作る。ここで素にしておかないと、
+     アプリ中のすべてのボタンに OS 標準の枠と背景が出る。 */
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-family: inherit;
+  font-size: 100%;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+  background-color: transparent;
+  background-image: none;
+}
+
+button,
+select {
+  text-transform: none;
+}
+
+button,
+[type='button'],
+[type='reset'],
+[type='submit'] {
+  -webkit-appearance: button;
+  appearance: button;
+}
+
+button,
+[role='button'] {
+  cursor: pointer;
+}
+
+:disabled {
+  cursor: default;
+}
+
+/* ★appearance は触らないこと。Preflight もやっていない。
+   none にすると checkbox の四角、select の矢印、input[type=time] の
+   時刻ピッカーがまとめて消える（このアプリはどれも素の描画に頼っている）。 */
+
+textarea {
+  resize: vertical;
+}
+
+::placeholder {
+  opacity: 1;
+  color: var(--color-text-placeholder);
+}
+
+/* 数値入力のスピナーを消す（このアプリでは使っていない）*/
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  height: auto;
+}
+
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  font: inherit;
+}
+
+/* --- 画像・表 ------------------------------------------------------------- */
+
 img,
 svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  vertical-align: middle;
+}
+
+img,
 video {
   max-width: 100%;
+  height: auto;
+}
+
+table {
+  border-collapse: collapse;
+  border-color: inherit;
+  text-indent: 0;
+}
+
+hr {
+  height: 0;
+  border-top-width: 1px;
+  color: inherit;
+}
+
+/* --- その他 --------------------------------------------------------------- */
+
+/* [hidden] 属性を付けた要素は隠す（クラスは u-hidden）*/
+[hidden] {
+  display: none;
+}
+
+summary {
+  display: list-item;
 }

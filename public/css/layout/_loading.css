@@ -22,3 +22,17 @@
   opacity: 0;
   pointer-events: none;
 }
+
+.l-loading__inner {
+  text-align: center;
+}
+
+.l-loading__spinner {
+  margin: 0 auto var(--space-4);
+}
+
+.l-loading__text {
+  font-size: 14px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}

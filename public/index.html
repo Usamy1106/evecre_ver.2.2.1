@@ -6,7 +6,9 @@
        standalone（ホーム画面から起動）で FAB や下部固定パネルがホームインジケータに潜り込む。
        避ける実装は public/css/object/utility/_safe-area.css（u-fab-safe / u-pb-safe）。 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Event Planner - イベント作りをサポート</title>
+  <meta name="robots" content="noindex" />
+
+  <title>イベクリ - イベントづくりを楽しく</title>
 
   <!-- ===== PWA（Web Push は iOS ではホーム画面追加が必須条件）===== -->
   <link rel="manifest" href="/manifest.json">
@@ -15,24 +17,25 @@
   <meta name="apple-mobile-web-app-title" content="イベクリ">
   <link rel="apple-touch-icon" href="/images/icon/app-icon-192.png">
   <meta name="theme-color" content="#0CA1E3">
-  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- ミッションチャットのリアクション用絵文字ピッカー（読めない場合は固定セットにフォールバック） -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
-  <!-- スタイルは FLOCSS で public/css/ に分割してある。詳細は public/css/README.md -->
+  <!-- スタイルは FLOCSS で public/css/ に分割してある。詳細は public/css/README.md
+       ★Tailwind の CDN は 2026-08-18 に撤去した。ブラウザ既定の打ち消し（Preflight
+         相当）は public/css/foundation/_reset.css が担っている。戻さないこと。 -->
   <link rel="stylesheet" href="/css/style.css">
 </head>
-<body class="min-h-screen">
+<body>
 
   <!-- ローディング画面 -->
   <div id="loading-screen" class="l-loading">
-    <div class="text-center">
-      <div class="w-16 h-16 border-4 border-[#0CA1E3] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-      <p class="text-[#A7AAAC] font-bold text-sm">読み込み中...</p>
+    <div class="l-loading__inner">
+      <div class="c-spinner c-spinner--lg l-loading__spinner"></div>
+      <p class="l-loading__text">読み込み中...</p>
     </div>
   </div>
 
-  <div id="app" class="l-app max-w-md mx-auto min-h-screen relative flex flex-col"></div>
+  <div id="app" class="l-app"></div>
 
   <script type="module" src="/js/main.js"></script>
 </body>

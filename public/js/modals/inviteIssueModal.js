@@ -87,7 +87,7 @@ async function _issueInvite(overlay, ctx) {
 function _render(overlay, ctx) {
   if (ctx.issuing) {
     overlay.innerHTML = `
-      <div class="c-modal animate-fadeIn">
+      <div class="c-modal u-animate-fade">
         <p class="c-modal__note">招待リンクを発行中…</p>
       </div>`;
     return;
@@ -95,7 +95,7 @@ function _render(overlay, ctx) {
 
   if (ctx.error) {
     overlay.innerHTML = `
-      <div class="c-modal c-modal--compact animate-fadeIn">
+      <div class="c-modal c-modal--compact u-animate-fade">
         <p class="p-invite__error">${_esc(ctx.error)}</p>
         <button type="button" id="iim-close" class="p-invite__close">閉じる</button>
       </div>`;
@@ -105,7 +105,7 @@ function _render(overlay, ctx) {
 
   const url = ctx.inviteUrl;
   overlay.innerHTML = `
-    <div class="c-modal c-modal--compact animate-fadeIn">
+    <div class="c-modal c-modal--compact u-animate-fade">
       <button type="button" id="iim-close" class="c-modal__close" aria-label="閉じる">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>

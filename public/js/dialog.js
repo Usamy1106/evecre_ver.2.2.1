@@ -24,7 +24,7 @@ export function showConfirmDialog({ message, confirmLabel = '確認', cancelLabe
     // スタイル: public/css/object/component/_dialog.css / _overlay.css / _button.css
     overlay.className = 'c-overlay c-overlay--bottom c-overlay--dialog';
     overlay.innerHTML = `
-      <div data-sheet class="c-dialog animate-fadeIn">
+      <div data-sheet class="c-dialog u-animate-fade">
         <div data-sheet-handle class="c-dialog__handle"><div class="c-dialog__grip"></div></div>
         ${title ? `<h3 class="c-dialog__title">${_esc(title)}</h3>` : ''}
         <p class="c-dialog__message">${_esc(message)}</p>

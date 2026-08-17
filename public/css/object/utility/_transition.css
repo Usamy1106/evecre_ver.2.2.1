@@ -1,0 +1,16 @@
+/* ==========================================================================
+   Object / Utility / transition — 画面・モーダルの出現アニメーション
+   使用箇所: public/js 全体（u-page-transition 36箇所 / u-animate-fade 53箇所）
+
+   ★@keyframes fadeIn の定義は foundation/_animation.css にある。
+   ★以前は Tailwind 由来の名前（page-transition / animate-fadeIn）だった。
+     Phase 5 で u- 接頭辞に揃えた。
+   ========================================================================== */
+
+.u-page-transition {
+  animation: fadeIn var(--duration-slow) ease-out forwards;
+}
+
+.u-animate-fade {
+  animation: fadeIn var(--duration-slow) ease-out forwards;
+}

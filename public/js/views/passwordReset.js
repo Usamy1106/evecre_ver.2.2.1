@@ -19,7 +19,7 @@ export function renderPasswordResetRequest(container) {
   });
 
   container.innerHTML = `
-    <div class="p-auth page-transition">
+    <div class="p-auth u-page-transition">
       <main class="p-auth__main">
         <h1 class="p-auth__title">パスワードを忘れた</h1>
         <p class="p-auth__lead p-auth__lead--relaxed">
@@ -131,7 +131,7 @@ export function renderPasswordResetConfirm(container) {
   }
 
   container.innerHTML = `
-    <div class="p-auth page-transition">
+    <div class="p-auth u-page-transition">
       <main class="p-auth__main">
         <h1 class="p-auth__title">新しいパスワード</h1>
         <p class="p-auth__lead">新しいパスワードを入力してください</p>

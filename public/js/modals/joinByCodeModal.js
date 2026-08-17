@@ -34,7 +34,7 @@ function _render(overlay, ctx) {
     // ★既にメンバーだった場合に「承認されるまでお待ちください」と出るのは誤り。
     //   ctx._pending を見て文言を出し分ける（以前は success だけで判定していた）。
     overlay.innerHTML = `
-      <div class="c-modal animate-fadeIn">
+      <div class="c-modal u-animate-fade">
         <p class="c-modal__note">${
           ctx._pending
             ? '送信しました。<br>承認されるまでお待ちください。'
@@ -45,7 +45,7 @@ function _render(overlay, ctx) {
   }
 
   overlay.innerHTML = `
-    <div class="c-modal c-modal--compact animate-fadeIn">
+    <div class="c-modal c-modal--compact u-animate-fade">
       <button type="button" id="jbc-close" class="c-modal__close" aria-label="閉じる">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>

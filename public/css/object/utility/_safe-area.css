@@ -4,15 +4,15 @@
 
    ★viewport-fit=cover（index.html）が無いと env() は常に 0 を返す。
      ブラウザ表示では 0 なので、Tailwind の bottom-10 / pb-32 と同じ見た目になる。
-   ★!important は Tailwind のユーティリティに勝たせるために付けている。
-     Tailwind を撤去する Phase 5 で外すこと（それまでは外すと崩れる）。
+   ★!important は Tailwind のユーティリティに勝たせるために付けていたが、
+     CDN を撤去した Phase 5 で外した。
    ========================================================================== */
 
 .u-fab-safe {
-  bottom: calc(2.5rem + var(--safe-bottom)) !important;
+  bottom: calc(2.5rem + var(--safe-bottom));
 }
 
 /* 画面下端に貼り付く固定パネルの内側下余白（コンテンツがインジケータに隠れないように） */
 .u-pb-safe {
-  padding-bottom: calc(8rem + var(--safe-bottom)) !important;
+  padding-bottom: calc(8rem + var(--safe-bottom));
 }

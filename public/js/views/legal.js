@@ -33,7 +33,7 @@ export async function renderLegal(container) {
   // スタイル: public/css/object/project/_legal.css
   // ★本文（markdown.js の出力）は素のタグなので、.p-legal__body の子孫として当てる。
   const shell = (body) => `
-    <div class="p-legal page-transition">
+    <div class="p-legal u-page-transition">
       <header class="p-legal__header">
         <button type="button" id="legal-back" class="p-legal__back" aria-label="戻る">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

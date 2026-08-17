@@ -71,7 +71,7 @@ export function showCoachMark(o) {
   overlay.className = 'c-coach-mark';
   overlay.innerHTML = `
     <div data-coach-hole class="c-coach-mark__hole"></div>
-    <div data-coach-pulse class="c-coach-mark__pulse coach-pulse"></div>
+    <div data-coach-pulse class="c-coach-mark__pulse c-coach-pulse"></div>
     <button type="button" data-coach-hit class="c-coach-mark__hit"></button>
     <div data-coach-copy class="c-coach-mark__copy">
       ${o.counter ? `<p class="c-coach-mark__counter">${_esc(o.counter)}</p>` : ''}
@@ -83,7 +83,7 @@ export function showCoachMark(o) {
     ${o.finger ? `
       <!-- ★指は穴に隣接させる。コピー文の中に置くと穴から離れて「どこを指しているか」が伝わらない -->
       <div data-coach-finger class="c-coach-mark__finger">
-        <svg class="coach-finger" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white"
+        <svg class="c-coach-finger" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white"
           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
           style="filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));">
           <path d="M9 11V6a2 2 0 1 1 4 0v5"/>

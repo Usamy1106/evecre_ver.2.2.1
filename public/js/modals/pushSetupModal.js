@@ -44,7 +44,7 @@ function _sheet(id, inner) {
   // スタイル: public/css/object/project/_push-setup.css
   overlay.className = 'c-overlay c-overlay--bottom c-overlay--push-setup';
   overlay.innerHTML = `
-    <div data-sheet class="p-push-setup__sheet animate-fadeIn">
+    <div data-sheet class="p-push-setup__sheet u-animate-fade">
       <div data-sheet-handle class="c-sheet__handle p-push-setup__handle">
         <div class="c-sheet__grip c-sheet__grip--sm"></div>
       </div>
@@ -147,7 +147,7 @@ export function pushSetupContentHtml(phase) {
     <p class="p-push-setup__text">
       ミッションを割り当てられたときや<br>締め切りが近いときにお知らせします
     </p>
-    <p data-psm="error" class="p-push-setup__error hidden"></p>
+    <p data-psm="error" class="p-push-setup__error u-hidden"></p>
     <button data-psm="enable" class="c-button c-button--primary p-push-setup__primary">
       通知をオンにする
     </button>`;
@@ -190,7 +190,7 @@ export function bindPushSetupContent(root, { phase, onAdvance }) {
         err.textContent = r.error === 'denied'
           ? '通知が許可されませんでした。あとから設定でオンにできます。'
           : '通知を設定できませんでした。あとから設定でオンにできます。';
-        err.classList.remove('hidden');
+        err.classList.remove('u-hidden');
       }
       if (btn) { btn.disabled = false; btn.textContent = '通知をオンにする'; btn.style.opacity = '1'; }
     });

@@ -119,14 +119,14 @@ function _openApproveModal(uid, username, roles, onSuccess) {
   roleOverlay.className = 'c-overlay c-overlay--approve c-overlay--blur';
   roleOverlay.onclick = (e2) => { if (e2.target === roleOverlay) roleOverlay.remove(); };
   roleOverlay.innerHTML = `
-    <div class="c-modal c-modal--left animate-fadeIn">
+    <div class="c-modal c-modal--left u-animate-fade">
       <h3 class="c-modal__title c-modal__title--tight">ロールを設定する</h3>
       <p class="text-rs p-member-manage__lead">@${_escH(username)} さんのロールを選択してください（複数可）</p>
       <div id="role-check-list" class="p-member-manage__role-list"></div>
       <button id="role-add-toggle" class="p-member-manage__role-add">
         ＋ 新しいロールを追加
       </button>
-      <div id="role-add-form" class="p-member-manage__role-form hidden">
+      <div id="role-add-form" class="p-member-manage__role-form u-hidden">
         <input id="role-add-name" placeholder="例: サブリーダー、デザイナーなど" maxlength="20"
           class="c-input p-member-manage__role-input">
         <label class="p-member-manage__role-check-row">
@@ -152,13 +152,13 @@ function _openApproveModal(uid, username, roles, onSuccess) {
   const addToggle = roleOverlay.querySelector('#role-add-toggle');
   const addForm   = roleOverlay.querySelector('#role-add-form');
   addToggle.onclick = () => {
-    addForm.classList.remove('hidden');
-    addToggle.classList.add('hidden');
+    addForm.classList.remove('u-hidden');
+    addToggle.classList.add('u-hidden');
     roleOverlay.querySelector('#role-add-name').focus();
   };
   roleOverlay.querySelector('#role-add-cancel').onclick = () => {
-    addForm.classList.add('hidden');
-    addToggle.classList.remove('hidden');
+    addForm.classList.add('u-hidden');
+    addToggle.classList.remove('u-hidden');
     roleOverlay.querySelector('#role-add-name').value = '';
     roleOverlay.querySelector('#role-add-canmanage').checked = false;
   };
@@ -173,8 +173,8 @@ function _openApproveModal(uid, username, roles, onSuccess) {
       roles.push(r.role);
       const proj = state.events.find(x => x.id === state.selectedEventId);
       if (proj) proj.roles = (proj.roles || []).concat([r.role]);
-      addForm.classList.add('hidden');
-      addToggle.classList.remove('hidden');
+      addForm.classList.add('u-hidden');
+      addToggle.classList.remove('u-hidden');
       roleOverlay.querySelector('#role-add-name').value = '';
       roleOverlay.querySelector('#role-add-canmanage').checked = false;
     } else {
@@ -189,7 +189,7 @@ function _openApproveModal(uid, username, roles, onSuccess) {
     confirmBtn.textContent = '承認中…';
 
     const addFormEl = roleOverlay.querySelector('#role-add-form');
-    if (addFormEl && !addFormEl.classList.contains('hidden')) {
+    if (addFormEl && !addFormEl.classList.contains('u-hidden')) {
       const newName = (roleOverlay.querySelector('#role-add-name')?.value || '').trim();
       if (newName) {
         const canManage = roleOverlay.querySelector('#role-add-canmanage')?.checked || false;
@@ -397,7 +397,7 @@ window._app = {
     const menu = document.createElement('div');
     menu.id = 'archive-mission-menu';
     menu.dataset.mid = missionId;
-    menu.className = 'c-context-menu c-context-menu--archive animate-fadeIn';
+    menu.className = 'c-context-menu c-context-menu--archive u-animate-fade';
     menu.style.top   = `${rect.bottom + 4}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
     menu.innerHTML = `
@@ -596,7 +596,7 @@ window._app = {
     confirmOverlay.className = 'c-overlay c-overlay--reject c-overlay--blur';
     confirmOverlay.onclick = (e) => { if (e.target === confirmOverlay) confirmOverlay.remove(); };
     confirmOverlay.innerHTML = `
-      <div class="c-modal animate-fadeIn">
+      <div class="c-modal u-animate-fade">
         <h3 class="c-modal__title">差し戻しますか？</h3>
         <p class="c-modal__text">提出内容は破棄されます。</p>
         <div class="c-modal__actions">
@@ -658,7 +658,7 @@ window._app = {
 
     if (!state.draftMission.title) {
       if (titleInput) titleInput.style.borderColor = '#e8383d';
-      if (errorText)  errorText.classList.remove('hidden');
+      if (errorText)  errorText.classList.remove('u-hidden');
       return;
     }
 
@@ -801,7 +801,7 @@ window._app = {
       newItems.forEach(m => {
         const card = document.createElement('div');
         card.dataset.pendingUid = m.userId;
-        card.className = 'c-list-sheet__card animate-fadeIn';
+        card.className = 'c-list-sheet__card u-animate-fade';
         card.innerHTML = `
           <div class="p-member-manage__card-head">
             <div class="p-member-manage__card-user">
@@ -876,7 +876,7 @@ window._app = {
       </div>`).join('');
 
     overlay.innerHTML = `
-      <div data-sheet class="c-list-sheet c-list-sheet--capped animate-fadeIn">
+      <div data-sheet class="c-list-sheet c-list-sheet--capped u-animate-fade">
         <div id="pending-sheet-header" data-sheet-handle class="c-list-sheet__head">
           <div class="c-list-sheet__grip"></div>
           <h3 id="pending-members-count" class="c-list-sheet__title">参加申請（${pending.length}件）</h3>
@@ -937,7 +937,7 @@ window._app = {
     overlay.className = 'c-overlay c-overlay--pending c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div data-sheet class="c-list-sheet c-list-sheet--form animate-fadeIn">
+      <div data-sheet class="c-list-sheet c-list-sheet--form u-animate-fade">
         <div data-sheet-handle class="c-list-sheet__handle"><div class="c-sheet__grip"></div></div>
         <h3 class="c-list-sheet__title">ミッションを提案する</h3>
         <textarea id="member-proposal-input" rows="4"
@@ -987,7 +987,7 @@ window._app = {
       </div>`).join('');
 
     overlay.innerHTML = `
-      <div data-sheet class="c-list-sheet c-list-sheet--scroll animate-fadeIn">
+      <div data-sheet class="c-list-sheet c-list-sheet--scroll u-animate-fade">
         <div data-sheet-handle class="c-list-sheet__handle"><div class="c-sheet__grip"></div></div>
         <h3 class="c-list-sheet__title">ミッションの提案（${proposals.length}件）</h3>
         ${rows || '<p class="c-list-sheet__empty c-list-sheet__empty--tight text-rs">提案はありません</p>'}
@@ -1102,7 +1102,7 @@ window._app = {
     overlay.className = 'c-overlay c-overlay--auto c-overlay--center c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div class="c-modal animate-fadeIn">
+      <div class="c-modal u-animate-fade">
         <div class="c-modal__icon" style="--icon-bg:${_escH(config.bgColor)}">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${_escH(config.color)}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             ${config.icon}
@@ -1178,7 +1178,7 @@ window._app = {
     }).join('');
 
     overlay.innerHTML = `
-      <div data-sheet class="c-list-sheet c-list-sheet--tall animate-fadeIn">
+      <div data-sheet class="c-list-sheet c-list-sheet--tall u-animate-fade">
         <div data-sheet-handle class="c-list-sheet__head">
           <div class="c-list-sheet__grip"></div>
           <h3 id="leader-check-count" class="c-list-sheet__title">リーダーチェック（${missions.length}件）</h3>
@@ -1283,10 +1283,10 @@ window._app = {
     overlay.className = 'c-overlay c-overlay--join c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div class="c-modal animate-fadeIn">
+      <div class="c-modal u-animate-fade">
         <p class="p-app-shell__join-emoji">🎉</p>
         <h3 class="c-modal__title">イベントに参加する</h3>
-        <p id="jec-catch" class="p-app-shell__join-catch hidden"></p>
+        <p id="jec-catch" class="p-app-shell__join-catch u-hidden"></p>
         <p class="p-app-shell__join-name">「${_escH(eventName || 'イベント')}」</p>
         <p class="p-app-shell__join-note">への参加を申請しますか？<br>管理者の承認後に参加できます。</p>
         <!-- 参加中メンバー＋リーダーの意気込み（招待プレビューを取得できたときだけ差し込む） -->
@@ -1336,7 +1336,7 @@ window._app = {
     const rect = btn.getBoundingClientRect();
     menu = document.createElement('div');
     menu.id = 'user-menu-popover';
-    menu.className = 'p-app-shell__user-menu animate-fadeIn';
+    menu.className = 'p-app-shell__user-menu u-animate-fade';
     menu.style.top  = `${rect.bottom + 4}px`;
     menu.style.left = `${rect.left}px`;
     menu.style.minWidth = '160px';
@@ -1522,7 +1522,7 @@ async function _hydrateJoinModalMotivation(inviteToken) {
   const catchEl = document.getElementById('jec-catch');
   if (catchEl && ctx.catchphrase) {
     catchEl.textContent = ctx.catchphrase;
-    catchEl.classList.remove('hidden');
+    catchEl.classList.remove('u-hidden');
   }
 
   const box = document.getElementById('jec-motivation');
@@ -1560,10 +1560,10 @@ function _openNewProjectModal(pendingEventId = null) {
   document.getElementById('new-project-modal')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'new-project-modal';
-  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="c-modal c-modal--left animate-fadeIn">
+    <div class="c-modal c-modal--left u-animate-fade">
       <h3 class="c-modal__title c-modal__title--loose">新しいプロジェクト</h3>
       <input id="np-name" type="text" maxlength="40" placeholder="プロジェクト名"
         class="c-input c-input--block p-app-shell__field">
@@ -1607,10 +1607,10 @@ function _openProjectMenu(folderId) {
   document.getElementById('project-menu-sheet')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'project-menu-sheet';
-  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action page-transition';
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div data-sheet class="c-action-sheet animate-fadeIn">
+    <div data-sheet class="c-action-sheet u-animate-fade">
       <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
       <p class="c-action-sheet__caption">${_escH(folder.name)}</p>
       <button id="pm-rename"
@@ -1654,10 +1654,10 @@ function _openProjectRenameDialog(folderId) {
   document.getElementById('project-rename-dialog')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'project-rename-dialog';
-  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="c-modal c-modal--left animate-fadeIn">
+    <div class="c-modal c-modal--left u-animate-fade">
       <h3 class="c-modal__title c-modal__title--loose">プロジェクト名を変更</h3>
       <input id="pr-name" type="text" maxlength="40"
         class="c-input c-input--block c-modal__field"
@@ -1825,10 +1825,10 @@ async function _openEventLogSheet() {
   document.getElementById('event-log-sheet')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'event-log-sheet';
-  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action page-transition';
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div data-sheet class="p-app-shell__log-sheet animate-fadeIn">
+    <div data-sheet class="p-app-shell__log-sheet u-animate-fade">
       <div data-sheet-handle class="c-sheet__handle c-sheet__handle--mid"><div class="c-sheet__grip"></div></div>
       <p class="p-app-shell__log-title">操作履歴</p>
       <div id="event-log-body" class="p-app-shell__log-body">

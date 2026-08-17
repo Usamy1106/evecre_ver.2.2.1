@@ -128,10 +128,10 @@ function openEventMenu(projectId, opts = {}) {
 
   const overlay = document.createElement('div');
   overlay.id = 'event-action-sheet';
-  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action page-transition';
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div data-sheet class="c-action-sheet animate-fadeIn">
+    <div data-sheet class="c-action-sheet u-animate-fade">
       <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
       <p class="c-action-sheet__caption">${_escapeAttr(p.name)}</p>
       ${inFolder ? `<button id="pa-remove-from-project"
@@ -206,10 +206,10 @@ export function openRenameDialog(projectId) {
 
   const overlay = document.createElement('div');
   overlay.id = 'event-rename-modal';
-  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="c-modal c-modal--left animate-fadeIn">
+    <div class="c-modal c-modal--left u-animate-fade">
       <h3 class="c-modal__title c-modal__title--loose">イベント名を変更</h3>
       <input id="rename-input" type="text" maxlength="40"
         class="c-input c-input--block c-modal__field"
@@ -247,10 +247,10 @@ export function openRenameDialog(projectId) {
 export function openDeleteConfirm(projectId) {
   const overlay = document.createElement('div');
   overlay.id = 'event-delete-modal';
-  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="c-modal animate-fadeIn">
+    <div class="c-modal u-animate-fade">
       <h3 class="c-modal__title">イベントを削除しますか</h3>
       <p class="c-modal__text c-modal__text--strong">一度削除されると元に戻せません。</p>
       <div class="c-modal__actions">
@@ -281,7 +281,7 @@ export function openAddToProjectModal(eventId) {
 
   const overlay = document.createElement('div');
   overlay.id = 'add-to-project-sheet';
-  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action page-transition';
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
   const currentFolderId = ev?.folderId || null;
@@ -297,7 +297,7 @@ export function openAddToProjectModal(eventId) {
     </button>`).join('');
 
   overlay.innerHTML = `
-    <div data-sheet class="c-action-sheet animate-fadeIn">
+    <div data-sheet class="c-action-sheet u-animate-fade">
       <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
       <p class="c-action-sheet__caption c-action-sheet__caption--label">プロジェクトに追加</p>
       <div id="atp-folder-list" class="c-action-sheet__list">

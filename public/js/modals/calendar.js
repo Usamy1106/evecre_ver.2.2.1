@@ -101,7 +101,7 @@ export function openCalendarModal(target = 'project') {
   if (target === 'mission' || target === 'claimDeadline') {
     modal.className = 'c-overlay c-overlay--picker c-overlay--blur';
   } else {
-    modal.className = 'c-overlay c-overlay--picker-center c-overlay--blur page-transition';
+    modal.className = 'c-overlay c-overlay--picker-center c-overlay--blur u-page-transition';
   }
   modal.onclick = (e) => { if (e.target === modal) _closeCalendar(target); };
   document.body.appendChild(modal);
@@ -258,7 +258,7 @@ function _renderCalendarInner(target) {
       </div>`;
   } else {
     modal.innerHTML = `
-      <div class="p-date-picker__dialog animate-fadeIn">
+      <div class="p-date-picker__dialog u-animate-fade">
         <div class="p-date-picker__head">
           <h3 class="heading-r p-date-picker__title">${year}年 ${month + 1}月</h3>
           <div class="p-date-picker__nav">

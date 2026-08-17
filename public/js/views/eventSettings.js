@@ -42,7 +42,7 @@ export function renderEventSettings(container) {
   }
 
   container.innerHTML = `
-    <div class="p-event-settings page-transition">
+    <div class="p-event-settings u-page-transition">
       <header class="l-header l-header--sub">
         <button type="button" onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
           class="l-header__back" aria-label="メインボードへ戻る">

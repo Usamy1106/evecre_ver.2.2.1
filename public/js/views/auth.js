@@ -37,7 +37,7 @@ export function renderCreateAccountInfo(container) {
   const errors = state.authErrors || {};
 
   container.innerHTML = `
-    <div class="p-auth page-transition">
+    <div class="p-auth u-page-transition">
       <main class="p-auth__main">
         <h1 class="p-auth__title">アカウントを作成</h1>
         <p class="p-auth__lead">イベントを保存・共有するために、まずはアカウントを作成してください</p>
@@ -81,7 +81,7 @@ export function renderCreateAccountInfo(container) {
         <button type="button" id="ca-submit" class="c-button c-button--primary p-auth__submit">アカウントを作成</button>
 
         <!-- Google で続行。★hidden は JS が付け外しする（Phase 5 で u-hidden へ）-->
-        <div id="ca-google-section" class="hidden p-auth__google-section">
+        <div id="ca-google-section" class="u-hidden p-auth__google-section">
           <div class="p-auth__divider">
             <span class="p-auth__divider-label">または</span>
           </div>
@@ -180,7 +180,7 @@ export function renderLogin(container) {
   const errors = state.authErrors || {};
 
   container.innerHTML = `
-    <div class="p-auth page-transition">
+    <div class="p-auth u-page-transition">
       <main class="p-auth__main">
         <h1 class="p-auth__title">ログイン</h1>
         <p class="p-auth__lead">登録済みのアカウント情報でサインインしてください</p>
@@ -215,7 +215,7 @@ export function renderLogin(container) {
         </p>
 
         <!-- Google で続行。★hidden は JS が付け外しする（Phase 5 で u-hidden へ）-->
-        <div id="lg-google-section" class="hidden p-auth__google-section">
+        <div id="lg-google-section" class="u-hidden p-auth__google-section">
           <div class="p-auth__divider">
             <span class="p-auth__divider-label">または</span>
           </div>
@@ -452,7 +452,7 @@ export async function _setupGoogleSignIn(mode, opts = {}) {
     // 未設定の場合：開発時（localhost）のみ案内を出す
     const isLocal = /^(localhost|127\.0\.0\.1)$/i.test(location.hostname);
     if (isLocal) {
-      sectionEl.classList.remove('hidden');
+      sectionEl.classList.remove('u-hidden');
       sectionEl.innerHTML = `
         <div class="p-auth__divider">
           <span class="p-auth__divider-label">または</span>
@@ -551,7 +551,7 @@ export async function _setupGoogleSignIn(mode, opts = {}) {
       locale: 'ja',
     });
 
-    sectionEl.classList.remove('hidden');
+    sectionEl.classList.remove('u-hidden');
   } catch (e) {
     console.warn('[google-signin] GIS 初期化失敗:', e);
   }

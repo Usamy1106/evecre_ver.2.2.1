@@ -16,7 +16,7 @@ import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync } fr
     if (!row) { _sw = null; return; }
     _sw = {
       row,
-      card:   row.querySelector('.notif-swipe-card'),
+      card:   row.querySelector('.p-notification__swipe-card'),
       id:     row.dataset.notifId,
       startX: e.touches[0].clientX,
       startY: e.touches[0].clientY,
@@ -147,7 +147,7 @@ export function renderMainBoard(container) {
           </div>
         </div>
       ` : `
-        <main class="p-main-board__page no-scrollbar">
+        <main class="p-main-board__page u-no-scrollbar">
           ${state.mainBoardTab === 'ARCHIVE' ? _renderArchiveTab(p) : ''}
           ${state.mainBoardTab === 'NOTIFICATIONS' ? _renderNotificationsTab(p) : ''}
         </main>
@@ -395,7 +395,7 @@ function _renderMainTab(p) {
 
         return `
         <div ${cardOnClick} data-mission-id="${m.id}"
-          class="p-main-board__mission animate-fadeIn">
+          class="p-main-board__mission u-animate-fade">
           <div class="p-main-board__mission-meta">
             ${tagNames.map(t => Components.Tag(t)).join('')}
             ${_missionDeadlineText(m)}
@@ -679,7 +679,7 @@ function _renderAnnounceCards(p, meId) {
     <div class="p-main-board__announce">
       <button type="button" onclick="
         const el=document.getElementById('${listId}');
-        const icon=this.querySelector('.announce-chevron');
+        const icon=this.querySelector('.p-main-board__announce-chevron');
         if(el.style.display==='none'){el.style.display='';icon.style.transform='rotate(0deg)';}
         else{el.style.display='none';icon.style.transform='rotate(-90deg)';}
       " class="p-main-board__announce-toggle">
@@ -690,8 +690,8 @@ function _renderAnnounceCards(p, meId) {
           </svg>
           アナウンス（${active.length}件）
         </span>
-        <!-- ★announce-chevron は JS が掴んで回す目印。クラス名を変えるならこの onclick も直すこと -->
-        <svg class="announce-chevron" width="16" height="16" viewBox="0 0 24 24"
+        <!-- ★p-main-board__announce-chevron は JS が掴んで回す目印。クラス名を変えるならこの onclick も直すこと -->
+        <svg class="p-main-board__announce-chevron" width="16" height="16" viewBox="0 0 24 24"
           fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
@@ -809,7 +809,7 @@ function _renderArchiveTab(p) {
 
   const hasDatesA = Array.isArray(p.dates) && p.dates.length > 0;
   return `
-    <div class="p-archive page-transition">
+    <div class="p-archive u-page-transition">
       <div class="p-archive__head">
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
           class="p-archive__days">
@@ -885,7 +885,7 @@ function _renderArchiveCategorySection(p, tag, missions) {
   const collapsed = state.archiveCollapsed?.[tag] ?? false;
   const items     = missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], tag)).join('');
 
-  // ★archive-section-body / archive-section-arrow は main.js が掴む目印。
+  // ★p-archive__section-body / p-archive__section-arrow は main.js が掴む目印。
   //   クラス名を変えるなら main.js の開閉処理も直すこと。
   return `
     <div data-archive-section="${_esc(tag)}" class="p-archive__category${collapsed ? ' is-collapsed' : ''}">
@@ -896,13 +896,13 @@ function _renderArchiveCategorySection(p, tag, missions) {
           <span class="p-archive__category-name">${_esc(tag)}</span>
           <span class="p-archive__category-count">${missions.length}件</span>
         </span>
-        <svg class="archive-section-arrow"
+        <svg class="p-archive__section-arrow"
           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
-      <div class="archive-section-body">
+      <div class="p-archive__section-body">
         ${items}
       </div>
     </div>`;
@@ -1072,8 +1072,8 @@ function _renderNotificationsTab(p) {
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
             </svg>
           </div>
-          <!-- ★notif-swipe-card は横スワイプの対象として JS が掴む目印 -->
-          <div class="notif-swipe-card${n.read ? '' : ' is-unread'}"
+          <!-- ★p-notification__swipe-card は横スワイプの対象として JS が掴む目印 -->
+          <div class="p-notification__swipe-card${n.read ? '' : ' is-unread'}"
             onclick="window._app.openNotification('${n.id}', '${n.missionId || ''}')">
             <div class="p-notification__icon" style="--notif-color:${_notifIconBg(n.type)}">
               ${_notifIcon(n.type)}
@@ -1088,7 +1088,7 @@ function _renderNotificationsTab(p) {
     </div>`;
 
   return `
-    <div class="p-notification page-transition">
+    <div class="p-notification u-page-transition">
       ${claimingHtml}
       ${pendingHtml}
       <section class="p-notification__section p-notification__section--grow">

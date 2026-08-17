@@ -6,7 +6,7 @@
        応募待ち（管理者のみ）／確認待ち（管理者のみ）／通知一覧
    ★通知は**現在開いているイベントぶんだけ**を出す（他イベントの通知は出さない）。
      「すべて既読」も現在のイベントぶんだけを既読にする。
-   ★notif-swipe-card は views/mainBoard.js が横スワイプの対象として掴む目印。
+   ★p-notification__swipe-card は views/mainBoard.js が横スワイプの対象として掴む目印。
      クラス名を変えるならそちらも直すこと。
    ========================================================================== */
 
@@ -200,7 +200,7 @@
 }
 
 /* --- 通知の行（横スワイプで削除）------------------------------------------
-   ★行の下に削除の赤い面を敷き、上のカード（notif-swipe-card）を JS が
+   ★行の下に削除の赤い面を敷き、上のカード（p-notification__swipe-card）を JS が
      transform で横に動かす。位置は JS が持つのでここには書かない。 */
 
 .p-notification__row {
@@ -228,7 +228,7 @@
   height: 20px;
 }
 
-.notif-swipe-card {
+.p-notification__swipe-card {
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -241,12 +241,12 @@
   transition: background-color var(--duration-fast) var(--ease);
 }
 
-.notif-swipe-card:active {
+.p-notification__swipe-card:active {
   background-color: var(--button-secondary);
 }
 
 /* 未読は左に赤い帯を出し、本文も太字にする（色だけの情報にしない）*/
-.notif-swipe-card.is-unread {
+.p-notification__swipe-card.is-unread {
   border-left: 4px solid var(--color-danger);
   background-color: var(--color-bg);
 }
@@ -273,7 +273,7 @@
   color: var(--color-text);
 }
 
-.notif-swipe-card.is-unread .p-notification__message {
+.p-notification__swipe-card.is-unread .p-notification__message {
   font-weight: var(--font-weight-heavy);
 }
 

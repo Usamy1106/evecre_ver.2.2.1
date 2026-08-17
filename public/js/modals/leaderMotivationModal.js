@@ -84,14 +84,14 @@ function _openModal(p) {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--welcome page-transition';
+  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--welcome u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   document.body.appendChild(overlay);
 
   // 操作は🔥の円形ボタン1つだけ（「閉じる」は置かない）。押すと応援を送って閉じる。
   // 背景タップでも閉じられる（overlay.onclick）。
   overlay.innerHTML = `
-    <div class="c-modal animate-fadeIn">
+    <div class="c-modal u-animate-fade">
       <h3 class="c-modal__title c-modal__title--wide">「${_esc(p.name || 'イベント')}」に<br>ようこそ！</h3>
 
       <div class="p-invite__motivation">

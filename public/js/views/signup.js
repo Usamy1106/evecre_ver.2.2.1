@@ -79,7 +79,7 @@ function _dots(step) {
 
 function _shell(inner, { back = null } = {}) {
   return `
-    <div class="p-signup page-transition">
+    <div class="p-signup u-page-transition">
       <main class="p-signup__main">
         ${back ? `
           <button type="button" id="su-back" class="p-signup__back" aria-label="戻る">
@@ -177,11 +177,11 @@ function _renderEntry(container, d) {
 
     <!-- Google を最上部・主導線に。GIS の renderButton は見た目の自由度が低いため、
          幅を広げ、周囲の余白で主導線に見せる -->
-    <div id="ca-google-section" class="hidden p-signup__google-section">
+    <div id="ca-google-section" class="u-hidden p-signup__google-section">
       <div id="su-google-wrap" class="p-signup__google-wrap">
         <div id="ca-google-btn" class="p-signup__google"></div>
         <!-- 同意前はクリックを受け止めて案内する（GIS のボタン自体は disabled にできない） -->
-        <div id="su-google-guard" class="p-signup__google-guard ${d.consented ? 'hidden' : ''}"></div>
+        <div id="su-google-guard" class="p-signup__google-guard ${d.consented ? 'u-hidden' : ''}"></div>
       </div>
     </div>
 
@@ -1028,7 +1028,7 @@ function _renderAvatar(container, d) {
       </div>` : ''}
 
     <!-- ★hidden は「見た目を消す」ためではなく、ファイル選択を自前のボタンで代替するため -->
-    <input id="su-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
+    <input id="su-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="u-hidden">
     <button type="button" id="su-avatar-upload" class="p-signup__upload-button">
       自分の画像をアップロードする
     </button>

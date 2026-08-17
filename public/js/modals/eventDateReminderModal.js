@@ -66,7 +66,7 @@ function _buildOverlay({ bgColor, color, iconPath, title, desc, buttonsHtml }) {
   overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="c-modal animate-fadeIn">
+    <div class="c-modal u-animate-fade">
       <div class="c-modal__icon" style="--icon-bg:${bgColor}">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           ${iconPath}

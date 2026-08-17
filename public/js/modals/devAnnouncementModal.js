@@ -132,7 +132,7 @@ function _renderPage(overlay, pages, index, opts = {}) {
     </div>` : '';
 
   overlay.innerHTML = `
-    <div data-ann-card class="p-announcement ${opts.enterFrom ? '' : 'animate-fadeIn'}"
+    <div data-ann-card class="p-announcement ${opts.enterFrom ? '' : 'u-animate-fade'}"
       style="max-height:92vh">
       ${image}
       <div class="p-announcement__body">

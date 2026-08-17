@@ -7,8 +7,10 @@
 - `style.css` には **`@import` 以外を書かない**。順番＝詳細度の弱い順で、**入れ替えるとカスケードが壊れる**
 - パーシャルは `_` 始まり（単体では読み込まないファイルの目印。ビルドが無いので機能的な意味は無く、規約として統一している）
 
-> **移行中**：Tailwind CDN と並走している。撤去は Phase 5。
-> それまでは同じ見た目が「Tailwind のユーティリティ」と「ここの CSS」の両方から当たっている箇所がある。
+> **Tailwind は使っていない**（2026-08-18 に CDN を撤去）。
+> ブラウザ既定の打ち消し（Preflight 相当）は `foundation/_reset.css` が担っている。
+> **`class="flex items-center gap-2"` のようなユーティリティを書き足さないこと。**
+> 当たるものが何も無く、静かに無視される。
 
 ---
 
@@ -31,7 +33,7 @@
 - **Project から Component の中身を直接上書きしない。** 必要なら `c-` 側に modifier を足す
   - ✗ `.p-home .c-card__title { font-size: 20px; }`
   - ✓ `.c-card--feature .c-card__title { font-size: 20px; }`
-- **`!important` は禁止**（例外は下記2つだけ。どちらも Tailwind 撤去で解消予定）
+- **`!important` は禁止**（例外は `u-hidden` の1つだけ。§5 参照）
 - **CSS Nesting は使わない。** 1セレクタ1ブロックで書く
 - **`id` にスタイルを当てない。** `#app` / `#loading-screen` も `.l-app` / `.l-loading` を併記してある
 - **色・サイズを直書きしない。** `foundation/_variables.css` に名前を付けてから使う
@@ -52,7 +54,7 @@
 | タブ（メインボード・通知・アーカイブ）とアクティブ表示 | `layout/_tabs.css` |
 | メインボード下部のパネル・FAB | `layout/_fixed-bottom.css` |
 | 起動時のローディング画面 | `layout/_loading.css` |
-| 画面切り替え時のフェード | `layout/_page.css` |
+| 画面切り替え時のフェード | `object/utility/_transition.css` |
 | ボタン（`c-button--primary` / `--secondary` / `--danger` / `--muted` / `--block`） | `object/component/_button.css` |
 | 入力欄（`c-input`） | `object/component/_input.css` |
 | ラベルタグの色・形（`c-tag`） | `object/component/_tag.css` |
@@ -103,9 +105,10 @@
 | 操作を選ばせるボトムシート（長押しメニュー） | `object/component/_action-sheet.css` |
 | オン・オフのスイッチ | `object/component/_toggle.css` |
 | 一覧を出すボトムシート（承認待ち・確認待ち・履歴） | `object/component/_list-sheet.css` |
-| モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
+| モーダルのフェードイン（`u-animate-fade`） | `object/utility/_transition.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
-| スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
+| スクロールバーを隠す（`u-no-scrollbar`） | `object/utility/_scroll.css` |
+| 要素を隠す（`u-hidden`） | `object/utility/_display.css` |
 
 ---
 
@@ -201,14 +204,14 @@ finger.style.left = `${cx - FW / 2}px`;
 
 ---
 
-## 5. `!important` を使っている箇所（Tailwind 撤去で解消する）
+## 5. `!important` を使っている箇所
 
 | 箇所 | 理由 |
 |---|---|
-| `object/utility/_safe-area.css` の `u-fab-safe` / `u-pb-safe` | Tailwind の `bottom-10` / `pb-32` に勝たせるため。Phase 5 で外す |
+| `object/utility/_display.css` の `u-hidden` | JS が表示制御に使う。`display:flex` を持つ要素にも効かないと意味がないため、**唯一の恒久的な例外**とする |
 
-Phase 5 で `u-hidden` を追加する際は、**JS が表示制御に使うため `!important` を許容する**
-（唯一の恒久的な例外になる予定）。
+`u-fab-safe` / `u-pb-safe` に付けていた `!important` は、Tailwind 撤去に伴い外した。
+**新しく `!important` を足さないこと。** 勝てないときは、まずセレクタの層が正しいかを疑う。
 
 ---
 
@@ -231,7 +234,6 @@ public/css/
 ├─ layout/
 │  ├─ _app.css                  ✅ .l-app（#app）
 │  ├─ _loading.css              ✅ .l-loading（#loading-screen）
-│  ├─ _page.css                 ✅ .page-transition
 │  ├─ _header.css               ✅ .l-header（--home / --event）／.l-header-stack
 │  ├─ _tabs.css                 ✅ .l-tabs（.is-active）
 │  └─ _fixed-bottom.css         ✅ .l-bottom-panel / .l-fab
@@ -295,9 +297,10 @@ public/css/
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _onboarding                            ⬜ Phase 4
 │
 └─ object/utility/
-   ├─ _animation.css            ✅ animate-fadeIn
+   ├─ _transition.css           ✅ u-page-transition / u-animate-fade
+   ├─ _display.css              ✅ u-hidden
    ├─ _safe-area.css            ✅ u-fab-safe / u-pb-safe
-   ├─ _scroll.css               ✅ no-scrollbar
+   ├─ _scroll.css               ✅ u-no-scrollbar
    ├─ _display.css              ⬜ Phase 5 — u-hidden
    ├─ _text.css                 ⬜ Phase 5
    └─ _spacing.css              ⬜ Phase 5
@@ -323,7 +326,13 @@ public/css/
 | `.input-field` | `.c-input` | ✅ Phase 2 |
 | `translate-y-full`（シート開閉） | `.c-sheet` ＋ `.is-open` | ✅ Phase 2 |
 | `LABEL_CONFIG` の `bg`/`border`/`text` | 削除（未使用だった） | ✅ Phase 2 |
-| `.heading-*` / `.text-*` | 判断待ち | ⬜ Phase 5 |
-| `.no-scrollbar` | `.u-no-scrollbar` | ⬜ Phase 5 |
-| `.animate-fadeIn` | `.u-fade-in`（判断待ち） | ⬜ Phase 5 |
-| Tailwind の `hidden` | `.u-hidden` | ⬜ Phase 5 |
+| `.heading-*` / `.text-*` | 据え置き（Foundation のタイプスケール。Tailwind 由来ではない） | ✅ Phase 5 |
+| `.no-scrollbar` | `.u-no-scrollbar` | ✅ Phase 5 |
+| `.animate-fadeIn` | `.u-animate-fade` | ✅ Phase 5 |
+| `.page-transition` | `.u-page-transition` | ✅ Phase 5 |
+| Tailwind の `hidden` | `.u-hidden` | ✅ Phase 5 |
+| `.coach-pulse` / `.coach-finger` | `.c-coach-pulse` / `.c-coach-finger` | ✅ Phase 5 |
+| `.archive-section-*` | `.p-archive__section-*` | ✅ Phase 5 |
+| `.announce-chevron` | `.p-main-board__announce-chevron` | ✅ Phase 5 |
+| `.notif-swipe-card` | `.p-notification__swipe-card` | ✅ Phase 5 |
+| Tailwind の Preflight | `foundation/_reset.css` | ✅ Phase 5 |

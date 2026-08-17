@@ -32,8 +32,7 @@ const section = (t) => console.log(`\n${t}`);
 const entry = R('public/css/style.css');
 const readme = R('public/css/README.md');
 
-// 移行済みの JS（Tailwind を落とし終えたもの）はここに追記していく。
-// ★Phase 5 で Tailwind を外したら、この配列ではなく public/js 全体を対象にする。
+// public/js 全体。Tailwind は撤去済みなので例外は無い。
 const JS_ALL = [
   ...fs.readdirSync(path.join(ROOT, 'public/js')).filter(f => f.endsWith('.js')).map(f => `public/js/${f}`),
   ...fs.readdirSync(path.join(ROOT, 'public/js/views')).map(f => `public/js/views/${f}`),
@@ -50,18 +49,8 @@ const LAYERS = [
   ['public/css/object/utility', '.u-'],
 ];
 
-// 接頭辞を持たない旧クラス名。JS が名前で掴んでいる／文中に書かれているため
-// 移行中は残している。★Phase 5 で改名し、この表ごと消すこと。
-const LEGACY_CLASSES = new Set([
-  '.page-transition',   // l-page。state.js が画面遷移で add/remove する
-  '.coach-pulse',       // c-coach-mark の脈打ち。@keyframes 名と揃えてある
-  '.coach-finger',      // 同上（指のアイコン）
-  '.archive-section-arrow', '.archive-section-body',  // アーカイブの開閉。JS が掴む
-  '.announce-chevron',  // アナウンスカードの矢印。JS が掴む
-  '.notif-swipe-card',  // 通知のスワイプ。swipeCard.js が掴む
-  '.animate-fade',      // u-animate-fade へ改名予定（Tailwind 風の名前）
-  '.no-scrollbar',      // u-no-scrollbar へ改名予定
-]);
+// ★Phase 5 で接頭辞なしのクラスは全て改名済み。例外は作らないこと。
+const LEGACY_CLASSES = new Set([]);
 
 for (const [dir, prefix] of LAYERS) {
   for (const f of ls(dir)) {
@@ -83,7 +72,6 @@ for (const [dir, prefix] of LAYERS) {
 // !important は原則禁止。特別な理由があるものだけここに列挙する。
 const IMPORTANT_ALLOW = {
   'public/css/object/utility/_display.css': 'u-hidden（他のどの指定より強く隠す）',
-  'public/css/object/utility/_safe-area.css': 'Tailwind の pb-* に勝つため（Phase 5 で外す）',
 };
 for (const [dir] of LAYERS) {
   for (const f of ls(dir)) {

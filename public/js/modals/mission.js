@@ -153,10 +153,10 @@ export function deleteMission(e) {
 
   if (m && !m.isDeletable) {
     const overlay = document.createElement('div');
-    overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
+    overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur u-page-transition';
     overlay.onclick = (e2) => { if (e2.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div class="c-modal animate-fadeIn">
+      <div class="c-modal u-animate-fade">
         <h3 class="c-modal__title">削除できません</h3>
         <p class="c-modal__text c-modal__text--strong">初期フローのミッションは削除できません。</p>
         <button class="c-button c-button--secondary c-modal__button">閉じる</button>
@@ -167,10 +167,10 @@ export function deleteMission(e) {
   }
 
   const overlay = document.createElement('div');
-  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur u-page-transition';
   overlay.onclick = (e2) => { if (e2.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="c-modal animate-fadeIn">
+    <div class="c-modal u-animate-fade">
       <h3 class="c-modal__title">ミッションを削除しますか</h3>
       <p class="c-modal__text c-modal__text--strong">一度削除すると元に戻せません。</p>
       <div class="c-modal__actions">
@@ -272,7 +272,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
             value="${_escAttr(state.draftMission.title || '')}"
             oninput="state.draftMission.title=this.value; this.style.borderColor=''"
             class="c-input p-mission-form__input">
-          <p id="error-title" class="p-mission-form__error hidden">※ミッション名は入力必須です</p>
+          <p id="error-title" class="p-mission-form__error u-hidden">※ミッション名は入力必須です</p>
         </div>
         <div>
           <label class="heading-rs p-mission-form__label">ミッションの説明</label>
@@ -526,9 +526,9 @@ export function showProposalHelp(e, proposalId) {
 
   const overlay = document.createElement('div');
   overlay.id = 'help-modal';
-  overlay.className = 'c-overlay c-overlay--help c-overlay--blur page-transition';
+  overlay.className = 'c-overlay c-overlay--help c-overlay--blur u-page-transition';
   overlay.innerHTML = `
-    <div class="c-modal c-modal--left c-modal--fluid animate-fadeIn">
+    <div class="c-modal c-modal--left c-modal--fluid u-animate-fade">
       <button onclick="document.getElementById('help-modal').remove()" class="c-modal__close">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
@@ -561,7 +561,7 @@ export function openMissionMenuAt(missionId, x, y) {
   const menu = document.createElement('div');
   menu.id = 'mission-menu';
   menu.dataset.mid = missionId;
-  menu.className = 'c-context-menu c-context-menu--mission animate-fadeIn';
+  menu.className = 'c-context-menu c-context-menu--mission u-animate-fade';
   menu.style.visibility = 'hidden';
   menu.innerHTML = `
     <button id="mm-copy-link" class="c-context-menu__item">リンクをコピー</button>
@@ -680,10 +680,10 @@ function _openMissionDeleteConfirm(missionId) {
 
   const overlay = document.createElement('div');
   overlay.id = 'mission-delete-confirm';
-  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur u-page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="c-modal animate-fadeIn">
+    <div class="c-modal u-animate-fade">
       <h3 class="c-modal__title">ミッションを削除しますか</h3>
       <p class="c-modal__text c-modal__text--strong">一度削除すると元に戻せません。</p>
       <div class="c-modal__actions">
@@ -715,7 +715,7 @@ export function toggleSortMenu(e) {
 
   const menu = document.createElement('div');
   menu.id = 'sort-menu';
-  menu.className = 'c-context-menu c-context-menu--dropdown animate-fadeIn';
+  menu.className = 'c-context-menu c-context-menu--dropdown u-animate-fade';
   const modes = [
     { id: 'createdAt', label: '制作日順' },
     { id: 'deadline',  label: '締切順' },
@@ -739,7 +739,7 @@ export function showMissionListModal() {
   if (!p) return;
   const overlay = document.createElement('div');
   overlay.id = 'mission-list-modal';
-  overlay.className = 'c-overlay c-overlay--list page-transition';
+  overlay.className = 'c-overlay c-overlay--list u-page-transition';
 
   const items = p.missions.map(m => {
     const cleared = p.clearedData[m.id];
@@ -771,7 +771,7 @@ export function showMissionListModal() {
 
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="p-main-board__list-modal animate-fadeIn">
+    <div class="p-main-board__list-modal u-animate-fade">
       <div class="p-main-board__list-head">
         <h2 class="c-modal__title c-modal__title--tight">ミッション一覧</h2>
         <button onclick="document.getElementById('mission-list-modal').remove()" class="p-main-board__list-close">

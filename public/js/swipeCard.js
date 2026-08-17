@@ -90,7 +90,7 @@ export function bindCardSwipe(root, cardSelector, handlers) {
 export function slideInCard(root, cardSelector, from) {
   const card = root.querySelector(cardSelector);
   if (!card) return;
-  card.classList.remove('animate-fadeIn');   // フェードと二重にしない
+  card.classList.remove('u-animate-fade');   // フェードと二重にしない
   const w = card.getBoundingClientRect().width || 320;
   card.style.transition = 'none';
   card.style.transform = `translateX(${from === 'right' ? w : -w}px)`;

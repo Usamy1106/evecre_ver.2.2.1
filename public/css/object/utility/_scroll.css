@@ -8,11 +8,11 @@
 
 /* スクロールバーを隠す（スクロール自体は有効のまま）。
    山スクロール窓（透明なので細いバーだけが宙に浮いて見える）とメインボード本体で使う。 */
-.no-scrollbar {
+.u-no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-.no-scrollbar::-webkit-scrollbar {
+.u-no-scrollbar::-webkit-scrollbar {
   display: none;
 }

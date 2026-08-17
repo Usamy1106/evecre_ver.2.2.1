@@ -1,11 +1,11 @@
 /* ==========================================================================
    Foundation / animation — 共有 @keyframes
    ★@keyframes は名前がグローバルなので、定義はここ1箇所に集める。
-     使う側（.page-transition / .animate-fadeIn / .coach-pulse …）は
+     使う側（.u-page-transition / .u-animate-fade / .c-coach-pulse …）は
      それぞれのレイヤーのファイルに書く。どこで使われているかは各定義の下に記す。
    ========================================================================== */
 
-/* 使用: layout/_page.css (.page-transition), object/utility/_animation.css (.animate-fadeIn) */
+/* 使用: layout/_page.css (.u-page-transition), object/utility/_animation.css (.u-animate-fade) */
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }

@@ -27,7 +27,7 @@ export function renderHome(container) {
         <button type="button" onclick="window._app.setHomeTab('PROJECTS')"
           class="p-home__tab${tab === 'PROJECTS' ? ' is-active' : ''}">プロジェクト</button>
       </nav>
-      <main class="p-home__main page-transition">
+      <main class="p-home__main u-page-transition">
         ${tab === 'EVENTS' ? _renderEventsTab() : _renderProjectsTab()}
       </main>
       <!-- ★右下の丸い＋ボタン（FAB）は3画面とも廃止した。

@@ -149,7 +149,7 @@ export function renderMissionDetail(appEl) {
     if (chip && preview) {
       preview.src = prevImgData;
       preview.dataset.base64 = prevImgData;
-      chip.classList.remove('hidden');
+      chip.classList.remove('u-hidden');
     }
   }
   document.querySelectorAll('[data-clear-checklist]').forEach(cb => {
@@ -278,7 +278,7 @@ function _renderClearInput(m) {
           </label>`).join('')}
       </div>
       <!-- ★hidden は JS が付け外しする（Phase 5 で u-hidden へ）-->
-      <p id="clear-checklist-error" class="p-mission-detail__checklist-error hidden">
+      <p id="clear-checklist-error" class="p-mission-detail__checklist-error u-hidden">
         チェック項目にチェックしてください。
       </p>
     </div>`;
@@ -286,7 +286,7 @@ function _renderClearInput(m) {
   return `
     <div id="clear-mission-modal" class="p-mission-detail__clear">
       <!-- 画像チップ（画像が選択されたら表示）。★hidden は JS が付け外しする -->
-      <div id="img-chip" class="hidden p-mission-detail__image-chip">
+      <div id="img-chip" class="u-hidden p-mission-detail__image-chip">
         <img id="preview-img" src="" class="p-mission-detail__image-thumb" alt="">
         <span class="p-mission-detail__image-name">画像</span>
         <button type="button" onclick="window._app.clearImagePreview()" class="p-mission-detail__image-remove" aria-label="画像を外す">
@@ -308,7 +308,7 @@ function _renderClearInput(m) {
           </svg>
         </label>
         <!-- ★hidden は「見た目を消す」ためではなく、ファイル選択を自前のボタンで代替するため -->
-        <input type="file" id="file-input" class="hidden" accept="image/*"
+        <input type="file" id="file-input" class="u-hidden" accept="image/*"
           onchange="window._app.handleImageSelect(this)">
       </div>
 
@@ -561,7 +561,7 @@ function _openChatMsgMenu(msgId, x, y) {
   const menu = document.createElement('div');
   menu.id = 'chat-msg-menu';
   // スタイル: public/css/object/component/_context-menu.css
-  menu.className = 'c-context-menu animate-fadeIn';
+  menu.className = 'c-context-menu u-animate-fade';
   menu.style.visibility = 'hidden';
   menu.innerHTML = `
     <button type="button" data-act="copy" class="c-context-menu__item">コピー</button>

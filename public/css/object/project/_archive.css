@@ -314,7 +314,7 @@
 }
 
 /* --- カテゴリの折りたたみ ------------------------------------------------
-   ★archive-section-body / archive-section-arrow は main.js が掴んで
+   ★p-archive__section-body / p-archive__section-arrow は main.js が掴んで
      開閉と矢印の回転をする目印。クラス名を変えるなら main.js も直すこと。 */
 
 .p-archive__category {
@@ -361,14 +361,14 @@
   color: var(--color-text-muted);
 }
 
-.archive-section-arrow {
+.p-archive__section-arrow {
   width: 16px;
   height: 16px;
   color: var(--color-text-muted);
   transition: transform var(--duration-fast) var(--ease);
 }
 
-.archive-section-body {
+.p-archive__section-body {
   padding-top: var(--space-3);
   padding-bottom: var(--space-2);
 }
@@ -376,15 +376,15 @@
 /* ★開閉はセクションの .is-collapsed 1つで決まる（main.js の
    toggleArchiveSection が付け外しする）。以前は初期描画がクラス、
    トグルがインライン style と二重管理になっていた。 */
-.p-archive__category.is-collapsed .archive-section-body {
+.p-archive__category.is-collapsed .p-archive__section-body {
   display: none;
 }
 
-.p-archive__category.is-collapsed .archive-section-arrow {
+.p-archive__category.is-collapsed .p-archive__section-arrow {
   transform: rotate(-90deg);
 }
 
-.archive-section-body > * + * {
+.p-archive__section-body > * + * {
   margin-top: var(--space-3);
 }
 

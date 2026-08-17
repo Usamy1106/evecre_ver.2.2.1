@@ -6,6 +6,8 @@
 body {
   margin: 0;
   padding: 0;
+  /* Tailwind の min-h-screen 相当。背景色を画面下まで敷くために要る */
+  min-height: 100vh;
   font-family: var(--font-family-base);
   background-color: var(--color-bg);
   color: var(--color-text);

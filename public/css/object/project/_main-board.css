@@ -601,7 +601,7 @@
 /* --- アナウンスカード ----------------------------------------------------
    ★announce を付けたミッションを上部に出す。タップでミッション詳細へ。
    ★複数あるときは折りたたむ。開閉は JS が inline style で切り替え、
-     矢印は .announce-chevron を掴んで回す（クラス名を変えるなら JS も直す）。 */
+     矢印は .p-main-board__announce-chevron を掴んで回す（クラス名を変えるなら JS も直す）。 */
 
 .p-main-board__announce {
   overflow: hidden;
@@ -702,7 +702,7 @@
 }
 
 /* JS が transform で回す。transition だけ CSS が持つ */
-.announce-chevron {
+.p-main-board__announce-chevron {
   transition: transform var(--duration-fast) var(--ease);
 }
 

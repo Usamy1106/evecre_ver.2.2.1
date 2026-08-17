@@ -8,18 +8,18 @@
    ★@keyframes の定義は foundation/_animation.css にある。
    ========================================================================== */
 
-.coach-pulse {
+.c-coach-pulse {
   animation: coachPulse 1.6s ease-out infinite;
 }
 
-.coach-finger {
+.c-coach-finger {
   animation: coachFinger 1.2s ease-in-out infinite;
 }
 
 /* 動きを抑える設定の端末では止める */
 @media (prefers-reduced-motion: reduce) {
-  .coach-pulse,
-  .coach-finger {
+  .c-coach-pulse,
+  .c-coach-finger {
     animation: none;
   }
 }
