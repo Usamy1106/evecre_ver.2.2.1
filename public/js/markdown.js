@@ -1,5 +1,10 @@
 // ===== 最小限の Markdown → HTML 変換 =====
 // 用途は public/legal/*.md（利用規約・プライバシーポリシー）の描画のみ。
+//
+// ★ここは**素のタグだけ**を出力する。見た目は
+//   public/css/object/project/_legal.css が .p-legal__body の子孫として当てる。
+//   Markdown から生成する本文に1つずつクラスを付けると、記法を足すたびに
+//   ここと CSS の両方を直すことになるため。
 // 外部ライブラリを足さない方針のため自前で持つ。対応記法は public/legal/README.md に明記。
 //
 // ★依存なしの単独モジュールにしてある（他モジュールを import しない）。
@@ -23,11 +28,11 @@ function esc(s) {
  */
 function inline(s) {
   return s
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-[#484545]">$1</strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     // リンクは http(s) と / 始まりのみ許可（javascript: 等のスキームを混入させない）
     .replace(
       /\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
-      '<a href="$2" class="text-[#0CA1E3] underline" target="_blank" rel="noopener noreferrer">$1</a>',
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
     );
 }
 
@@ -69,8 +74,7 @@ function parseList(lines, start) {
   }
 
   const tag = ordered ? 'ol' : 'ul';
-  const cls = ordered ? 'list-decimal' : 'list-disc';
-  const html = `<${tag} class="${cls} pl-5 mb-3 space-y-1 text-[13px] text-[#484545] leading-relaxed">`
+  const html = `<${tag}>`
     + items.map(t => `<li>${t}</li>`).join('')
     + `</${tag}>`;
   return [html, i];
@@ -91,7 +95,7 @@ export function mdToHtml(md) {
 
   const flush = () => {
     if (para.length === 0) return;
-    out.push(`<p class="text-[13px] text-[#484545] leading-relaxed mb-3">${inline(para.join('<br>'))}</p>`);
+    out.push(`<p>${inline(para.join('<br>'))}</p>`);
     para.length = 0;
   };
 
@@ -104,7 +108,7 @@ export function mdToHtml(md) {
     // 水平線
     if (/^-{3,}$/.test(line.trim())) {
       flush();
-      out.push('<hr class="my-6 border-t border-[#E1DFDC]">');
+      out.push('<hr>');
       i++; continue;
     }
 
@@ -112,11 +116,8 @@ export function mdToHtml(md) {
     const h = line.match(/^(#{1,3})\s+(.*)$/);
     if (h) {
       flush();
-      const lv  = h[1].length;
-      const cls = lv === 1 ? 'heading-l mt-1 mb-4'
-                : lv === 2 ? 'heading-r mt-7 mb-2'
-                :            'heading-rs mt-5 mb-2';
-      out.push(`<h${lv} class="${cls} text-[#484545] font-bold">${inline(h[2])}</h${lv}>`);
+      const lv = h[1].length;
+      out.push(`<h${lv}>${inline(h[2])}</h${lv}>`);
       i++; continue;
     }
 
@@ -132,12 +133,13 @@ export function mdToHtml(md) {
         i++;
       }
       out.push(
-        '<div class="overflow-x-auto mb-4">'
-        + '<table class="w-full text-[12px] border-collapse">'
+        // 横に長い表はこの枠の中だけを横スクロールさせる（ページ全体を動かさない）
+        '<div class="p-legal__table">'
+        + '<table>'
         + '<thead><tr>'
-        + head.map(c => `<th class="border border-[#E1DFDC] bg-[#F5F3F0] px-2 py-1.5 text-left font-bold text-[#484545] whitespace-nowrap">${inline(c)}</th>`).join('')
+        + head.map(c => `<th>${inline(c)}</th>`).join('')
         + '</tr></thead><tbody>'
-        + rows.map(r => `<tr>${r.map(c => `<td class="border border-[#E1DFDC] px-2 py-1.5 align-top text-[#484545]">${inline(c)}</td>`).join('')}</tr>`).join('')
+        + rows.map(r => `<tr>${r.map(c => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')
         + '</tbody></table></div>',
       );
       continue;
@@ -156,7 +158,7 @@ export function mdToHtml(md) {
     const q = line.match(/^&gt;\s?(.*)$/);
     if (q) {
       flush();
-      out.push(`<p class="text-[12px] text-[#A7AAAC] leading-relaxed border-l-2 border-[#E1DFDC] pl-3 mb-3">${inline(q[1])}</p>`);
+      out.push(`<blockquote>${inline(q[1])}</blockquote>`);
       i++; continue;
     }
 

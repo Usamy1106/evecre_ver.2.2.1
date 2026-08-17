@@ -47,6 +47,7 @@
   --color-success-pale: #F0FDE8;
   --color-success-dark: #5B8104;
   --color-handle: #C9CDD1;         /* ドラッグハンドルのつまみ */
+  --color-table-head: #F5F3F0;     /* 表のヘッダ行（法務ドキュメント）*/
   --color-warning-dark: #9B7700;
 
   /* --- タイポグラフィ ----------------------------------------------------- */

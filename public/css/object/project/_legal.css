@@ -1,0 +1,181 @@
+/* ==========================================================================
+   Object / Project / legal — 利用規約・プライバシーポリシー
+   使用箇所: public/js/views/legal.js（画面）
+             public/js/markdown.js（本文の HTML を組み立てる）
+
+   ★本文は Markdown から生成するので、クラスを1つずつ付けない。
+     .p-legal__body の子孫として要素セレクタで書く（いわゆる prose 方式）。
+     markdown.js 側は素の <h2> <p> <ul> だけを出力する。
+   ★Tailwind の Preflight が見出し・リストの既定スタイルを消しているため、
+     サイズや行頭記号はここで明示している。Preflight が外れる Phase 5 でも
+     見た目が変わらないよう、既定値に頼らず全部書いてある。
+   ========================================================================== */
+
+.p-legal {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.p-legal__header {
+  position: sticky;
+  top: 0;
+  /* この画面で位置指定を持つ要素はここだけなので、重なりの競合は起きない */
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--bg-textbox);
+  background-color: var(--color-bg);
+}
+
+.p-legal__back {
+  margin-left: calc(var(--space-2) * -1);
+  padding: var(--space-2);
+}
+
+.p-legal__title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-legal__main {
+  flex: 1;
+  /* 下は 48px。読み終わりに余白が無いと、最後の条文が画面下端に貼り付く */
+  padding: var(--space-5) var(--space-5) 48px;
+}
+
+/* 読み込み中・読み込み失敗の1行 */
+.p-legal__status {
+  padding-block: var(--space-10);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-legal__status--error {
+  color: var(--color-danger);
+}
+
+/* --- 本文（markdown.js の出力）-------------------------------------------
+   ★条文なので、見出しの大小と項番が読み取れることが最優先。
+     ここを崩すと「第3条の2」のような参照ができなくなる。 */
+
+.p-legal__body h1 {
+  margin-top: var(--space-1);
+  margin-bottom: var(--space-4);
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-legal__body h2 {
+  margin-top: 28px;
+  margin-bottom: var(--space-2);
+  font-size: 16px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-legal__body h3 {
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-2);
+  font-size: 14px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-legal__body p {
+  margin-bottom: var(--space-3);
+  font-size: 13px;
+  line-height: 1.625;
+  color: var(--color-text);
+}
+
+.p-legal__body strong {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-legal__body a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.p-legal__body hr {
+  margin-block: var(--space-6);
+  border: 0;
+  border-top: 1px solid var(--bg-textbox);
+}
+
+/* ★入れ子リストに対応させてある。条文の「1. 2. → 入れ子の箇条書き → 3. 4.」で
+   番号が振り直されると項番が狂う（実際にそのバグを出した）。 */
+.p-legal__body ul,
+.p-legal__body ol {
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-5);
+  font-size: 13px;
+  line-height: 1.625;
+  color: var(--color-text);
+}
+
+.p-legal__body ul { list-style-type: disc; }
+.p-legal__body ol { list-style-type: decimal; }
+
+.p-legal__body li + li {
+  margin-top: var(--space-1);
+}
+
+/* 入れ子は外側の下余白を持たない（項目の間が空きすぎるため）*/
+.p-legal__body li > ul,
+.p-legal__body li > ol {
+  margin-top: var(--space-1);
+  margin-bottom: 0;
+}
+
+/* 引用は注記として扱う（本文より小さく、左に罫を引く）*/
+.p-legal__body blockquote {
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--bg-textbox);
+  font-size: var(--font-size-sm);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+/* --- 表 ------------------------------------------------------------------
+   ★横に長い表は画面幅で折り返さず、この枠の中だけを横スクロールさせる
+     （ページ全体が横に動くと読めなくなる）。 */
+
+.p-legal__table {
+  overflow-x: auto;
+  margin-bottom: var(--space-4);
+}
+
+.p-legal__body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.p-legal__body th,
+.p-legal__body td {
+  padding: 6px var(--space-2);
+  border: 1px solid var(--bg-textbox);
+  color: var(--color-text);
+}
+
+.p-legal__body th {
+  background-color: var(--color-table-head);
+  font-weight: var(--font-weight-heavy);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.p-legal__body td {
+  vertical-align: top;
+}

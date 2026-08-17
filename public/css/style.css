@@ -44,7 +44,7 @@
 @import url("./object/component/_coach-mark.css");
 
 /* Object: Project ---------------------------------------------------------- */
-/* （Phase 3 以降で追加する） */
+@import url("./object/project/_legal.css");
 
 /* Object: Utility ---------------------------------------------------------- */
 @import url("./object/utility/_animation.css");
