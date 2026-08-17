@@ -86,3 +86,18 @@
   background-color: rgba(0, 0, 0, .4);
   animation: fadeIn var(--duration-quick) ease-out;
 }
+
+/* 日付を選ぶモーダル（ボトムシート形式）。ミッション作成モーダルの上に出る */
+.c-overlay--picker {
+  z-index: var(--z-date-picker);
+  background-color: rgba(0, 0, 0, .4);
+}
+
+/* 同・中央のダイアログ形式。こちらは背面をより濃くする */
+.c-overlay--picker-center {
+  z-index: var(--z-date-picker);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background-color: rgba(0, 0, 0, .6);
+}

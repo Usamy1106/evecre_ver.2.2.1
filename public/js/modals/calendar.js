@@ -18,19 +18,19 @@ function _renderDateTimeList(project) {
     const wd = _WEEKDAYS_JA[new Date(y, m - 1, d).getDay()] || '';
     const t = dt[dateStr] || {};
     return `
-      <div class="flex items-center gap-2 py-1.5">
-        <span class="text-[12px] font-bold text-[#484545] w-16 flex-shrink-0">${m}/${d}（${wd}）</span>
+      <div class="p-date-picker__time-row">
+        <span class="p-date-picker__time-day">${m}/${d}（${wd}）</span>
         <input type="time" data-dt-date="${dateStr}" data-dt-kind="start" value="${t.start || ''}"
-          class="flex-1 min-w-0 text-[13px] bg-[#FDFBF8] border border-[#E1DFDC] rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#0CA1E3]">
-        <span class="text-[11px] text-[#A7AAAC]">〜</span>
+          class="p-date-picker__time-input">
+        <span class="p-date-picker__time-sep">〜</span>
         <input type="time" data-dt-date="${dateStr}" data-dt-kind="end" value="${t.end || ''}"
-          class="flex-1 min-w-0 text-[13px] bg-[#FDFBF8] border border-[#E1DFDC] rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#0CA1E3]">
+          class="p-date-picker__time-input">
       </div>`;
   }).join('');
   return `
-    <div class="mt-4 mb-6">
-      <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">時間（任意・日ごとに設定できます）</p>
-      <div class="max-h-40 overflow-y-auto pr-1">${rows}</div>
+    <div class="p-date-picker__times">
+      <p class="p-date-picker__times-label">時間（任意・日ごとに設定できます）</p>
+      <div class="p-date-picker__times-scroll">${rows}</div>
     </div>`;
 }
 
@@ -97,10 +97,11 @@ export function openCalendarModal(target = 'project') {
   modal.id = 'calendar-modal';
   modal.dataset.target = target;
   // ミッション・申告期限用はボトムシート（下から上にスライド）
+  // スタイル: public/css/object/component/_overlay.css
   if (target === 'mission' || target === 'claimDeadline') {
-    modal.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[200]';
+    modal.className = 'c-overlay c-overlay--picker c-overlay--blur';
   } else {
-    modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 page-transition';
+    modal.className = 'c-overlay c-overlay--picker-center c-overlay--blur page-transition';
   }
   modal.onclick = (e) => { if (e.target === modal) _closeCalendar(target); };
   document.body.appendChild(modal);
@@ -189,20 +190,23 @@ function _renderCalendarInner(target) {
   const missionDeadlines = project ? project.missions.flatMap(m => m.dates || []) : [];
 
   let daysHtml = '';
-  for (let i = 0; i < firstDay; i++) daysHtml += `<div class="h-10"></div>`;
+  for (let i = 0; i < firstDay; i++) daysHtml += `<div class="p-date-picker__day-blank"></div>`;
   for (let d = 1; d <= lastDate; d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const isSelected  = currentTargetDates.includes(dateStr);
     const isEventDate = target !== 'projectEdit' && eventDates.includes(dateStr);
     const hasMission  = missionDeadlines.includes(dateStr);
 
+    // ★状態は重ねて付く（開催日かつ選択中がありうる）。
+    //   CSS 側で is-selected を後に書いて勝たせている。
+    const cls = 'p-date-picker__day'
+      + (isEventDate ? ' is-event' : '')
+      + (isSelected ? ' is-selected' : '');
+
     daysHtml += `
-      <div data-cal-day="${dateStr}"
-        class="relative h-10 w-full flex flex-col items-center justify-center rounded-lg cursor-pointer transition-all text-rs font-bold select-none
-        ${isSelected ? 'bg-[#0CA1E3] text-white shadow-md' : isEventDate ? 'bg-[#CFD8FF] text-[#484545]' : 'bg-white text-[#484545]'}"
-        style="touch-action: none; -webkit-user-select: none; user-select: none;">
+      <div data-cal-day="${dateStr}" class="${cls}">
         ${d}
-        ${hasMission ? '<div class="absolute bottom-1 w-1 h-1 bg-[#EE3E12] rounded-full pointer-events-none"></div>' : ''}
+        ${hasMission ? '<div class="p-date-picker__mark"></div>' : ''}
       </div>`;
   }
 
@@ -218,65 +222,64 @@ function _renderCalendarInner(target) {
     // ボトムシート形式（高さを 85vh まで）
     const clearBtnHtml = (target === 'claimDeadline' && state.draftMission.claimDeadline)
       ? `<button onclick="window._app.setMissionClaimDeadline(''); document.getElementById('calendar-modal')?.remove();"
-           class="text-[10px] text-[#A7AAAC] underline font-bold mt-2 block">期限をクリア</button>`
+           class="p-date-picker__clear">期限をクリア</button>`
       : '';
     modal.innerHTML = `
       <div id="calendar-bottomsheet-panel" data-sheet
-        class="c-sheet c-sheet--padded"
-        style="height: 85vh; overflow-y: auto;">
+        class="c-sheet c-sheet--padded p-date-picker__sheet">
         <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="heading-r text-[#484545] font-bold">${sheetTitle}</h3>
-          <div class="flex gap-2">
+        <div class="p-date-picker__head">
+          <h3 class="heading-r p-date-picker__title">${sheetTitle}</h3>
+          <div class="p-date-picker__nav">
             <button onclick="window._app.moveCalendarMonth(-1, '${target}')"
-              class="p-2 bg-[#FDFBF8] rounded-full">
-              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 brightness-0 opacity-50">
+              class="p-date-picker__arrow">
+              <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon">
             </button>
             <button onclick="window._app.moveCalendarMonth(1, '${target}')"
-              class="p-2 bg-[#FDFBF8] rounded-full">
-              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-50">
+              class="p-date-picker__arrow">
+              <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon p-date-picker__arrow-icon--next">
             </button>
           </div>
         </div>
         ${target === 'mission' ? `
           <!-- ★ミッションモーダルの基本設定と同じ説明を出す（同じことを2箇所で伝える）-->
-          <p class="text-[11px] text-[#484545] font-bold mb-1">ミッションを行う期間を設定します。</p>
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">日付をなぞってスワイプすると、期間をまとめて選べます。</p>
+          <p class="p-date-picker__lead">ミッションを行う期間を設定します。</p>
+          <p class="p-date-picker__note">日付をなぞってスワイプすると、期間をまとめて選べます。</p>
         ` : `
-          <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">${helperText}</p>
+          <p class="p-date-picker__note">${helperText}</p>
         `}
         ${clearBtnHtml}
-        <div class="grid grid-cols-7 gap-1 mb-2 mt-4 text-center text-[10px] text-[#A7AAAC] font-bold">
+        <div class="p-date-picker__week p-date-picker__week--spaced">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
         </div>
-        <div id="calendar-grid" class="grid grid-cols-7 gap-1" style="touch-action:none;">${daysHtml}</div>
+        <div id="calendar-grid" class="p-date-picker__grid">${daysHtml}</div>
         ${target === 'mission' ? `<button id="calendar-confirm-btn"
-          class="c-button c-button--primary w-full py-3 heading-rs font-bold mt-6">決定</button>` : ''}
+          class="c-button c-button--primary p-date-picker__confirm p-date-picker__confirm--spaced heading-rs">決定</button>` : ''}
       </div>`;
   } else {
     modal.innerHTML = `
-      <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl animate-fadeIn">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="heading-r text-[#484545] font-bold">${year}年 ${month + 1}月</h3>
-          <div class="flex gap-2">
+      <div class="p-date-picker__dialog animate-fadeIn">
+        <div class="p-date-picker__head">
+          <h3 class="heading-r p-date-picker__title">${year}年 ${month + 1}月</h3>
+          <div class="p-date-picker__nav">
             <button onclick="window._app.moveCalendarMonth(-1, '${target}')"
-              class="p-2 bg-[#FDFBF8] rounded-full">
-              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 brightness-0 opacity-50">
+              class="p-date-picker__arrow">
+              <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon">
             </button>
             <button onclick="window._app.moveCalendarMonth(1, '${target}')"
-              class="p-2 bg-[#FDFBF8] rounded-full">
-              <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-50">
+              class="p-date-picker__arrow">
+              <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon p-date-picker__arrow-icon--next">
             </button>
           </div>
         </div>
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-4">${helperText}</p>
-        <div class="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] text-[#A7AAAC] font-bold">
+        <p class="p-date-picker__note p-date-picker__note--roomy">${helperText}</p>
+        <div class="p-date-picker__week">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
         </div>
-        <div id="calendar-grid" class="grid grid-cols-7 gap-1 ${target === 'projectEdit' ? 'mb-2' : 'mb-8'}" style="touch-action:none;">${daysHtml}</div>
+        <div id="calendar-grid" class="p-date-picker__grid ${target === 'projectEdit' ? 'p-date-picker__grid--tight' : 'p-date-picker__grid--loose'}">${daysHtml}</div>
         ${target === 'projectEdit' ? _renderDateTimeList(project) : ''}
         <button id="calendar-confirm-btn"
-          class="c-button c-button--primary w-full py-3 heading-rs font-bold">決定</button>
+          class="c-button c-button--primary p-date-picker__confirm heading-rs">決定</button>
       </div>`;
   }
 
@@ -429,16 +432,10 @@ function _applyPaint(dateStr) {
 function _updateCellAppearance(dateStr, on) {
   const cell = document.querySelector(`[data-cal-day="${dateStr}"]`);
   if (!cell) return;
-  // 既存クラスをリセット
-  cell.classList.remove(
-    'bg-[#0CA1E3]', 'text-white', 'shadow-md',
-    'bg-[#CFD8FF]', 'bg-white'
-  );
-  if (on) {
-    cell.classList.add('bg-[#0CA1E3]', 'text-white', 'shadow-md');
-  } else {
-    cell.classList.add('bg-white', 'text-[#484545]');
-  }
+  // ★選択状態だけを切り替える。開催日の色（is-event）には触らない。
+  //   以前は Tailwind のクラスを付け外ししており、開催日を一度選んでから
+  //   外すと、その日だけ色が白に戻ってしまっていた。
+  cell.classList.toggle('is-selected', !!on);
 }
 
 /**
