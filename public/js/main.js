@@ -1260,10 +1260,10 @@ window._app = {
     state.archiveCollapsed[tag] = !state.archiveCollapsed[tag];
     const section = document.querySelector(`[data-archive-section="${tag}"]`);
     if (!section) return;
-    const body  = section.querySelector('.archive-section-body');
-    const arrow = section.querySelector('.archive-section-arrow');
-    if (body)  body.style.display = state.archiveCollapsed[tag] ? 'none' : '';
-    if (arrow) arrow.style.transform = state.archiveCollapsed[tag] ? 'rotate(-90deg)' : '';
+    // ★開閉はセクションの is-collapsed 1つで決まる（本体の display と矢印の回転は
+    //   object/project/_archive.css が受け持つ）。以前は body と arrow に
+    //   インライン style を書いており、初期描画のクラスと二重管理になっていた。
+    section.classList.toggle('is-collapsed', !!state.archiveCollapsed[tag]);
   },
 
   // --- いいね ---

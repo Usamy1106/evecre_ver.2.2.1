@@ -1,0 +1,512 @@
+/* ==========================================================================
+   Object / Project / archive — メインボードのアーカイブタブ
+   使用箇所: public/js/views/mainBoard.js（_renderArchiveTab ほか）
+
+   構成：Layer 1（メインビジュアル＋イベント概要）／Layer 2（ミッションの記録）
+
+   ★概要と開催場所は「イベント設定」からも編集される。読み書きは
+     utils.js の getArchiveSummary / setArchiveSummary / getArchiveVenue /
+     setArchiveVenue に集約してあり、ここは表示だけ。
+   ★ペンのアイコン（Components.PenIcon）は管理者にだけ出る。
+   ========================================================================== */
+
+.p-archive {
+  padding-bottom: var(--space-10);
+}
+
+.p-archive > * + * {
+  margin-top: var(--space-6);
+}
+
+/* --- 上部：残り日数と「いいね」------------------------------------------- */
+
+.p-archive__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-6) 0;
+}
+
+.p-archive__days {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-archive__days:active {
+  transform: scale(.95);
+}
+
+.p-archive__days-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.p-archive__days-text {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__days-text--muted {
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.p-archive__days-count {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+}
+
+/* 押すと色が変わる。数字も増えるので色だけの情報にはなっていない */
+.p-archive__like {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-archive__like:active {
+  transform: scale(.9);
+}
+
+.p-archive__like.is-liked {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-wash);
+}
+
+.p-archive__like-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.p-archive__like-count {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-archive__like.is-liked .p-archive__like-count {
+  color: var(--color-danger);
+}
+
+/* --- Layer 1：メインビジュアル -------------------------------------------
+   ★3:2。ホームのサムネイル（c-thumbnail）と同じ比率に揃えてある。
+     未設定のときは同じエンプティーステート画像を出す。 */
+
+.p-archive__visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+  background-color: var(--button-secondary);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .05);
+}
+
+.p-archive__visual-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p-archive__visual-edit {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  padding: var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: rgba(255, 255, 255, .8);
+  box-shadow: var(--shadow-lg);
+}
+
+/* --- Layer 1：イベント概要 ------------------------------------------------ */
+
+.p-archive__overview {
+  padding-inline: var(--space-6);
+}
+
+.p-archive__overview > * + * {
+  margin-top: var(--space-8);
+}
+
+.p-archive__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.p-archive__title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-text);
+}
+
+.p-archive__sections > * + * {
+  margin-top: var(--space-6);
+}
+
+.p-archive__label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.p-archive__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-archive__summary {
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  line-height: 1.625;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+/* 期間・URL・場所を「ラベル｜値｜ペン」の3列で揃える */
+.p-archive__facts {
+  display: grid;
+  grid-template-columns: 80px 1fr 40px;
+  row-gap: var(--space-6);
+  font-size: 13px;
+}
+
+.p-archive__fact-label {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-archive__fact-value {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__fact-value--multiline {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.p-archive__fact-value--multiline span {
+  line-height: 1.625;
+}
+
+.p-archive__fact-value--link {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.p-archive__list-button {
+  width: 100%;
+  padding-block: var(--space-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- Layer 2：ミッションの記録 -------------------------------------------- */
+
+.p-archive__record {
+  padding: var(--space-2) var(--space-6) var(--space-4);
+}
+
+.p-archive__record-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.p-archive__record-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.p-archive__record-count {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 表示の切り替え（ラベル別・完了日順・優先度順・完了者別・作成者別）。
+   ★横スクロール。スクロールバーは隠す */
+.p-archive__modes {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  margin-inline: calc(var(--space-6) * -1);
+  padding: 0 var(--space-6) var(--space-3);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.p-archive__modes::-webkit-scrollbar {
+  display: none;
+}
+
+.p-archive__mode {
+  flex-shrink: 0;
+  padding: 6px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-archive__mode.is-active {
+  border-color: var(--color-text);
+  background-color: var(--color-text);
+  color: var(--color-text-inverse);
+}
+
+.p-archive__group {
+  margin-bottom: var(--space-4);
+}
+
+.p-archive__group-label {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-archive__blocks > * + * {
+  margin-top: var(--space-3);
+}
+
+.p-archive__empty {
+  padding-block: var(--space-8);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* --- カテゴリの折りたたみ ------------------------------------------------
+   ★archive-section-body / archive-section-arrow は main.js が掴んで
+     開閉と矢印の回転をする目印。クラス名を変えるなら main.js も直すこと。 */
+
+.p-archive__category {
+  margin-bottom: var(--space-1);
+}
+
+.p-archive__category-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.p-archive__category-toggle:active {
+  opacity: .6;
+}
+
+.p-archive__category-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* タグ色はユーザーが作れるので JS が --tag-color で渡す */
+.p-archive__category-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--tag-color, var(--color-text-muted));
+}
+
+.p-archive__category-name {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__category-count {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.archive-section-arrow {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.archive-section-body {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+/* ★開閉はセクションの .is-collapsed 1つで決まる（main.js の
+   toggleArchiveSection が付け外しする）。以前は初期描画がクラス、
+   トグルがインライン style と二重管理になっていた。 */
+.p-archive__category.is-collapsed .archive-section-body {
+  display: none;
+}
+
+.p-archive__category.is-collapsed .archive-section-arrow {
+  transform: rotate(-90deg);
+}
+
+.archive-section-body > * + * {
+  margin-top: var(--space-3);
+}
+
+/* --- ミッションブロック（完了の記録）-------------------------------------- */
+
+.p-archive__block {
+  position: relative;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-archive__block:active {
+  background-color: var(--color-bg);
+}
+
+.p-archive__block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-right: 28px;
+}
+
+.p-archive__block-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.p-archive__block-date {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.p-archive__block-title {
+  padding-right: var(--space-6);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__block-indiv {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-success-tint2);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-success-dark);
+}
+
+/* 右上のメニュー（管理者）／リンクコピー（一般）*/
+.p-archive__block-action {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  padding: var(--space-2);
+  opacity: .4;
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-archive__block-action:hover {
+  opacity: 1;
+}
+
+.p-archive__block-action:active {
+  transform: scale(.9);
+}
+
+/* --- 提出物の表示 -------------------------------------------------------- */
+
+.p-archive__content-image {
+  width: 100%;
+  max-height: 192px;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.p-archive__content-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  overflow: hidden;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg);
+}
+
+.p-archive__content-link-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--color-primary);
+}
+
+.p-archive__content-link-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: break-all;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.p-archive__content-text {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg);
+  font-size: var(--font-size-sm);
+  line-height: 1.625;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

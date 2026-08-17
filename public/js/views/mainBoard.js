@@ -748,8 +748,8 @@ function _renderArchiveTab(p) {
   const archiveTabBtns = ['label','date','priority','assignee','creator'].map(m => {
     const label = { label:'ラベル別', date:'完了日順', priority:'優先度順', assignee:'完了者別', creator:'作成者別' }[m];
     const active = mode === m;
-    return `<button onclick="window._app.setArchiveDisplayMode('${m}')"
-      class="flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${active ? 'bg-[#484545] text-white border-[#484545]' : 'bg-white text-[#484545] border-[#D3D6D8]'}">
+    return `<button type="button" onclick="window._app.setArchiveDisplayMode('${m}')"
+      class="p-archive__mode${active ? ' is-active' : ''}">
       ${label}</button>`;
   }).join('');
 
@@ -768,10 +768,10 @@ function _renderArchiveTab(p) {
     const sorted = [...clearedMissions].sort((a, b) =>
       (p.clearedData?.[b.id]?.timestamp ?? 0) - (p.clearedData?.[a.id]?.timestamp ?? 0)
     );
-    missionsRecordHtml = `<div class="space-y-3">${sorted.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>`;
+    missionsRecordHtml = `<div class="p-archive__blocks">${sorted.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>`;
   } else if (mode === 'priority') {
     const sorted = [...clearedMissions].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
-    missionsRecordHtml = `<div class="space-y-3">${sorted.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>`;
+    missionsRecordHtml = `<div class="p-archive__blocks">${sorted.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>`;
   } else if (mode === 'assignee') {
     const assigneeGroups = {};
     for (const m of clearedMissions) {
@@ -785,9 +785,9 @@ function _renderArchiveTab(p) {
       assigneeGroups[key].push(m);
     }
     missionsRecordHtml = Object.entries(assigneeGroups).map(([name, missions]) => `
-      <div class="mb-4">
-        <p class="text-[12px] font-bold text-[#A7AAAC] mb-2">@${_esc(name)}（${missions.length}件）</p>
-        <div class="space-y-3">${missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>
+      <div class="p-archive__group">
+        <p class="p-archive__group-label">@${_esc(name)}（${missions.length}件）</p>
+        <div class="p-archive__blocks">${missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>
       </div>`).join('');
   } else if (mode === 'creator') {
     const creatorGroups = {};
@@ -799,87 +799,80 @@ function _renderArchiveTab(p) {
       creatorGroups[key].push(m);
     }
     missionsRecordHtml = Object.entries(creatorGroups).map(([name, missions]) => `
-      <div class="mb-4">
-        <p class="text-[12px] font-bold text-[#A7AAAC] mb-2">@${_esc(name)}（${missions.length}件）</p>
-        <div class="space-y-3">${missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>
+      <div class="p-archive__group">
+        <p class="p-archive__group-label">@${_esc(name)}（${missions.length}件）</p>
+        <div class="p-archive__blocks">${missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>
       </div>`).join('');
   }
 
   const hasDatesA = Array.isArray(p.dates) && p.dates.length > 0;
   return `
-    <div class="pb-20 page-transition space-y-6">
-      <div class="px-6 pt-6 flex items-center justify-between">
+    <div class="p-archive page-transition">
+      <div class="p-archive__head">
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
-          class="flex items-center gap-2 bg-white border border-[#D3D6D8] rounded-full px-3 py-1.5 shadow-sm active:scale-95 transition-transform cursor-pointer">
-          <img src="/images/icon/icon-Calender.svg" class="w-3.5 h-3.5">
+          class="p-archive__days">
+          <img src="/images/icon/icon-Calender.svg" class="p-archive__days-icon" alt="">
           ${hasDatesA
-            ? `<span class="text-[11px] font-bold text-[#484545]">残り <span class="text-[15px] font-mono">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
-            : `<span class="text-[10px] font-bold text-[#A7AAAC]">未設定</span>`}
+            ? `<span class="p-archive__days-text">残り <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
+            : `<span class="p-archive__days-text p-archive__days-text--muted">未設定</span>`}
         </div>
-        <button onclick="window._app.handleGoodClick(event)"
-          class="flex items-center gap-2 px-4 py-2 rounded-full border shadow-sm transition-all active:scale-90
-          ${p.hasLiked ? 'border-[#EE3E12] bg-[#EE3E12]/5' : 'border-[#D3D6D8] bg-white'}">
-          <img src="/images/icon/icon-Good${p.hasLiked ? '-pressed' : ''}.svg" class="w-6 h-6">
-          <span class="text-rs font-bold font-mono ${p.hasLiked ? 'text-[#EE3E12]' : 'text-[#A7AAAC]'}">${p.likes || 0}</span>
+        <button type="button" onclick="window._app.handleGoodClick(event)"
+          class="p-archive__like${p.hasLiked ? ' is-liked' : ''}">
+          <img src="/images/icon/icon-Good${p.hasLiked ? '-pressed' : ''}.svg" class="p-archive__like-icon" alt="">
+          <span class="p-archive__like-count">${p.likes || 0}</span>
         </button>
       </div>
 
       <!-- Layer 1: メインビジュアル（3:2。ホームのサムネイルと同じ比率に揃える）-->
-      <div class="relative group w-full aspect-[3/2] overflow-hidden bg-[#EBE8E5] flex items-center justify-center shadow-inner">
+      <div class="p-archive__visual">
         ${mainVisual
-          ? `<img src="${mainVisual}" class="w-full h-full object-cover">`
+          ? `<img src="${_esc(mainVisual)}" class="p-archive__visual-image" alt="">`
           // 未設定時はホームのサムネイルと同じエンプティーステート画像
           : Components.ThumbnailEmptyState()}
-        ${canMgr ? `<div class="absolute bottom-4 right-4 bg-white/80 p-2 rounded-full shadow-lg">
-          ${_pen('image')}
-        </div>` : ''}
+        ${canMgr ? `<div class="p-archive__visual-edit">${_pen('image')}</div>` : ''}
       </div>
 
       <!-- Layer 1: イベント概要カード -->
-      <div class="px-6 space-y-8">
-        <div class="text-center">
-          <div class="flex items-center justify-center gap-2 mb-1">
-            <h2 class="text-[18px] font-bold text-[#484545] leading-snug">「${title}」</h2>
-            ${_pen('title')}
-          </div>
+      <div class="p-archive__overview">
+        <div class="p-archive__title-row">
+          <h2 class="p-archive__title">「${_esc(title)}」</h2>
+          ${_pen('title')}
         </div>
-        <div class="space-y-6">
+        <div class="p-archive__sections">
           <section>
-            <div class="flex items-center gap-2 mb-2">
-              <h3 class="text-[12px] font-bold text-[#A7AAAC]">概要</h3>
+            <div class="p-archive__label-row">
+              <h3 class="p-archive__label">概要</h3>
               ${_pen('summary')}
             </div>
-            <p class="text-[13px] text-[#484545] leading-relaxed whitespace-pre-wrap font-medium">${summary}</p>
+            <p class="p-archive__summary">${_esc(summary)}</p>
           </section>
-          <section class="grid grid-cols-[80px_1fr_40px] gap-y-6 text-[13px]">
-            <div class="font-bold text-[#A7AAAC]">期間</div>
-            <div class="font-bold text-[#484545] flex items-start gap-2"><span class="leading-relaxed">${period}</span> ${_pen('period')}</div>
+          <section class="p-archive__facts">
+            <div class="p-archive__fact-label">期間</div>
+            <div class="p-archive__fact-value p-archive__fact-value--multiline"><span>${period}</span> ${_pen('period')}</div>
             <div></div>
-            <div class="font-bold text-[#A7AAAC]">URL</div>
-            <div class="font-bold text-[#0CA1E3] underline truncate">${url}</div>
+            <div class="p-archive__fact-label">URL</div>
+            <div class="p-archive__fact-value p-archive__fact-value--link">${_esc(url)}</div>
             <div>${_pen('url')}</div>
-            <div class="font-bold text-[#A7AAAC]">場所</div>
-            <div class="font-bold text-[#484545]">${venue}</div>
+            <div class="p-archive__fact-label">場所</div>
+            <div class="p-archive__fact-value">${_esc(venue)}</div>
             <div>${_pen('venue')}</div>
           </section>
         </div>
-        <button onclick="window._app.showMissionListModal()"
-          class="c-button c-button--secondary w-full py-4 heading-r font-bold">ミッション一覧</button>
+        <button type="button" onclick="window._app.showMissionListModal()"
+          class="c-button c-button--secondary p-archive__list-button">ミッション一覧</button>
       </div>
 
       <!-- Layer 2: ミッションの記録 -->
-      <div class="px-6 pt-2 pb-4">
-        <div class="flex items-center gap-3 mb-3">
-          <h2 class="heading-m">ミッションの記録</h2>
+      <div class="p-archive__record">
+        <div class="p-archive__record-head">
+          <h2 class="p-archive__record-title">ミッションの記録</h2>
           ${clearedMissions.length > 0
-            ? `<span class="text-[11px] text-[#A7AAAC] font-bold bg-[#EBE8E5] px-2 py-0.5 rounded-full">${clearedMissions.length}件</span>`
+            ? `<span class="p-archive__record-count">${clearedMissions.length}件</span>`
             : ''}
         </div>
         ${clearedMissions.length > 0 ? `
-          <div class="flex gap-2 overflow-x-auto pb-3 -mx-6 px-6" style="scrollbar-width:none;-webkit-overflow-scrolling:touch">
-            ${archiveTabBtns}
-          </div>` : ''}
-        ${missionsRecordHtml || `<p class="text-center py-8 text-[#A7AAAC] text-[12px] font-bold">完了したミッションが記録されます</p>`}
+          <div class="p-archive__modes">${archiveTabBtns}</div>` : ''}
+        ${missionsRecordHtml || `<p class="p-archive__empty">完了したミッションが記録されます</p>`}
       </div>
     </div>`;
 }
@@ -890,22 +883,24 @@ function _renderArchiveCategorySection(p, tag, missions) {
   const collapsed = state.archiveCollapsed?.[tag] ?? false;
   const items     = missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], tag)).join('');
 
+  // ★archive-section-body / archive-section-arrow は main.js が掴む目印。
+  //   クラス名を変えるなら main.js の開閉処理も直すこと。
   return `
-    <div data-archive-section="${_esc(tag)}" class="mb-1">
-      <button onclick="window._app.toggleArchiveSection('${_esc(tag)}')"
-        class="w-full flex items-center justify-between py-3 border-b border-[#D3D6D8] active:opacity-60">
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${cfg.color}"></span>
-          <span class="text-[13px] font-bold text-[#484545]">${_esc(tag)}</span>
-          <span class="text-[11px] text-[#A7AAAC] font-bold">${missions.length}件</span>
-        </div>
-        <svg class="archive-section-arrow w-4 h-4 text-[#A7AAAC] transition-transform${collapsed ? ' -rotate-90' : ''}"
+    <div data-archive-section="${_esc(tag)}" class="p-archive__category${collapsed ? ' is-collapsed' : ''}">
+      <button type="button" onclick="window._app.toggleArchiveSection('${_esc(tag)}')"
+        class="p-archive__category-toggle">
+        <span class="p-archive__category-label">
+          <span class="p-archive__category-dot" style="--tag-color:${_esc(cfg.color)}"></span>
+          <span class="p-archive__category-name">${_esc(tag)}</span>
+          <span class="p-archive__category-count">${missions.length}件</span>
+        </span>
+        <svg class="archive-section-arrow"
           viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
           stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
-      <div class="archive-section-body space-y-3 pt-3 pb-2"${collapsed ? ' style="display:none"' : ''}>
+      <div class="archive-section-body">
         ${items}
       </div>
     </div>`;
@@ -920,18 +915,18 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
   let contentHtml = '';
   if (cd?.content) {
     if (cd.format === 'image') {
-      contentHtml = `<img src="${cd.content}" class="w-full max-h-48 object-cover rounded-lg mt-2" loading="lazy">`;
+      contentHtml = `<img src="${_esc(cd.content)}" class="p-archive__content-image" alt="提出画像" loading="lazy">`;
     } else if (cd.format === 'link') {
       contentHtml = `
-        <div class="flex items-center gap-2 mt-2 p-3 border border-[#D3D6D8] rounded-lg bg-[#FDFBF8] overflow-hidden">
-          <svg class="w-4 h-4 flex-shrink-0 text-[#0CA1E3]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="p-archive__content-link">
+          <svg class="p-archive__content-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
-          <span class="text-[11px] text-[#0CA1E3] underline truncate break-all">${_esc(cd.content)}</span>
+          <span class="p-archive__content-link-text">${_esc(cd.content)}</span>
         </div>`;
     } else {
-      contentHtml = `<p class="text-[12px] text-[#484545] bg-[#FDFBF8] p-3 rounded-lg whitespace-pre-wrap break-words mt-2 leading-relaxed">${_esc(cd.content)}</p>`;
+      contentHtml = `<p class="p-archive__content-text">${_esc(cd.content)}</p>`;
     }
   }
 
@@ -940,20 +935,19 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
     ? m.assignees.length
     : (m.assignee?.type === 'user' ? 1 : clearedBy.length);
   const indivSummary = m.individualClear
-    ? `<span class="text-[10px] text-[#5b8104] font-bold bg-[#F0FCD4] px-2 py-0.5 rounded-full">${clearedBy.length}/${Math.max(1,totalAssignees)}人完了</span>`
+    ? `<span class="p-archive__block-indiv">${clearedBy.length}/${Math.max(1,totalAssignees)}人完了</span>`
     : '';
   const archiveClick = `onclick="window._app.openMissionDetail('${m.id}')"`;
-  const archiveCursor = 'cursor-pointer active:bg-[#FDFBF8]';
 
   const meatballBtn = canMgr ? `
-    <button onclick="event.stopPropagation(); window._app.openArchiveMissionMenu(event, '${m.id}')"
-      class="absolute top-3 right-3 p-2 opacity-40 hover:opacity-100 transition-opacity active:scale-90">
+    <button type="button" onclick="event.stopPropagation(); window._app.openArchiveMissionMenu(event, '${m.id}')"
+      class="p-archive__block-action" aria-label="メニュー">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
       </svg>
     </button>` : `
-    <button onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
-      class="absolute top-3 right-3 p-2 opacity-40 hover:opacity-100 transition-opacity active:scale-90"
+    <button type="button" onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
+      class="p-archive__block-action"
       aria-label="ミッションリンクをコピー">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
@@ -963,15 +957,15 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
     </button>`;
 
   return `
-    <div ${archiveClick} class="bg-white border border-[#D3D6D8] rounded-xl p-4 shadow-sm relative ${archiveCursor}">
-      <div class="flex items-center justify-between mb-1.5 pr-7">
-        <div class="flex items-center gap-1.5 flex-wrap">
+    <div ${archiveClick} class="p-archive__block">
+      <div class="p-archive__block-head">
+        <div class="p-archive__block-tags">
           ${tagNames.map(t => Components.Tag(t)).join('')}
           ${indivSummary}
         </div>
-        ${completedAt ? `<span class="text-[10px] text-[#A7AAAC] flex-shrink-0">${completedAt}完了</span>` : ''}
+        ${completedAt ? `<span class="p-archive__block-date">${completedAt}完了</span>` : ''}
       </div>
-      <h3 class="text-[13px] font-bold text-[#484545] pr-6">${_esc(m.title)}</h3>
+      <h3 class="p-archive__block-title">${_esc(m.title)}</h3>
       ${contentHtml}
       ${meatballBtn}
     </div>`;
