@@ -77,3 +77,12 @@
 .c-overlay--form {
   z-index: var(--z-form-modal);
 }
+
+/* スケジュール（カレンダー・ガント）。担当者シート（210）より後ろ。
+   ★暗幕が他より薄い（.4）のは、下のメインボードで日付を見比べながら
+     操作するため。濃くすると背景が読めなくなる。 */
+.c-overlay--schedule {
+  z-index: var(--z-schedule);
+  background-color: rgba(0, 0, 0, .4);
+  animation: fadeIn var(--duration-quick) ease-out;
+}

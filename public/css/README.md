@@ -92,6 +92,7 @@
 | 山登りパスビジュアル（背景・マス・スクロール窓） | `object/project/_mountain.css` |
 | 参加・招待まわりのモーダル（🔥・招待リンク） | `object/project/_invite.css` |
 | 開発者からのお知らせ | `object/project/_announcement.css` |
+| スケジュールのシート（カレンダー・ガント） | `object/project/_schedule.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -269,7 +270,8 @@ public/css/
 │  ├─ _signup.css               ✅ アカウント作成フロー
 │  ├─ _mountain.css             ✅ 山登りパスビジュアル
 │  ├─ _invite.css               ✅ 参加・招待まわりのモーダル
-│  └─ _announcement.css         ✅ 開発者からのお知らせ
+│  ├─ _announcement.css         ✅ 開発者からのお知らせ
+│  └─ _schedule.css             ✅ スケジュール（カレンダー・ガント）
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _onboarding                            ⬜ Phase 4
 │
 └─ object/utility/

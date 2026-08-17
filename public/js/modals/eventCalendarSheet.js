@@ -44,8 +44,9 @@ export function openEventCalendarSheet(initialView = 'calendar') {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  overlay.className = 'fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm';
-  overlay.style.animation = 'fadeIn .2s ease-out';
+  // スタイル: public/css/object/component/_overlay.css（--schedule に z-index と
+  // せり上がりのアニメーションをまとめてある）
+  overlay.className = 'c-overlay c-overlay--schedule c-overlay--blur';
   overlay.onclick = (e) => { if (e.target === overlay) _close(overlay); };
   document.body.appendChild(overlay);
 
@@ -72,41 +73,40 @@ function _render(overlay, ctx) {
   // ミッション詳細ページへの遷移時に「どのビューから開いたか」を参照できるようにする
   overlay.dataset.calView = ctx.view;
 
+  // ★ガントの寸法は JS の定数が正。CSS には custom property で渡す
+  //   （スクロール位置の計算にも同じ値を使うため、二重に持たせない）。
+  const ganttVars = `--gantt-cell-w:${CELL_W}px;--gantt-name-w:${NAME_W}px;`
+    + `--gantt-header-h:${HEADER_H}px;--gantt-row-h:${ROW_H}px;`
+    + `--gantt-content-w:${(DAYS_BEFORE + DAYS_AFTER + 1) * CELL_W}px;`;
+
   overlay.innerHTML = `
-    <div data-sheet class="absolute bottom-0 left-0 right-0 bg-[#FDFBF8] rounded-t-3xl shadow-2xl flex flex-col"
-         style="max-height: 82vh; animation: slideUp .25s ease-out;">
+    <div data-sheet class="c-sheet c-sheet--rise c-sheet--page p-schedule" style="${ganttVars}">
 
       <!-- ドラッグハンドル -->
-      <div data-sheet-handle class="flex justify-center pt-3 pb-2 flex-shrink-0">
-        <div class="w-12 h-1.5 bg-[#D3D6D8] rounded-full"></div>
+      <div data-sheet-handle class="c-sheet__handle c-sheet__handle--mid">
+        <div class="c-sheet__grip"></div>
       </div>
 
       <!-- ビュー切り替えトグル -->
-      <div class="flex items-center justify-between px-5 pb-3 flex-shrink-0">
-        <h2 class="text-[14px] font-bold text-[#484545]">スケジュール</h2>
-        <div class="flex bg-[#E1DFDC] rounded-full p-0.5 gap-0.5">
+      <div class="p-schedule__bar">
+        <h2 class="p-schedule__title">スケジュール</h2>
+        <div class="p-schedule__switch">
           <button id="btn-view-calendar"
-            class="px-4 py-1.5 rounded-full text-[12px] font-bold transition-all
-            ${isCalendar ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
+            class="p-schedule__switch-button${isCalendar ? ' is-active' : ''}">
             カレンダー
           </button>
           <button id="btn-view-gantt"
-            class="px-4 py-1.5 rounded-full text-[12px] font-bold transition-all
-            ${!isCalendar ? 'bg-white text-[#484545] shadow-sm' : 'text-[#A7AAAC]'}">
+            class="p-schedule__switch-button${!isCalendar ? ' is-active' : ''}">
             ガント
           </button>
         </div>
       </div>
 
       <!-- コンテンツ -->
-      <div class="flex flex-col flex-1 overflow-hidden">
+      <div class="p-schedule__body">
         ${isCalendar ? _renderCalendarView(ctx) : _renderGanttView(ctx)}
       </div>
-    </div>
-    <style>
-      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-      @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-    </style>`;
+    </div>`;
 
   // 下スワイプで閉じる（sheet.js）→ _close 経由で state.render() を確実に呼ぶ
   const _sheetEl = overlay.querySelector('[data-sheet]');
@@ -150,12 +150,11 @@ function _bindAllEvents(overlay, ctx) {
 function _renderCalendarView(ctx) {
   return `
     <!-- カレンダー（固定）-->
-    <div id="mb-cal-fixed" class="px-5 pb-4 border-b border-[#E1DFDC] flex-shrink-0">
+    <div id="mb-cal-fixed" class="p-schedule__cal">
       ${_renderCalendar(ctx)}
     </div>
     <!-- ミッション一覧（スクロール）-->
-    <div id="mb-cal-list" class="flex-1 overflow-y-auto px-5 py-4 space-y-5"
-         style="overscroll-behavior: contain;">
+    <div id="mb-cal-list" class="p-schedule__list">
       ${_renderSections(ctx)}
     </div>`;
 }
@@ -169,38 +168,35 @@ function _renderCalendar(ctx) {
   const projDates = new Set(ctx.p.dates || []);
 
   let cells = '';
-  for (let i = 0; i < firstDay; i++) cells += '<div class="h-9"></div>';
+  for (let i = 0; i < firstDay; i++) cells += '<div class="p-schedule__day-blank"></div>';
   for (let d = 1; d <= lastDate; d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isSel   = dateStr === ctx.selectedDate;
-    const isToday = dateStr === todayYmd;
-    const isProj  = projDates.has(dateStr);
 
-    let cls   = 'h-9 w-full flex items-center justify-center rounded-lg cursor-pointer text-[12px] font-bold select-none transition-colors';
-    let style = '';
-    if (isSel)        { cls += ' text-white shadow-md'; style = 'background-color:#0CA1E3;'; }
-    else if (isProj)  { cls += ' text-[#0CA1E3]'; style = 'background-color:#E1F4FC;'; }
-    else if (isToday) { cls += ' text-[#0CA1E3] ring-1 ring-[#0CA1E3]'; }
-    else              { cls += ' bg-white text-[#484545] active:bg-[#FDFBF8]'; }
+    // ★状態は1つだけ付ける（選択中 > 開催日 > 今日）。重ねると
+    //   「開催日かつ今日」で塗りと枠が両方出て、元の見た目と変わる。
+    let state = '';
+    if (dateStr === ctx.selectedDate)  state = ' is-selected';
+    else if (projDates.has(dateStr))   state = ' is-project';
+    else if (dateStr === todayYmd)     state = ' is-today';
 
-    cells += `<div data-mb-day="${dateStr}" class="${cls}" style="${style}">${d}</div>`;
+    cells += `<div data-mb-day="${dateStr}" class="p-schedule__day${state}">${d}</div>`;
   }
 
   return `
-    <div class="flex items-center justify-between mb-2">
-      <button id="mb-cal-prev" class="p-1.5 bg-white rounded-full active:scale-95 border border-[#E1DFDC]">
-        <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 brightness-0 opacity-50">
+    <div class="p-schedule__cal-nav">
+      <button id="mb-cal-prev" class="p-schedule__cal-arrow">
+        <img src="/images/icon/iocn-Chevron.svg" class="p-schedule__cal-arrow-icon">
       </button>
-      <h3 class="heading-r text-[#484545] font-bold">${year}年 ${month + 1}月</h3>
-      <button id="mb-cal-next" class="p-1.5 bg-white rounded-full active:scale-95 border border-[#E1DFDC]">
-        <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-50">
+      <h3 class="heading-r p-schedule__section-title">${year}年 ${month + 1}月</h3>
+      <button id="mb-cal-next" class="p-schedule__cal-arrow">
+        <img src="/images/icon/iocn-Chevron.svg" class="p-schedule__cal-arrow-icon p-schedule__cal-arrow-icon--next">
       </button>
     </div>
-    <div class="grid grid-cols-7 gap-1 mb-1 text-center text-[9px] text-[#A7AAAC] font-bold">
+    <div class="p-schedule__week">
       ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
     </div>
-    <div class="grid grid-cols-7 gap-1">${cells}</div>
-    <p class="text-center mt-2.5 text-[11px] font-bold ${projDates.size > 0 ? 'text-[#0CA1E3]' : 'text-[#A7AAAC]'}">
+    <div class="p-schedule__days">${cells}</div>
+    <p class="p-schedule__cal-note${projDates.size > 0 ? ' is-set' : ''}">
       ${projDates.size > 0
         ? `開催日 ${projDates.size}件`
         : (state.canManageCurrentEvent() ? '日付をタップして開催日を設定できます' : '開催日未設定')}
@@ -274,49 +270,48 @@ function _renderGanttView(ctx) {
 
   const projDates  = new Set(ctx.p.dates || []);
   const missions   = getSortedMissions(ctx.p.missions || []);
-  const contentW   = TOTAL * CELL_W;
+
+  // 列の塗り。★1つだけ付ける（今日 > 開催日 > 日曜 > 土曜）。
+  // 濃さはヘッダー行と本文行で違うので、CSS 側に2組のトークンを持たせてある。
+  const dayState = (ymd, dow) => {
+    if (ymd === todayYmd)   return ' is-today';
+    if (projDates.has(ymd)) return ' is-project';
+    if (dow === 0)          return ' is-sunday';
+    if (dow === 6)          return ' is-saturday';
+    return '';
+  };
+  // 文字色は塗りと別。曜日は開催日でも赤／青のままにする
+  const dowState = (dow) => dow === 0 ? ' is-sunday' : dow === 6 ? ' is-saturday' : '';
 
   // ── ヘッダー日付セル ──────────────────────────────
   let prevMonth = -1;
   const headerCells = allDates.map(d => {
-    const ymd    = _ymd(d);
-    const isToday = ymd === todayYmd;
-    const isProj  = projDates.has(ymd);
+    const ymd     = _ymd(d);
     const dow     = d.getDay(); // 0=日
     const month   = d.getMonth();
     const isFirst = d.getDate() === 1;
-
-    let bg = '';
-    if (isToday)     bg = 'background:rgba(12,161,227,0.14);';
-    else if (isProj) bg = 'background:rgba(207,216,255,0.55);';
-    else if (dow === 0) bg = 'background:rgba(255,180,180,0.18);';
-    else if (dow === 6) bg = 'background:rgba(190,210,255,0.18);';
-
-    const numCol = isToday ? '#0CA1E3' : dow === 0 ? '#EE3E12' : dow === 6 ? '#5C6BC0' : '#484545';
-    const dayCol = dow === 0 ? '#EE3E12' : dow === 6 ? '#5C6BC0' : '#A7AAAC';
-    const weekJa = ['日','月','火','水','木','金','土'][dow];
-    const showM  = isFirst || prevMonth !== month;
+    const weekJa  = ['日','月','火','水','木','金','土'][dow];
+    const showM   = isFirst || prevMonth !== month;
     prevMonth = month;
+    // 日付の数字は「今日」を最優先、次に曜日の色
+    const numState = ymd === todayYmd ? ' is-today' : dowState(dow);
 
-    return `<div style="width:${CELL_W}px;flex-shrink:0;height:${HEADER_H}px;
-      display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-      padding-bottom:4px;border-left:1px solid #E1DFDC;${bg}">
-      <span style="font-size:7px;line-height:1;color:#A7AAAC;font-weight:700;height:10px;display:flex;align-items:center;">
-        ${showM ? (month+1)+'月' : ''}
-      </span>
-      <span style="font-size:10px;font-weight:700;line-height:1.2;color:${numCol};">${d.getDate()}</span>
-      <span style="font-size:7px;line-height:1;color:${dayCol};font-weight:700;">${weekJa}</span>
+    return `<div class="p-schedule__gantt-cell${dayState(ymd, dow)}">
+      <span class="p-schedule__gantt-month">${showM ? (month+1)+'月' : ''}</span>
+      <span class="p-schedule__gantt-date${numState}">${d.getDate()}</span>
+      <span class="p-schedule__gantt-dow${dowState(dow)}">${weekJa}</span>
     </div>`;
   }).join('');
 
   // ── ミッション行 ────────────────────────────────
   const missionsHtml = missions.length === 0
-    ? `<div style="padding:28px 16px;text-align:center;font-size:12px;color:#A7AAAC;">ミッションがありません</div>`
+    ? `<div class="p-schedule__gantt-empty">ミッションがありません</div>`
     : missions.map(m => {
         const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
         const barColor = _resolveTagColor(tagNames, ctx.p.customTags);
         const isCleared = m.status === 'cleared';
-        const opacity   = isCleared ? 0.4 : 1;
+        // 行ごとに違う値だけインラインで渡す（色＝タグ色、薄さ＝完了しているか）
+        const rowVars = `--tag-color:${barColor};--gantt-opacity:${isCleared ? '0.4' : '1'}`;
         const mDates    = (m.dates || []).slice().sort();
         const mStart    = mDates[0] || null;
         const mEnd      = mDates[mDates.length - 1] || null;
@@ -324,81 +319,56 @@ function _renderGanttView(ctx) {
 
         // 日付セル
         const cells = allDates.map(d => {
-          const ymd    = _ymd(d);
-          const isToday = ymd === todayYmd;
-          const isProj  = projDates.has(ymd);
-          const dow     = d.getDay();
-
-          let bg = '';
-          if (isToday)     bg = 'background:rgba(12,161,227,0.06);';
-          else if (isProj) bg = 'background:rgba(207,216,255,0.22);';
-          else if (dow === 0) bg = 'background:rgba(255,180,180,0.06);';
-          else if (dow === 6) bg = 'background:rgba(190,210,255,0.06);';
+          const ymd = _ymd(d);
+          const dow = d.getDay();
 
           let bar = '';
           if (mStart) {
             const inRange = mEnd ? (ymd >= mStart && ymd <= mEnd) : ymd === mStart;
             if (inRange) {
-              const isS = ymd === mStart;
-              const isE = ymd === mEnd;
-              const rL  = (isSingle || isS) ? '5px' : '0';
-              const rR  = (isSingle || isE) ? '5px' : '0';
-              const ml  = (isSingle || isS) ? '5px' : '0';
-              const mr  = (isSingle || isE) ? '5px' : '0';
-              bar = `<div style="height:14px;background:${barColor};opacity:${opacity};
-                border-radius:${rL} ${rR} ${rR} ${rL};
-                margin-left:${ml};margin-right:${mr};flex:1;"></div>`;
+              // 期間の両端だけ角を丸め、内側の日は隣と繋げる
+              const isS = isSingle || ymd === mStart;
+              const isE = isSingle || ymd === mEnd;
+              bar = `<div class="p-schedule__gantt-bar" style="`
+                + `--bar-radius-l:${isS ? '5px' : '0'};--bar-radius-r:${isE ? '5px' : '0'};`
+                + `--bar-inset-l:${isS ? '5px' : '0'};--bar-inset-r:${isE ? '5px' : '0'}"></div>`;
             }
           }
 
-          return `<div style="width:${CELL_W}px;flex-shrink:0;height:${ROW_H}px;
-            border-left:1px solid #E1DFDC;display:flex;align-items:center;${bg}">
-            ${bar}
-          </div>`;
+          return `<div class="p-schedule__gantt-slot${dayState(ymd, dow)}">${bar}</div>`;
         }).join('');
 
-        const titleStyle = isCleared
-          ? 'opacity:0.45;text-decoration:line-through;'
-          : '';
-
-        return `<div data-mission-id="${m.id}" style="display:flex;align-items:stretch;border-bottom:1px solid #E1DFDC;cursor:pointer;">
+        return `<div data-mission-id="${m.id}" class="p-schedule__gantt-row" style="${rowVars}">
           <!-- ミッション名（sticky left）-->
-          <div style="width:${NAME_W}px;flex-shrink:0;position:sticky;left:0;z-index:10;
-            background:#FDFBF8;border-right:1px solid #E1DFDC;
-            display:flex;align-items:center;padding:0 8px;min-height:${ROW_H}px;">
-            <div style="display:flex;align-items:center;gap:5px;width:100%;overflow:hidden;">
-              <div style="width:7px;height:7px;border-radius:3.5px;flex-shrink:0;
-                background:${barColor};opacity:${opacity};"></div>
-              <span style="font-size:8px;font-weight:700;color:#484545;
-                overflow:hidden;text-overflow:ellipsis;
-                max-width:${NAME_W - 26}px;${titleStyle}">${_esc(m.title)}</span>
+          <div class="p-schedule__gantt-name">
+            <div class="p-schedule__gantt-name-inner">
+              <div class="p-schedule__gantt-tagdot"></div>
+              <span class="p-schedule__gantt-title${isCleared ? ' is-done' : ''}">${_esc(m.title)}</span>
             </div>
           </div>
           <!-- 日付バー列 -->
-          <div style="display:flex;">${cells}</div>
+          <div class="p-schedule__gantt-slots">${cells}</div>
         </div>`;
       }).join('');
 
   return `
     <!-- ヘッダー行（横スクロール同期、overflow:hidden）-->
-    <div style="display:flex;flex-shrink:0;border-bottom:2px solid #D3D6D8;background:#FDFBF8;">
+    <div class="p-schedule__gantt-head">
       <!-- コーナーセル -->
-      <div style="width:${NAME_W}px;flex-shrink:0;height:${HEADER_H}px;
-        border-right:1px solid #E1DFDC;
-        display:flex;align-items:flex-end;padding:0 8px 6px;">
-        <span style="font-size:10px;color:#A7AAAC;font-weight:700;">ミッション</span>
+      <div class="p-schedule__gantt-corner">
+        <span class="p-schedule__gantt-corner-label">ミッション</span>
       </div>
       <!-- 日付ヘッダー（スクロール非表示・JS同期）-->
-      <div style="overflow:hidden;flex:1;">
-        <div id="gantt-header-inner" style="display:flex;width:${contentW}px;">
+      <div class="p-schedule__gantt-head-scroll">
+        <div id="gantt-header-inner" class="p-schedule__gantt-head-inner">
           ${headerCells}
         </div>
       </div>
     </div>
 
     <!-- ボディ（両軸スクロール可）-->
-    <div id="gantt-body" style="flex:1;overflow:auto;overscroll-behavior:contain;">
-      <div style="min-width:${NAME_W + contentW}px;">
+    <div id="gantt-body" class="p-schedule__gantt-body">
+      <div class="p-schedule__gantt-inner">
         ${missionsHtml}
       </div>
     </div>`;
@@ -435,24 +405,24 @@ function _scrollGanttToToday(overlay) {
 function _renderSections(ctx) {
   const sections = _buildSections(ctx.p);
   return sections.map(s => `
-    <section data-mb-section="${s.matchDate || ''}" class="scroll-mt-2">
-      <div class="flex items-baseline gap-2 mb-2 pb-1 border-b border-[#E1DFDC]">
-        <h4 class="heading-rs text-[#484545] font-bold">${_esc(s.label)}</h4>
-        ${s.sub ? `<span class="text-[10px] text-[#A7AAAC] font-bold">${_esc(s.sub)}</span>` : ''}
+    <section data-mb-section="${s.matchDate || ''}" class="p-schedule__section">
+      <div class="p-schedule__section-head">
+        <h4 class="heading-rs p-schedule__section-title">${_esc(s.label)}</h4>
+        ${s.sub ? `<span class="p-schedule__section-sub">${_esc(s.sub)}</span>` : ''}
       </div>
       ${s.missions.length === 0
-        ? `<p class="text-[11px] text-[#A7AAAC] py-1">予定なし</p>`
+        ? `<p class="p-schedule__empty">予定なし</p>`
         : s.missions.map(m => _renderMissionRow(m)).join('')}
     </section>`).join('');
 }
 
 function _renderMissionRow(m) {
+  const done = m.status === 'cleared';
   return `
-    <div data-mission-id="${m.id}"
-      class="bg-white border border-[#D3D6D8] rounded-xl px-3 py-2.5 mb-2 flex items-center gap-2.5 active:bg-[#FDFBF8] cursor-pointer transition-colors">
-      <span class="inline-block w-1.5 h-1.5 rounded-full ${m.status === 'cleared' ? 'bg-[#9EDF05]' : 'bg-[#FFC300]'}"></span>
-      <span class="text-[13px] text-[#484545] font-bold flex-1 truncate ${m.status === 'cleared' ? 'line-through opacity-60' : ''}">${_esc(m.title)}</span>
-      ${m.tag ? `<span class="text-[9px] text-[#A7AAAC] font-bold">${_esc(m.tag)}</span>` : ''}
+    <div data-mission-id="${m.id}" class="p-schedule__row">
+      <span class="p-schedule__row-dot${done ? ' is-done' : ''}"></span>
+      <span class="p-schedule__row-title${done ? ' is-done' : ''}">${_esc(m.title)}</span>
+      ${m.tag ? `<span class="p-schedule__row-tag">${_esc(m.tag)}</span>` : ''}
     </div>`;
 }
 

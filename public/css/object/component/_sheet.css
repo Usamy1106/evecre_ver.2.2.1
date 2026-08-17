@@ -39,6 +39,19 @@
   box-shadow: none;
 }
 
+/* 生成と同時にせり上がるタイプ（.is-open のトグルを持たないシート）。
+   開いた状態が初期値なので transform を打ち消す。 */
+.c-sheet--rise {
+  transform: none;
+  transition: none;
+  animation: sheetRise var(--duration-normal) ease-out;
+}
+
+/* 背景をページ色にするタイプ（中に白いカードを並べるシート）*/
+.c-sheet--page {
+  background-color: var(--color-bg);
+}
+
 /* 内側に余白を持つタイプ */
 .c-sheet--padded {
   padding: var(--space-6);
@@ -60,6 +73,14 @@
 .c-sheet__handle--low {
   padding-top: var(--space-3);
   padding-bottom: var(--space-1);
+}
+
+/* ★つまみの上下余白がシートごとに違う（4/12・12/4・12/8 の3種）。
+   意図的な差には見えないが、このフェーズは見た目を変えない方針なので
+   元の値のまま3種類を残してある。統一するかは別途判断すること。 */
+.c-sheet__handle--mid {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-2);
 }
 
 .c-sheet__grip {

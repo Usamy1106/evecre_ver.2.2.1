@@ -34,6 +34,16 @@
 
 /* 使用: object/component/_emoji-picker.css
    下から出るシート。距離を短くして「せり上がる」程度に留める。 */
+/* ★下からせり上がる。slideUp と混同しないこと。
+   slideUp は 12px の小さな浮き上がり（絵文字ピッカー）で、移動量が全く違う。
+   以前 eventCalendarSheet.js が JS の <style> で slideUp を 100% 移動として
+   定義し直しており、そのシートが開いている間だけ絵文字ピッカーの動きが
+   化ける状態だった。 */
+@keyframes sheetRise {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
 @keyframes slideUp {
   from { transform: translateY(12px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }

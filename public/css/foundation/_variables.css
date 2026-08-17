@@ -86,6 +86,19 @@
   --color-primary-half: rgba(12, 161, 227, .3);
   --color-primary-pale2: #EBF7FE;   /* --color-primary-pale と近い。統合は Phase 5 で判断 */
   --color-warning-dark: #9B7700;
+  --color-primary-pale5: #E1F4FC;  /* 開催日のマス（スケジュール）。他の pale と近い（統合は Phase 5）*/
+  --color-saturday: #5C6BC0;       /* 土曜の文字。日曜は --create-red を使う */
+
+  /* ガントの列の塗り。ヘッダー行は濃く、ミッション行は薄くする
+     （行が続くと濃い塗りが縞に見えて、バーが読み取れなくなるため）*/
+  --gantt-today-head: rgba(12, 161, 227, .14);
+  --gantt-project-head: rgba(207, 216, 255, .55);
+  --gantt-sunday-head: rgba(255, 180, 180, .18);
+  --gantt-saturday-head: rgba(190, 210, 255, .18);
+  --gantt-today-row: rgba(12, 161, 227, .06);
+  --gantt-project-row: rgba(207, 216, 255, .22);
+  --gantt-sunday-row: rgba(255, 180, 180, .06);
+  --gantt-saturday-row: rgba(190, 210, 255, .06);
 
   /* --- タイポグラフィ ----------------------------------------------------- */
   --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
@@ -132,6 +145,8 @@
      ★Tailwind の transition-* は 150ms / cubic-bezier(.4,0,.2,1) が既定。
        移行中に取り違えると「わずかに違う」動きになるので、既定値を写してある。 */
   --duration-fast: .15s;
+  --duration-quick: .2s;
+  --duration-normal: .25s;
   --duration-slow: .3s;
   --ease: cubic-bezier(.4, 0, .2, 1);
 
@@ -154,6 +169,7 @@
   --z-overlay: 100;          /* ミッション作成モーダル（全画面）*/
   --z-auto-modal: 180;       /* 自動表示モーダル（リマインド・オンボーディング）*/
   --z-form-modal: 240;       /* 1問ずつ聞くフォーム（参加申請・スキル回収）*/
+  --z-schedule: 200;         /* スケジュール（カレンダー・ガント）のシート */
   --z-sheet: 210;            /* 担当者シート */
   --z-sheet-stacked: 220;    /* シートの上に重ねるシート（タグ作成）*/
   --z-welcome: 220;          /* 参加直後のリーダーの意気込み */

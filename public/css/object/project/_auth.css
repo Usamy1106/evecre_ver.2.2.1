@@ -153,11 +153,6 @@
   color: var(--color-text-muted);
 }
 
-/* 目のアイコンを重ねるぶん右に余白を足す */
-.c-input--with-action {
-  padding-right: 48px;
-}
-
 /* 「または」の左右に引く線 */
 .p-auth__divider {
   display: flex;
