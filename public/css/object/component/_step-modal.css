@@ -160,3 +160,27 @@
   background-color: var(--color-success-tint);
   color: var(--color-success-dark);
 }
+
+.c-step-modal__lead--tight {
+  margin-bottom: var(--space-4);
+}
+
+.c-step-modal__optional {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.c-step-modal__textarea {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: 13px;
+  resize: none;
+}
+
+.c-step-modal__count {
+  margin-top: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: right;
+}

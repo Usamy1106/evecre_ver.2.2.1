@@ -206,3 +206,73 @@
   color: var(--color-text);
   white-space: pre-line;
 }
+
+/* --- 余白が控えめな箱（入力を主にするモーダル）---------------------------- */
+
+.c-modal--compact {
+  position: relative;
+  padding: var(--space-6);
+  text-align: left;
+}
+
+/* 右上の × */
+.c-modal__close {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  padding: var(--space-2);
+  opacity: .4;
+}
+
+.c-modal__heading {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.c-modal__note {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.c-modal__note--muted {
+  margin-bottom: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.c-modal__note-em {
+  color: var(--color-primary);
+}
+
+.c-modal__minor {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-modal__minor--error {
+  color: var(--color-danger);
+}
+
+.c-modal__submit {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding-block: var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}
+
+.c-modal__link {
+  width: 100%;
+  padding-block: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}

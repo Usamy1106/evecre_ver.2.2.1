@@ -54,7 +54,8 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  overlay.className = 'fixed inset-0 z-[240] bg-black/50 backdrop-blur-sm flex items-center justify-center p-6';
+  // スタイル: public/css/object/component/_step-modal.css
+  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--form';
   document.body.appendChild(overlay);
 
   logEvent('join_form_shown', { entry });
@@ -75,27 +76,27 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
 
   /** モーダルの外枠。本文だけ差し替える（1問ずつ表示） */
   const shell = (body, footer) => `
-    <div data-jf-card class="bg-white rounded-3xl w-full max-w-sm shadow-2xl max-h-[85vh] flex flex-col">
-      <div class="shrink-0 px-7 pt-7 pb-2">
-        <p class="text-[11px] text-[#A7AAAC] font-bold text-center">
+    <div data-jf-card class="c-step-modal">
+      <div class="c-step-modal__header">
+        <p class="c-step-modal__context">
           「${_esc(invite?.eventName || 'イベント')}」に参加を申請
         </p>
       </div>
-      <div class="flex-1 overflow-y-auto px-7 py-4">${body}</div>
-      <div class="shrink-0 px-7 pb-7 pt-2">
+      <div class="c-step-modal__body">${body}</div>
+      <div class="c-step-modal__footer">
         ${Components.StepIndicator(ctx.step, LAST_STEP, { compact: true })}
-        ${ctx.error ? `<p class="text-[11px] text-[#EE3E12] font-bold text-center mb-2">${_esc(ctx.error)}</p>` : ''}
+        ${ctx.error ? `<p class="c-step-modal__error">${_esc(ctx.error)}</p>` : ''}
         ${footer}
       </div>
     </div>`;
 
   /** スキル選択の画面（STEP 1 / 2 共通）。sel は ctx.good か ctx.want */
   const skillBody = (heading, sub, tags, sel) => `
-    <h3 class="text-[16px] font-bold text-[#484545] text-center mb-2">${heading}</h3>
-    <p class="text-[11px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">${sub}</p>
+    <h3 class="c-step-modal__title">${heading}</h3>
+    <p class="c-step-modal__lead">${sub}</p>
     ${tags.length === 0
-      ? '<p class="text-[12px] text-[#A7AAAC] font-bold text-center py-6">すべて「できること」に選びました</p>'
-      : `<div class="flex flex-wrap gap-2 justify-center">
+      ? '<p class="c-step-modal__empty">すべて「できること」に選びました</p>'
+      : `<div class="c-skill-tags">
           ${tags.map(t => _tagHtml(t, !!sel[t.id], ctx.step)).join('')}
         </div>`}`;
 
@@ -104,8 +105,8 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
       overlay.innerHTML = shell(
         skillBody('できることは？', 'タップで選べます（複数可）<br>選ばなくても申請できます',
                   SKILL_TAGS, ctx.good),
-        `<button id="jf-next" class="c-button c-button--primary w-full py-4 heading-m font-bold shadow-lg">次へ</button>
-         <button id="jf-cancel" class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]">やめる</button>`
+        `<button id="jf-next" class="c-button c-button--primary c-step-modal__primary">次へ</button>
+         <button id="jf-cancel" class="c-step-modal__secondary">やめる</button>`
       );
       _bindTags();
       document.getElementById('jf-next').onclick   = () => goTo(2, 'right');
@@ -115,8 +116,8 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
       overlay.innerHTML = shell(
         skillBody('やってみたいことは？', 'まだ得意ではないけど挑戦したいこと<br>選ばなくても申請できます',
                   wantCandidates(), ctx.want),
-        `<button id="jf-next" class="c-button c-button--primary w-full py-4 heading-m font-bold shadow-lg">次へ</button>
-         <button id="jf-back" class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]">戻る</button>`
+        `<button id="jf-next" class="c-button c-button--primary c-step-modal__primary">次へ</button>
+         <button id="jf-back" class="c-step-modal__secondary">戻る</button>`
       );
       _bindTags();
       document.getElementById('jf-next').onclick = () => goTo(3, 'right');
@@ -124,20 +125,20 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
 
     } else {
       overlay.innerHTML = shell(`
-        <h3 class="text-[16px] font-bold text-[#484545] text-center mb-2">
-          意気込み <span class="text-[12px] text-[#A7AAAC]">（任意）</span>
+        <h3 class="c-step-modal__title">
+          意気込み <span class="c-step-modal__optional">（任意）</span>
         </h3>
-        <p class="text-[11px] text-[#A7AAAC] font-bold text-center mb-4">承認されるとチームに共有されます</p>
+        <p class="c-step-modal__lead c-step-modal__lead--tight">承認されるとチームに共有されます</p>
         <textarea id="jf-message" rows="4" maxlength="${MAX_MESSAGE}"
           placeholder="${_esc(JOIN_MESSAGE_EXAMPLES[placeholderIdx])}"
-          class="c-input w-full px-4 py-3 text-[13px] focus:outline-none resize-none">${_esc(ctx.message)}</textarea>
-        <p id="jf-count" class="text-[10px] text-[#A7AAAC] font-bold text-right mt-1">${ctx.message.length}/${MAX_MESSAGE}</p>
+          class="c-input c-input--block c-step-modal__textarea">${_esc(ctx.message)}</textarea>
+        <p id="jf-count" class="c-step-modal__count">${ctx.message.length}/${MAX_MESSAGE}</p>
       `, `
-        <button id="jf-submit" class="c-button c-button--primary w-full py-4 heading-m font-bold shadow-lg"
-          ${ctx.sending ? 'disabled style="opacity:.5"' : ''}>
+        <button id="jf-submit" class="c-button c-button--primary c-step-modal__primary"
+          ${ctx.sending ? 'disabled' : ''}>
           ${ctx.sending ? '送信中…' : '参加を申請する'}
         </button>
-        <button id="jf-back" class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]"
+        <button id="jf-back" class="c-step-modal__secondary"
           ${ctx.sending ? 'disabled' : ''}>戻る</button>
       `);
 
@@ -237,25 +238,21 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
 function _tagHtml(tag, on, step) {
   if (!on) {
     return `
-      <button data-jf-tag="${tag.id}"
-        class="text-[12px] font-bold px-3.5 py-2 rounded-full border-2
-          border-[#E1DFDC] bg-white text-[#A7AAAC] active:scale-95 transition-all">
+      <button type="button" data-jf-tag="${tag.id}" class="c-skill-tag">
         ${_esc(tag.label)}
       </button>`;
   }
+  // ★色だけに頼らず、できる=チェック / やってみたい=プラス でも区別する
   const isGood = step === 1;
-  const cls  = isGood
-    ? 'border-[#0CA1E3] bg-[#0CA1E3]/10 text-[#0CA1E3]'
-    : 'border-[#9EDF05] bg-[#9EDF05]/10 text-[#7BB100]';
   const icon = isGood
     ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>'
     : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
   return `
-    <button data-jf-tag="${tag.id}"
-      class="flex items-center gap-1.5 text-[12px] font-bold px-3.5 py-2 rounded-full border-2 ${cls} active:scale-95 transition-all">
+    <button type="button" data-jf-tag="${tag.id}" class="c-skill-tag ${isGood ? 'is-good' : 'is-want'}">
       ${icon}${_esc(tag.label)}
     </button>`;
 }
+
 
 function _explainError(code) {
   switch (code) {

@@ -34,8 +34,8 @@ function _render(overlay, ctx) {
     // ★既にメンバーだった場合に「承認されるまでお待ちください」と出るのは誤り。
     //   ctx._pending を見て文言を出し分ける（以前は success だけで判定していた）。
     overlay.innerHTML = `
-      <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center animate-fadeIn">
-        <p class="text-[14px] font-bold text-[#484545]">${
+      <div class="c-modal animate-fadeIn">
+        <p class="c-modal__note">${
           ctx._pending
             ? '送信しました。<br>承認されるまでお待ちください。'
             : 'すでに参加しています。<br>イベントを開きます。'
@@ -45,14 +45,14 @@ function _render(overlay, ctx) {
   }
 
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative animate-fadeIn">
-      <button id="jbc-close" class="absolute top-3 right-3 p-2 opacity-40">
+    <div class="c-modal c-modal--compact animate-fadeIn">
+      <button type="button" id="jbc-close" class="c-modal__close" aria-label="閉じる">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-      <h2 class="heading-r text-[#484545] font-bold mb-2">イベントに参加する</h2>
-      <p class="text-[12px] text-[#A7AAAC] font-bold mb-4">招待リンクを入力してください</p>
+      <h2 class="c-modal__heading">イベントに参加する</h2>
+      <p class="c-modal__note c-modal__note--muted">招待リンクを入力してください</p>
 
       ${ctx.info ? _renderConfirm(ctx) : _renderInput(ctx)}
     </div>`;
@@ -79,15 +79,15 @@ function _render(overlay, ctx) {
 function _renderInput(ctx) {
   return `
     <input id="jbc-input" type="text" placeholder="https://evecre..."
-      class="c-input w-full px-4 py-3 text-[13px] font-mono focus:outline-none mb-2"
+      class="c-input p-invite__code-input"
       value="${_esc(ctx.input)}"
       autocomplete="off" autocapitalize="off" spellcheck="false"
       ${ctx.sending ? 'disabled' : ''}>
 
-    ${ctx.error ? `<p class="text-[11px] text-[#EE3E12] mb-2 font-bold">${_esc(ctx.error)}</p>` : ''}
+    ${ctx.error ? `<p class="c-modal__minor c-modal__minor--error">${_esc(ctx.error)}</p>` : ''}
 
-    <button id="jbc-verify" class="w-full py-3 rounded-xl text-[14px] font-bold text-white bg-[#0CA1E3] mt-2"
-      ${ctx.sending ? 'disabled style="opacity:.5"' : ''}>
+    <button type="button" id="jbc-verify" class="p-invite__submit"
+      ${ctx.sending ? 'disabled' : ''}>
       ${ctx.sending ? '確認中…' : '次へ'}
     </button>`;
 }
@@ -95,28 +95,28 @@ function _renderInput(ctx) {
 function _renderConfirm(ctx) {
   const inv = ctx.info;
   return `
-    <div class="bg-[#FDFBF8] border border-[#E1DFDC] rounded-2xl p-4 mb-4">
+    <div class="p-invite__preview">
       ${inv.catchphrase ? `
-        <p class="text-[14px] text-[#0CA1E3] font-bold text-center leading-snug mb-2">${_esc(inv.catchphrase)}</p>
+        <p class="p-invite__preview-catchphrase">${_esc(inv.catchphrase)}</p>
       ` : ''}
-      <p class="text-[12px] text-[#484545] font-bold text-center leading-relaxed">
-        <span class="text-[#0CA1E3]">${_esc(inv.ownerName || '')}</span>さんが<br>
+      <p class="p-invite__preview-text">
+        <span class="p-invite__preview-em">${_esc(inv.ownerName || '')}</span>さんが<br>
         <!-- ★API が返すキーは eventName。projectName だけを見ていて名前が空だった -->
-        「<span class="text-[#0CA1E3]">${_esc(inv.eventName || inv.projectName || '')}</span>」<br>
+        「<span class="p-invite__preview-em">${_esc(inv.eventName || inv.projectName || '')}</span>」<br>
         に招待しています
       </p>
       ${inviteMembersHtml(inv)}
       ${motivationBlockHtml(inv)}
     </div>
 
-    ${ctx.error ? `<p class="text-[11px] text-[#EE3E12] mb-2 font-bold text-center">${_esc(ctx.error)}</p>` : ''}
+    ${ctx.error ? `<p class="p-invite__error">${_esc(ctx.error)}</p>` : ''}
 
-    <div class="flex gap-2">
-      <button id="jbc-cancel" class="flex-1 py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-[#EBE8E5]"
+    <div class="p-invite__actions">
+      <button type="button" id="jbc-cancel" class="p-invite__action p-invite__action--cancel"
         ${ctx.sending ? 'disabled' : ''}>戻る</button>
       <!-- 押すと参加申請フォームへ。accept はフォーム側が呼ぶ -->
-      <button id="jbc-accept" class="flex-1 py-3 rounded-xl text-[13px] font-bold text-white bg-[#0CA1E3]"
-        ${ctx.sending ? 'disabled style="opacity:.5"' : ''}>次へ</button>
+      <button type="button" id="jbc-accept" class="p-invite__action p-invite__action--primary"
+        ${ctx.sending ? 'disabled' : ''}>次へ</button>
     </div>`;
 }
 

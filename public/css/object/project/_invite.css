@@ -64,3 +64,95 @@
 .p-invite__fire:active {
   transform: scale(.9);
 }
+
+/* --- 招待コード入力の確認画面 --------------------------------------------
+   使用箇所: public/js/modals/joinByCodeModal.js
+
+   ★「招待ページ」という画面は作らない方針。招待の内容はログイン画面の
+     バナー・参加確認モーダル・この確認画面の3箇所に出す。
+   ★次へを押すと参加申請フォームへ進む。accept はフォーム側が呼ぶ
+     （ここで参加させない）。 */
+
+.p-invite__preview {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg);
+}
+
+.p-invite__preview-catchphrase {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.p-invite__preview-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-invite__preview-em {
+  color: var(--color-primary);
+}
+
+.p-invite__error {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+.p-invite__code-input {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.p-invite__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.p-invite__action {
+  flex: 1;
+  padding-block: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-invite__action--primary {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.p-invite__action--cancel {
+  background-color: var(--button-secondary);
+  color: var(--color-text);
+}
+
+.p-invite__action:disabled,
+.p-invite__submit:disabled {
+  opacity: .5;
+}
+
+.p-invite__submit {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding-block: var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}
