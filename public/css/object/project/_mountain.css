@@ -1,0 +1,130 @@
+/* ==========================================================================
+   Object / Project / mountain — 山登りパスビジュアル（メインボード）
+   使用箇所: public/js/mountainPath.js
+
+   下から上へ円形マスがジグザグに増えていく「山登りの道」。
+
+   ★3層構成のうちの「背景レイヤー」と「スクロール窓」。
+     背景（#mountain-bg）は position:fixed で、ヘッダー＋タブの下から画面下端まで。
+     スクロール窓（#mountain-path-scroll）は透明の受け皿で、そのスクロール量を
+     背景キャンバスの translateY に同期させる（ネイティブ慣性がそのまま効く）。
+   ★背景の top はヘッダーの実測高に依存するので JS が設定する（ここには書かない）。
+   ★マスの座標（left / top）も JS が計算するのでインライン style で入る。
+
+   ★円形マスはミッションと連動しない装飾：タップ不可・タイトル無し。
+     ただしマス数はミッション数に応じて増え、完了相当のマスは塗りつぶす。
+     全体に pointer-events:none を敷いているのは、裏側にあるこの層が
+     手前のコンテンツ（提案・ミッション一覧）の操作を奪わないため。
+   ========================================================================== */
+
+.p-mountain {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-base);
+  overflow: hidden;
+  max-width: var(--layout-max-width);
+  margin-inline: auto;
+  background-image: linear-gradient(to bottom, var(--color-sky) 0%, var(--color-bg) 100%);
+}
+
+.p-mountain__canvas {
+  position: relative;
+  will-change: transform;
+}
+
+/* 道（マスを結ぶ破線）*/
+.p-mountain__trail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* マス・山頂・スタートなど、座標を JS が決めるもの */
+.p-mountain__pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.p-mountain__pin--center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* --- 円形マス ------------------------------------------------------------
+   ★完了・確認待ち・未完了を色で分けるが、完了にはチェック、確認待ちには時計の
+     アイコンも入れてある（色だけの情報にしない）。 */
+
+.p-mountain__node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--color-handle);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-mountain__node--cleared,
+.p-mountain__node--pending {
+  border-width: 4px;
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-inverse);
+  /* 枠を半透明にするので、下の背景色が枠まで広がらないようにする */
+  background-clip: padding-box;
+}
+
+.p-mountain__node--cleared {
+  border-color: var(--color-primary-quarter);
+  background-color: var(--color-primary);
+}
+
+.p-mountain__node--pending {
+  border-color: var(--color-warning-quarter);
+  background-color: var(--color-warning);
+}
+
+/* --- 山頂・スタート・空状態 ----------------------------------------------- */
+
+.p-mountain__summit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.p-mountain__summit-label {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-mountain__start {
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-mountain__empty {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* --- スクロール窓 --------------------------------------------------------
+   透明。中身はキャンバスと同じ高さのスペーサーだけ。 */
+
+.p-mountain__scroll {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  overflow-y: auto;
+}

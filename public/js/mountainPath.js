@@ -66,7 +66,7 @@ export function renderMountainBg(p) {
     : [`50,${canvasH - BOTTOM_PAD}`];
   points.push(`50,${TOP_PAD - 30}`); // 最後は山頂へ
   const trail = `
-    <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 ${canvasH}" preserveAspectRatio="none" style="pointer-events:none">
+    <svg class="p-mountain__trail" viewBox="0 0 100 ${canvasH}" preserveAspectRatio="none">
       <polyline points="${points.join(' ')}" fill="none" stroke="#C9CDD1" stroke-width="3"
         stroke-dasharray="1 7" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     </svg>`;
@@ -77,38 +77,40 @@ export function renderMountainBg(p) {
     const y = yFor(i);
     const cleared = m.status === 'cleared';
     const pending = m.status === 'pending_leader_check';
+    // ★色だけで状態を分けない。完了はチェック、確認待ちは時計のアイコンも入れる
     const circle = cleared
-      ? `<div class="w-11 h-11 rounded-full bg-[#0CA1E3] border-4 border-[#0CA1E3]/25 flex items-center justify-center shadow-md" style="background-clip:padding-box">
-           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      ? `<div class="p-mountain__node p-mountain__node--cleared">
+           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
          </div>`
       : pending
-        ? `<div class="w-11 h-11 rounded-full bg-[#FFC300] border-4 border-[#FFC300]/25 flex items-center justify-center shadow-md" style="background-clip:padding-box">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+        ? `<div class="p-mountain__node p-mountain__node--pending">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
            </div>`
-        : `<div class="w-11 h-11 rounded-full bg-white border-[3px] border-[#C9CDD1] shadow-sm"></div>`;
+        : `<div class="p-mountain__node"></div>`;
 
     return `
-      <div class="absolute -translate-x-1/2 -translate-y-1/2" style="left:${x}%;top:${y}px;pointer-events:none">
+      <div class="p-mountain__pin" style="left:${x}%;top:${y}px">
         ${circle}
       </div>`;
   }).join('');
 
   // 山頂（ゴール）とスタート
   const summit = `
-    <div class="absolute left-1/2 -translate-x-1/2 flex flex-col items-center" style="top:${TOP_PAD - 84}px;pointer-events:none">
+    <div class="p-mountain__pin p-mountain__pin--center p-mountain__summit" style="top:${TOP_PAD - 84}px">
       ${_summitSvg()}
-      <p class="text-[10px] font-bold text-[#484545] mt-0.5">${_esc(p.name || '')}</p>
+      <p class="p-mountain__summit-label">${_esc(p.name || '')}</p>
     </div>`;
   const start = `
-    <div class="absolute left-1/2 -translate-x-1/2 text-[9px] font-bold text-[#A7AAAC]" style="top:${canvasH - BOTTOM_PAD + 34}px;pointer-events:none">スタート</div>`;
+    <div class="p-mountain__pin p-mountain__pin--center p-mountain__start" style="top:${canvasH - BOTTOM_PAD + 34}px">スタート</div>`;
 
   const emptyHint = n === 0
-    ? `<p class="absolute left-1/2 -translate-x-1/2 text-[11px] font-bold text-[#A7AAAC] text-center leading-relaxed" style="top:220px;pointer-events:none">ミッションを作ると<br>山頂への道が伸びていきます</p>`
+    ? `<p class="p-mountain__pin p-mountain__pin--center p-mountain__empty" style="top:220px">ミッションを作ると<br>山頂への道が伸びていきます</p>`
     : '';
 
   return `
-    <div id="mountain-bg" class="fixed left-0 right-0 bottom-0 mx-auto max-w-md z-0 overflow-hidden bg-gradient-to-b from-[#EAF6FD] to-[#FDFBF8]" style="top:110px">
-      <div id="mountain-canvas" class="relative will-change-transform" style="height:${canvasH}px">
+    <!-- ★top はヘッダー＋タブの実測高に合わせて initMountainPathSync が設定する -->
+    <div id="mountain-bg" class="p-mountain" style="top:110px">
+      <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
         ${trail}
         ${summit}
         ${nodes}
@@ -125,7 +127,7 @@ export function renderMountainBg(p) {
 export function renderMountainScrollWindow(p) {
   const { canvasH } = _layout(p);
   return `
-    <div id="mountain-path-scroll" class="relative z-10 flex-1 overflow-y-auto no-scrollbar">
+    <div id="mountain-path-scroll" class="p-mountain__scroll no-scrollbar">
       <div style="height:${canvasH}px"></div>
     </div>`;
 }

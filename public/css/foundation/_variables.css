@@ -72,6 +72,11 @@
   --color-warning-tint: rgba(255, 195, 0, .2);
   --color-danger-tint2: rgba(238, 62, 18, .2);
   --color-violet-tint: rgba(167, 139, 250, .2);
+
+  /* 山ビジュアル */
+  --color-sky: #EAF6FD;                          /* 背景の上端（空）*/
+  --color-primary-quarter: rgba(12, 161, 227, .25);
+  --color-warning-quarter: rgba(255, 195, 0, .25);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
   --color-alert: #E74C3C;          /* 締め切り超過・当日 */
   --color-warning-pale2: #FFF8E1;  /* --color-warning-pale と近い。統合は Phase 5 で判断 */

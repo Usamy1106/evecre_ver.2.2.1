@@ -86,6 +86,7 @@
 | アーカイブタブ（概要カード・ミッションの記録） | `object/project/_archive.css` |
 | 通知タブ（応募待ち・確認待ち・通知一覧） | `object/project/_notification.css` |
 | アカウント作成フロー（STEP 0〜8） | `object/project/_signup.css` |
+| 山登りパスビジュアル（背景・マス・スクロール窓） | `object/project/_mountain.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -258,7 +259,8 @@ public/css/
 │  ├─ _archive.css              ✅ アーカイブタブ
 │  ├─ _notification.css         ✅ 通知タブ
 │  ├─ _signup.css               ✅ アカウント作成フロー
-│  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
+│  └─ _mountain.css             ✅ 山登りパスビジュアル
+│  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _invite / _onboarding                  ⬜ Phase 4
 │
 └─ object/utility/
    ├─ _animation.css            ✅ animate-fadeIn
