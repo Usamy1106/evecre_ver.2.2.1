@@ -91,16 +91,16 @@ export function openMissionModal(missionId = null, prefill = null) {
     <div id="mission-panel"
       class="c-sheet c-sheet--full">
       <!-- ヘッダー：閉じるボタン + タイトル -->
-      <header class="flex items-center justify-between px-5 py-4 border-b border-[#E1DFDC] bg-[#FDFBF8] flex-shrink-0">
-        <button onclick="window._app.closeMissionModal()" class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95">
+      <header class="p-mission-form__header">
+        <button onclick="window._app.closeMissionModal()" class="p-mission-form__close">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-        <h2 class="text-[15px] font-bold text-[#484545]" id="mission-modal-title"></h2>
-        <div class="w-9"></div>
+        <h2 class="p-mission-form__heading" id="mission-modal-title"></h2>
+        <div class="p-mission-form__spacer"></div>
       </header>
-      <div id="mission-modal-content" class="flex-1 overflow-y-auto px-6 py-5"></div>
+      <div id="mission-modal-content" class="p-mission-form__body"></div>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -153,13 +153,13 @@ export function deleteMission(e) {
 
   if (m && !m.isDeletable) {
     const overlay = document.createElement('div');
-    overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[210] flex items-center justify-center p-6 page-transition';
+    overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
     overlay.onclick = (e2) => { if (e2.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-        <h3 class="heading-m text-[#484545] mb-3 font-bold">削除できません</h3>
-        <p class="text-rs text-[#484545] font-medium mb-8 leading-relaxed">初期フローのミッションは削除できません。</p>
-        <button class="w-full py-3 heading-rs font-bold c-button c-button--secondary">閉じる</button>
+      <div class="c-modal animate-fadeIn">
+        <h3 class="c-modal__title">削除できません</h3>
+        <p class="c-modal__text c-modal__text--strong">初期フローのミッションは削除できません。</p>
+        <button class="c-button c-button--secondary c-modal__button">閉じる</button>
       </div>`;
     overlay.querySelector('button').onclick = () => overlay.remove();
     document.body.appendChild(overlay);
@@ -167,17 +167,16 @@ export function deleteMission(e) {
   }
 
   const overlay = document.createElement('div');
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[210] flex items-center justify-center p-6 page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
   overlay.onclick = (e2) => { if (e2.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-      <h3 class="heading-m text-[#484545] mb-3 font-bold">ミッションを削除しますか</h3>
-      <p class="text-rs text-[#484545] font-medium mb-8 leading-relaxed">一度削除すると元に戻せません。</p>
-      <div class="flex gap-3">
-        <button data-action="cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">戻る</button>
+    <div class="c-modal animate-fadeIn">
+      <h3 class="c-modal__title">ミッションを削除しますか</h3>
+      <p class="c-modal__text c-modal__text--strong">一度削除すると元に戻せません。</p>
+      <div class="c-modal__actions">
+        <button data-action="cancel" class="c-button c-button--secondary c-modal__button">戻る</button>
         <button data-action="confirm"
-          class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md"
-          style="background-color: #EE3E12;">削除</button>
+          class="c-button c-button--danger c-modal__button c-modal__button--shadow">削除</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -209,8 +208,8 @@ export function renderMissionModalContent() {
   const dateDisplay = _sd.length === 0
     ? 'カレンダーから設定する'
     : _sd.length === 1
-      ? `<div class="bg-[#EBE8E5] px-3 py-1.5 rounded-lg text-[#484545] font-bold text-rs">${_sd[0]}</div>`
-      : `<div class="bg-[#EBE8E5] px-3 py-1.5 rounded-lg text-[#484545] font-bold text-rs">${_sd[0]} 〜 ${_sd[_sd.length - 1]}</div>`;
+      ? `<div class="text-rs p-mission-form__date-chip">${_esc(_sd[0])}</div>`
+      : `<div class="text-rs p-mission-form__date-chip">${_esc(_sd[0])} 〜 ${_esc(_sd[_sd.length - 1])}</div>`;
 
   if (isBasic) {
     container.innerHTML = _renderBasicTab(isEdit, dateDisplay);
@@ -233,23 +232,22 @@ function _renderBasicTab(isEdit, dateDisplay) {
 
   const labelButtons = allTags.map(t => {
     const sel = (state.draftMission.labels || []).includes(t.name);
-    // 色からスタイル生成（インライン）
-    const style = sel
-      ? `border-color: ${t.color}; color: ${t.color}; background-color: ${t.color}1A;`
-      : `border-color: #D3D6D8; color: #A7AAAC;`;
-    return `<button onclick="window._app.toggleMissionLabel('${_esc(t.name)}')"
-      class="px-4 py-1 rounded-full border text-[12px] font-bold transition-all"
-      style="${style}">${_esc(t.name)}</button>`;
+    // ★色はイベントごとにユーザーが作れるので CSS に書けない。
+    //   選ばれたときの塗りは同じ色の 10%（末尾の 1A）。
+    const vars = sel ? `--tag-color:${_escAttr(t.color)};--tag-tint:${_escAttr(t.color)}1A` : '';
+    return `<button onclick="window._app.toggleMissionLabel('${_escAttr(t.name)}')"
+      class="p-mission-form__tag${sel ? ' is-selected' : ''}"
+      style="${vars}">${_esc(t.name)}</button>`;
   }).join('');
 
   const addTagBtn = `
     <button onclick="window._app.openTagCreator()"
-      class="px-3 py-1 rounded-full border border-dashed border-[#A7AAAC] text-[12px] font-bold text-[#A7AAAC] active:opacity-50">
+      class="p-mission-form__tag p-mission-form__tag--add">
       + 新しいタグ
     </button>`;
 
   const starButtons = [1, 2, 3, 4, 5].map(v =>
-    `<button onclick="window._app.setMissionPriority(${v})" class="p-0.5">
+    `<button onclick="window._app.setMissionPriority(${v})" class="p-mission-form__star">
       <svg width="32" height="32" viewBox="0 0 24 24"
         fill="${state.draftMission.priority >= v ? '#FFC300' : 'none'}"
         stroke="${state.draftMission.priority >= v ? '#FFC300' : '#E1DFDC'}"
@@ -260,55 +258,55 @@ function _renderBasicTab(isEdit, dateDisplay) {
 
 
   return `
-    <div class="flex flex-col h-full">
-      <div class="flex justify-center gap-10 mb-6">
+    <div class="p-mission-form__inner">
+      <div class="p-mission-form__tabs">
         <button onclick="window._app.setMissionTab('BASIC')"
-          class="text-[14px] font-bold pb-1 border-b-2 border-[#0CA1E3] text-[#0CA1E3]">基本設定</button>
+          class="p-mission-form__tab is-active">基本設定</button>
         <button onclick="window._app.setMissionTab('DETAIL')"
-          class="text-[14px] font-bold pb-1 border-b-2 border-transparent text-[#A7AAAC]">詳細設定</button>
+          class="p-mission-form__tab">詳細設定</button>
       </div>
-      <div class="space-y-4 flex-1">
+      <div class="p-mission-form__fields">
         <div>
-          <label class="heading-rs block mb-1 text-[#484545]">ミッション名</label>
+          <label class="heading-rs p-mission-form__label">ミッション名</label>
           <input type="text" id="mission-title-input" data-coach="mission-title" placeholder="ミッションを入力"
-            value="${state.draftMission.title}"
+            value="${_escAttr(state.draftMission.title || '')}"
             oninput="state.draftMission.title=this.value; this.style.borderColor=''"
-            class="c-input w-full px-4 py-3 focus:outline-none border-2 border-transparent transition-colors">
-          <p id="error-title" class="hidden text-[10px] font-bold mt-1" style="color: #e8383d;">※ミッション名は入力必須です</p>
+            class="c-input p-mission-form__input">
+          <p id="error-title" class="p-mission-form__error hidden">※ミッション名は入力必須です</p>
         </div>
         <div>
-          <label class="heading-rs block mb-1 text-[#484545]">ミッションの説明</label>
+          <label class="heading-rs p-mission-form__label">ミッションの説明</label>
           <textarea id="mission-desc-input" rows="3"
             placeholder="このミッションの目的・進め方など"
             oninput="state.draftMission.description=this.value"
-            class="c-input w-full px-4 py-3 text-[13px] focus:outline-none resize-none">${_esc(state.draftMission.description || '')}</textarea>
+            class="c-input p-mission-form__textarea">${_esc(state.draftMission.description || '')}</textarea>
         </div>
         <div>
-          <div class="flex items-center gap-2 mb-1">
-            <label class="heading-rs text-[#484545]">ラベル</label>
-            <span class="text-[10px] text-[#A7AAAC] font-bold">（複数選択可）</span>
+          <div class="p-mission-form__label-row">
+            <label class="heading-rs p-mission-form__label">ラベル</label>
+            <span class="p-mission-form__hint">（複数選択可）</span>
           </div>
-          <div class="flex gap-2 flex-wrap">${labelButtons}${addTagBtn}</div>
+          <div class="p-mission-form__tags">${labelButtons}${addTagBtn}</div>
         </div>
         <div>
-          <label class="heading-rs block mb-1 text-[#484545]">優先度</label>
-          <div class="flex gap-1">${starButtons}</div>
+          <label class="heading-rs p-mission-form__label">優先度</label>
+          <div class="p-mission-form__stars">${starButtons}</div>
         </div>
         <div data-coach="assignee">
-          <label class="heading-rs block mb-1 text-[#484545]">担当者</label>
+          <label class="heading-rs p-mission-form__label">担当者</label>
           ${_renderAssigneeSelect()}
         </div>
         <div data-coach="schedule">
-          <label class="heading-rs block mb-1 text-[#484545]">スケジュール</label>
-          <p class="text-[11px] text-[#A7AAAC] font-bold mb-2">ミッションを行う期間を設定します。</p>
-          <div class="flex items-center gap-2 mb-2 cursor-pointer" onclick="window._app.openCalendarModal('mission')">
-            <img src="/images/icon/icon-Calender.svg" class="w-4 h-4 opacity-40">
-            <span class="text-[12px] text-[#A7AAAC] font-bold">${dateDisplay}</span>
+          <label class="heading-rs p-mission-form__label">スケジュール</label>
+          <p class="p-mission-form__note">ミッションを行う期間を設定します。</p>
+          <div class="p-mission-form__date" onclick="window._app.openCalendarModal('mission')">
+            <img src="/images/icon/icon-Calender.svg" class="p-mission-form__date-icon">
+            <span class="p-mission-form__date-text">${dateDisplay}</span>
           </div>
         </div>
       </div>
       <button onclick="window._app.createOrUpdateMission()"
-        class="c-button c-button--primary w-full py-4 heading-r font-bold mt-4 shadow-lg shadow-blue-200">
+        class="c-button c-button--primary p-mission-form__submit">
         ${isEdit ? '保存' : '作成'}
       </button>
     </div>`;
@@ -685,17 +683,16 @@ function _openMissionDeleteConfirm(missionId) {
 
   const overlay = document.createElement('div');
   overlay.id = 'mission-delete-confirm';
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[210] flex items-center justify-center p-6 page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-      <h3 class="heading-m text-[#484545] mb-3 font-bold">ミッションを削除しますか</h3>
-      <p class="text-rs text-[#484545] font-medium mb-8 leading-relaxed">一度削除すると元に戻せません。</p>
-      <div class="flex gap-3">
-        <button id="mdel-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">戻る</button>
+    <div class="c-modal animate-fadeIn">
+      <h3 class="c-modal__title">ミッションを削除しますか</h3>
+      <p class="c-modal__text c-modal__text--strong">一度削除すると元に戻せません。</p>
+      <div class="c-modal__actions">
+        <button id="mdel-cancel" class="c-button c-button--secondary c-modal__button">戻る</button>
         <button id="mdel-confirm"
-          class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md"
-          style="background-color: #EE3E12;">削除</button>
+          class="c-button c-button--danger c-modal__button c-modal__button--shadow">削除</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);

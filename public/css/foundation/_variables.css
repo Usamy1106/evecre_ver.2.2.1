@@ -88,6 +88,7 @@
   --color-warning-dark: #9B7700;
   --color-primary-pale5: #E1F4FC;  /* 開催日のマス（スケジュール）。他の pale と近い（統合は Phase 5）*/
   --color-event-date: #CFD8FF;     /* イベントの開催日のマス（日付ピッカー）*/
+  --color-error-input: #e8383d;    /* 未入力エラーの枠と文字（--create-red とは別の赤）*/
   --color-saturday: #5C6BC0;       /* 土曜の文字。日曜は --create-red を使う */
 
   /* ガントの列の塗り。ヘッダー行は濃く、ミッション行は薄くする
@@ -139,6 +140,8 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, .05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, .08);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, .12);
+  /* ★Tailwind の shadow-lg + shadow-blue-200（色付きの影）。作成ボタンで使う */
+  --shadow-primary: 0 10px 15px -3px rgb(191, 219, 254), 0 4px 6px -4px rgb(191, 219, 254);
   /* ★Tailwind の shadow-2xl。シート・トーストが使っており、--shadow-lg より
      ずっと濃い。取り違えると浮き上がり方が変わる。 */
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, .25);

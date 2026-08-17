@@ -1,0 +1,244 @@
+/* ==========================================================================
+   Object / Project / mission-form — ミッションの作成・編集モーダル
+   使用箇所: public/js/modals/mission.js
+
+   ★このモーダルは全画面（c-sheet--full）。器は Component 側にある。
+   ★入力欄には data-coach="mission-title" / "assignee" / "schedule" が付いて
+     いる。初期オンボーディング③のツールチップが掴むので消さないこと。
+   ★タグの色はイベントごとにユーザーが作れるので、--tag-color / --tag-tint
+     で渡す（tint は色の 10% 塗り）。
+   ========================================================================== */
+
+/* --- ヘッダー ------------------------------------------------------------- */
+
+.p-mission-form__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--bg-textbox);
+  background-color: var(--color-bg);
+}
+
+.p-mission-form__close {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: rgba(0, 0, 0, .05);
+}
+
+.p-mission-form__close:active {
+  transform: scale(.95);
+}
+
+.p-mission-form__heading {
+  font-size: 15px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 閉じるボタンと同じ幅を右にも取り、見出しを中央に置くための空き */
+.p-mission-form__spacer {
+  width: 36px;
+}
+
+.p-mission-form__body {
+  flex: 1;
+  padding: var(--space-5) var(--space-6);
+  overflow-y: auto;
+}
+
+.p-mission-form__inner {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+/* --- タブ ----------------------------------------------------------------- */
+
+.p-mission-form__tabs {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-6);
+  gap: var(--space-10);
+}
+
+.p-mission-form__tab {
+  padding-bottom: var(--space-1);
+  border-bottom: 2px solid transparent;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-mission-form__tab.is-active {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* --- 入力欄 --------------------------------------------------------------- */
+
+.p-mission-form__fields {
+  flex: 1;
+}
+
+.p-mission-form__fields > * + * {
+  margin-top: var(--space-4);
+}
+
+.p-mission-form__label {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--color-text);
+}
+
+/* ラベルの右に注記を添えるとき（「（複数選択可）」など）*/
+.p-mission-form__label-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-1);
+  gap: var(--space-2);
+}
+
+.p-mission-form__label-row .p-mission-form__label {
+  margin-bottom: 0;
+}
+
+.p-mission-form__hint {
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 説明文（入力欄の上に置く補足）*/
+.p-mission-form__note {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* ★透明な枠を先に敷いてある。未入力エラーのとき JS が borderColor だけを
+   差し替えるので、枠が付いた瞬間に文字がずれない。 */
+.p-mission-form__input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid transparent;
+  transition: border-color var(--duration-fast) var(--ease);
+}
+
+.p-mission-form__input:focus {
+  outline: none;
+}
+
+.p-mission-form__textarea {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  font-size: 13px;
+  resize: none;
+}
+
+.p-mission-form__textarea:focus {
+  outline: none;
+}
+
+.p-mission-form__error {
+  margin-top: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-error-input);
+}
+
+/* --- ラベル（タグ）-------------------------------------------------------- */
+
+.p-mission-form__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.p-mission-form__tag {
+  padding: var(--space-1) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+/* 選ばれたラベルはそのタグの色で塗る（10% の淡い塗り＋同色の枠と文字）*/
+.p-mission-form__tag.is-selected {
+  border-color: var(--tag-color);
+  background-color: var(--tag-tint);
+  color: var(--tag-color);
+}
+
+/* 新しいタグを作るボタン。既存のタグと見分けがつくよう破線にする */
+.p-mission-form__tag--add {
+  padding-inline: var(--space-3);
+  border-style: dashed;
+  border-color: var(--color-text-muted);
+}
+
+.p-mission-form__tag--add:active {
+  opacity: .5;
+}
+
+/* --- 優先度 --------------------------------------------------------------- */
+
+.p-mission-form__stars {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.p-mission-form__star {
+  padding: 2px;
+}
+
+/* --- スケジュール --------------------------------------------------------- */
+
+.p-mission-form__date {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-2);
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.p-mission-form__date-icon {
+  width: 16px;
+  height: 16px;
+  opacity: .4;
+}
+
+.p-mission-form__date-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 設定済みの日付。1日でも期間でも同じ見た目にする */
+.p-mission-form__date-chip {
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  background-color: var(--button-secondary);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* --- 送信 ----------------------------------------------------------------- */
+
+.p-mission-form__submit {
+  width: 100%;
+  margin-top: var(--space-4);
+  padding-block: var(--space-4);
+  box-shadow: var(--shadow-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+}
