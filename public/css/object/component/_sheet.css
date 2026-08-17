@@ -89,3 +89,10 @@
   border-radius: var(--radius-full);
   background-color: var(--bg-textbox);
 }
+
+/* 小さめのつまみ（通知セットアップ）。意図的な差には見えないが、
+   このフェーズは見た目を変えない方針なので元の値のまま残してある。 */
+.c-sheet__grip--sm {
+  width: 40px;
+  height: 4px;
+}

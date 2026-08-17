@@ -94,6 +94,8 @@
 | 開発者からのお知らせ | `object/project/_announcement.css` |
 | スケジュールのシート（カレンダー・ガント） | `object/project/_schedule.css` |
 | 日付を選ぶモーダル（ミッション期間・開催日・応募期限） | `object/project/_date-picker.css` |
+| 通知セットアップの案内・HOME の通知バナー | `object/project/_push-setup.css` |
+| 操作を選ばせるボトムシート（長押しメニュー） | `object/component/_action-sheet.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -249,6 +251,7 @@ public/css/
 │  ├─ _step-modal.css           ✅ c-step-modal / c-skill-tag
 │  ├─ _tooltip.css              ✅ c-tooltip
 │  ├─ _settings-card.css        ✅ c-settings-card / c-settings-list
+│  ├─ _action-sheet.css         ✅ 操作を選ばせるボトムシート
 │  ├─ _context-menu.css         ✅ c-context-menu
 │  ├─ _emoji-picker.css         ✅ c-emoji-picker
 │  ├─ _coach-mark.css           ✅ coachMark.js
@@ -273,7 +276,8 @@ public/css/
 │  ├─ _invite.css               ✅ 参加・招待まわりのモーダル
 │  ├─ _announcement.css         ✅ 開発者からのお知らせ
 │  ├─ _schedule.css             ✅ スケジュール（カレンダー・ガント）
-│  └─ _date-picker.css          ✅ 日付を選ぶモーダル
+│  ├─ _date-picker.css          ✅ 日付を選ぶモーダル
+│  └─ _push-setup.css           ✅ 通知セットアップの案内
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _onboarding                            ⬜ Phase 4
 │
 └─ object/utility/

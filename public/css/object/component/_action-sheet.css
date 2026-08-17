@@ -1,0 +1,123 @@
+/* ==========================================================================
+   Object / Component / action-sheet — 操作を選ばせるボトムシート
+   使用箇所: public/js/modals/eventActions.js
+             （イベントカードの長押しメニュー / プロジェクトに追加）
+
+   ★確認ダイアログ（c-dialog）とは別物。あちらは「はい／いいえ」を聞く箱で、
+     こちらは操作を並べて選ばせる。行が増えても同じ見た目になるようにしてある。
+   ★つまみは c-sheet__handle / c-sheet__grip をそのまま使う（値が一致する）。
+   ========================================================================== */
+
+.c-action-sheet {
+  width: 100%;
+  max-width: 448px;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  background-color: var(--white);
+  box-shadow: var(--shadow-2xl);
+}
+
+/* 何に対する操作かを示す見出し。イベント名が入るので溢れさせない */
+.c-action-sheet__caption {
+  overflow: hidden;
+  margin-bottom: var(--space-3);
+  padding-inline: var(--space-6);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 名前ではなく用件を書くとき（「プロジェクトに追加」など）*/
+.c-action-sheet__caption--label {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+/* 選べる項目が多いときは、この中だけスクロールさせる */
+.c-action-sheet__list {
+  max-height: 256px;
+  overflow-y: auto;
+}
+
+.c-action-sheet__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  gap: var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: left;
+  font-size: 15px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.c-action-sheet__item:hover {
+  background-color: var(--color-bg);
+}
+
+/* ★取り消せない操作（削除・脱退）。色だけに頼らず文言でも示すこと */
+.c-action-sheet__item--danger {
+  color: var(--color-danger);
+}
+
+.c-action-sheet__item--danger:hover {
+  background-color: var(--color-danger-pale);
+}
+
+/* 何かを新しく作る項目（「新規プロジェクトを作成」）*/
+.c-action-sheet__item--primary {
+  color: var(--color-primary);
+}
+
+/* いま選ばれている項目 */
+.c-action-sheet__item.is-current {
+  background-color: var(--color-primary-pale2);
+  color: var(--color-primary);
+}
+
+.c-action-sheet__item.is-current:hover {
+  background-color: var(--color-primary-pale2);
+}
+
+/* 行の右端に添える印（「追加済み」）*/
+.c-action-sheet__badge {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+}
+
+/* 選ぶものが1つも無いときの1行 */
+.c-action-sheet__empty {
+  padding-block: var(--space-4);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 主の操作より弱く見せたい行（「プロジェクトから外す」）*/
+.c-action-sheet__minor {
+  width: 100%;
+  padding: var(--space-3) var(--space-6);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.c-action-sheet__cancel {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding-block: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 直前に弱い行があるときは詰める */
+.c-action-sheet__cancel--tight {
+  margin-top: var(--space-1);
+}

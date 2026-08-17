@@ -41,11 +41,12 @@ function _sheet(id, inner) {
   _close(id);
   const overlay = document.createElement('div');
   overlay.id = id;
-  overlay.className = 'fixed inset-0 bg-black/50 z-[260] flex items-end justify-center';
+  // スタイル: public/css/object/project/_push-setup.css
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--push-setup';
   overlay.innerHTML = `
-    <div data-sheet class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-5 pb-10 animate-fadeIn">
-      <div data-sheet-handle class="flex justify-center pt-1 pb-4 -mt-2">
-        <div class="w-10 h-1 bg-[#D3D6D8] rounded-full"></div>
+    <div data-sheet class="p-push-setup__sheet animate-fadeIn">
+      <div data-sheet-handle class="c-sheet__handle p-push-setup__handle">
+        <div class="c-sheet__grip c-sheet__grip--sm"></div>
       </div>
       ${inner}
     </div>`;
@@ -73,18 +74,18 @@ export function pushSetupPhase() {
 export function pushSetupContentHtml(phase) {
   if (phase === 'done') {
     return `
-      <p class="text-[28px] text-center mb-2">✅</p>
-      <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知はオンになっています</h3>
-      <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
+      <p class="p-push-setup__icon">✅</p>
+      <h3 class="heading-r p-push-setup__title">通知はオンになっています</h3>
+      <p class="p-push-setup__text">
         ミッションの割り当てや締め切りをお知らせします。<br>
         アカウント設定からいつでも変更できます。
       </p>`;
   }
   if (phase === 'unsupported') {
     return `
-      <p class="text-[28px] text-center mb-2">🔔</p>
-      <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知について</h3>
-      <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
+      <p class="p-push-setup__icon">🔔</p>
+      <h3 class="heading-r p-push-setup__title">通知について</h3>
+      <p class="p-push-setup__text">
         このブラウザは通知に対応していません。<br>
         Chrome や Safari でお試しください。
       </p>`;
@@ -94,32 +95,32 @@ export function pushSetupContentHtml(phase) {
     const ios = isIOS();
     const native = canPromptInstall();
     const guide = ios ? `
-        <ol class="text-[13px] text-[#484545] leading-relaxed list-decimal pl-5 space-y-1.5 mb-3 text-left">
-          <li>画面下の <span class="font-bold">共有</span> ボタン（□に↑）をタップ</li>
-          <li><span class="font-bold">「ホーム画面に追加」</span>を選ぶ</li>
+        <ol class="p-push-setup__steps">
+          <li>画面下の <span class="p-push-setup__strong">共有</span> ボタン（□に↑）をタップ</li>
+          <li><span class="p-push-setup__strong">「ホーム画面に追加」</span>を選ぶ</li>
           <li>追加されたアイコンからイベクリを開く</li>
         </ol>
-        <p class="text-[12px] text-[#0CA1E3] font-bold leading-relaxed mb-4 text-left">
+        <p class="p-push-setup__note">
           iPhone / iPad では、この手順をしないと通知を受け取れません。
         </p>`
       : native ? `
-        <p class="text-[13px] text-[#484545] leading-relaxed mb-4">
+        <p class="p-push-setup__lead">
           ホーム画面から1タップで開けるようになり、通知も受け取りやすくなります。
         </p>`
       : `
-        <ol class="text-[13px] text-[#484545] leading-relaxed list-decimal pl-5 space-y-1.5 mb-4 text-left">
+        <ol class="p-push-setup__steps p-push-setup__steps--roomy">
           <li>ブラウザのメニュー（⋮）を開く</li>
-          <li><span class="font-bold">「アプリをインストール」</span>または「ホーム画面に追加」を選ぶ</li>
+          <li><span class="p-push-setup__strong">「アプリをインストール」</span>または「ホーム画面に追加」を選ぶ</li>
         </ol>`;
     return `
-      <p class="text-[28px] text-center mb-2">📲</p>
-      <h3 class="heading-r text-[#484545] font-bold text-center mb-2">ホーム画面に追加しませんか？</h3>
-      <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-4 leading-relaxed">
+      <p class="p-push-setup__icon">📲</p>
+      <h3 class="heading-r p-push-setup__title">ホーム画面に追加しませんか？</h3>
+      <p class="p-push-setup__text p-push-setup__text--tight">
         ミッションの締め切りや割り当てを<br>通知でお知らせできるようになります
       </p>
       ${guide}
       ${native ? `
-        <button data-psm="install" class="w-full py-4 rounded-2xl font-bold text-[14px] text-white bg-[#0CA1E3] mb-2">
+        <button data-psm="install" class="c-button c-button--primary p-push-setup__primary">
           ホーム画面に追加する
         </button>` : ''}`;
   }
@@ -128,26 +129,26 @@ export function pushSetupContentHtml(phase) {
   const st = getPushState();
   if (st === 'denied') {
     return `
-      <p class="text-[28px] text-center mb-2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <p class="p-push-setup__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg></p>
-      <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知がブロックされています</h3>
-      <p class="text-[12px] text-[#484545] font-bold text-center mb-5 leading-relaxed">
+      <h3 class="heading-r p-push-setup__title">通知がブロックされています</h3>
+      <p class="p-push-setup__text p-push-setup__text--strong">
         ブラウザ（または端末）の設定で、<br>このサイトの通知を「許可」に変更すると受け取れます。
       </p>`;
   }
   return `
-    <p class="text-[28px] text-center mb-2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <p class="p-push-setup__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg></p>
-    <h3 class="heading-r text-[#484545] font-bold text-center mb-2">通知を受け取りますか？</h3>
-    <p class="text-[12px] text-[#A7AAAC] font-bold text-center mb-5 leading-relaxed">
+    <h3 class="heading-r p-push-setup__title">通知を受け取りますか？</h3>
+    <p class="p-push-setup__text">
       ミッションを割り当てられたときや<br>締め切りが近いときにお知らせします
     </p>
-    <p data-psm="error" class="text-[12px] text-[#EE3E12] font-bold text-center mb-3 hidden"></p>
-    <button data-psm="enable" class="w-full py-4 rounded-2xl font-bold text-[14px] text-white bg-[#0CA1E3] mb-2">
+    <p data-psm="error" class="p-push-setup__error hidden"></p>
+    <button data-psm="enable" class="c-button c-button--primary p-push-setup__primary">
       通知をオンにする
     </button>`;
 }
@@ -234,7 +235,7 @@ export async function startPushSetupFlow({ source = 'unknown', silent = false } 
   const advanceable = phase === 'install' && !isIOS();   // Android 等は続けて通知へ
   const overlay = _sheet(SHEET_ID, `
     <div data-psm-body>${pushSetupContentHtml(phase)}</div>
-    <button data-psm="later" class="w-full py-3 text-[13px] text-[#A7AAAC] font-bold">
+    <button data-psm="later" class="p-push-setup__later">
       ${(phase === 'done' || phase === 'unsupported') ? '閉じる' : 'あとで'}
     </button>
   `);
@@ -286,20 +287,20 @@ export function dismissPushBanner() {
 export function pushBannerHtml() {
   if (!shouldShowPushBanner()) return '';
   return `
-    <div class="bg-[#EBF7FE] border border-[#0CA1E3]/40 rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
-      <span class="text-[20px] flex-shrink-0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <div class="p-push-banner">
+      <span class="p-push-banner__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg></span>
-      <button id="push-banner-open" class="flex-1 text-left">
-        <p class="text-[13px] font-bold text-[#0CA1E3] leading-snug">通知をオンにしませんか？</p>
-        <p class="text-[11px] text-[#484545] font-bold leading-snug mt-0.5">
+      <button id="push-banner-open" class="p-push-banner__open">
+        <p class="p-push-banner__title">通知をオンにしませんか？</p>
+        <p class="p-push-banner__sub">
           ${_esc(isIOS() && !isStandalone()
             ? 'ホーム画面に追加すると受け取れます'
             : '締め切りや割り当てをお知らせします')}
         </p>
       </button>
-      <button id="push-banner-close" class="p-1.5 -mr-1 flex-shrink-0" aria-label="閉じる">
+      <button id="push-banner-close" class="p-push-banner__close" aria-label="閉じる">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2.5" stroke-linecap="round">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>

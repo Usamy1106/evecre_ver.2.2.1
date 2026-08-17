@@ -1,0 +1,174 @@
+/* ==========================================================================
+   Object / Project / push-setup — 通知セットアップの案内
+   使用箇所: public/js/modals/pushSetupModal.js
+     - シート表示（アカウント作成の完了直後 / HOME のバナー）
+     - 開発者からのお知らせへの埋め込み（action: 'push-setup'）
+   ★同じ中身を3箇所から呼ぶ。ここを直せば3箇所とも変わる。
+
+   ★本番の利用者は iOS が6割で、iOS はホーム画面に追加しない限り通知が
+     一切届かない。追加率がそのまま通知の到達率になるので、手順の文字を
+     小さくしたり畳んだりしないこと。
+   ========================================================================== */
+
+.p-push-setup__sheet {
+  width: 100%;
+  max-width: 512px;
+  padding: var(--space-5) var(--space-6) var(--space-10);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background-color: var(--white);
+}
+
+/* つまみは他のシートより小さめ・下の余白は広め（元の値のまま）*/
+.p-push-setup__handle {
+  margin-top: calc(var(--space-2) * -1);
+  padding-bottom: var(--space-4);
+}
+
+.p-push-setup__icon {
+  margin-bottom: var(--space-2);
+  font-size: 28px;
+  text-align: center;
+}
+
+.p-push-setup__title {
+  margin-bottom: var(--space-2);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-push-setup__text {
+  margin-bottom: var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 下に手順が続くとき */
+.p-push-setup__text--tight {
+  margin-bottom: var(--space-4);
+}
+
+/* 読み飛ばしてほしくない文（通知がブロックされている、など）*/
+.p-push-setup__text--strong {
+  color: var(--color-text);
+}
+
+/* --- 手順 ----------------------------------------------------------------- */
+
+.p-push-setup__steps {
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-5);
+  /* ★Preflight が list-style を消しているので明示する */
+  list-style-type: decimal;
+  font-size: 13px;
+  line-height: 1.625;
+  color: var(--color-text);
+  text-align: left;
+}
+
+.p-push-setup__steps--roomy {
+  margin-bottom: var(--space-4);
+}
+
+.p-push-setup__steps > li + li {
+  margin-top: 6px;
+}
+
+/* 手順の中で目立たせる語（「共有」「ホーム画面に追加」）*/
+.p-push-setup__strong {
+  font-weight: var(--font-weight-heavy);
+}
+
+/* ★iPhone / iPad はこの手順をしないと通知が届かない、という一番大事な一文 */
+.p-push-setup__note {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-primary);
+  text-align: left;
+}
+
+.p-push-setup__lead {
+  margin-bottom: var(--space-4);
+  font-size: 13px;
+  line-height: 1.625;
+  color: var(--color-text);
+}
+
+/* --- ボタン --------------------------------------------------------------- */
+
+.p-push-setup__primary {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding-block: var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-push-setup__error {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+/* ★「あとで」では通知の許可を求めないこと（一度ブロックされると
+   プログラムからは二度と出せない）。目立たない見た目にしてある。 */
+.p-push-setup__later {
+  width: 100%;
+  padding-block: var(--space-3);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- HOME のバナー --------------------------------------------------------
+   未購読のときだけ出る。× で閉じると7日間出ない。 */
+
+.p-push-banner {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  border: 1px solid var(--color-primary-half2);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary-pale2);
+}
+
+.p-push-banner__icon {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.p-push-banner__open {
+  flex: 1;
+  text-align: left;
+}
+
+.p-push-banner__title {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-primary);
+}
+
+.p-push-banner__sub {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-text);
+}
+
+.p-push-banner__close {
+  flex-shrink: 0;
+  margin-right: calc(var(--space-1) * -1);
+  padding: 6px;
+}

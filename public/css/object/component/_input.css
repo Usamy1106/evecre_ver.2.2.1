@@ -17,6 +17,17 @@
   color: var(--color-text-placeholder);
 }
 
+/* 単体で置く入力欄（幅いっぱい・自前で余白を持つ）。
+   ★c-input 自体は padding を持たない。使う場所ごとに詰め方が違うため。 */
+.c-input--block {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+}
+
+.c-input--block:focus {
+  outline: none;
+}
+
 /* --- ワンタイムコードの入力欄 --------------------------------------------
    使用箇所: アカウント設定 / メール認証モーダル / アカウント作成 STEP 3
    ★字間を広げて1桁ずつ読めるようにする。6桁を続けて表示すると読み違える。 */

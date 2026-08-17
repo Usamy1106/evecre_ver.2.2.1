@@ -101,3 +101,23 @@
   padding: var(--space-4);
   background-color: rgba(0, 0, 0, .6);
 }
+
+/* 通知セットアップの案内。アカウント作成の直後にも出るので前に置く */
+.c-overlay--push-setup {
+  z-index: var(--z-push-setup);
+}
+
+/* イベントカードの長押しメニュー */
+.c-overlay--action {
+  z-index: var(--z-action-sheet);
+  background-color: rgba(0, 0, 0, .4);
+}
+
+/* 長押しメニューから開く確認ダイアログ。メニューより前に出す */
+.c-overlay--action-dialog {
+  z-index: var(--z-action-dialog);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background-color: rgba(0, 0, 0, .6);
+}

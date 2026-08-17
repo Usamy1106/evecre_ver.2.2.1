@@ -74,6 +74,11 @@
   margin-bottom: var(--space-2);
 }
 
+/* 下に入力欄が続くとき（詰まって見えないよう離す）*/
+.c-modal__title--loose {
+  margin-bottom: var(--space-6);
+}
+
 .c-modal__title--wide {
   margin-bottom: var(--space-5);
 }
@@ -88,6 +93,11 @@
 
 .c-modal__text--tight {
   margin-bottom: var(--space-6);
+}
+
+/* 読ませたい本文（取り消せない操作の説明）。薄い文字にしない */
+.c-modal__text--strong {
+  color: var(--color-text);
 }
 
 /* 引用・補足を囲む（目的リマインドの「決めた目的」など）*/
@@ -122,6 +132,11 @@
 
 /* --- ボタン -------------------------------------------------------------- */
 
+/* モーダルの中に置く入力欄の下余白。入力欄そのものの見た目は c-input が持つ */
+.c-modal__field {
+  margin-bottom: var(--space-6);
+}
+
 .c-modal__actions {
   display: flex;
   gap: var(--space-3);
@@ -132,6 +147,11 @@
   padding-block: var(--space-3);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-heavy);
+}
+
+/* 押した結果が戻せない操作。少し浮かせて主ボタンだと分かるようにする */
+.c-modal__button--shadow {
+  box-shadow: var(--shadow-md);
 }
 
 .c-modal__button--roomy {
