@@ -146,3 +146,28 @@
   padding: var(--space-6);
   background-color: rgba(0, 0, 0, .6);
 }
+
+/* 参加申請の承認（ロール選択つき）*/
+.c-overlay--approve {
+  z-index: var(--z-approve);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background-color: rgba(0, 0, 0, .6);
+}
+
+/* 差し戻しの確認。リーダーチェックのシートより前に出す */
+.c-overlay--reject {
+  z-index: var(--z-reject);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background-color: rgba(0, 0, 0, .6);
+}
+
+/* 承認待ちメンバーの一覧。承認モーダル（200）はこの上に開く */
+.c-overlay--pending {
+  z-index: var(--z-pending);
+  align-items: flex-end;
+  background-color: rgba(0, 0, 0, .4);
+}

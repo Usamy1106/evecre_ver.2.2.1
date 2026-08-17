@@ -102,48 +102,47 @@ function _openApproveModal(uid, username, roles, onSuccess) {
 
   function _roleCheckItem(r, checked = false) {
     const el = document.createElement('label');
-    el.className = 'flex items-center gap-3 py-2 cursor-pointer';
+    el.className = 'p-member-manage__role-item';
     el.innerHTML = `
       <input type="checkbox" data-role-check value="${_escH(r.id)}"
         ${checked || r.id === 'member' ? 'checked' : ''}
-        class="w-4 h-4 accent-[#0CA1E3] flex-shrink-0">
-      <div class="flex-1 min-w-0">
-        <span class="text-[13px] text-[#484545] font-bold">${_escH(r.name || r.id)}</span>
+        class="p-member-manage__check">
+      <div>
+        <span class="p-member-manage__role-name">${_escH(r.name || r.id)}</span>
         ${r.canManage
-          ? '<span class="ml-2 text-[9px] text-[#0CA1E3] font-bold">管理者権限</span>'
-          : '<span class="ml-2 text-[9px] text-[#A7AAAC] font-bold">一般ユーザー</span>'}
+          ? '<span class="p-member-manage__role-badge p-member-manage__role-badge--manage">管理者権限</span>'
+          : '<span class="p-member-manage__role-badge">一般ユーザー</span>'}
       </div>`;
     return el;
   }
 
   const roleOverlay = document.createElement('div');
-  roleOverlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-6';
+  roleOverlay.className = 'c-overlay c-overlay--approve c-overlay--blur';
   roleOverlay.onclick = (e2) => { if (e2.target === roleOverlay) roleOverlay.remove(); };
   roleOverlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
-      <h3 class="heading-m text-[#484545] mb-2 font-bold">ロールを設定する</h3>
-      <p class="text-rs text-[#A7AAAC] font-medium mb-4">@${_escH(username)} さんのロールを選択してください（複数可）</p>
-      <div id="role-check-list" class="border border-[#E1DFDC] rounded-xl px-4 py-1 bg-[#FDFBF8] mb-3"></div>
-      <button id="role-add-toggle"
-        class="w-full text-left text-[12px] font-bold text-[#0CA1E3] py-2 mb-3 active:opacity-60">
+    <div class="c-modal c-modal--left animate-fadeIn">
+      <h3 class="c-modal__title c-modal__title--tight">ロールを設定する</h3>
+      <p class="text-rs p-member-manage__lead">@${_escH(username)} さんのロールを選択してください（複数可）</p>
+      <div id="role-check-list" class="p-member-manage__role-list"></div>
+      <button id="role-add-toggle" class="p-member-manage__role-add">
         ＋ 新しいロールを追加
       </button>
-      <div id="role-add-form" class="hidden border border-[#E1DFDC] rounded-xl p-4 bg-[#FDFBF8] mb-3">
+      <div id="role-add-form" class="p-member-manage__role-form hidden">
         <input id="role-add-name" placeholder="例: サブリーダー、デザイナーなど" maxlength="20"
-          class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
-        <label class="flex items-center gap-2 mb-3 cursor-pointer">
-          <input id="role-add-canmanage" type="checkbox" class="w-4 h-4 accent-[#0CA1E3]">
-          <span class="text-[12px] text-[#484545] font-bold">管理者権限</span>
-          <span class="text-[10px] text-[#A7AAAC] ml-auto">イベント管理・ミッション編集</span>
+          class="c-input p-member-manage__role-input">
+        <label class="p-member-manage__role-check-row">
+          <input id="role-add-canmanage" type="checkbox" class="p-member-manage__check">
+          <span class="p-member-manage__role-check-label">管理者権限</span>
+          <span class="p-member-manage__role-check-note">イベント管理・ミッション編集</span>
         </label>
-        <div class="flex gap-2">
-          <button id="role-add-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
-          <button id="role-add-save" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">追加</button>
+        <div class="p-member-manage__role-form-actions">
+          <button id="role-add-cancel" class="c-button c-button--muted">キャンセル</button>
+          <button id="role-add-save" class="c-button c-button--primary">追加</button>
         </div>
       </div>
-      <div class="flex gap-3">
-        <button data-action="cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-        <button data-action="confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md" style="background-color:#0CA1E3">承認する</button>
+      <div class="c-modal__actions">
+        <button data-action="cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
+        <button data-action="confirm" class="c-button c-button--primary c-modal__button c-modal__button--shadow">承認する</button>
       </div>
     </div>`;
   document.body.appendChild(roleOverlay);
@@ -610,15 +609,15 @@ window._app = {
     if (!eventId) return;
     // confirm() → ダイアログ
     const confirmOverlay = document.createElement('div');
-    confirmOverlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[220] flex items-center justify-center p-6';
+    confirmOverlay.className = 'c-overlay c-overlay--reject c-overlay--blur';
     confirmOverlay.onclick = (e) => { if (e.target === confirmOverlay) confirmOverlay.remove(); };
     confirmOverlay.innerHTML = `
-      <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-        <h3 class="heading-m text-[#484545] mb-3 font-bold">差し戻しますか？</h3>
-        <p class="text-rs text-[#A7AAAC] font-medium mb-8 leading-relaxed">提出内容は破棄されます。</p>
-        <div class="flex gap-3">
-          <button data-action="cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-          <button data-action="confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl" style="background-color:#EE3E12">差し戻す</button>
+      <div class="c-modal animate-fadeIn">
+        <h3 class="c-modal__title">差し戻しますか？</h3>
+        <p class="c-modal__text">提出内容は破棄されます。</p>
+        <div class="c-modal__actions">
+          <button data-action="cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
+          <button data-action="confirm" class="c-button c-button--danger c-modal__button">差し戻す</button>
         </div>
       </div>`;
     document.body.appendChild(confirmOverlay);
@@ -820,20 +819,20 @@ window._app = {
       newItems.forEach(m => {
         const card = document.createElement('div');
         card.dataset.pendingUid = m.userId;
-        card.className = 'bg-[#FDFBF8] rounded-2xl p-4 mb-3 border border-[#E1DFDC] animate-fadeIn';
+        card.className = 'p-member-manage__card animate-fadeIn';
         card.innerHTML = `
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="w-9 h-9 rounded-full bg-[#0CA1E3] flex items-center justify-center text-white font-bold text-[13px] flex-shrink-0">
+          <div class="p-member-manage__card-head">
+            <div class="p-member-manage__card-user">
+              <div class="p-member-manage__avatar">
                 ${_escH((m.username || '?').charAt(0).toUpperCase())}
               </div>
-              <p class="text-[14px] font-bold text-[#484545] truncate">@${_escH(m.username)}</p>
+              <p class="p-member-manage__username">@${_escH(m.username)}</p>
             </div>
-            <div class="flex gap-2 flex-shrink-0">
+            <div class="p-member-manage__card-actions">
               <button data-reject-pending="${_escH(m.userId)}"
-                class="px-3 py-2 text-[12px] font-bold text-[#A7AAAC] bg-[#EBE8E5] rounded-lg active:scale-95 transition-transform">拒否</button>
+                class="c-button c-button--muted">拒否</button>
               <button data-approve-pending="${_escH(m.userId)}" data-username="${_escH(m.username)}"
-                class="px-3 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg active:scale-95 transition-transform">承認</button>
+                class="c-button c-button--primary">承認</button>
             </div>
           </div>
           ${_pendingAnswersHtml(m)}`;
@@ -872,36 +871,36 @@ window._app = {
     // ── 新規シート作成 ──
     const overlay = document.createElement('div');
     overlay.id = 'pending-members-sheet';
-    overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-end';
+    overlay.className = 'c-overlay c-overlay--pending c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     const rows = pending.map(m => `
-      <div data-pending-uid="${_escH(m.userId)}" class="bg-[#FDFBF8] rounded-2xl p-4 mb-3 border border-[#E1DFDC]">
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3 min-w-0">
-            <div class="w-9 h-9 rounded-full bg-[#0CA1E3] flex items-center justify-center text-white font-bold text-[13px] flex-shrink-0">
-              ${_escH((m.username || '?').charAt(0).toUpperCase())}
+      <div data-pending-uid="${_escH(m.userId)}" class="p-member-manage__card">
+          <div class="p-member-manage__card-head">
+            <div class="p-member-manage__card-user">
+              <div class="p-member-manage__avatar">
+                ${_escH((m.username || '?').charAt(0).toUpperCase())}
+              </div>
+              <p class="p-member-manage__username">@${_escH(m.username)}</p>
             </div>
-            <p class="text-[14px] font-bold text-[#484545] truncate">@${_escH(m.username)}</p>
+            <div class="p-member-manage__card-actions">
+              <button data-reject-pending="${_escH(m.userId)}"
+                class="c-button c-button--muted">拒否</button>
+              <button data-approve-pending="${_escH(m.userId)}" data-username="${_escH(m.username)}"
+                class="c-button c-button--primary">承認</button>
+            </div>
           </div>
-          <div class="flex gap-2 flex-shrink-0">
-            <button data-reject-pending="${_escH(m.userId)}"
-              class="px-3 py-2 text-[12px] font-bold text-[#A7AAAC] bg-[#EBE8E5] rounded-lg active:scale-95 transition-transform">拒否</button>
-            <button data-approve-pending="${_escH(m.userId)}" data-username="${_escH(m.username)}"
-              class="px-3 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg active:scale-95 transition-transform">承認</button>
-          </div>
-        </div>
         ${_pendingAnswersHtml(m)}
       </div>`).join('');
 
     overlay.innerHTML = `
-      <div data-sheet class="bg-white rounded-t-3xl w-full shadow-2xl max-h-[70vh] flex flex-col animate-fadeIn">
-        <div id="pending-sheet-header" data-sheet-handle class="shrink-0 px-6 pt-5 pb-4 cursor-grab active:cursor-grabbing">
-          <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-5"></div>
-          <h3 id="pending-members-count" class="heading-m text-[#484545]">参加申請（${pending.length}件）</h3>
+      <div data-sheet class="p-member-manage__sheet animate-fadeIn">
+        <div id="pending-sheet-header" data-sheet-handle class="p-member-manage__sheet-head">
+          <div class="p-member-manage__grip"></div>
+          <h3 id="pending-members-count" class="c-modal__title c-modal__title--tight">参加申請（${pending.length}件）</h3>
         </div>
-        <div id="pending-members-list" class="flex-1 overflow-y-auto px-6 pb-6">
-          ${rows || '<p class="text-center text-[#A7AAAC] text-rs py-8">申請はありません</p>'}
+        <div id="pending-members-list" class="p-member-manage__sheet-body">
+          ${rows || '<p class="p-member-manage__empty text-rs">申請はありません</p>'}
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1505,22 +1504,22 @@ function _pendingAnswersHtml(m) {
   const msg  = (m.joinMessage || '').trim();
   if (!good.length && !want.length && !msg) return '';
 
-  const chips = (labels, cls) => labels.map(l =>
-    `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${cls}">${_escH(l)}</span>`).join('');
+  const chips = (labels, kind) => labels.map(l =>
+    `<span class="p-member-manage__chip p-member-manage__chip--${kind}">${_escH(l)}</span>`).join('');
 
   return `
-    <div class="mt-3 pt-3 border-t border-[#E1DFDC] space-y-2">
+    <div class="p-member-manage__answers">
       ${good.length ? `
-        <div class="flex flex-wrap items-center gap-1.5">
-          <span class="text-[10px] font-bold text-[#A7AAAC] shrink-0">得意</span>
-          ${chips(good, 'text-[#0CA1E3] bg-[#0CA1E3]/10')}
+        <div class="p-member-manage__answer-row">
+          <span class="p-member-manage__answer-label">得意</span>
+          ${chips(good, 'good')}
         </div>` : ''}
       ${want.length ? `
-        <div class="flex flex-wrap items-center gap-1.5">
-          <span class="text-[10px] font-bold text-[#A7AAAC] shrink-0">やってみたい</span>
-          ${chips(want, 'text-[#7BB100] bg-[#9EDF05]/15')}
+        <div class="p-member-manage__answer-row">
+          <span class="p-member-manage__answer-label">やってみたい</span>
+          ${chips(want, 'want')}
         </div>` : ''}
-      ${msg ? `<p class="text-[12px] text-[#484545] font-bold leading-relaxed break-words">「${_escH(msg)}」</p>` : ''}
+      ${msg ? `<p class="p-member-manage__message">「${_escH(msg)}」</p>` : ''}
     </div>`;
 }
 

@@ -91,6 +91,9 @@
   --color-event-date: #CFD8FF;     /* イベントの開催日のマス（日付ピッカー）*/
   --color-error-input: #e8383d;    /* 未入力エラーの枠と文字（--create-red とは別の赤）*/
   --color-picked-ring: rgba(72, 69, 69, .3);  /* 選んだ色の外側の輪（タグ作成）*/
+  --color-primary-tint2: rgba(12, 161, 227, .1);   /* 得意タグの塗り */
+  --color-success-tint3: rgba(158, 223, 5, .15);   /* やってみたいタグの塗り */
+  --color-success-dark2: #7BB100;  /* やってみたいタグの文字。--color-success-dark と近い */
   --color-saturday: #5C6BC0;       /* 土曜の文字。日曜は --create-red を使う */
 
   /* ガントの列の塗り。ヘッダー行は濃く、ミッション行は薄くする
@@ -180,6 +183,9 @@
   --z-form-modal: 240;       /* 1問ずつ聞くフォーム（参加申請・スキル回収）*/
   --z-edit-modal: 150;       /* アーカイブの項目を編集するモーダル */
   --z-date-picker: 200;      /* 日付を選ぶモーダル */
+  --z-pending: 150;          /* 承認待ちの一覧シート */
+  --z-approve: 200;          /* 参加申請の承認モーダル */
+  --z-reject: 220;           /* 差し戻しの確認（リーダーチェックのシートより前）*/
   --z-help: 200;             /* 提案のヒント */
   --z-action-sheet: 200;     /* イベントカードの長押しメニュー */
   --z-action-dialog: 210;    /* 名前の変更・削除確認（長押しメニューの上）*/
