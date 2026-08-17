@@ -83,6 +83,7 @@
 | イベント設定（イベント管理・メンバー・ロール・脱退） | `object/project/_event-settings.css` |
 | メインボードのメインタブ（日付チップ・提案・ミッションカード） | `object/project/_main-board.css` |
 | アーカイブタブ（概要カード・ミッションの記録） | `object/project/_archive.css` |
+| 通知タブ（応募待ち・確認待ち・通知一覧） | `object/project/_notification.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -246,10 +247,10 @@ public/css/
 │  ├─ _create-event.css         ✅ イベント作成フロー
 │  ├─ _mission-detail.css       ✅ ミッション詳細
 │  ├─ _event-settings.css       ✅ イベント設定
-│  ├─ _main-board.css           🔶 メインタブ・バナー（通知タブは未）
+│  ├─ _main-board.css           ✅ メインタブ・バナー・アナウンス
 │  ├─ _archive.css              ✅ アーカイブタブ
-│  └─ _main-board / _mission-modal / │     _event-settings / _signup / _notification /
-│     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
+│  ├─ _notification.css         ✅ 通知タブ
+│  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
 │
 └─ object/utility/
    ├─ _animation.css            ✅ animate-fadeIn

@@ -1,0 +1,293 @@
+/* ==========================================================================
+   Object / Project / notification — メインボードの通知タブ
+   使用箇所: public/js/views/mainBoard.js（_renderNotificationsTab ほか）
+
+   ★このタブには3種類が並ぶ:
+       応募待ち（管理者のみ）／確認待ち（管理者のみ）／通知一覧
+   ★通知は**現在開いているイベントぶんだけ**を出す（他イベントの通知は出さない）。
+     「すべて既読」も現在のイベントぶんだけを既読にする。
+   ★notif-swipe-card は views/mainBoard.js が横スワイプの対象として掴む目印。
+     クラス名を変えるならそちらも直すこと。
+   ========================================================================== */
+
+.p-notification {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding-bottom: var(--space-10);
+}
+
+.p-notification__section {
+  padding: var(--space-6) var(--space-6) 0;
+}
+
+.p-notification__section--grow {
+  flex: 1;
+}
+
+.p-notification__title {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-notification__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.p-notification__head .p-notification__title {
+  margin-bottom: 0;
+}
+
+.p-notification__read-all {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-notification__read-all:active {
+  opacity: .5;
+}
+
+.p-notification__list > * + * {
+  margin-top: var(--space-3);
+}
+
+.p-notification__empty {
+  padding-block: 48px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* --- 応募待ち・確認待ちのカード ------------------------------------------- */
+
+.p-notification__card {
+  padding: var(--space-4);
+  border: 1px solid;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-notification__card--claim {
+  border-color: var(--color-warning-half2);
+}
+
+.p-notification__card--check {
+  border-color: var(--color-primary-half);
+}
+
+.p-notification__card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.p-notification__badge {
+  padding-inline: 6px;
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-notification__badge--claim {
+  border-color: var(--color-warning);
+  background-color: var(--color-warning-pale2);
+  color: var(--color-warning-dark);
+}
+
+.p-notification__badge--check {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.p-notification__card-sub {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-notification__card-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 応募者一覧・提出内容 */
+.p-notification__detail {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--button-secondary);
+}
+
+.p-notification__detail-label {
+  margin-bottom: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-notification__detail-text {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.p-notification__detail-image {
+  width: 100%;
+  max-height: 160px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.p-notification__detail-content {
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.p-notification__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.p-notification__action {
+  flex: 1;
+  padding-block: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-notification__action:active {
+  transform: scale(.95);
+}
+
+.p-notification__action--full {
+  width: 100%;
+  flex: none;
+}
+
+.p-notification__action--approve {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+/* 差し戻しは取り消しに近い操作なので、承認と色を明確に分ける */
+.p-notification__action--reject {
+  background-color: var(--color-danger-pale);
+  color: var(--color-danger);
+}
+
+.p-notification__action--select {
+  background-color: var(--color-warning);
+  color: var(--color-text-inverse);
+}
+
+/* --- 通知の行（横スワイプで削除）------------------------------------------
+   ★行の下に削除の赤い面を敷き、上のカード（notif-swipe-card）を JS が
+     transform で横に動かす。位置は JS が持つのでここには書かない。 */
+
+.p-notification__row {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-md);
+}
+
+.p-notification__row-delete {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--space-5);
+  border-radius: var(--radius-md);
+  background-color: var(--color-danger);
+  color: var(--color-text-inverse);
+  pointer-events: none;
+}
+
+.p-notification__row-delete-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.notif-swipe-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.notif-swipe-card:active {
+  background-color: var(--button-secondary);
+}
+
+/* 未読は左に赤い帯を出し、本文も太字にする（色だけの情報にしない）*/
+.notif-swipe-card.is-unread {
+  border-left: 4px solid var(--color-danger);
+  background-color: var(--color-bg);
+}
+
+.p-notification__icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: var(--notif-color, var(--button-secondary));
+}
+
+.p-notification__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-notification__message {
+  font-size: var(--font-size-sm);
+  line-height: 1.375;
+  color: var(--color-text);
+}
+
+.notif-swipe-card.is-unread .p-notification__message {
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-notification__time {
+  margin-top: var(--space-1);
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.p-notification__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: var(--space-1);
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+}

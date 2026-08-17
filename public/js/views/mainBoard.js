@@ -641,9 +641,11 @@ function _renderAnnounceCards(p, meId) {
     const target = new Date(end); target.setHours(0,0,0,0);
     const now = new Date(); now.setHours(0,0,0,0);
     const diff = Math.ceil((target - now) / 86_400_000);
-    if (diff < 0)  return `<span class="text-[10px] font-bold text-[#E74C3C]">${-diff}日超過</span>`;
-    if (diff === 0) return `<span class="text-[10px] font-bold text-[#E74C3C]">今日まで</span>`;
-    return `<span class="text-[10px] font-bold text-[#A7AAAC]">残り${diff}日</span>`;
+    // アナウンスカード内の締め切り。ミッションカードより1段小さい
+    const cls = 'p-main-board__deadline p-main-board__deadline--sm';
+    if (diff < 0)   return `<span class="${cls} p-main-board__deadline--urgent">${-diff}日超過</span>`;
+    if (diff === 0) return `<span class="${cls} p-main-board__deadline--urgent">今日まで</span>`;
+    return `<span class="${cls}">残り${diff}日</span>`;
   };
 
   // タップでミッション詳細ページを開く（ミッションカードと同挙動）
@@ -994,9 +996,9 @@ function _renderNotificationsTab(p) {
 
   // 応募待ちセクション
   const claimingHtml = claimingMissions.length === 0 ? '' : `
-    <section class="px-6 pt-6">
-      <h2 class="heading-rs font-bold text-[#484545] mb-3">応募待ち（${claimingMissions.length}件）</h2>
-      <div class="space-y-3">
+    <section class="p-notification__section">
+      <h2 class="p-notification__title">応募待ち（${claimingMissions.length}件）</h2>
+      <div class="p-notification__list">
         ${claimingMissions.map(m => {
           const applicants = m.claimApplicants || [];
           const applicantNames = applicants.map(uid => {
@@ -1004,18 +1006,18 @@ function _renderNotificationsTab(p) {
             return mem ? `@${mem.username}` : '不明なユーザー';
           });
           return `
-          <div class="bg-white border border-[#FFC300]/40 rounded-2xl p-4 shadow-sm">
-            <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <span class="text-[9px] text-[#9b7700] font-bold border border-[#FFC300] px-1.5 rounded bg-[#FFF8E1]">応募あり</span>
-              <span class="text-[11px] text-[#A7AAAC] font-bold">${applicants.length}名が応募中</span>
+          <div class="p-notification__card p-notification__card--claim">
+            <div class="p-notification__card-meta">
+              <span class="p-notification__badge p-notification__badge--claim">応募あり</span>
+              <span class="p-notification__card-sub">${applicants.length}名が応募中</span>
             </div>
-            <h3 class="text-[14px] font-bold text-[#484545] mb-2">${_esc(m.title)}</h3>
-            <div class="mt-2 mb-3 pt-2 border-t border-[#EBE8E5]">
-              <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">応募者</p>
-              <p class="text-[12px] text-[#484545]">${applicantNames.join('、')}</p>
+            <h3 class="p-notification__card-title">${_esc(m.title)}</h3>
+            <div class="p-notification__detail">
+              <p class="p-notification__detail-label">応募者</p>
+              <p class="p-notification__detail-text">${_esc(applicantNames.join('、'))}</p>
             </div>
-            <button onclick="window._app.openSelectClaimModal('${m.id}')"
-              class="w-full py-2 rounded-lg text-[12px] font-bold text-white bg-[#FFC300] active:scale-95">
+            <button type="button" onclick="window._app.openSelectClaimModal('${m.id}')"
+              class="p-notification__action p-notification__action--full p-notification__action--select">
               担当者を選定する
             </button>
           </div>`;
@@ -1024,31 +1026,31 @@ function _renderNotificationsTab(p) {
     </section>`;
 
   const pendingHtml = pendingMissions.length === 0 ? '' : `
-    <section class="px-6 pt-6">
-      <h2 class="heading-rs font-bold text-[#484545] mb-3">確認待ち（${pendingMissions.length}件）</h2>
-      <div class="space-y-3">
+    <section class="p-notification__section">
+      <h2 class="p-notification__title">確認待ち（${pendingMissions.length}件）</h2>
+      <div class="p-notification__list">
         ${pendingMissions.map(m => {
           const submitter = (p.members || []).find(x => x.userId === m.assignee?.userId);
           const cleared = p.clearedData?.[m.id];
           return `
-          <div class="bg-white border border-[#0CA1E3]/30 rounded-2xl p-4 shadow-sm">
-            <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <span class="text-[9px] text-[#0CA1E3] font-bold border border-[#0CA1E3] px-1.5 rounded">確認待ち</span>
-              <span class="text-[11px] text-[#A7AAAC] font-bold">${submitter ? '@' + submitter.username + ' が提出' : '提出済み'}</span>
+          <div class="p-notification__card p-notification__card--check">
+            <div class="p-notification__card-meta">
+              <span class="p-notification__badge p-notification__badge--check">確認待ち</span>
+              <span class="p-notification__card-sub">${submitter ? '@' + _esc(submitter.username) + ' が提出' : '提出済み'}</span>
             </div>
-            <h3 class="text-[14px] font-bold text-[#484545] mb-2">${_esc(m.title)}</h3>
+            <h3 class="p-notification__card-title">${_esc(m.title)}</h3>
             ${cleared ? `
-              <div class="mt-2 mb-3 pt-2 border-t border-[#EBE8E5]">
-                <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">提出内容</p>
+              <div class="p-notification__detail">
+                <p class="p-notification__detail-label">提出内容</p>
                 ${cleared.format === 'image'
-                  ? `<img src="${cleared.content}" class="w-full max-h-40 object-cover rounded-lg">`
-                  : `<p class="text-[12px] text-[#484545] bg-[#FDFBF8] p-2 rounded break-words">${_esc(cleared.content)}</p>`}
+                  ? `<img src="${_esc(cleared.content)}" class="p-notification__detail-image" alt="提出画像">`
+                  : `<p class="p-notification__detail-content">${_esc(cleared.content)}</p>`}
               </div>` : ''}
-            <div class="flex gap-2">
-              <button onclick="window._app.rejectMission('${m.id}')"
-                class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#EE3E12] bg-[#FFEEEA] active:scale-95">差し戻す</button>
-              <button onclick="window._app.approveMission('${m.id}')"
-                class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3] active:scale-95">承認する</button>
+            <div class="p-notification__actions">
+              <button type="button" onclick="window._app.rejectMission('${m.id}')"
+                class="p-notification__action p-notification__action--reject">差し戻す</button>
+              <button type="button" onclick="window._app.approveMission('${m.id}')"
+                class="p-notification__action p-notification__action--approve">承認する</button>
             </div>
           </div>`;
         }).join('')}
@@ -1061,62 +1063,65 @@ function _renderNotificationsTab(p) {
   const unreadCount = notifs.filter(n => !n.read).length;
 
   const notifsHtml = notifs.length === 0 ? `
-    <p class="text-center py-12 text-[#A7AAAC] text-rs font-bold">通知はありません</p>` : `
+    <p class="p-notification__empty">通知はありません</p>` : `
     <div>
       ${notifs.map(n => `
-        <div class="notif-swipe-row relative overflow-hidden rounded-xl mb-2" data-notif-id="${n.id}">
-          <div class="absolute inset-0 bg-[#EE3E12] flex items-center justify-end pr-5 pointer-events-none rounded-xl">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <div class="notif-swipe-row p-notification__row" data-notif-id="${n.id}">
+          <div class="p-notification__row-delete">
+            <svg class="p-notification__row-delete-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
             </svg>
           </div>
-          <div class="notif-swipe-card relative ${n.read ? 'bg-white' : 'bg-[#FDFBF8] border-l-4 border-[#EE3E12]'} border border-[#E1DFDC] rounded-xl p-3 flex items-start gap-3 cursor-pointer active:bg-[#EBE8E5]"
+          <!-- ★notif-swipe-card は横スワイプの対象として JS が掴む目印 -->
+          <div class="notif-swipe-card${n.read ? '' : ' is-unread'}"
             onclick="window._app.openNotification('${n.id}', '${n.missionId || ''}')">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${_notifIconBg(n.type)}">
+            <div class="p-notification__icon" style="--notif-color:${_notifIconBg(n.type)}">
               ${_notifIcon(n.type)}
             </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-[12px] text-[#484545] leading-snug ${n.read ? '' : 'font-bold'}">${_esc(n.message)}</p>
-              <p class="text-[10px] text-[#A7AAAC] mt-1">${_formatNotifTime(n.createdAt)}</p>
+            <div class="p-notification__body">
+              <p class="p-notification__message">${_esc(n.message)}</p>
+              <p class="p-notification__time">${_formatNotifTime(n.createdAt)}</p>
             </div>
-            ${!n.read ? '<span class="w-2 h-2 rounded-full bg-[#EE3E12] flex-shrink-0 mt-1"></span>' : ''}
+            ${!n.read ? '<span class="p-notification__dot"></span>' : ''}
           </div>
         </div>`).join('')}
     </div>`;
 
   return `
-    <div class="flex-1 flex flex-col page-transition pb-20">
+    <div class="p-notification page-transition">
       ${claimingHtml}
       ${pendingHtml}
-      <section class="px-6 pt-6 flex-1">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="heading-rs font-bold text-[#484545]">通知</h2>
+      <section class="p-notification__section p-notification__section--grow">
+        <div class="p-notification__head">
+          <h2 class="p-notification__title">通知</h2>
           ${unreadCount > 0 ? `
-            <button onclick="window._app.markAllNotificationsRead()"
-              class="text-[11px] text-[#0CA1E3] font-bold px-3 py-1 active:opacity-50">すべて既読</button>` : ''}
+            <button type="button" onclick="window._app.markAllNotificationsRead()"
+              class="p-notification__read-all">すべて既読</button>` : ''}
         </div>
         ${notifsHtml}
       </section>
     </div>`;
 }
 
+// 通知アイコンの背景色。CSS 変数 --notif-color として渡す
+// （種類ごとに色が違うだけなので、クラスを14個作るより変数1つが読みやすい）
 function _notifIconBg(type) {
   switch (type) {
-    case 'mission_cleared':       return 'bg-[#9EDF05]/20';
-    case 'assigned_to_me':        return 'bg-[#0CA1E3]/20';
-    case 'someone_claimed':       return 'bg-[#FFC300]/20';
-    case 'assignment_decided':    return 'bg-[#9EDF05]/20';
-    case 'pending_leader_check':  return 'bg-[#EE3E12]/20';
-    case 'leader_approved':       return 'bg-[#9EDF05]/20';
-    case 'leader_rejected':       return 'bg-[#EE3E12]/20';
-    case 'member_joined':         return 'bg-[#9EDF05]/20';
-    case 'role_assigned':         return 'bg-[#0CA1E3]/20';
-    case 'mission_created':       return 'bg-[#A78BFA]/20';
-    case 'mission_updated':       return 'bg-[#A78BFA]/20';
-    case 'mission_reverted':      return 'bg-[#FFC300]/20';
-    case 'self_claimed':          return 'bg-[#FFC300]/20';
-    case 'motivation_reaction':   return 'bg-[#EE3E12]/20';
-    default: return 'bg-[#EBE8E5]';
+    case 'mission_cleared':
+    case 'assignment_decided':
+    case 'leader_approved':
+    case 'member_joined':         return 'var(--color-success-tint)';
+    case 'assigned_to_me':
+    case 'role_assigned':         return 'var(--color-primary-tint)';
+    case 'someone_claimed':
+    case 'mission_reverted':
+    case 'self_claimed':          return 'var(--color-warning-tint)';
+    case 'pending_leader_check':
+    case 'leader_rejected':
+    case 'motivation_reaction':   return 'var(--color-danger-tint2)';
+    case 'mission_created':
+    case 'mission_updated':       return 'var(--color-violet-tint)';
+    default: return 'var(--button-secondary)';
   }
 }
 

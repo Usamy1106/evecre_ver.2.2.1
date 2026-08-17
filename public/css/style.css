@@ -53,6 +53,7 @@
 /* Object: Project ---------------------------------------------------------- */
 @import url("./object/project/_main-board.css");
 @import url("./object/project/_archive.css");
+@import url("./object/project/_notification.css");
 @import url("./object/project/_event-settings.css");
 @import url("./object/project/_mission-detail.css");
 @import url("./object/project/_create-event.css");

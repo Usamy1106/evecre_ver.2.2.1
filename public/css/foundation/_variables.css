@@ -67,6 +67,11 @@
   --color-primary-half2: rgba(12, 161, 227, .4);
   --color-primary-pale4: #D4EFFF;  /* アナウンスカードの押下時 */
   --color-text-soft: #6B6B6B;      /* 本文より少し薄い文字 */
+  /* 通知アイコンの背景（種類ごとに色を変える。20% の淡い塗り）*/
+  --color-primary-tint: rgba(12, 161, 227, .2);
+  --color-warning-tint: rgba(255, 195, 0, .2);
+  --color-danger-tint2: rgba(238, 62, 18, .2);
+  --color-violet-tint: rgba(167, 139, 250, .2);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
   --color-alert: #E74C3C;          /* 締め切り超過・当日 */
   --color-warning-pale2: #FFF8E1;  /* --color-warning-pale と近い。統合は Phase 5 で判断 */

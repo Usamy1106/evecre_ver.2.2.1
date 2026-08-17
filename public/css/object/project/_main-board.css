@@ -705,3 +705,8 @@
 .announce-chevron {
   transition: transform var(--duration-fast) var(--ease);
 }
+
+/* アナウンスカードの中では1段小さくする */
+.p-main-board__deadline--sm {
+  font-size: 10px;
+}
