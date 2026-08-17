@@ -180,3 +180,13 @@
   padding: var(--space-6);
   background-color: rgba(0, 0, 0, .6);
 }
+
+/* 初期オンボーディング①「イベクリの使い方」。
+   ★出口は「わかった」だけ。閉じるボタンも背景タップも置かないこと
+     （置くと②へ進まないまま状態が宙ぶらりんになる）。 */
+.c-overlay--intro {
+  z-index: var(--z-intro);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}

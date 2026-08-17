@@ -147,12 +147,13 @@ export function showUsageModal() {
 
   const overlay = document.createElement('div');
   overlay.id = USAGE_ID;
-  overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[420] flex items-center justify-center p-6';
+  overlay.className = 'c-overlay c-overlay--intro c-overlay--blur';
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-      <p class="text-[11px] text-[#0CA1E3] font-bold mb-2">イベクリの使い方</p>
-      <h3 class="heading-m text-[#484545] mb-5 font-bold leading-snug">イベントづくりは<br>5つのステップで進みます</h3>
-      <div class="space-y-3 mb-6">
+    <div class="c-modal animate-fadeIn">
+      <p class="c-modal__eyebrow">イベクリの使い方</p>
+      <!-- ★<br> を含むので esc しないこと（ユーザー入力は入らない） -->
+      <h3 class="c-modal__title">イベントづくりは<br>5つのステップで進みます</h3>
+      <div class="c-modal__steps c-modal__steps--roomy">
         ${[
           ['決める', '何をやるかを決める'],
           ['積む',   'やることを洗い出して日付を入れる'],
@@ -160,16 +161,15 @@ export function showUsageModal() {
           ['こなす', '実行して提出する'],
           ['残す',   '振り返って次に引き継ぐ'],
         ].map(([label, desc], i) => `
-          <div class="flex items-start gap-3 text-left">
-            <span class="w-6 h-6 rounded-full bg-[#0CA1E3] text-white text-[11px] font-bold
-              flex items-center justify-center flex-shrink-0 mt-0.5">${i + 1}</span>
-            <div class="min-w-0">
-              <p class="text-[13px] font-bold text-[#484545]">${label}</p>
-              <p class="text-[11px] text-[#A7AAAC] font-bold leading-relaxed">${desc}</p>
+          <div class="c-modal__step">
+            <span class="c-modal__step-num">${i + 1}</span>
+            <div class="c-modal__step-body">
+              <p class="c-modal__step-title">${label}</p>
+              <p class="c-modal__step-text">${desc}</p>
             </div>
           </div>`).join('')}
       </div>
-      <button data-intro="ack" class="c-button c-button--primary w-full py-4 heading-rs font-bold shadow-lg">わかった</button>
+      <button data-intro="ack" class="c-button c-button--primary c-modal__button c-modal__button--roomy">わかった</button>
     </div>`;
   document.body.appendChild(overlay);
   logEvent('intro_usage_shown');

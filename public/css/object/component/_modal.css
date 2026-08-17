@@ -211,6 +211,11 @@
   margin-bottom: var(--space-5);
 }
 
+/* 下にボタンが続くときはもう少し離す */
+.c-modal__steps--roomy {
+  margin-bottom: var(--space-6);
+}
+
 .c-modal__steps > * + * {
   margin-top: var(--space-3);
 }
@@ -220,6 +225,22 @@
   align-items: flex-start;
   gap: var(--space-3);
   text-align: left;
+}
+
+/* 手順の番号。丸の中に数字を置く */
+.c-modal__step-num {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
 }
 
 .c-modal__step-body {
