@@ -1,0 +1,42 @@
+/* ==========================================================================
+   Object / Component / field — フォームの1項目（ラベル＋入力＋エラー）
+   使用箇所: public/js/views/passwordReset.js ほか入力のある画面
+
+   ★エラーは .c-input.is-error で枠を出す。以前は Tailwind の
+     ring-2 ring-[#EE3E12] を三項で足していて、どの状態なのかが
+     マークアップを読まないと分からなかった。
+   ★エラー文は色だけで伝えない（文章で理由を書く）。
+   ========================================================================== */
+
+.c-field + .c-field {
+  margin-top: var(--space-4);
+}
+
+.c-field__label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.c-field__error {
+  margin-top: 6px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+}
+
+/* 入力欄そのものは c-input（_input.css）。ここでは状態と幅だけ足す */
+.c-input--block {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+}
+
+.c-input:focus {
+  outline: none;
+}
+
+.c-input.is-error {
+  box-shadow: 0 0 0 2px var(--color-danger);
+}

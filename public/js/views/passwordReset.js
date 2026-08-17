@@ -19,18 +19,18 @@ export function renderPasswordResetRequest(container) {
   });
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <main class="flex-1 px-6 pt-16 pb-8 flex flex-col">
-        <h1 class="heading-l text-[#484545] font-bold text-center mb-2">パスワードを忘れた</h1>
-        <p class="text-rs text-[#A7AAAC] text-center mb-8 font-bold leading-relaxed">
+    <div class="p-auth page-transition">
+      <main class="p-auth__main">
+        <h1 class="p-auth__title">パスワードを忘れた</h1>
+        <p class="p-auth__lead p-auth__lead--relaxed">
           ご登録のメールアドレスを入力してください。<br>
           パスワード再設定のリンクをお送りします。
         </p>
 
         ${sec.sent ? _sentBlock(sec) : _formBlock(sec)}
 
-        <p class="text-center text-rs text-[#484545] font-bold mt-6">
-          <button id="pr-go-login" class="text-[#0CA1E3] font-bold">ログイン画面に戻る</button>
+        <p class="p-auth__footer">
+          <button type="button" id="pr-go-login" class="p-auth__link">ログイン画面に戻る</button>
         </p>
       </main>
     </div>`;
@@ -47,38 +47,36 @@ export function renderPasswordResetRequest(container) {
 
 function _formBlock(sec) {
   return `
-    <div class="space-y-4 mb-6">
-      <div>
-        <label class="block text-rs text-[#484545] font-bold mb-2">メールアドレス</label>
+    <div class="p-auth__form">
+      <div class="c-field">
+        <label class="c-field__label" for="pr-email">メールアドレス</label>
         <input id="pr-email" type="email" autocomplete="email"
-          class="c-input w-full px-4 py-3 focus:outline-none"
+          class="c-input c-input--block"
           placeholder="your@example.com"
           value="${_esc(sec.email)}">
       </div>
     </div>
-    ${sec.error ? `<p class="text-[13px] text-[#EE3E12] text-center font-bold mb-4">${_esc(sec.error)}</p>` : ''}
-    <button id="pr-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-4"
-      ${sec.sending ? 'disabled style="opacity:.6"' : ''}>
+    ${sec.error ? `<p class="p-auth__error">${_esc(sec.error)}</p>` : ''}
+    <button type="button" id="pr-submit" class="c-button c-button--primary p-auth__submit"
+      ${sec.sending ? 'disabled' : ''}>
       ${sec.sending ? '送信中…' : 'リセットメールを送る'}
     </button>`;
 }
 
 function _sentBlock(sec) {
   return `
-    <div class="bg-[#E8F6FD] border border-[#0CA1E3] rounded-2xl p-5 mb-6">
-      <p class="text-[24px] text-center mb-2">📧</p>
-      <p class="text-[13px] text-[#484545] font-bold text-center leading-relaxed">
+    <div class="c-notice c-notice--info p-auth__notice--wide">
+      <p class="c-notice__symbol">📧</p>
+      <p class="c-notice__text">
         メールをお送りしました。<br>
         受信トレイをご確認ください。
       </p>
-      <p class="text-[11px] text-[#A7AAAC] font-bold text-center mt-3">
-        リンクの有効期限は30分です
-      </p>
+      <p class="c-notice__note">リンクの有効期限は30分です</p>
     </div>
     ${sec.devUrl ? `
-      <div class="bg-[#FFF7E6] border border-[#FFC300] rounded-xl p-3 mb-4">
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">開発モード: リセット URL</p>
-        <p class="text-[10px] text-[#484545] font-mono break-all">${_esc(sec.devUrl)}</p>
+      <div class="c-notice c-notice--warning c-notice--sm p-auth__notice">
+        <p class="c-notice__label">開発モード: リセット URL</p>
+        <p class="c-notice__value c-notice__value--mono">${_esc(sec.devUrl)}</p>
       </div>
     ` : ''}`;
 }
@@ -133,12 +131,10 @@ export function renderPasswordResetConfirm(container) {
   }
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <main class="flex-1 px-6 pt-16 pb-8 flex flex-col">
-        <h1 class="heading-l text-[#484545] font-bold text-center mb-2">新しいパスワード</h1>
-        <p class="text-rs text-[#A7AAAC] text-center mb-8 font-bold">
-          新しいパスワードを入力してください
-        </p>
+    <div class="p-auth page-transition">
+      <main class="p-auth__main">
+        <h1 class="p-auth__title">新しいパスワード</h1>
+        <p class="p-auth__lead">新しいパスワードを入力してください</p>
 
         ${sec.verifying  ? _verifyingBlock()
         : sec.verifyError ? _verifyErrorBlock(sec)
@@ -146,7 +142,7 @@ export function renderPasswordResetConfirm(container) {
         : _confirmForm(sec)}
 
         ${(sec.verifyError || sec.done) ? `
-          <button id="pc-go-login" class="text-[#0CA1E3] font-bold mt-4">ログイン画面に戻る</button>` : ''}
+          <button type="button" id="pc-go-login" class="p-auth__link p-auth__link--standalone">ログイン画面に戻る</button>` : ''}
       </main>
     </div>`;
 
@@ -161,26 +157,24 @@ export function renderPasswordResetConfirm(container) {
 
 function _verifyingBlock() {
   return `
-    <div class="flex items-center justify-center py-12">
-      <div class="w-10 h-10 border-4 border-[#0CA1E3] border-t-transparent rounded-full animate-spin"></div>
+    <div class="c-spinner__wrap">
+      <div class="c-spinner"></div>
     </div>`;
 }
 
 function _verifyErrorBlock(sec) {
   return `
-    <div class="bg-[#FFEEEA] border border-[#EE3E12] rounded-2xl p-5 mb-4">
-      <p class="text-[24px] text-center mb-2">⚠️</p>
-      <p class="text-[13px] text-[#484545] font-bold text-center leading-relaxed">
-        ${_esc(sec.verifyError)}
-      </p>
+    <div class="c-notice c-notice--danger p-auth__notice">
+      <p class="c-notice__symbol">⚠️</p>
+      <p class="c-notice__text">${_esc(sec.verifyError)}</p>
     </div>`;
 }
 
 function _doneBlock() {
   return `
-    <div class="bg-[#E8F6FD] border border-[#0CA1E3] rounded-2xl p-5 mb-4">
-      <p class="text-[24px] text-center mb-2">✓</p>
-      <p class="text-[13px] text-[#484545] font-bold text-center leading-relaxed">
+    <div class="c-notice c-notice--info p-auth__notice">
+      <p class="c-notice__symbol">✓</p>
+      <p class="c-notice__text">
         パスワードを変更しました。<br>
         新しいパスワードでログインしてください。
       </p>
@@ -191,32 +185,32 @@ function _confirmForm(sec) {
   const errors = sec.errors || {};
   return `
     ${sec.email ? `
-      <div class="bg-[#FDFBF8] border border-[#E1DFDC] rounded-xl p-3 mb-5">
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">対象のアカウント</p>
-        <p class="text-[13px] text-[#484545] font-bold">${_esc(sec.email)}</p>
+      <div class="c-notice c-notice--muted c-notice--sm p-auth__notice--form">
+        <p class="c-notice__label">対象のアカウント</p>
+        <p class="c-notice__value">${_esc(sec.email)}</p>
       </div>` : ''}
 
-    <div class="space-y-4 mb-6">
-      <div>
-        <label class="block text-rs text-[#484545] font-bold mb-2">新しいパスワード</label>
+    <div class="p-auth__form">
+      <div class="c-field">
+        <label class="c-field__label" for="pc-pw">新しいパスワード</label>
         <input id="pc-pw" type="password"
-          class="c-input w-full px-4 py-3 focus:outline-none ${errors.newPassword ? 'ring-2 ring-[#EE3E12]' : ''}"
+          class="c-input c-input--block${errors.newPassword ? ' is-error' : ''}"
           placeholder="8文字以上の英数字"
           value="${_esc(sec.newPassword || '')}" maxlength="100">
-        ${errors.newPassword ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.newPassword)}</p>` : ''}
+        ${errors.newPassword ? `<p class="c-field__error">${_esc(errors.newPassword)}</p>` : ''}
       </div>
-      <div>
-        <label class="block text-rs text-[#484545] font-bold mb-2">確認のため もう一度</label>
+      <div class="c-field">
+        <label class="c-field__label" for="pc-pw2">確認のため もう一度</label>
         <input id="pc-pw2" type="password"
-          class="c-input w-full px-4 py-3 focus:outline-none ${errors.mismatch ? 'ring-2 ring-[#EE3E12]' : ''}"
+          class="c-input c-input--block${errors.mismatch ? ' is-error' : ''}"
           placeholder="同じパスワード"
           value="${_esc(sec.newPassword2 || '')}" maxlength="100">
-        ${errors.mismatch ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.mismatch)}</p>` : ''}
+        ${errors.mismatch ? `<p class="c-field__error">${_esc(errors.mismatch)}</p>` : ''}
       </div>
     </div>
-    ${errors._global ? `<p class="text-[13px] text-[#EE3E12] text-center font-bold mb-4">${_esc(errors._global)}</p>` : ''}
-    <button id="pc-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-4"
-      ${sec.submitting ? 'disabled style="opacity:.6"' : ''}>
+    ${errors._global ? `<p class="p-auth__error">${_esc(errors._global)}</p>` : ''}
+    <button type="button" id="pc-submit" class="c-button c-button--primary p-auth__submit"
+      ${sec.submitting ? 'disabled' : ''}>
       ${sec.submitting ? '変更中…' : 'パスワードを変更する'}
     </button>`;
 }

@@ -1,0 +1,101 @@
+/* ==========================================================================
+   Object / Project / auth — 認証まわりの画面の共通ガワ
+   使用箇所: public/js/views/passwordReset.js
+             （auth.js / signup.js も Phase 3 で同じガワに寄せる）
+
+   ★ログイン前の画面はヘッダーもタブも無い。中央1カラムに見出し・説明・
+     フォームを縦に積むだけなので、画面ごとに書かずここへまとめる。
+   ========================================================================== */
+
+.p-auth {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.p-auth__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 64px var(--space-6) var(--space-8);
+}
+
+.p-auth__title {
+  margin-bottom: var(--space-2);
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-auth__lead {
+  margin-bottom: var(--space-8);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 2行以上の説明文（改行で読ませるもの）*/
+.p-auth__lead--relaxed {
+  line-height: 1.625;
+}
+
+/* フォームのひとかたまり */
+.p-auth__form {
+  margin-bottom: var(--space-6);
+}
+
+/* 画面全体に効くエラー（項目ごとではないもの）*/
+.p-auth__error {
+  margin-bottom: var(--space-4);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+  text-align: center;
+}
+
+.p-auth__submit {
+  width: 100%;
+  margin-bottom: var(--space-4);
+  padding-block: 14px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-auth__submit:disabled {
+  opacity: .6;
+}
+
+/* 画面下の「ログイン画面に戻る」など */
+.p-auth__footer {
+  margin-top: var(--space-6);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-auth__link {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* 囲みの直後に単独で置くリンク */
+.p-auth__link--standalone {
+  margin-top: var(--space-4);
+}
+
+/* 囲み（c-notice）の下余白。Component 側には持たせない */
+.p-auth__notice {
+  margin-bottom: var(--space-4);
+}
+
+.p-auth__notice--wide {
+  margin-bottom: var(--space-6);
+}
+
+.p-auth__notice--form {
+  margin-bottom: var(--space-5);
+}

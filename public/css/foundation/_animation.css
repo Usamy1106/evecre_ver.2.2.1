@@ -24,3 +24,10 @@
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-8px); }
 }
+
+/* 使用: object/component/_spinner.css
+   ★Tailwind の animate-spin と同じ（1s linear infinite）。
+     Tailwind 撤去後もローディングが止まらないよう自前で持つ。 */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

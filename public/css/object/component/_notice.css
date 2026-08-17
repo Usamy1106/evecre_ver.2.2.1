@@ -1,0 +1,83 @@
+/* ==========================================================================
+   Object / Component / notice — 色付きの囲みメッセージ
+   使用箇所: public/js/views/passwordReset.js ほか認証まわりの画面
+
+   ★色だけで意味を伝えない。呼び出し側で絵文字（📧 ⚠️ ✓）や見出しを添える。
+   ★Component は外側の余白を持たない。下余白は呼び出し側（p-）が決める。
+   ========================================================================== */
+
+.c-notice {
+  padding: var(--space-5);
+  border: 1px solid;
+  border-radius: var(--radius-lg);
+}
+
+.c-notice--info {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-pale);
+}
+
+.c-notice--danger {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-pale);
+}
+
+.c-notice--warning {
+  border-color: var(--color-warning);
+  background-color: var(--color-warning-pale);
+}
+
+/* 補足情報など、目立たせない囲み */
+.c-notice--muted {
+  border-color: var(--bg-textbox);
+  background-color: var(--color-bg);
+}
+
+/* 小さめ（開発モードの表示や補足）*/
+.c-notice--sm {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+.c-notice__symbol {
+  margin-bottom: var(--space-2);
+  font-size: 24px;
+  text-align: center;
+}
+
+.c-notice__text {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.c-notice__note {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ラベル＋値（「対象のアカウント」など）。左寄せ */
+.c-notice__label {
+  margin-bottom: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-notice__value {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* URL のように折り返せない長い文字列 */
+.c-notice__value--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  word-break: break-all;
+}
