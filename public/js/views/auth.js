@@ -37,63 +37,60 @@ export function renderCreateAccountInfo(container) {
   const errors = state.authErrors || {};
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <main class="flex-1 px-6 pt-16 pb-8 flex flex-col">
-        <h1 class="heading-l text-[#484545] font-bold text-center mb-2">アカウントを作成</h1>
-        <p class="text-rs text-[#A7AAAC] text-center mb-6 font-bold">イベントを保存・共有するために、まずはアカウントを作成してください</p>
+    <div class="p-auth page-transition">
+      <main class="p-auth__main">
+        <h1 class="p-auth__title">アカウントを作成</h1>
+        <p class="p-auth__lead">イベントを保存・共有するために、まずはアカウントを作成してください</p>
 
         ${_inviteContextBanner()}
 
-        <div class="space-y-5 mb-8">
-          <div>
-            <label class="block text-rs text-[#484545] font-bold mb-2">ユーザー名</label>
+        <div class="p-auth__form">
+          <div class="c-field">
+            <label class="c-field__label" for="ca-username">ユーザー名</label>
             <input id="ca-username" type="text" autocomplete="username"
-              class="c-input w-full px-4 py-3 focus:outline-none ${errors.username ? 'ring-2 ring-[#EE3E12]' : ''}"
+              class="c-input c-input--block${errors.username ? ' is-error' : ''}"
               placeholder="2〜20文字（英数字・日本語・全角OK）"
               value="${_esc(draft.username)}" maxlength="20">
-            ${errors.username ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.username)}</p>` : ''}
+            ${errors.username ? `<p class="c-field__error">${_esc(errors.username)}</p>` : ''}
           </div>
 
-          <div>
-            <label class="block text-rs text-[#484545] font-bold mb-2">メールアドレス</label>
+          <div class="c-field">
+            <label class="c-field__label" for="ca-email">メールアドレス</label>
             <input id="ca-email" type="email" autocomplete="email"
-              class="c-input w-full px-4 py-3 focus:outline-none ${errors.email ? 'ring-2 ring-[#EE3E12]' : ''}"
+              class="c-input c-input--block${errors.email ? ' is-error' : ''}"
               placeholder="example@mail.com"
               value="${_esc(draft.email)}" maxlength="100">
-            ${errors.email ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.email)}</p>` : ''}
+            ${errors.email ? `<p class="c-field__error">${_esc(errors.email)}</p>` : ''}
           </div>
 
-          <div>
-            <label class="block text-rs text-[#484545] font-bold mb-2">パスワード</label>
-            <div class="relative">
+          <div class="c-field">
+            <label class="c-field__label" for="ca-password">パスワード</label>
+            <div class="p-auth__password-wrap">
               <input id="ca-password" type="password" autocomplete="new-password"
-                class="c-input w-full px-4 py-3 pr-12 focus:outline-none ${errors.password ? 'ring-2 ring-[#EE3E12]' : ''}"
+                class="c-input c-input--block c-input--with-action${errors.password ? ' is-error' : ''}"
                 placeholder="8文字以上"
                 value="${_esc(draft.password)}" maxlength="100">
-              <button type="button" id="ca-pw-toggle"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-[#A7AAAC] font-bold px-2 py-1">表示</button>
+              <button type="button" id="ca-pw-toggle" class="p-auth__password-toggle">表示</button>
             </div>
-            ${errors.password ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.password)}</p>` : ''}
+            ${errors.password ? `<p class="c-field__error">${_esc(errors.password)}</p>` : ''}
           </div>
         </div>
 
-        ${errors._global ? `<p class="text-[13px] text-[#EE3E12] text-center font-bold mb-4">${_esc(errors._global)}</p>` : ''}
+        ${errors._global ? `<p class="p-auth__error">${_esc(errors._global)}</p>` : ''}
 
-        <button id="ca-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-4">アカウントを作成</button>
+        <button type="button" id="ca-submit" class="c-button c-button--primary p-auth__submit">アカウントを作成</button>
 
-        <!-- Google で続行 -->
-        <div id="ca-google-section" class="hidden mb-4">
-          <div class="flex items-center gap-2 my-3">
-            <div class="flex-1 h-px bg-[#E1DFDC]"></div>
-            <span class="text-[11px] text-[#A7AAAC] font-bold">または</span>
-            <div class="flex-1 h-px bg-[#E1DFDC]"></div>
+        <!-- Google で続行。★hidden は JS が付け外しする（Phase 5 で u-hidden へ）-->
+        <div id="ca-google-section" class="hidden p-auth__google-section">
+          <div class="p-auth__divider">
+            <span class="p-auth__divider-label">または</span>
           </div>
-          <div id="ca-google-btn" class="flex justify-center"></div>
+          <div id="ca-google-btn" class="p-auth__google"></div>
         </div>
 
-        <p class="text-center text-rs text-[#484545] font-bold">
+        <p class="p-auth__footer">
           アカウントをお持ちですか？
-          <button id="ca-go-login" class="text-[#0CA1E3] font-bold ml-1">ログイン</button>
+          <button type="button" id="ca-go-login" class="p-auth__footer-link">ログイン</button>
         </p>
       </main>
     </div>`;
@@ -183,54 +180,51 @@ export function renderLogin(container) {
   const errors = state.authErrors || {};
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <main class="flex-1 px-6 pt-16 pb-8 flex flex-col">
-        <h1 class="heading-l text-[#484545] font-bold text-center mb-2">ログイン</h1>
-        <p class="text-rs text-[#A7AAAC] text-center mb-6 font-bold">登録済みのアカウント情報でサインインしてください</p>
+    <div class="p-auth page-transition">
+      <main class="p-auth__main">
+        <h1 class="p-auth__title">ログイン</h1>
+        <p class="p-auth__lead">登録済みのアカウント情報でサインインしてください</p>
 
         ${_inviteContextBanner()}
 
-        <div class="space-y-5 mb-8">
-          <div>
-            <label class="block text-rs text-[#484545] font-bold mb-2">メールアドレス</label>
+        <div class="p-auth__form">
+          <div class="c-field">
+            <label class="c-field__label" for="lg-id">メールアドレス</label>
             <input id="lg-id" type="email" autocomplete="email"
-              class="c-input w-full px-4 py-3 focus:outline-none ${errors._global ? 'ring-2 ring-[#EE3E12]' : ''}"
+              class="c-input c-input--block${errors._global ? ' is-error' : ''}"
               placeholder="your@example.com"
               value="${_esc(draft.identifier)}" maxlength="100">
           </div>
-          <div>
-            <label class="block text-rs text-[#484545] font-bold mb-2">パスワード</label>
-            <div class="relative">
+          <div class="c-field">
+            <label class="c-field__label" for="lg-password">パスワード</label>
+            <div class="p-auth__password-wrap">
               <input id="lg-password" type="password" autocomplete="current-password"
-                class="c-input w-full px-4 py-3 pr-12 focus:outline-none ${errors._global ? 'ring-2 ring-[#EE3E12]' : ''}"
+                class="c-input c-input--block c-input--with-action${errors._global ? ' is-error' : ''}"
                 value="${_esc(draft.password)}" maxlength="100">
-              <button type="button" id="lg-pw-toggle"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-[#A7AAAC] font-bold px-2 py-1">表示</button>
+              <button type="button" id="lg-pw-toggle" class="p-auth__password-toggle">表示</button>
             </div>
           </div>
         </div>
 
-        ${errors._global ? `<p class="text-[13px] text-[#EE3E12] text-center font-bold mb-4">${_esc(errors._global)}</p>` : ''}
+        ${errors._global ? `<p class="p-auth__error">${_esc(errors._global)}</p>` : ''}
 
-        <button id="lg-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-3">ログイン</button>
+        <button type="button" id="lg-submit" class="c-button c-button--primary p-auth__submit">ログイン</button>
 
-        <p class="text-center mb-4">
-          <button id="lg-forgot" class="text-[12px] text-[#0CA1E3] font-bold underline">パスワードをお忘れですか？</button>
+        <p class="p-auth__forgot">
+          <button type="button" id="lg-forgot" class="p-auth__forgot-link">パスワードをお忘れですか？</button>
         </p>
 
-        <!-- Google で続行 -->
-        <div id="lg-google-section" class="hidden mb-4">
-          <div class="flex items-center gap-2 my-3">
-            <div class="flex-1 h-px bg-[#E1DFDC]"></div>
-            <span class="text-[11px] text-[#A7AAAC] font-bold">または</span>
-            <div class="flex-1 h-px bg-[#E1DFDC]"></div>
+        <!-- Google で続行。★hidden は JS が付け外しする（Phase 5 で u-hidden へ）-->
+        <div id="lg-google-section" class="hidden p-auth__google-section">
+          <div class="p-auth__divider">
+            <span class="p-auth__divider-label">または</span>
           </div>
-          <div id="lg-google-btn" class="flex justify-center"></div>
+          <div id="lg-google-btn" class="p-auth__google"></div>
         </div>
 
-        <p class="text-center text-rs text-[#484545] font-bold">
+        <p class="p-auth__footer">
           アカウントをお持ちでないですか？
-          <button id="lg-go-create" class="text-[#0CA1E3] font-bold ml-1">アカウント作成</button>
+          <button type="button" id="lg-go-create" class="p-auth__footer-link">アカウント作成</button>
         </p>
       </main>
     </div>`;
@@ -323,18 +317,18 @@ export function _inviteContextBanner() {
   const ctx = state.inviteContextForAuth;
   if (!ctx) return '';
   return `
-    <div class="bg-[#E8F6FD] border border-[#0CA1E3] rounded-2xl p-4 mb-6">
+    <div class="c-notice c-notice--info p-auth__invite">
       ${ctx.catchphrase ? `
-        <p class="text-[14px] text-[#0CA1E3] font-bold text-center leading-snug mb-2">${_esc(ctx.catchphrase)}</p>
+        <p class="p-auth__invite-catchphrase">${_esc(ctx.catchphrase)}</p>
       ` : ''}
-      <p class="text-[12px] text-[#484545] font-bold leading-relaxed text-center">
-        <span class="text-[#0CA1E3]">${_esc(ctx.ownerName || '')}</span>さんから<br>
-        「<span class="text-[#0CA1E3]">${_esc(ctx.eventName || ctx.projectName || '')}</span>」<br>
+      <p class="p-auth__invite-text">
+        <span class="p-auth__invite-em">${_esc(ctx.ownerName || '')}</span>さんから<br>
+        「<span class="p-auth__invite-em">${_esc(ctx.eventName || ctx.projectName || '')}</span>」<br>
         への招待を受けています
       </p>
       ${inviteMembersHtml(ctx)}
       ${motivationBlockHtml(ctx)}
-      <p class="text-[10px] text-[#A7AAAC] font-bold text-center mt-3">アカウント作成で参加を申請できます</p>
+      <p class="p-auth__invite-note">アカウント作成で参加を申請できます</p>
     </div>`;
 }
 
@@ -356,10 +350,10 @@ export function inviteMembersHtml(ctx) {
   if (count === 1) {
     const leader = list[0] || { username: ctx?.ownerName || '', avatarUrl: ctx?.ownerAvatarUrl || null };
     return `
-      <div class="flex flex-col items-center gap-2 mt-4">
-        <div class="relative">${Components.UserAvatar(leader, { size: 56, ring: true })}</div>
-        <p class="text-[11px] text-[#A7AAAC] font-bold">
-          <span class="text-[#484545]">${_esc(leader.username || '')}</span>さんが待っています
+      <div class="c-invite-members">
+        <div>${Components.UserAvatar(leader, { size: 56, ring: true })}</div>
+        <p class="c-invite-members__caption">
+          <span class="c-invite-members__name">${_esc(leader.username || '')}</span>さんが待っています
         </p>
       </div>`;
   }
@@ -367,17 +361,14 @@ export function inviteMembersHtml(ctx) {
   const shown = list.slice(0, 5);
   const rest  = count - shown.length;
   return `
-    <div class="flex flex-col items-center gap-2 mt-4">
-      <div class="flex items-center">
-        ${shown.map((u, i) => `
-          <div class="${i > 0 ? '-ml-2' : ''} relative">${Components.UserAvatar(u, { size: 32, ring: true })}</div>
+    <div class="c-invite-members">
+      <div class="c-invite-members__row">
+        ${shown.map(u => `
+          <div class="c-invite-members__item">${Components.UserAvatar(u, { size: 32, ring: true })}</div>
         `).join('')}
-        ${rest > 0 ? `
-          <div class="-ml-2 w-8 h-8 rounded-full bg-[#EBE8E5] ring-2 ring-white flex items-center justify-center
-            text-[10px] font-bold text-[#A7AAAC]">+${rest}</div>
-        ` : ''}
+        ${rest > 0 ? `<div class="c-invite-members__more">+${rest}</div>` : ''}
       </div>
-      <p class="text-[11px] text-[#A7AAAC] font-bold">${count}人が参加中</p>
+      <p class="c-invite-members__caption">${count}人が参加中</p>
     </div>`;
 }
 
@@ -392,14 +383,12 @@ export function motivationBlockHtml(ctx) {
   const text   = (ctx?.motivationText || '').trim();
   if (!labels.length && !text) return '';
   return `
-    <div class="mt-3 pt-3 border-t border-[#0CA1E3]/20">
-      <p class="text-[10px] text-[#A7AAAC] font-bold text-center mb-2">この人たちの想い</p>
-      <div class="flex flex-wrap gap-1.5 justify-center">
-        ${labels.map(l => `
-          <span class="text-[10px] font-bold text-[#EE3E12] bg-[#EE3E12]/10 px-2.5 py-1 rounded-full">${_esc(l)}</span>
-        `).join('')}
+    <div class="c-invite-motivation">
+      <p class="c-invite-motivation__label">この人たちの想い</p>
+      <div class="c-invite-motivation__tags">
+        ${labels.map(l => `<span class="c-invite-motivation__tag">${_esc(l)}</span>`).join('')}
       </div>
-      ${text ? `<p class="text-[12px] text-[#484545] font-bold mt-2.5 text-center leading-relaxed">「${_esc(text)}」</p>` : ''}
+      ${text ? `<p class="c-invite-motivation__text">「${_esc(text)}」</p>` : ''}
     </div>`;
 }
 
@@ -465,14 +454,12 @@ export async function _setupGoogleSignIn(mode, opts = {}) {
     if (isLocal) {
       sectionEl.classList.remove('hidden');
       sectionEl.innerHTML = `
-        <div class="flex items-center gap-2 my-3">
-          <div class="flex-1 h-px bg-[#E1DFDC]"></div>
-          <span class="text-[11px] text-[#A7AAAC] font-bold">または</span>
-          <div class="flex-1 h-px bg-[#E1DFDC]"></div>
+        <div class="p-auth__divider">
+          <span class="p-auth__divider-label">または</span>
         </div>
-        <div class="bg-[#FFF7E6] border border-[#FFC300] rounded-xl px-3 py-2.5 text-[11px] text-[#484545] font-bold leading-relaxed">
+        <div class="c-notice c-notice--warning c-notice--sm p-auth__dev-hint">
           ⚙ Google サインインは未設定です。<br>
-          <span class="text-[#A7AAAC]">.env に <span class="font-mono">GOOGLE_CLIENT_ID</span> を設定すると「Googleで続行」ボタンが表示されます。手順は <span class="font-mono">.env.example</span> を参照。</span>
+          <span class="p-auth__dev-hint-detail">.env に <code>GOOGLE_CLIENT_ID</code> を設定すると「Googleで続行」ボタンが表示されます。手順は <code>.env.example</code> を参照。</span>
         </div>`;
     }
     return;

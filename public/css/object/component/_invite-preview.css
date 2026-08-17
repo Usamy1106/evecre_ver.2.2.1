@@ -1,0 +1,95 @@
+/* ==========================================================================
+   Object / Component / invite-preview — 招待の中身（参加中メンバー・意気込み）
+   使用箇所: public/js/views/auth.js（招待バナー・未ログイン）
+             public/js/main.js（参加確認モーダル・ログイン済み）
+             public/js/modals/joinByCodeModal.js（招待コードの確認画面）
+
+   ★「招待ページ」という画面は作らない方針。招待の内容はこの3箇所に出す。
+   ★🔥ボタンはここに含めない。押すには認証が必要で、未ログインの招待バナーでは
+     押せないため。参加確認モーダル側だけがボタンを出す。
+   ========================================================================== */
+
+.c-invite-members {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.c-invite-members__row {
+  display: flex;
+  align-items: center;
+}
+
+/* 2人目以降は少し重ねる（人が集まっている感じを出す）*/
+.c-invite-members__item + .c-invite-members__item {
+  margin-left: calc(var(--space-2) * -1);
+}
+
+/* 表示しきれない人数（+3 など）*/
+.c-invite-members__more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: calc(var(--space-2) * -1);
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  box-shadow: 0 0 0 2px var(--white);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-invite-members__caption {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-invite-members__name {
+  color: var(--color-text);
+}
+
+/* --- 意気込み ------------------------------------------------------------ */
+
+.c-invite-motivation {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-primary-faint);
+}
+
+.c-invite-motivation__label {
+  margin-bottom: var(--space-2);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.c-invite-motivation__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.c-invite-motivation__tag {
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger-tint);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+}
+
+.c-invite-motivation__text {
+  margin-top: 10px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+  text-align: center;
+}

@@ -99,3 +99,129 @@
 .p-auth__notice--form {
   margin-bottom: var(--space-5);
 }
+
+/* --- ログイン画面 --------------------------------------------------------- */
+
+/* 招待経由で来た人へ、誰の何に招待されているかを見せる。
+   ★ここに🔥は置かない（未ログインでは押せない）。 */
+.p-auth__invite {
+  margin-bottom: var(--space-6);
+}
+
+.p-auth__invite-catchphrase {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.p-auth__invite-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-auth__invite-em {
+  color: var(--color-primary);
+}
+
+.p-auth__invite-note {
+  margin-top: var(--space-3);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* 入力欄の中に置く「表示 / 非表示」の切り替え */
+.p-auth__password-wrap {
+  position: relative;
+}
+
+.p-auth__password-toggle {
+  position: absolute;
+  top: 50%;
+  right: var(--space-3);
+  transform: translateY(-50%);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 目のアイコンを重ねるぶん右に余白を足す */
+.c-input--with-action {
+  padding-right: 48px;
+}
+
+/* 「または」の左右に引く線 */
+.p-auth__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+
+.p-auth__divider::before,
+.p-auth__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--bg-textbox);
+}
+
+.p-auth__divider-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* Google のボタンは iframe で描かれるので中央寄せだけ面倒を見る */
+.p-auth__google {
+  display: flex;
+  justify-content: center;
+}
+
+.p-auth__google-section {
+  margin-bottom: var(--space-4);
+}
+
+.p-auth__forgot {
+  margin-bottom: var(--space-4);
+  text-align: center;
+}
+
+.p-auth__forgot-link {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.p-auth__footer-link {
+  margin-left: var(--space-1);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* --- 開発時の案内（localhost で Google サインイン未設定のとき）------------
+   ★本番では出ない。設定の手順を伝えるだけなので目立たせすぎない。 */
+
+.p-auth__dev-hint {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+}
+
+.p-auth__dev-hint-detail {
+  color: var(--color-text-muted);
+}
+
+.p-auth__dev-hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}

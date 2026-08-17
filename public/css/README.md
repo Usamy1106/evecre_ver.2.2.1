@@ -68,11 +68,12 @@
 | 色付きの囲みメッセージ（`c-notice`） | `object/component/_notice.css` |
 | フォームの1項目（ラベル・エラー・`is-error`） | `object/component/_field.css` |
 | 読み込み中のくるくる（`c-spinner`） | `object/component/_spinner.css` |
+| 招待の中身（参加中メンバー・意気込み） | `object/component/_invite-preview.css` |
 | コーチマークの脈動・指の動き | `object/component/_coach-mark.css` |
 | 利用規約・プライバシーポリシー（本文の見出し・表も） | `object/project/_legal.css` |
 | プロジェクト（フォルダ）詳細 | `object/project/_project-detail.css` |
 | ホーム（イベント一覧・プロジェクト一覧・承認待ちカード） | `object/project/_home.css` |
-| ログイン前の画面のガワ（見出し・説明・送信ボタン） | `object/project/_auth.css` |
+| ログイン・アカウント作成・パスワードリセット | `object/project/_auth.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -218,6 +219,7 @@ public/css/
 │  ├─ _notice.css               ✅ c-notice（--info/--danger/--warning/--muted）
 │  ├─ _field.css                ✅ c-field / c-input--block / .is-error
 │  ├─ _spinner.css              ✅ c-spinner
+│  ├─ _invite-preview.css       ✅ c-invite-members / c-invite-motivation
 │  ├─ _coach-mark.css           ✅ coachMark.js
 │  ├─ _card.css                 ⬜ Phase 3 — 各画面のカードを見てから切り出す
 │  ├─ _empty.css                ⬜ Phase 3 — 空状態
@@ -227,7 +229,7 @@ public/css/
 │  ├─ _legal.css                ✅ 法務ドキュメント（markdown.js の出力もここ）
 │  ├─ _project-detail.css       ✅ プロジェクト詳細
 │  ├─ _home.css                 ✅ ホーム
-│  ├─ _auth.css                 ✅ ログイン前の共通ガワ（passwordReset ほか）
+│  ├─ _auth.css                 ✅ ログイン前の画面（auth / passwordReset）
 │  └─ _main-board / _mission-detail / _mission-modal / _create-event /
 │     _event-settings / _account / _signup / _auth / _notification / _archive /
 │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
