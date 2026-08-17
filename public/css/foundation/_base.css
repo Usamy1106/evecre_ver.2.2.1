@@ -1,0 +1,25 @@
+/* ==========================================================================
+   Foundation / base — 素の要素へのスタイル
+   移設元: public/index.html の <style>（body / [data-sheet-handle]）
+   ========================================================================== */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family-base);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ボトムシートのドラッグハンドル：下スワイプで閉じる（public/js/sheet.js）。
+   touch-action:none でハンドル上のスクロール/ジェスチャを抑止し、ドラッグを安定させる。
+   ★属性セレクタなのは JS 側が data-sheet-handle を目印にしているため（sheet.js）。 */
+[data-sheet-handle] {
+  touch-action: none;
+  cursor: grab;
+}
+
+[data-sheet-handle]:active {
+  cursor: grabbing;
+}

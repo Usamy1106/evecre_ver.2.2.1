@@ -1,0 +1,24 @@
+/* ==========================================================================
+   Layout / loading — 起動時のローディング画面
+   使用箇所: public/index.html (#loading-screen)
+             public/js/state.js（表示を消す）/ public/js/main.js（表示中か判定）
+
+   ★状態クラスは .is-hidden。旧 .hide から改名した（状態語彙を is- に統一するため）。
+     JS 側の参照も同時に直してある。片方だけ直すとローディングが消えなくなる。
+   ========================================================================== */
+
+.l-loading {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-loading);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg);
+  transition: opacity .4s ease;
+}
+
+.l-loading.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}

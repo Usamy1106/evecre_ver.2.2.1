@@ -1,0 +1,18 @@
+/* ==========================================================================
+   Object / Utility / scroll — スクロールの見た目調整
+   使用箇所: public/js/mountainPath.js, public/js/views/mainBoard.js
+
+   ★Phase 0 ではクラス名を変えていない（移設のみ）。
+     u-no-scrollbar への改名は Phase 5 で全参照と同時に行う。
+   ========================================================================== */
+
+/* スクロールバーを隠す（スクロール自体は有効のまま）。
+   山スクロール窓（透明なので細いバーだけが宙に浮いて見える）とメインボード本体で使う。 */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

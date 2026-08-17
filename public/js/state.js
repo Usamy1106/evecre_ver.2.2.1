@@ -261,7 +261,7 @@ export const state = {
   _hideLoading() {
     const loading = document.getElementById('loading-screen');
     if (loading) {
-      loading.classList.add('hide');
+      loading.classList.add('is-hidden');
       setTimeout(() => loading.remove(), 400);
     }
   },

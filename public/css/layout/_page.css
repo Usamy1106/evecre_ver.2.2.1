@@ -1,0 +1,10 @@
+/* ==========================================================================
+   Layout / page — 画面共通のコンテンツ領域・ページ遷移
+   使用箇所: public/js 全体（page-transition 36箇所）
+
+   ★@keyframes fadeIn の定義は foundation/_animation.css にある。
+   ========================================================================== */
+
+.page-transition {
+  animation: fadeIn .3s ease-out forwards;
+}

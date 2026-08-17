@@ -1476,7 +1476,7 @@ state.init().catch(e => {
 // 念のため5秒後にもローディングを強制非表示（サーバー応答遅延への保険）
 setTimeout(() => {
   const loading = document.getElementById('loading-screen');
-  if (loading && !loading.classList.contains('hide')) {
+  if (loading && !loading.classList.contains('is-hidden')) {
     console.warn('ローディング画面を強制非表示（タイムアウト）');
     loading.remove();
   }

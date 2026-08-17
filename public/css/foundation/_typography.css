@@ -1,0 +1,21 @@
+/* ==========================================================================
+   Foundation / typography — タイプスケール
+   移設元: public/index.html の <style>
+   使用箇所: public/js 全体（heading-* 182箇所 / text-* 80箇所）
+
+   ★Phase 0 ではクラス名を変えていない。数が多く、名前を変えると
+     この段階の「見た目が変わっていないか」の検証が難しくなるため。
+     c-/u- 体系へ寄せるかは Phase 5 で判断する。
+   ★font-weight 600 は Tailwind の font-bold（700）とは別物。
+     マークアップに font-bold が併記されている箇所では 700 が勝っている。
+     Tailwind 撤去時にどちらの見た目だったかを実測して合わせること。
+   ========================================================================== */
+
+.heading-l  { font-size: 20px; font-weight: 600; }
+.heading-m  { font-size: 18px; font-weight: 600; }
+.heading-r  { font-size: 16px; font-weight: 600; }
+.heading-rs { font-size: 14px; font-weight: 600; }
+
+.text-m  { font-size: 18px; font-weight: 500; }
+.text-r  { font-size: 16px; font-weight: 400; }
+.text-rs { font-size: 14px; font-weight: 400; }

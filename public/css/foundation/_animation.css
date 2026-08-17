@@ -1,0 +1,26 @@
+/* ==========================================================================
+   Foundation / animation — 共有 @keyframes
+   ★@keyframes は名前がグローバルなので、定義はここ1箇所に集める。
+     使う側（.page-transition / .animate-fadeIn / .coach-pulse …）は
+     それぞれのレイヤーのファイルに書く。どこで使われているかは各定義の下に記す。
+   ========================================================================== */
+
+/* 使用: layout/_page.css (.page-transition), object/utility/_animation.css (.animate-fadeIn) */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* 使用: object/component/_coach-mark.css
+   コーチマーク（public/js/modals/coachMark.js）のくり抜きを脈打たせる */
+@keyframes coachPulse {
+  0%   { transform: scale(1);    opacity: .9; }
+  70%  { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* 使用: object/component/_coach-mark.css — 指アイコンの上下動 */
+@keyframes coachFinger {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}

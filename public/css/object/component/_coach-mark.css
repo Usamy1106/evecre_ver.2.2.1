@@ -1,0 +1,25 @@
+/* ==========================================================================
+   Object / Component / coach-mark — コーチマーク（スポットライト）
+   使用箇所: public/js/modals/coachMark.js
+
+   ★くり抜きは box-shadow で外側を塗る方式。穴の部分だけが素の画面として残るので、
+     clip-path や mask より崩れにくい。位置は getBoundingClientRect() で毎回実測し、
+     JS がインライン style で書き込む（＝座標はここに書けない）。
+   ★@keyframes の定義は foundation/_animation.css にある。
+   ========================================================================== */
+
+.coach-pulse {
+  animation: coachPulse 1.6s ease-out infinite;
+}
+
+.coach-finger {
+  animation: coachFinger 1.2s ease-in-out infinite;
+}
+
+/* 動きを抑える設定の端末では止める */
+@media (prefers-reduced-motion: reduce) {
+  .coach-pulse,
+  .coach-finger {
+    animation: none;
+  }
+}

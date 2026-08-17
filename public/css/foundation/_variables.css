@@ -1,0 +1,102 @@
+/* ==========================================================================
+   Foundation / variables — デザイントークン
+   ここに無い色・サイズを各ファイルで直書きしないこと。
+   新しい値が必要になったら、まずここに名前を付けてから使う。
+   ========================================================================== */
+
+:root {
+  /* --- ブランド原色 -------------------------------------------------------
+     ★値を変更しないこと。既存の JS が同じ HEX を直書きしており、
+       ここだけ変えると画面内で色が食い違う（移行が終わるまでは両方が並存する）。 */
+  --create-yellow: #FFC300;
+  --create-green: #9EDF05;
+  --create-blue: #0CA1E3;
+  --create-red: #EE3E12;
+  --primary-black: #484545;
+  --white: #FFFFFF;
+  --gray: #A7AAAC;
+  --text-placeholder: #9A928F;
+  --button-secondary: #EBE8E5;
+  --button-tertiary: #9F998F;
+  --bg-base: #FDFBF8;
+  --bg-surface: #FFFFFF;
+  --bg-textbox: #E1DFDC;
+  --border-primary: #D3D6D8;
+
+  /* --- 意味ベースのエイリアス ---------------------------------------------
+     ★今後 CSS を書くときはこちらを使う。原色名は「何色か」しか言っておらず、
+       「何に使う色か」が分からないため。原色名は移行の差分を追うために残す。 */
+  --color-primary: var(--create-blue);
+  --color-danger: var(--create-red);
+  --color-warning: var(--create-yellow);
+  --color-success: var(--create-green);
+  --color-text: var(--primary-black);
+  --color-text-muted: var(--gray);
+  --color-text-placeholder: var(--text-placeholder);
+  --color-text-inverse: var(--white);
+  --color-bg: var(--bg-base);
+  --color-surface: var(--bg-surface);
+  --color-border: var(--border-primary);
+
+  /* --- 淡色・状態色 -------------------------------------------------------
+     現状 JS に直書きされている色。移行時にここへ集約する。
+     ★近い値が複数ある色（下のコメント参照）は統合可否を検討中。まだ統合しない。 */
+  --color-primary-pale: #E8F6FD;   /* 近い値: #EBF7FE, #EAF6FF, #EBF8FF */
+  --color-danger-pale: #FFEEEA;    /* 近い値: #FFF0ED */
+  --color-warning-pale: #FFF7E6;   /* 近い値: #FFF8E1 */
+  --color-success-pale: #F0FDE8;
+  --color-success-dark: #5B8104;
+  --color-warning-dark: #9B7700;
+
+  /* --- タイポグラフィ ----------------------------------------------------- */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                      Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 600;
+
+  /* --- スペーシング（4px 基準） ------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* --- 角丸 --------------------------------------------------------------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* --- 影 ----------------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, .08);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, .12);
+
+  /* --- レイアウト ---------------------------------------------------------
+     448px は Tailwind の max-w-md（28rem）の実測値。#app と固定パネルが共有する。 */
+  --layout-max-width: 448px;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+
+  /* --- z-index -----------------------------------------------------------
+     ★現状の JS は z-[210] のような直書きが多い。移行しながらここへ寄せる。 */
+  --z-base: 0;
+  --z-sticky: 20;
+  --z-fab: 30;
+  --z-overlay: 100;
+  --z-sheet: 110;
+  --z-modal: 120;
+  --z-toast: 200;
+  --z-loading: 9999;
+}

@@ -1,0 +1,230 @@
+# public/css — スタイルの置き場所
+
+**「この見た目を変えたい」→「このファイルのこのクラス」** を迷わず辿れる状態を保つための規約。
+
+- ビルド工程は無い。素の CSS ＋ `@import` だけで動く（`npm start` のみ）
+- 読み込みは `index.html` の `<link rel="stylesheet" href="/css/style.css">` **1本だけ**
+- `style.css` には **`@import` 以外を書かない**。順番＝詳細度の弱い順で、**入れ替えるとカスケードが壊れる**
+- パーシャルは `_` 始まり（単体では読み込まないファイルの目印。ビルドが無いので機能的な意味は無く、規約として統一している）
+
+> **移行中**：Tailwind CDN と並走している。撤去は Phase 5。
+> それまでは同じ見た目が「Tailwind のユーティリティ」と「ここの CSS」の両方から当たっている箇所がある。
+
+---
+
+## 1. どこに書くか（判断の順序）
+
+| レイヤー | 接頭辞 | 書くもの | 判断基準 |
+|---|---|---|---|
+| Foundation | なし（要素セレクタ／CSS 変数） | reset、トークン、素の要素、タイプスケール、共有 `@keyframes` | 「アプリ全体の前提」か？ |
+| Layout | `l-` | ヘッダー、タブ、`#app`、固定フッター、ローディング | **1画面に1つしか存在しない領域**か？ |
+| Component | `c-` | ボタン、入力、カード、タグ、シート、モーダル | **2画面以上で使い回す**か？ 中身に依存せず単体で成立するか？ |
+| Project | `p-` | 各画面固有のブロック・並び | 特定の画面だけで意味を持つか？ |
+| Utility | `u-` | `u-hidden` など単一目的 | **他で表現できないときの最後の手段。安易に増やさない** |
+
+**迷ったら**：まず `c-` を疑い、1画面でしか使わないと確信できたら `p-`。
+`u-` を作りたくなったら、`c-` の modifier で表現できないかを先に考える。
+
+### 守ること
+
+- **Component は自身の外側の余白（margin）と位置を持たない。** 配置は親（`l-` / `p-`）が決める
+- **Project から Component の中身を直接上書きしない。** 必要なら `c-` 側に modifier を足す
+  - ✗ `.p-home .c-card__title { font-size: 20px; }`
+  - ✓ `.c-card--feature .c-card__title { font-size: 20px; }`
+- **`!important` は禁止**（例外は下記2つだけ。どちらも Tailwind 撤去で解消予定）
+- **CSS Nesting は使わない。** 1セレクタ1ブロックで書く
+- **`id` にスタイルを当てない。** `#app` / `#loading-screen` も `.l-app` / `.l-loading` を併記してある
+- **色・サイズを直書きしない。** `foundation/_variables.css` に名前を付けてから使う
+
+---
+
+## 2. 早見表 — 変えたい見た目 → 触るファイル
+
+| 変えたいもの | ファイル |
+|---|---|
+| 色・余白・角丸・影・z-index の値そのもの | `foundation/_variables.css` |
+| 画面全体の背景色・基本フォント | `foundation/_base.css` |
+| 見出し・本文の文字サイズ（`heading-*` / `text-*`） | `foundation/_typography.css` |
+| アニメーションの動き方（`@keyframes`） | `foundation/_animation.css` |
+| 要素の初期化（`box-sizing` など） | `foundation/_reset.css` |
+| アプリの最大幅・中央寄せ | `layout/_app.css` |
+| 起動時のローディング画面 | `layout/_loading.css` |
+| 画面切り替え時のフェード | `layout/_page.css` |
+| ボタン（`btn-primary` / `btn-secondary`） | `object/component/_button.css` |
+| 入力欄（`input-field`） | `object/component/_input.css` |
+| コーチマークの脈動・指の動き | `object/component/_coach-mark.css` |
+| モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
+| ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
+| スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
+
+---
+
+## 3. 命名規則
+
+**形式**: `接頭辞 + Block__Element--Modifier`（英語・小文字・ケバブケース）
+
+```
+.c-mission-card                  Block
+.c-mission-card__title           Element
+.c-mission-card__title--long     Modifier
+.c-mission-card--completed       Block の Modifier
+```
+
+- Element の入れ子で `__` を重ねない（`__a__b` にしない）。深くなるなら別 Block に切り出す
+- **1要素のクラスは原則3個まで**（Block ＋ modifier ＋ `js-`）。超えるなら Block を切り出す
+
+### 状態は `is-` 接頭辞
+
+単独では定義せず、**必ず対象クラスと連結して書く**。
+
+```css
+.c-sheet.is-open { transform: translateY(0); }   /* ✓ */
+.is-open { ... }                                  /* ✗ */
+```
+
+使う語彙は統一する：
+`is-open` / `is-hidden` / `is-active` / `is-selected` / `is-disabled` / `is-loading` / `is-error` / `is-expanded`
+
+### JS から掴む目印は `js-` か `data-*`
+
+**`js-` にはスタイルを一切当てない。** スタイルと JS フックを同じクラスに兼ねさせると、
+見た目の都合でクラスを消したときに機能が無言で壊れる。
+
+```html
+<div class="c-notice-card js-notif-swipe-card" data-notif-id="...">
+```
+
+---
+
+## 4. ファイルの書き方
+
+**先頭に必ずヘッダーコメントを置き、使用箇所を書く。** JS 側からも対応する CSS を辿れるよう、
+マークアップ生成関数の直前にも `スタイル: public/css/...` と書く（**双方向に辿れる状態を作る**）。
+
+```css
+/* ==========================================================================
+   c-mission-card — ミッションカード
+   使用箇所: views/mainBoard.js, views/missionDetail.js
+   ========================================================================== */
+
+.c-mission-card {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+/* 完了済み：淡く沈ませる */
+.c-mission-card.is-completed {
+  opacity: .5;
+}
+```
+
+- **1コンポーネント＝1ファイル。1画面＝1ファイル**
+- 200行を超えたら分割を検討する
+- **新しいファイルを作ったら `style.css` の `@import` とこの README の早見表を同時に更新する**
+
+### インライン `style` を許可する場合
+
+**JS が計算した値（座標・高さ・ユーザーが選んだ色）だけ**。静的な値は CSS に置く。
+
+```js
+// ✓ getBoundingClientRect() の実測値（coachMark.js / tooltipTour.js）
+finger.style.left = `${cx - FW / 2}px`;
+// ✓ ユーザーが選んだタグ色
+`<span class="c-tag" style="--tag-color:${custom.color}">`
+// ✗ 静的な値
+`<div style="padding: 16px">`
+```
+
+---
+
+## 5. `!important` を使っている箇所（Tailwind 撤去で解消する）
+
+| 箇所 | 理由 |
+|---|---|
+| `object/utility/_safe-area.css` の `u-fab-safe` / `u-pb-safe` | Tailwind の `bottom-10` / `pb-32` に勝たせるため。Phase 5 で外す |
+
+Phase 5 で `u-hidden` を追加する際は、**JS が表示制御に使うため `!important` を許容する**
+（唯一の恒久的な例外になる予定）。
+
+---
+
+## 6. 全体構成（計画）
+
+Phase が進むにつれてファイルが増える。**まだ存在しないものは「未作成」**。
+
+```
+public/css/
+├─ style.css                    エントリ。@import のみ
+├─ README.md                    このファイル
+│
+├─ foundation/
+│  ├─ _variables.css            ✅ デザイントークン
+│  ├─ _reset.css                ✅ 要素の初期化
+│  ├─ _base.css                 ✅ html / body / data-sheet-handle
+│  ├─ _animation.css            ✅ 共有 @keyframes
+│  └─ _typography.css           ✅ heading-* / text-*
+│
+├─ layout/
+│  ├─ _app.css                  ✅ .l-app（#app）
+│  ├─ _loading.css              ✅ .l-loading（#loading-screen）
+│  ├─ _page.css                 ✅ .page-transition
+│  ├─ _header.css               ⬜ Phase 1 — Components.Header
+│  ├─ _tabs.css                 ⬜ Phase 1 — Components.Tabs
+│  └─ _fixed-bottom.css         ⬜ Phase 1 — 下部固定パネル・FAB
+│
+├─ object/component/
+│  ├─ _button.css               ✅ btn-primary / btn-secondary
+│  ├─ _input.css                ✅ input-field
+│  ├─ _coach-mark.css           ✅ coachMark.js
+│  ├─ _card.css                 ⬜ Phase 2
+│  ├─ _tag.css                  ⬜ Phase 2 — Components.Tag ＋ LABEL_CONFIG
+│  ├─ _avatar.css               ⬜ Phase 2 — Components.UserAvatar
+│  ├─ _thumbnail.css            ⬜ Phase 2 — EventThumbnail / ThumbnailEmptyState
+│  ├─ _step-indicator.css       ⬜ Phase 2
+│  ├─ _banner.css               ⬜ Phase 2 — VerifyBanner ほか
+│  ├─ _sheet.css                ⬜ Phase 2 — ボトムシート
+│  ├─ _modal.css                ⬜ Phase 2 — 中央モーダル＋オーバーレイ
+│  ├─ _dialog.css               ⬜ Phase 2 — dialog.js
+│  ├─ _toast.css                ⬜ Phase 2 — showToast
+│  ├─ _empty.css                ⬜ Phase 2 — 空状態
+│  ├─ _icon.css                 ⬜ Phase 2 — PenIcon ほか
+│  └─ _tooltip.css              ⬜ Phase 2 — tooltipTour.js
+│
+├─ object/project/              ⬜ Phase 3〜4（1画面1ファイル）
+│  └─ _home / _main-board / _mission-detail / _mission-modal / _create-event /
+│     _event-settings / _account / _signup / _auth / _notification / _archive /
+│     _calendar / _invite / _mountain / _legal / _onboarding
+│
+└─ object/utility/
+   ├─ _animation.css            ✅ animate-fadeIn
+   ├─ _safe-area.css            ✅ u-fab-safe / u-pb-safe
+   ├─ _scroll.css               ✅ no-scrollbar
+   ├─ _display.css              ⬜ Phase 5 — u-hidden
+   ├─ _text.css                 ⬜ Phase 5
+   └─ _spacing.css              ⬜ Phase 5
+```
+
+> **空ファイルは先に作らない方針にしている。** `@import` 1本ごとに HTTP リクエストが増え、
+> `.css` は `no-cache`（毎回 ETag 再検証）で配信されるため、中身の無いファイルを並べると
+> 表示のたびに無駄な往復が増えるため。**構成の全体像はこの節で示し、実体は各 Phase で作る。**
+
+---
+
+## 7. 旧クラス名からの対応（移行中）
+
+| 旧 | 新 | 状況 |
+|---|---|---|
+| `#loading-screen` | `.l-loading` | ✅ Phase 0 |
+| `.hide`（ローディング） | `.is-hidden` | ✅ Phase 0（`state.js` / `main.js` も同時に修正済み） |
+| `.fab-safe` | `.u-fab-safe` | ✅ Phase 0 |
+| `.pb-safe` | `.u-pb-safe` | ✅ Phase 0 |
+| `.btn-primary` / `.btn-secondary` | `.c-button--primary` / `--secondary` | ⬜ Phase 2 |
+| `.input-field` | `.c-input` | ⬜ Phase 2 |
+| `.heading-*` / `.text-*` | 判断待ち | ⬜ Phase 5 |
+| `.no-scrollbar` | `.u-no-scrollbar` | ⬜ Phase 5 |
+| `.animate-fadeIn` | `.u-fade-in`（判断待ち） | ⬜ Phase 5 |
+| Tailwind の `hidden` | `.u-hidden` | ⬜ Phase 5 |

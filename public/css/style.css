@@ -1,0 +1,39 @@
+/* ==========================================================================
+   evecre — スタイルエントリポイント
+
+   FLOCSS（Foundation / Layout / Object）で構成する。
+   ★このファイルには @import 以外を書かないこと。
+   ★読み込み順＝詳細度の弱い順。順番を入れ替えるとカスケードが壊れる。
+   ★@import の入れ子は1階層まで（各パーシャルの中で更に @import しない）。
+     読み込みが直列化して遅くなるため。
+
+   どこに何を書くかは public/css/README.md を参照。
+   ファイルを増やしたら、この @import と README の早見表を必ず同時に更新すること。
+
+   移行状況：Tailwind CDN と並走中（撤去は Phase 5）。
+   ========================================================================== */
+
+/* Foundation --------------------------------------------------------------- */
+@import url("./foundation/_variables.css");
+@import url("./foundation/_reset.css");
+@import url("./foundation/_base.css");
+@import url("./foundation/_animation.css");
+@import url("./foundation/_typography.css");
+
+/* Layout ------------------------------------------------------------------- */
+@import url("./layout/_app.css");
+@import url("./layout/_loading.css");
+@import url("./layout/_page.css");
+
+/* Object: Component -------------------------------------------------------- */
+@import url("./object/component/_button.css");
+@import url("./object/component/_input.css");
+@import url("./object/component/_coach-mark.css");
+
+/* Object: Project ---------------------------------------------------------- */
+/* （Phase 3 以降で追加する） */
+
+/* Object: Utility ---------------------------------------------------------- */
+@import url("./object/utility/_animation.css");
+@import url("./object/utility/_safe-area.css");
+@import url("./object/utility/_scroll.css");

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <!-- viewport-fit=cover：これが無いと env(safe-area-inset-*) が常に 0 を返し、
-       standalone（ホーム画面から起動）でボトムナビがホームインジケータに潜り込む。
-       components.js の BottomNav が padding-bottom: env(safe-area-inset-bottom) を使っている。 -->
+       standalone（ホーム画面から起動）で FAB や下部固定パネルがホームインジケータに潜り込む。
+       避ける実装は public/css/object/utility/_safe-area.css（u-fab-safe / u-pb-safe）。 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Event Planner - イベント作りをサポート</title>
 
@@ -19,121 +19,20 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- ミッションチャットのリアクション用絵文字ピッカー（読めない場合は固定セットにフォールバック） -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
-  <style>
-    :root {
-      --create-yellow: #FFC300;
-      --create-green: #9EDF05;
-      --create-blue: #0CA1E3;
-      --create-red: #EE3E12;
-      --primary-black: #484545;
-      --white: #FFFFFF;
-      --gray: #A7AAAC;
-      --text-placeholder: #9A928F;
-      --button-secondary: #EBE8E5;
-      --button-tertiary: #9F998F;
-      --bg-base: #FDFBF8;
-      --bg-surface: #FFFFFF;
-      --bg-textbox: #E1DFDC;
-      --border-primary: #D3D6D8;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-      background-color: var(--bg-base);
-      color: var(--primary-black);
-      -webkit-tap-highlight-color: transparent;
-      margin: 0;
-      padding: 0;
-    }
-    .heading-l  { font-size: 20px; font-weight: 600; }
-    .heading-m  { font-size: 18px; font-weight: 600; }
-    .heading-r  { font-size: 16px; font-weight: 600; }
-    .heading-rs { font-size: 14px; font-weight: 600; }
-    .text-m  { font-size: 18px; font-weight: 500; }
-    .text-r  { font-size: 16px; font-weight: 400; }
-    .text-rs { font-size: 14px; font-weight: 400; }
-    .input-field {
-      background-color: var(--bg-textbox);
-      border: none;
-      border-radius: 12px;
-      color: var(--primary-black);
-      font-size: 16px;
-    }
-    .input-field::placeholder { color: var(--text-placeholder); }
-    .btn-primary {
-      background-color: var(--create-blue);
-      color: var(--white);
-      border-radius: 12px;
-      transition: opacity 0.2s;
-    }
-    .btn-primary:disabled { opacity: 0.5; }
-    .btn-secondary {
-      background-color: var(--white);
-      color: var(--primary-black);
-      border: 1px solid var(--border-primary);
-      border-radius: 12px;
-    }
-    .page-transition { animation: fadeIn 0.3s ease-out forwards; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    /* コーチマーク（public/js/modals/coachMark.js）
-       ★くり抜きは box-shadow で外側を塗る方式。穴の部分だけが素の画面として残るので、
-       　clip-path や mask より崩れにくい。位置は getBoundingClientRect() で毎回実測する。 */
-    @keyframes coachPulse {
-      0%   { transform: scale(1);    opacity: .9; }
-      70%  { transform: scale(1.35); opacity: 0; }
-      100% { transform: scale(1.35); opacity: 0; }
-    }
-    .coach-pulse { animation: coachPulse 1.6s ease-out infinite; }
-    @keyframes coachFinger {
-      0%, 100% { transform: translateY(0); }
-      50%      { transform: translateY(-8px); }
-    }
-    .coach-finger { animation: coachFinger 1.2s ease-in-out infinite; }
-    /* 動きを抑える設定の端末では止める */
-    @media (prefers-reduced-motion: reduce) {
-      .coach-pulse, .coach-finger { animation: none; }
-    }
-
-    /* ボトムシートのドラッグハンドル：下スワイプで閉じる（public/js/sheet.js）。
-       touch-action:none でハンドル上のスクロール/ジェスチャを抑止し、ドラッグを安定させる */
-    [data-sheet-handle] { touch-action: none; cursor: grab; }
-    [data-sheet-handle]:active { cursor: grabbing; }
-
-    /* ローディング */
-    #loading-screen {
-      position: fixed; inset: 0;
-      background: #FDFBF8;
-      display: flex; align-items: center; justify-content: center;
-      z-index: 9999;
-      transition: opacity 0.4s ease;
-    }
-    #loading-screen.hide { opacity: 0; pointer-events: none; }
-
-    /* スクロールバーを隠す（スクロール自体は有効のまま）。
-       山スクロール窓（透明なので細いバーだけが宙に浮いて見える）とメインボード本体で使う。
-       Tailwind CDN のユーティリティには無いクラスなのでここで定義している。 */
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-
-    /* standalone（ホーム画面から起動した PWA）のホームインジケータを避ける。
-       ブラウザ表示では env() が 0 なので Tailwind の bottom-10 と同じ見た目になる。
-       Tailwind のユーティリティに勝たせるため !important を付けている。 */
-    .fab-safe { bottom: calc(2.5rem + env(safe-area-inset-bottom)) !important; }
-    /* 画面下端に貼り付く固定パネルの内側下余白（コンテンツがインジケータに隠れないように） */
-    .pb-safe { padding-bottom: calc(8rem + env(safe-area-inset-bottom)) !important; }
-  </style>
+  <!-- スタイルは FLOCSS で public/css/ に分割してある。詳細は public/css/README.md -->
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="min-h-screen">
 
   <!-- ローディング画面 -->
-  <div id="loading-screen">
+  <div id="loading-screen" class="l-loading">
     <div class="text-center">
       <div class="w-16 h-16 border-4 border-[#0CA1E3] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
       <p class="text-[#A7AAAC] font-bold text-sm">読み込み中...</p>
     </div>
   </div>
 
-  <div id="app" class="max-w-md mx-auto min-h-screen relative flex flex-col"></div>
+  <div id="app" class="l-app max-w-md mx-auto min-h-screen relative flex flex-col"></div>
 
   <script type="module" src="/js/main.js"></script>
 </body>

@@ -139,7 +139,7 @@ export function renderMainBoard(container) {
           <div data-mpanel-handle class="flex-shrink-0 flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing rounded-t-2xl" style="touch-action:none">
             <div class="w-10 h-1.5 rounded-full bg-[#C9CDD1]"></div>
           </div>
-          <div class="flex-1 overflow-y-auto px-6 pt-1 pb-safe space-y-6">
+          <div class="flex-1 overflow-y-auto px-6 pt-1 u-pb-safe space-y-6">
             ${mainLayout.bottomPanelInner}
           </div>
         </div>
@@ -151,7 +151,7 @@ export function renderMainBoard(container) {
       `}
       ${state.mainBoardTab === 'MAIN' && state.canManageCurrentEvent() ? `
         <button onclick="window._app.openMissionModal()" data-log="mission_add_open" data-coach="fab"
-          class="fab-safe fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
+          class="u-fab-safe fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
           flex items-center justify-center text-white active:scale-90 transition-transform z-40">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
@@ -159,7 +159,7 @@ export function renderMainBoard(container) {
         </button>` : ''}
       ${state.mainBoardTab === 'MAIN' && !state.canManageCurrentEvent() && state.currentUser ? `
         <button onclick="window._app.openMemberProposalSheet()"
-          class="fab-safe fixed bottom-10 right-6 w-14 h-14 rounded-full shadow-[0_4px_15px_rgba(158,223,5,0.4)]
+          class="u-fab-safe fixed bottom-10 right-6 w-14 h-14 rounded-full shadow-[0_4px_15px_rgba(158,223,5,0.4)]
           flex items-center justify-center text-white active:scale-90 transition-transform z-40"
           style="background-color: #9EDF05">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">

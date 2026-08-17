@@ -1,0 +1,19 @@
+/* ==========================================================================
+   Layout / app — アプリ全体の枠
+   使用箇所: public/index.html (#app)
+
+   ★id にはスタイルを当てない方針のため .l-app を併記している。
+     #app という id は JS（state.render / main.js）が掴んでいるので残す。
+   ★Tailwind の max-w-md / mx-auto / min-h-screen / relative / flex / flex-col と
+     同じ値を書いている（並走中は二重に効くが結果は同じ）。Tailwind 撤去後もこの
+     ファイルだけで成立する。
+   ========================================================================== */
+
+.l-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-width: var(--layout-max-width);
+  min-height: 100vh;
+  margin-inline: auto;
+}
