@@ -1232,7 +1232,9 @@ function _renderQuiz(container, d) {
   container.innerHTML = _shell(`
     ${_profileDots(d, 8)}
     <p class="p-signup__quiz-count">${qi + 1} / ${QUIZ.length}</p>
-    <h1 class="p-signup__question p-signup__question--wide">${_esc(q.title)}</h1>
+    <!-- ★esc しないこと。QUIZ の title は改行のための <br> を意図的に含む
+         （「イベント準備、<br>あなたはどっち？」）。定数なのでユーザー入力は入らない。 -->
+    <h1 class="p-signup__question p-signup__question--wide">${q.title}</h1>
 
     <div class="p-signup__quiz-options">
       ${q.options.map(([id, label, emoji]) => `

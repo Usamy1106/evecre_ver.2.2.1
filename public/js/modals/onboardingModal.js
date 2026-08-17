@@ -58,7 +58,12 @@ export function openOnboardingModal(o) {
     <div class="c-modal c-modal--scroll animate-fadeIn">
       ${o.emoji ? `<p class="c-modal__emoji">${o.emoji}</p>` : ''}
       ${o.eyebrow ? `<p class="c-modal__eyebrow">${_esc(o.eyebrow)}</p>` : ''}
-      <h3 class="c-modal__title c-modal__title--wide">${_esc(o.title)}</h3>
+      <!-- ★title は _esc しないこと。改行のための <br> を意図的に含んでいる
+           （「あなたのやることは<br>3つです」など）。中に入るユーザー名・
+           ミッション名は onboarding.js の _escapeName() が発生源で
+           エスケープ済み。ここで二重に esc すると <br> が文字として出る
+           （実際にその不具合を出した）。body は <br> を含まないので esc する。 -->
+      <h3 class="c-modal__title c-modal__title--wide">${o.title}</h3>
       <div class="c-modal__body">
         ${stepsHtml ? `<div class="c-modal__steps">${stepsHtml}</div>` : ''}
         ${o.body ? `<p class="c-modal__lead">${_esc(o.body)}</p>` : ''}
