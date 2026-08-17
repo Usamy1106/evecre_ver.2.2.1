@@ -81,7 +81,7 @@ export const Components = {
             <img src="/images/icon/iocn-Chevron.svg" class="l-header__back-icon" alt="">
           </button>
           <!-- ★タイトル横の山イラストは削除した（MountainMini はホームのグリッド等では継続使用）-->
-          <span class="l-header__title">${project.name}</span>
+          <span class="l-header__title">${_escText(project.name)}</span>
         </div>
         <div class="l-header__actions">
           <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
@@ -148,7 +148,9 @@ export const Components = {
     // スタイル: public/css/object/component/_tag.css
     // ★色はユーザーが選べるので、ビルトインもカスタムも同じ --tag-color で渡す
     //   （クラスで塗り分けると2系統になり、カスタムタグ側が表現できない）。
-    const tag = (color) => `<span class="c-tag" style="--tag-color:${color}">${text}</span>`;
+    // ★タグ名はユーザーが作れる（customTags）ので必ずエスケープする。
+    //   色は customTags の値だが、こちらもユーザー由来なので属性を閉じられないよう escape する。
+    const tag = (color) => `<span class="c-tag" style="--tag-color:${_escText(color)}">${_escText(text)}</span>`;
 
     const builtIn = LABEL_CONFIG[text];
     if (builtIn) return tag(builtIn.color);

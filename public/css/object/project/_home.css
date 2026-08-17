@@ -1,0 +1,439 @@
+/* ==========================================================================
+   Object / Project / home — ホーム画面（イベント一覧・プロジェクト一覧）
+   使用箇所: public/js/views/home.js
+
+   ★右下の丸い＋ボタン（FAB）は廃止済み。作成の導線は
+     イベント → ヘッダーの「イベントを作成」／空状態のボタン
+     プロジェクト → プロジェクトタブ見出し横の「＋新規作成」／空状態のボタン
+     ここを消すと空のプロジェクトを作る手段が無くなる。
+   ========================================================================== */
+
+.p-home {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+/* 通知バナー・承認待ちカードを置く帯 */
+.p-home__notice {
+  margin: var(--space-3) var(--space-4) 0;
+}
+
+.p-home__main {
+  flex: 1;
+  padding: var(--space-4) var(--space-6) 144px;
+}
+
+/* --- タブ（イベント / プロジェクト）--------------------------------------
+   ★メインボードのタブ（l-tabs）とは別物。こちらは HOME 専用で色も1色。 */
+
+.p-home__tabs {
+  display: flex;
+  margin: var(--space-3) var(--space-6) 0;
+  border-bottom: 1px solid var(--bg-textbox);
+}
+
+.p-home__tab {
+  flex: 1;
+  padding-block: 10px;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: color var(--duration-fast) var(--ease);
+}
+
+/* 非アクティブに透明ボーダーを敷かない（敷くと中身が 1px 上にずれる）*/
+.p-home__tab.is-active {
+  border-bottom: 2px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* --- 見出し -------------------------------------------------------------- */
+
+.p-home__section {
+  margin-bottom: 48px;
+}
+
+.p-home__heading {
+  margin-bottom: var(--space-6);
+  padding-left: var(--space-1);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-home__heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-1);
+}
+
+.p-home__heading-row .p-home__heading {
+  margin-bottom: 0;
+  padding-left: 0;
+}
+
+/* --- 空状態 -------------------------------------------------------------- */
+
+.p-home__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 55vh;
+  gap: var(--space-6);
+  text-align: center;
+}
+
+.p-home__empty--folders {
+  gap: var(--space-4);
+}
+
+/* ★エンプティーステート画像は後日支給予定。それまではプレースホルダー */
+.p-home__empty-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 128px;
+  height: 128px;
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+}
+
+.p-home__empty-art-inner {
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-border);
+  opacity: .5;
+}
+
+.p-home__empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  color: var(--color-text-muted);
+}
+
+.p-home__empty-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-home__empty-text {
+  font-size: var(--font-size-md);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+.p-home__empty-text--tight {
+  margin-bottom: var(--space-2);
+  line-height: normal;
+}
+
+.p-home__empty-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 320px;
+}
+
+/* --- 作成ボタン ---------------------------------------------------------- */
+
+.p-home__cta {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary);
+  box-shadow: 0 4px 20px rgba(12, 161, 227, .4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+/* 空状態の中に単独で置くとき（横幅いっぱいにしない）*/
+.p-home__cta--inline {
+  padding: var(--space-3) var(--space-6);
+}
+
+.p-home__cta--outline {
+  border: 2px solid var(--color-primary);
+  background-color: var(--white);
+  box-shadow: none;
+  color: var(--color-primary);
+}
+
+.p-home__cta:active {
+  transform: scale(.95);
+}
+
+/* 見出し横の「＋新規作成」 */
+.p-home__add {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-home__add:active {
+  opacity: .5;
+}
+
+/* --- イベントのグリッド（3列）--------------------------------------------
+   ★長押しでメニューが出る（modals/eventActions.js が data-event-card を掴む）。
+     長押し中に文字が選択されたりリンクのプレビューが出ないよう止めている。
+   ★中身は pointer-events:none。カード全体をタップ判定にするため。 */
+
+.p-home__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--space-2);
+  align-items: start;
+  margin-bottom: var(--space-2);
+  padding-inline: var(--space-1);
+}
+
+.p-home__divider {
+  width: 100%;
+  height: 1.5px;
+  margin-top: var(--space-1);
+  margin-bottom: var(--space-8);
+  background-color: var(--color-border);
+}
+
+.p-home__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.p-home__card-thumb {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  pointer-events: none;
+}
+
+.p-home__card-name {
+  width: 100%;
+  overflow: hidden;
+  padding-inline: var(--space-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  pointer-events: none;
+}
+
+/* イベントが1件も無いセクション（「作成した」「完了した」のどちらか）*/
+.p-home__grid-empty {
+  display: flex;
+  align-items: center;
+  height: 96px;
+  font-size: var(--font-size-md);
+  color: var(--color-text-muted);
+}
+
+/* --- プロジェクトのリスト ------------------------------------------------ */
+
+.p-home__folder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-home__folder:active {
+  transform: scale(.98);
+}
+
+.p-home__folder-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: var(--button-secondary);
+  color: var(--color-text);
+}
+
+.p-home__folder-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-home__folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-home__folder-description {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-home__folder-count {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- 承認待ちカード ------------------------------------------------------
+   ★「送信しました。お待ちください」の一文だけだと待ち時間が空白になり、
+     承認されても戻ってこない。イベントの顔（キャッチコピー）とリーダーの
+     意気込みを見せて、承認通知が来たときに開く確率を上げている。 */
+
+.p-home__pending {
+  overflow: hidden;
+  border: 1px solid var(--color-pending-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-success-pale);
+}
+
+.p-home__pending-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-success-dark);
+}
+
+/* 一文だけのときは仕切り線を出さない */
+.p-home__pending-head--divided {
+  border-bottom: 1px solid var(--color-pending-divider);
+}
+
+.p-home__pending-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.p-home__pending-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-home__pending-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-home__pending-sub {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  opacity: .7;
+}
+
+.p-home__pending-close {
+  flex-shrink: 0;
+  padding: var(--space-1);
+  color: var(--color-text-muted);
+  opacity: .6;
+}
+
+.p-home__pending-detail {
+  padding: var(--space-4) var(--space-5);
+  background-color: var(--color-surface);
+  text-align: center;
+}
+
+.p-home__pending-catchphrase {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-primary);
+}
+
+.p-home__pending-event {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-home__pending-members {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-home__pending-motivation {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-hairline);
+}
+
+.p-home__pending-motivation-label {
+  margin-bottom: var(--space-2);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-home__pending-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.p-home__pending-tag {
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger-tint);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+}
+
+.p-home__pending-text {
+  margin-top: 10px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+}

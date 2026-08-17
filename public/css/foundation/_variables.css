@@ -48,6 +48,11 @@
   --color-success-dark: #5B8104;
   --color-handle: #C9CDD1;         /* ドラッグハンドルのつまみ */
   --color-table-head: #F5F3F0;     /* 表のヘッダ行（法務ドキュメント）*/
+  --color-hairline: #F0EEEB;       /* カード内の淡い仕切り線 */
+  /* 半透明の派生色。rgba を各所に直書きしないためここで名前を付ける */
+  --color-pending-border: rgba(158, 223, 5, .6);
+  --color-pending-divider: rgba(158, 223, 5, .3);
+  --color-danger-tint: rgba(238, 62, 18, .1);
   --color-warning-dark: #9B7700;
 
   /* --- タイポグラフィ ----------------------------------------------------- */
