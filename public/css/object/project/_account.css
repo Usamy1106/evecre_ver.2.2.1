@@ -1,0 +1,258 @@
+/* ==========================================================================
+   Object / Project / account — アカウント設定
+   使用箇所: public/js/views/account.js
+
+   ★上から「認証」「プロフィール」「本人確認まわり」「通知」、最後に
+     ログアウトと退会。取り消せない操作ほど下に置いてある。
+   ========================================================================== */
+
+.p-account {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.p-account__main {
+  flex: 1;
+  padding: 0 var(--space-6) 96px;
+}
+
+/* 設定カードどうしの間隔。Component（c-settings-card）は余白を持たない */
+.p-account__card {
+  margin-bottom: var(--space-4);
+}
+
+.p-account__card--last {
+  margin-bottom: var(--space-6);
+}
+
+.p-account__notice {
+  margin-bottom: var(--space-4);
+}
+
+/* --- プロフィール画像 ----------------------------------------------------- */
+
+.p-account__avatar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.p-account__avatar-actions {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.p-account__avatar-pick {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-account__avatar-remove {
+  padding: 6px var(--space-3);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-account__avatar-pick:active,
+.p-account__avatar-remove:active {
+  transform: scale(.95);
+}
+
+.p-account__avatar-pick:disabled,
+.p-account__avatar-remove:disabled {
+  opacity: .5;
+}
+
+/* --- 通知 ---------------------------------------------------------------- */
+
+.p-account__section-title {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-account__section-lead {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+.p-account__push-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.p-account__push-state {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* オンのときだけ色を変える。色だけに頼らず文言も変えている */
+.p-account__push-state.is-on {
+  color: var(--color-success-dark);
+}
+
+.p-account__push-toggle {
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+/* オンのときは「オフにする」＝目立たせない */
+.p-account__push-toggle.is-on {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.p-account__push-test {
+  width: 100%;
+  margin-top: var(--space-3);
+  padding-block: var(--space-2);
+  border: 1px solid var(--color-primary-half);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary-pale2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-account__push-test:active {
+  transform: scale(.95);
+}
+
+.p-account__note {
+  margin-top: var(--space-2);
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.p-account__note--relaxed {
+  margin-top: 6px;
+  line-height: 1.625;
+}
+
+/* --- 手順の案内（iOS のホーム画面追加・Mac の通知設定）--------------------
+   ★どちらも「アプリ側でオンにしただけでは届かない」ケース。手順を番号で示す。 */
+
+.p-account__guide-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-account__guide-title--plain {
+  margin-bottom: var(--space-1);
+  color: var(--color-text);
+}
+
+.p-account__guide-text {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  line-height: 1.625;
+  color: var(--color-text);
+}
+
+.p-account__guide-steps {
+  padding-left: var(--space-4);
+  list-style-type: decimal;
+  font-size: var(--font-size-xs);
+  line-height: 1.625;
+  color: var(--color-text);
+}
+
+.p-account__guide-steps > li + li {
+  margin-top: var(--space-1);
+}
+
+.p-account__guide-steps--tight > li + li {
+  margin-top: 2px;
+}
+
+.p-account__strong {
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- ログアウト・退会 -----------------------------------------------------
+   ★退会は取り消せないので、ログアウトから距離を置いて最下部に置き、
+     押した先で必ず確認ダイアログを出す（_confirmAndDeleteAccount）。 */
+
+.p-account__logout {
+  width: 100%;
+  margin-bottom: var(--space-8);
+  padding-block: var(--space-3);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+}
+
+.p-account__danger {
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--bg-textbox);
+}
+
+.p-account__danger-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-account__danger-text {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+.p-account__danger-action {
+  width: 100%;
+  padding-block: var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+}
+
+/* --- ワンタイムコードの入力欄 --------------------------------------------
+   ★字間を広げて1桁ずつ読めるようにする。6桁を続けて表示すると読み違える。 */
+
+.c-input--otp {
+  padding: var(--space-3) var(--space-4);
+  text-align: center;
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  letter-spacing: .5em;
+}

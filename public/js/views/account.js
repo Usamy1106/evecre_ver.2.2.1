@@ -17,41 +17,24 @@ export function renderAccount(container) {
   const sec = state.accountScreen || {};
 
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <header class="flex items-center px-6 py-4 bg-[#FDFBF8] sticky top-0 z-20" style="padding-top:calc(1rem + env(safe-area-inset-top))">
-        <button onclick="window._app.setView('HOME')"
-          class="w-8 h-8 rounded-full bg-black/5 flex items-center justify-center mr-3">
-          <img src="/images/icon/iocn-Chevron.svg" class="w-4 h-4 brightness-0 opacity-50">
+    <div class="p-account page-transition">
+      <header class="l-header l-header--sub">
+        <button type="button" onclick="window._app.setView('HOME')" class="l-header__back" aria-label="ホームへ戻る">
+          <img src="/images/icon/iocn-Chevron.svg" class="l-header__back-icon" alt="">
         </button>
-        <h1 class="heading-r font-bold text-[#484545]">アカウント設定</h1>
+        <h1 class="l-header__heading">アカウント設定</h1>
       </header>
 
-      <main class="flex-1 px-6 pb-24">
+      <main class="p-account__main">
         ${!u.isVerified ? _verifySection(sec) : ''}
 
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-5 mb-4">
-          ${_avatarSection(u, sec)}
-        </div>
+        <div class="c-settings-card p-account__card">${_avatarSection(u, sec)}</div>
+        <div class="c-settings-card p-account__card">${_usernameSection(u, sec)}</div>
+        <div class="c-settings-card p-account__card">${_emailSection(u, sec)}</div>
+        <div class="c-settings-card p-account__card">${_passwordSection(sec)}</div>
+        <div class="c-settings-card p-account__card--last">${_notificationSection()}</div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-5 mb-4">
-          ${_usernameSection(u, sec)}
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-5 mb-4">
-          ${_emailSection(u, sec)}
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-5 mb-4">
-          ${_passwordSection(sec)}
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-sm border border-[#E1DFDC] p-5 mb-6">
-          ${_notificationSection()}
-        </div>
-
-        <button id="acc-logout" class="w-full py-3 rounded-xl text-[14px] font-bold text-[#EE3E12] bg-white border border-[#E1DFDC] mb-8">
-          ログアウト
-        </button>
+        <button type="button" id="acc-logout" class="p-account__logout">ログアウト</button>
 
         ${_dangerZoneSection()}
       </main>
@@ -66,12 +49,12 @@ export function renderAccount(container) {
 
 function _dangerZoneSection() {
   return `
-    <div class="border-t border-[#E1DFDC] pt-6">
-      <p class="text-[12px] text-[#A7AAAC] font-bold mb-2">アカウントの削除</p>
-      <p class="text-[11px] text-[#A7AAAC] leading-relaxed mb-3">
+    <div class="p-account__danger">
+      <p class="p-account__danger-title">アカウントの削除</p>
+      <p class="p-account__danger-text">
         アカウントと、あなたに紐づくデータを削除します。この操作は取り消せません。
       </p>
-      <button id="acc-delete" class="w-full py-3 rounded-xl text-[13px] font-bold text-[#EE3E12] bg-white border border-[#EE3E12]">
+      <button type="button" id="acc-delete" class="p-account__danger-action">
         アカウントを削除する
       </button>
     </div>`;
@@ -136,12 +119,12 @@ async function _confirmAndDeleteAccount() {
 
 function _verifySection(sec) {
   return `
-    <div class="bg-[#FFF7E6] border border-[#FFC300] rounded-2xl p-4 mb-4">
-      <p class="text-[13px] font-bold text-[#484545] mb-1">⚠ メールアドレス未認証</p>
-      <p class="text-[12px] text-[#484545] leading-relaxed mb-3">
+    <div class="c-notice c-notice--warning p-account__notice">
+      <p class="p-account__guide-title--plain p-account__strong">⚠ メールアドレス未認証</p>
+      <p class="p-account__guide-text">
         新規プロジェクトの作成など、一部の機能はメール認証完了まで使えません。
       </p>
-      <button onclick="window._app.openVerifyModal()" class="bg-[#FFC300] text-white font-bold text-[13px] px-4 py-2 rounded-lg">認証コードを入力する</button>
+      <button type="button" onclick="window._app.openVerifyModal()" class="c-banner__action">認証コードを入力する</button>
     </div>`;
 }
 
@@ -149,24 +132,23 @@ function _verifySection(sec) {
 
 function _avatarSection(u, sec) {
   return `
-    <h2 class="text-[14px] font-bold text-[#484545] mb-3">プロフィール画像</h2>
-    <div class="flex items-center gap-4">
+    <h2 class="c-settings-card__title">プロフィール画像</h2>
+    <div class="p-account__avatar-row">
       ${Components.UserAvatar(u, { size: 72 })}
-      <div class="flex-1 space-y-2">
+      <div class="p-account__avatar-actions">
+        <!-- ★hidden は見た目のためではなく「ファイル選択を自前のボタンで代替する」ため -->
         <input id="acc-avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
-        <button id="acc-avatar-pick"
-          class="bg-[#0CA1E3] text-white text-[12px] font-bold px-4 py-2 rounded-full active:scale-95 transition-transform"
-          ${sec.avatarSaving ? 'disabled style="opacity:.5"' : ''}>
+        <button type="button" id="acc-avatar-pick" class="p-account__avatar-pick"
+          ${sec.avatarSaving ? 'disabled' : ''}>
           ${sec.avatarSaving ? '保存中…' : '画像を選択'}
         </button>
         ${u.avatarUrl ? `
-          <button id="acc-avatar-remove"
-            class="block bg-white border border-[#E1DFDC] text-[#484545] text-[11px] font-bold px-3 py-1.5 rounded-full active:scale-95 transition-transform"
-            ${sec.avatarSaving ? 'disabled style="opacity:.5"' : ''}>削除</button>
+          <button type="button" id="acc-avatar-remove" class="p-account__avatar-remove"
+            ${sec.avatarSaving ? 'disabled' : ''}>削除</button>
         ` : ''}
       </div>
     </div>
-    ${sec.avatarError ? `<p class="text-[11px] text-[#EE3E12] font-bold mt-2">${sec.avatarError}</p>` : ''}`;
+    ${sec.avatarError ? `<p class="c-settings-card__error">${_esc(sec.avatarError)}</p>` : ''}`;
 }
 
 // ----- セクション: ユーザー名 -----
@@ -174,23 +156,23 @@ function _avatarSection(u, sec) {
 function _usernameSection(u, sec) {
   const editing = sec.active === 'username';
   return `
-    <div class="flex justify-between items-center mb-${editing ? '3' : '0'}">
-      <div>
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">ユーザー名</p>
-        <p class="text-[14px] text-[#484545] font-bold">${_esc(u.username || '')}</p>
+    <div class="c-settings-card__row${editing ? ' is-editing' : ''}">
+      <div class="c-settings-card__body">
+        <p class="c-settings-card__label">ユーザー名</p>
+        <p class="c-settings-card__value">${_esc(u.username || '')}</p>
       </div>
-      ${!editing ? `<button id="acc-username-edit" class="text-[12px] font-bold text-[#0CA1E3] px-3 py-1.5 rounded-lg bg-[#E8F6FD]">変更</button>` : ''}
+      ${!editing ? `<button type="button" id="acc-username-edit" class="c-settings-card__edit">変更</button>` : ''}
     </div>
     ${editing ? `
       <input id="acc-username-input" type="text" maxlength="20"
-        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2 ${sec.error ? 'ring-2 ring-[#EE3E12]' : ''}"
+        class="c-input c-input--block c-settings-card__input${sec.error ? ' is-error' : ''}"
         value="${_esc(sec.newValue || '')}"
         placeholder="2〜20文字（英数字・日本語・全角OK）">
-      <p class="text-[10px] text-[#A7AAAC] mt-1.5">英数字、日本語、全角文字、ハイフン、アンダーバー</p>
-      ${sec.error ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.error)}</p>` : ''}
-      <div class="flex gap-2 mt-3">
-        <button id="acc-username-cancel" class="flex-1 py-2 text-[12px] font-bold text-[#484545] bg-[#EBE8E5] rounded-lg">キャンセル</button>
-        <button id="acc-username-save" class="flex-1 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg">保存</button>
+      <p class="c-settings-card__hint">英数字、日本語、全角文字、ハイフン、アンダーバー</p>
+      ${sec.error ? `<p class="c-settings-card__error">${_esc(sec.error)}</p>` : ''}
+      <div class="c-settings-card__actions">
+        <button type="button" id="acc-username-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+        <button type="button" id="acc-username-save" class="c-settings-card__action c-settings-card__action--save">保存</button>
       </div>
     ` : ''}`;
 }
@@ -201,37 +183,39 @@ function _emailSection(u, sec) {
   const editing = sec.active === 'email';
   const step = sec.step || 'edit';
   return `
-    <div class="flex justify-between items-center mb-${editing ? '3' : '0'}">
-      <div class="flex-1 min-w-0">
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">メールアドレス
-          ${u.isVerified ? '<span class="text-[#0CA1E3] ml-1">✓ 認証済み</span>' : '<span class="text-[#FFC300] ml-1">未認証</span>'}
+    <div class="c-settings-card__row${editing ? ' is-editing' : ''}">
+      <div class="c-settings-card__body">
+        <p class="c-settings-card__label">メールアドレス
+          ${u.isVerified
+            ? '<span class="c-settings-card__badge c-settings-card__badge--ok">✓ 認証済み</span>'
+            : '<span class="c-settings-card__badge c-settings-card__badge--pending">未認証</span>'}
         </p>
-        <p class="text-[14px] text-[#484545] font-bold truncate">${_esc(u.email || '')}</p>
+        <p class="c-settings-card__value">${_esc(u.email || '')}</p>
       </div>
-      ${!editing ? `<button id="acc-email-edit" class="text-[12px] font-bold text-[#0CA1E3] px-3 py-1.5 rounded-lg bg-[#E8F6FD] flex-shrink-0">変更</button>` : ''}
+      ${!editing ? `<button type="button" id="acc-email-edit" class="c-settings-card__edit">変更</button>` : ''}
     </div>
     ${editing && step === 'edit' ? `
       <input id="acc-email-input" type="email"
-        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2"
+        class="c-input c-input--block c-settings-card__input"
         value="${_esc(sec.newValue || '')}" placeholder="新しいメールアドレス">
-      ${sec.errors?.email ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.errors.email)}</p>` : ''}
+      ${sec.errors?.email ? `<p class="c-settings-card__error">${_esc(sec.errors.email)}</p>` : ''}
       <input id="acc-email-pw" type="password"
-        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2"
+        class="c-input c-input--block c-settings-card__input"
         value="${_esc(sec.currentPassword || '')}" placeholder="現在のパスワード">
-      ${sec.errors?.password ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.errors.password)}</p>` : ''}
-      <div class="flex gap-2 mt-3">
-        <button id="acc-email-cancel" class="flex-1 py-2 text-[12px] font-bold text-[#484545] bg-[#EBE8E5] rounded-lg">キャンセル</button>
-        <button id="acc-email-send" class="flex-1 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg">コードを送信</button>
+      ${sec.errors?.password ? `<p class="c-settings-card__error">${_esc(sec.errors.password)}</p>` : ''}
+      <div class="c-settings-card__actions">
+        <button type="button" id="acc-email-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+        <button type="button" id="acc-email-send" class="c-settings-card__action c-settings-card__action--save">コードを送信</button>
       </div>
     ` : editing && step === 'verify' ? `
-      <p class="text-[12px] text-[#484545] font-bold mt-2 mb-2">${_esc(sec.newValue)} 宛にコードを送信しました</p>
+      <p class="c-settings-card__note c-settings-card__note--strong">${_esc(sec.newValue)} 宛にコードを送信しました</p>
       ${_otpInput('acc-email-code', sec.otp || '')}
-      ${sec.mailError ? `<p class="text-[11px] text-[#EE3E12] mt-2 font-bold">⚠ メール送信に失敗：${_esc(sec.mailError)}</p>` : ''}
-      ${sec.devCode ? `<p class="text-[11px] text-[#A7AAAC] mt-2 font-bold">（開発用）コード: ${_esc(sec.devCode)}</p>` : ''}
-      ${sec.error ? `<p class="text-[11px] text-[#EE3E12] mt-2 font-bold">${_esc(sec.error)}</p>` : ''}
-      <div class="flex gap-2 mt-3">
-        <button id="acc-email-back"   class="flex-1 py-2 text-[12px] font-bold text-[#484545] bg-[#EBE8E5] rounded-lg">戻る</button>
-        <button id="acc-email-confirm" class="flex-1 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg">確定</button>
+      ${sec.mailError ? `<p class="c-settings-card__error">⚠ メール送信に失敗：${_esc(sec.mailError)}</p>` : ''}
+      ${sec.devCode ? `<p class="c-settings-card__note">（開発用）コード: ${_esc(sec.devCode)}</p>` : ''}
+      ${sec.error ? `<p class="c-settings-card__error">${_esc(sec.error)}</p>` : ''}
+      <div class="c-settings-card__actions">
+        <button type="button" id="acc-email-back" class="c-settings-card__action c-settings-card__action--cancel">戻る</button>
+        <button type="button" id="acc-email-confirm" class="c-settings-card__action c-settings-card__action--save">確定</button>
       </div>
     ` : ''}`;
 }
@@ -242,35 +226,35 @@ function _passwordSection(sec) {
   const editing = sec.active === 'password';
   const step = sec.step || 'edit';
   return `
-    <div class="flex justify-between items-center mb-${editing ? '3' : '0'}">
-      <div>
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">パスワード</p>
-        <p class="text-[14px] text-[#484545] font-bold tracking-widest">●●●●●●●●</p>
+    <div class="c-settings-card__row${editing ? ' is-editing' : ''}">
+      <div class="c-settings-card__body">
+        <p class="c-settings-card__label">パスワード</p>
+        <p class="c-settings-card__value c-settings-card__value--masked">●●●●●●●●</p>
       </div>
-      ${!editing ? `<button id="acc-pw-edit" class="text-[12px] font-bold text-[#0CA1E3] px-3 py-1.5 rounded-lg bg-[#E8F6FD]">変更</button>` : ''}
+      ${!editing ? `<button type="button" id="acc-pw-edit" class="c-settings-card__edit">変更</button>` : ''}
     </div>
     ${editing && step === 'edit' ? `
       <input id="acc-pw-current" type="password"
-        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2"
+        class="c-input c-input--block c-settings-card__input"
         value="${_esc(sec.currentPassword || '')}" placeholder="現在のパスワード">
-      ${sec.errors?.currentPassword ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.errors.currentPassword)}</p>` : ''}
+      ${sec.errors?.currentPassword ? `<p class="c-settings-card__error">${_esc(sec.errors.currentPassword)}</p>` : ''}
       <input id="acc-pw-new" type="password"
-        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2"
+        class="c-input c-input--block c-settings-card__input"
         value="${_esc(sec.newPassword || '')}" placeholder="新しいパスワード（8文字以上）">
-      ${sec.errors?.newPassword ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.errors.newPassword)}</p>` : ''}
-      <div class="flex gap-2 mt-3">
-        <button id="acc-pw-cancel" class="flex-1 py-2 text-[12px] font-bold text-[#484545] bg-[#EBE8E5] rounded-lg">キャンセル</button>
-        <button id="acc-pw-send" class="flex-1 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg">コードを送信</button>
+      ${sec.errors?.newPassword ? `<p class="c-settings-card__error">${_esc(sec.errors.newPassword)}</p>` : ''}
+      <div class="c-settings-card__actions">
+        <button type="button" id="acc-pw-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+        <button type="button" id="acc-pw-send" class="c-settings-card__action c-settings-card__action--save">コードを送信</button>
       </div>
     ` : editing && step === 'verify' ? `
-      <p class="text-[12px] text-[#484545] font-bold mt-2 mb-2">${_esc(state.currentUser?.email || '')} 宛にコードを送信しました</p>
+      <p class="c-settings-card__note c-settings-card__note--strong">${_esc(state.currentUser?.email || '')} 宛にコードを送信しました</p>
       ${_otpInput('acc-pw-code', sec.otp || '')}
-      ${sec.mailError ? `<p class="text-[11px] text-[#EE3E12] mt-2 font-bold">⚠ メール送信に失敗：${_esc(sec.mailError)}</p>` : ''}
-      ${sec.devCode ? `<p class="text-[11px] text-[#A7AAAC] mt-2 font-bold">（開発用）コード: ${_esc(sec.devCode)}</p>` : ''}
-      ${sec.error ? `<p class="text-[11px] text-[#EE3E12] mt-2 font-bold">${_esc(sec.error)}</p>` : ''}
-      <div class="flex gap-2 mt-3">
-        <button id="acc-pw-back"   class="flex-1 py-2 text-[12px] font-bold text-[#484545] bg-[#EBE8E5] rounded-lg">戻る</button>
-        <button id="acc-pw-confirm" class="flex-1 py-2 text-[12px] font-bold text-white bg-[#0CA1E3] rounded-lg">確定</button>
+      ${sec.mailError ? `<p class="c-settings-card__error">⚠ メール送信に失敗：${_esc(sec.mailError)}</p>` : ''}
+      ${sec.devCode ? `<p class="c-settings-card__note">（開発用）コード: ${_esc(sec.devCode)}</p>` : ''}
+      ${sec.error ? `<p class="c-settings-card__error">${_esc(sec.error)}</p>` : ''}
+      <div class="c-settings-card__actions">
+        <button type="button" id="acc-pw-back" class="c-settings-card__action c-settings-card__action--cancel">戻る</button>
+        <button type="button" id="acc-pw-confirm" class="c-settings-card__action c-settings-card__action--save">確定</button>
       </div>
     ` : ''}`;
 }
@@ -287,35 +271,35 @@ function _notificationSection() {
   const st = _pushState || getPushState();
   const on = _pushSubscribed;
 
-  const heading = `<h2 class="text-[14px] font-bold text-[#484545] mb-1">通知</h2>
-    <p class="text-[11px] text-[#A7AAAC] mb-3 leading-relaxed">
+  const heading = `<h2 class="p-account__section-title">通知</h2>
+    <p class="p-account__section-lead">
       ミッションの割り当てや締め切り、完了のお知らせをアプリを閉じている間も受け取れます。
     </p>`;
 
   // iOS でブラウザのまま開いている：ホーム画面への追加を案内する（購読ボタンは出さない）
   if (st === 'ios-needs-install') {
     return `${heading}
-      <div class="bg-[#EBF7FE] border border-[#0CA1E3]/40 rounded-xl p-4">
-        <p class="text-[12px] font-bold text-[#0CA1E3] mb-2">ホーム画面に追加すると使えます</p>
-        <ol class="text-[11px] text-[#484545] leading-relaxed list-decimal pl-4 space-y-1">
+      <div class="c-notice c-notice--info c-notice--sm">
+        <p class="p-account__guide-title">ホーム画面に追加すると使えます</p>
+        <ol class="p-account__guide-steps">
           <li>画面下の ⋯ の「共有」ボタンをタップ</li>
           <li>「ホーム画面に追加」を選ぶ</li>
           <li>追加されたアイコンからイベクリを開く</li>
         </ol>
-        <p class="text-[10px] text-[#A7AAAC] mt-2">iPhone / iPad では Safari の仕様上、この手順が必要です。</p>
+        <p class="p-account__note">iPhone / iPad では Safari の仕様上、この手順が必要です。</p>
       </div>`;
   }
 
   if (st === 'unsupported') {
     return `${heading}
-      <p class="text-[12px] text-[#A7AAAC]">このブラウザは通知に対応していません。</p>`;
+      <p class="p-account__push-state">このブラウザは通知に対応していません。</p>`;
   }
 
   if (st === 'denied') {
     return `${heading}
-      <div class="bg-[#FFF7E6] border border-[#FFC300] rounded-xl p-4">
-        <p class="text-[12px] font-bold text-[#484545] mb-1">通知がブロックされています</p>
-        <p class="text-[11px] text-[#484545] leading-relaxed">
+      <div class="c-notice c-notice--warning c-notice--sm">
+        <p class="p-account__guide-title--plain p-account__strong">通知がブロックされています</p>
+        <p class="p-account__guide-text">
           ブラウザ（または端末）の設定でこのサイトの通知を「許可」に変更してから、もう一度お試しください。
         </p>
       </div>`;
@@ -323,23 +307,19 @@ function _notificationSection() {
 
   // 購読可能（granted / available）
   return `${heading}
-    <div class="flex items-center justify-between gap-3">
-      <p class="text-[12px] font-bold ${on ? 'text-[#5b8104]' : 'text-[#A7AAAC]'}">
+    <div class="p-account__push-row">
+      <p class="p-account__push-state${on ? ' is-on' : ''}">
         ${on ? 'この端末で通知はオンです' : 'この端末では通知はオフです'}
       </p>
-      <button id="acc-push-toggle" data-log="${on ? 'push_disable_tap' : 'push_enable_tap'}"
-        class="flex-shrink-0 px-4 py-2 rounded-xl text-[12px] font-bold transition-colors
-        ${on ? 'bg-white border border-[#D3D6D8] text-[#484545]' : 'text-white bg-[#0CA1E3]'}">
+      <button type="button" id="acc-push-toggle" data-log="${on ? 'push_disable_tap' : 'push_enable_tap'}"
+        class="p-account__push-toggle${on ? ' is-on' : ''}">
         ${on ? 'オフにする' : '通知をオンにする'}
       </button>
     </div>
-    <p class="text-[10px] text-[#A7AAAC] mt-2">通知の設定は端末ごとに保存されます。</p>
+    <p class="p-account__note">通知の設定は端末ごとに保存されます。</p>
     ${on ? `
-      <button id="acc-push-test"
-        class="mt-3 w-full py-2 rounded-xl text-[12px] font-bold text-[#0CA1E3] bg-[#EBF7FE] border border-[#0CA1E3]/30 active:scale-95 transition-transform">
-        テスト通知を送る
-      </button>
-      <p class="text-[10px] text-[#A7AAAC] mt-1.5 leading-relaxed">
+      <button type="button" id="acc-push-test" class="p-account__push-test">テスト通知を送る</button>
+      <p class="p-account__note p-account__note--relaxed">
         この端末に届くか確認できます。アプリを閉じた状態でも届くかを試す場合は、
         送信後すぐにアプリを閉じてください。
       </p>` : ''}
@@ -352,19 +332,19 @@ function _notificationSection() {
 // （通知センターにも残らない）。実際にこれで届かない事例があったため常時表示する。
 function _macNotificationNotice() {
   return `
-    <div class="mt-3 bg-[#FFF7E6] border border-[#FFC300] rounded-xl p-4">
-      <p class="text-[12px] font-bold text-[#484545] mb-1.5">Mac をお使いの方へ</p>
-      <p class="text-[11px] text-[#484545] leading-relaxed mb-2">
+    <div class="c-notice c-notice--warning c-notice--sm p-account__card">
+      <p class="p-account__guide-title--plain p-account__strong">Mac をお使いの方へ</p>
+      <p class="p-account__guide-text">
         Mac では、このアプリで通知をオンにするだけでは表示されません。
-        <span class="font-bold">macOS 側でブラウザの通知を許可する</span>必要があります。
+        <span class="p-account__strong">macOS 側でブラウザの通知を許可する</span>必要があります。
       </p>
-      <ol class="text-[11px] text-[#484545] leading-relaxed list-decimal pl-4 space-y-0.5">
+      <ol class="p-account__guide-steps p-account__guide-steps--tight">
         <li>アップルメニュー →「システム設定」を開く</li>
         <li>「通知」を選ぶ</li>
         <li>お使いのブラウザ（Google Chrome、Safari など）を選ぶ</li>
         <li>「通知を許可」をオンにする</li>
       </ol>
-      <p class="text-[10px] text-[#A7AAAC] mt-2 leading-relaxed">
+      <p class="p-account__note p-account__note--relaxed">
         設定後に「テスト通知を送る」で届くか確認できます。
       </p>
     </div>`;
@@ -374,7 +354,7 @@ function _macNotificationNotice() {
 
 function _otpInput(id, value) {
   return `<input id="${id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
-    class="c-input w-full px-4 py-3 text-center text-[20px] tracking-[0.5em] font-bold focus:outline-none"
+    class="c-input c-input--block c-input--otp"
     value="${_esc(value)}" placeholder="000000" autocomplete="one-time-code">`;
 }
 

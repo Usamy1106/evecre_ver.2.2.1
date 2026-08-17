@@ -170,3 +170,22 @@
   background-color: var(--color-bg);
   box-shadow: var(--shadow-sm);
 }
+
+/* --- 下層ページのヘッダー（戻る＋タイトル）------------------------------
+   使用箇所: views/account.js（イベント設定・ミッション詳細も同じ形）
+   ★HOME と違い左寄せ。自分で sticky し、safe-top も自分で持つ。 */
+
+.l-header--sub {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  justify-content: flex-start;
+  gap: var(--space-3);
+  padding-top: calc(var(--space-4) + var(--safe-top));
+}
+
+.l-header__heading {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}

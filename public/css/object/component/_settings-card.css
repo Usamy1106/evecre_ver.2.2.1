@@ -1,0 +1,142 @@
+/* ==========================================================================
+   Object / Component / settings-card — 設定の1項目（表示 → 変更 → 保存）
+   使用箇所: public/js/views/account.js（イベント設定も同じ形）
+
+   ふるまい:
+     通常時  ラベル・現在の値・「変更」ボタンを1行で見せる
+     編集時  その下に入力欄と［キャンセル］［保存］が開く
+
+   ★「変更」を押すまで入力欄を出さない。設定画面は見るだけの用が多く、
+     入力欄が常時開いていると誤って書き換えやすいため。
+   ========================================================================== */
+
+.c-settings-card {
+  padding: var(--space-5);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.c-settings-card__title {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* ラベル・値・「変更」を並べる行 */
+.c-settings-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 編集中は入力欄との間を空ける */
+.c-settings-card__row.is-editing {
+  margin-bottom: var(--space-3);
+}
+
+.c-settings-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.c-settings-card__label {
+  margin-bottom: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-settings-card__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 伏せ字のパスワード。字間を空けないと何文字か読み取れてしまう */
+.c-settings-card__value--masked {
+  letter-spacing: .1em;
+}
+
+.c-settings-card__edit {
+  flex-shrink: 0;
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary-pale);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.c-settings-card__hint {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.c-settings-card__error {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-danger);
+}
+
+.c-settings-card__note {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-settings-card__note--strong {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+/* 入力欄は c-input。上の行との間隔だけここで足す */
+.c-settings-card__input {
+  margin-top: var(--space-2);
+}
+
+/* ［キャンセル］［保存］を横に並べる */
+.c-settings-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.c-settings-card__action {
+  flex: 1;
+  padding-block: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.c-settings-card__action--save {
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.c-settings-card__action--cancel {
+  background-color: var(--button-secondary);
+  color: var(--color-text);
+}
+
+/* 「✓ 認証済み」「未認証」の小さな注記 */
+.c-settings-card__badge {
+  margin-left: var(--space-1);
+}
+
+.c-settings-card__badge--ok {
+  color: var(--color-primary);
+}
+
+.c-settings-card__badge--pending {
+  color: var(--color-warning);
+}
