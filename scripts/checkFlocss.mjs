@@ -145,6 +145,33 @@ section('[C] 完了条件');
 const styleInJs = JS_ALL.filter(f => /<style>/.test(R(f)));
 ok('★JS の中に <style> を書いていない', styleInJs.length === 0, styleInJs.join(' '));
 
+// ★Tailwind は撤去済み。class="..." だけでなく className = '...' も見る。
+//   Phase 5 で「0 になった」と判断した後、className で組み立てていた
+//   オーバーレイ4つとトースト5つが取り残されていた（実機で発覚）。
+//   当たるものが何も無いので、そのモーダルは位置指定を丸ごと失っていた。
+const TW_TOKEN = /^(flex|grid|w-|h-|p[xytblr]?-|m[xytblr]?-|text-|bg-|border|rounded|gap-|items-|justify-|absolute|relative|fixed|sticky|z-|shadow|opacity-|truncate|overflow-|min-|max-|space-|leading-|font-|whitespace-|break-|object-|inline|block|cursor-|active:|hover:|peer|ring-|backdrop-|transition|duration-|scale-|translate|rotate-|list-|underline|resize|select-|pointer-events-|animate-)/;
+const KEEP_TOKEN = /^(heading-(l|m|r|rs)|text-(m|r|rs))$/;
+const twLeft = [];
+for (const f of JS_ALL.concat(['public/index.html'])) {
+  const src = R(f);
+  const chunks = [
+    ...[...src.matchAll(/class="([^"]*)"/g)].map(m => m[1]),
+    ...[...src.matchAll(/className\s*=\s*'([^']*)'/g)].map(m => m[1]),
+    ...[...src.matchAll(/className\s*=\s*`([^`]*)`/g)].map(m => m[1]),
+  ];
+  for (const ch of chunks) {
+    for (const t of ch.split(/\s+/)) {
+      if (!t || t.includes('${') || /^(l|c|p|u|js|is)-/.test(t)) continue;
+      if (KEEP_TOKEN.test(t)) continue;
+      if (TW_TOKEN.test(t)) twLeft.push(`${path.basename(f)}: ${t}`);
+    }
+  }
+}
+ok('★Tailwind のユーティリティが残っていない（className も含めて）',
+  twLeft.length === 0, [...new Set(twLeft)].slice(0, 12).join(' / '));
+ok('★Tailwind CDN を読み込んでいない',
+  !R('public/index.html').includes('cdn.tailwindcss.com'));
+
 // JS が掴んでいる id / data 属性。改名すると静かに壊れるので存在を見張る。
 const HOOKS = [
   ['public/js/modals/mission.js', ['id="mission-panel"', 'id="assignee-sheet-panel"',

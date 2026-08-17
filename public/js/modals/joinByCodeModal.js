@@ -22,7 +22,7 @@ export function openJoinByCodeModal() {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  overlay.className = 'fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-6';
+  overlay.className = 'c-overlay c-overlay--code c-overlay--blur';
   overlay.onclick = (e) => { if (e.target === overlay) _close(overlay); };
   document.body.appendChild(overlay);
 
@@ -184,7 +184,7 @@ function _accept(overlay, ctx) {
       // 送信結果を伝えるため、このモーダルを結果表示だけで開き直す
       const done = document.createElement('div');
       done.id = OVERLAY_ID;
-      done.className = 'fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-6';
+      done.className = 'c-overlay c-overlay--code c-overlay--blur';
       document.body.appendChild(done);
       const dctx = { ...ctx, success: true, _pending: !!r.pending, _eventName: r.eventName || '', _eventId: r.eventId };
       _render(done, dctx);

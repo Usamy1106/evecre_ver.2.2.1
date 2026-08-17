@@ -46,8 +46,7 @@ export function openOnboardingModal(o) {
   const numbered = o.numbered !== false && !o.bullet;
   const stepsHtml = (o.steps || []).map(([label, desc], i) => `
     <div class="c-modal__step">
-      <span class="w-6 h-6 rounded-full ${numbered ? 'bg-[#0CA1E3] text-white' : 'bg-[#EBE8E5] text-[#A7AAAC]'}
-        text-[11px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">${numbered ? i + 1 : '・'}</span>
+      <span class="c-modal__step-num${numbered ? '' : ' c-modal__step-num--bullet'}">${numbered ? i + 1 : '・'}</span>
       <div class="c-modal__step-body">
         <p class="c-modal__step-title">${_esc(label)}</p>
         <p class="c-modal__step-text">${_esc(desc)}</p>

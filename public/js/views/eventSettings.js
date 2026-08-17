@@ -204,8 +204,7 @@ function _eventManagementSection(p, sec) {
                 const on = (p.motivationTags || []).includes(c.id);
                 return `
                   <button data-ps-motiv="${c.id}"
-                    class="text-[11px] font-bold px-3 py-1.5 rounded-full border-2 transition-all active:scale-95
-                      ${on ? 'border-[#EE3E12] bg-[#EE3E12]/10 text-[#EE3E12]' : 'border-[#E1DFDC] bg-white text-[#A7AAAC]'}">
+                    class="p-event-settings__motivation-pick${on ? ' is-on' : ''}">
                     ${_esc(c.label)}
                   </button>`;
               }).join('')}

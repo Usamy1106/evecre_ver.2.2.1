@@ -27,7 +27,7 @@ export function openVerifyEmailModal() {
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   // 背景：半透明 + backdrop-blur で背後の画面がうっすらぼやけて見える
-  overlay.className = 'fixed inset-0 z-[200] bg-white/40 backdrop-blur-md flex items-center justify-center p-6';
+  overlay.className = 'c-overlay c-overlay--frosted';
   overlay.onclick = (e) => { if (e.target === overlay) _close(overlay); };
   document.body.appendChild(overlay);
 

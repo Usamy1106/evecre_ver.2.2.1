@@ -1,6 +1,8 @@
 /* ==========================================================================
    Object / Component / toast — 短い通知
-   使用箇所: public/js/main.js（_showToast）
+   使用箇所: public/js/main.js（_showToast）ほか、各モジュールのローカルなトースト
+             （realtime.js / inviteIssueModal.js / account.js / createEvent.js /
+               views/mainBoard.js）
 
    ★モーダルより前に出す。操作の結果を伝えるものなので、隠れると意味が無い。
    ========================================================================== */
@@ -19,4 +21,18 @@
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);
   white-space: nowrap;
+}
+
+/* 締め切りのお知らせなど、文が長くて1行に収まらないもの。
+   左右いっぱいに広げて折り返す（c-toast は nowrap なので溢れてしまう）*/
+.c-toast--wide {
+  right: var(--space-4);
+  bottom: 96px;
+  left: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  transform: none;
+  white-space: normal;
 }

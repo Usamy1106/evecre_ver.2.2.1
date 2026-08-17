@@ -1233,7 +1233,7 @@ function _checkMissionDeadlineNotifications(missions) {
   toasts.forEach((msg, i) => {
     setTimeout(() => {
       const t = document.createElement('div');
-      t.className = 'fixed bottom-24 left-4 right-4 bg-[#484545] text-white px-4 py-3 rounded-xl shadow-2xl text-[12px] font-bold z-[300] text-center';
+      t.className = 'c-toast c-toast--wide';
       t.textContent = msg;
       document.body.appendChild(t);
       setTimeout(() => { t.style.transition = 'opacity 0.4s'; t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 3000);

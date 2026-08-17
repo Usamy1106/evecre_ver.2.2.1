@@ -24,7 +24,7 @@ export function openInviteIssueModal(projectId) {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  overlay.className = 'fixed inset-0 z-[200] bg-white/40 backdrop-blur-md flex items-center justify-center p-6';
+  overlay.className = 'c-overlay c-overlay--frosted';
   overlay.onclick = (e) => { if (e.target === overlay) _close(overlay); };
   document.body.appendChild(overlay);
 
@@ -202,7 +202,7 @@ function _fallbackCopy(text) {
 
 function _toast(msg) {
   const t = document.createElement('div');
-  t.className = 'fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#484545] text-white px-5 py-3 rounded-full shadow-2xl text-[13px] font-bold z-[300]';
+  t.className = 'c-toast';
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2000);

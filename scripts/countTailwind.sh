@@ -11,6 +11,11 @@
 #   将来の `m-` に誤マッチするため、移行が終わったファイルでも 0 にならない。
 #   ここでは class 属性をトークンに割ってから、FLOCSS の接頭辞
 #   （l- c- p- u- js- is-）と移行途中の既知クラスを除外して数える。
+#
+# ★class="..." だけでなく className = '...' も見ること。
+#   Phase 5 で「0 になった」と判断した後に、className で組み立てていた
+#   オーバーレイ4つとトースト5つが取り残されていた（実機で発覚）。
+#   Tailwind 撤去後だったので、そのモーダルは位置指定を全て失っていた。
 # =====================================================================
 set -euo pipefail
 
@@ -30,8 +35,11 @@ TW+='|hover:|peer|ring-|backdrop-|transition|duration-|scale-|translate-|rotate-
 TW+='|self-|order-|list-|tracking-|underline|line-clamp-|resize|select-|pointer-events-)'
 
 # shellcheck disable=SC2086
-hits=$(grep -rhoE 'class="[^"]*"' ${TARGETS[@]} 2>/dev/null \
-  | sed 's/^class="//; s/"$//' \
+hits=$( { grep -rhoE 'class="[^"]*"' ${TARGETS[@]} 2>/dev/null | sed 's/^class="//; s/"$//'
+          grep -rhoE "className *= *'[^']*'" ${TARGETS[@]} 2>/dev/null | sed "s/^className *= *'//; s/'$//"
+          grep -rhoE 'classList\.(add|remove|toggle)\("'"'"'[^"'"'"']*["'"'"']\)' ${TARGETS[@]} 2>/dev/null \
+            | sed -E "s/^classList\.[a-z]+\(['\"]//; s/['\"]\)$//"
+        } \
   | tr ' ' '\n' \
   | grep -v '^$' \
   | grep -v '\${' \

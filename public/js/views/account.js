@@ -578,7 +578,7 @@ function _bindOtp(id, onChange) {
 
 function _toast(msg) {
   const t = document.createElement('div');
-  t.className = 'fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#484545] text-white px-5 py-3 rounded-full shadow-2xl text-[13px] font-bold z-[300] u-animate-fade';
+  t.className = 'c-toast u-animate-fade';
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 2500);

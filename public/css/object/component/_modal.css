@@ -227,6 +227,13 @@
   text-align: left;
 }
 
+/* 番号ではなく「・」で並べるとき（順番に意味が無い一覧）。
+   ★数字と同じ大きさの丸に入れる。並びが揃わないと一覧に見えない。 */
+.c-modal__step-num--bullet {
+  background-color: var(--button-secondary);
+  color: var(--color-text-muted);
+}
+
 /* 手順の番号。丸の中に数字を置く */
 .c-modal__step-num {
   display: flex;

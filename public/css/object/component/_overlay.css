@@ -190,3 +190,23 @@
   justify-content: center;
   padding: var(--space-6);
 }
+
+/* メール認証・招待リンクの発行。★暗幕ではなく白いすりガラス。
+   下の画面を「隠す」のではなく「一段奥に置く」見せ方をしている。 */
+.c-overlay--frosted {
+  z-index: var(--z-frosted);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background-color: rgba(255, 255, 255, .4);
+  backdrop-filter: blur(12px);
+}
+
+/* 招待コードの入力（HOME のユーザーメニューから）*/
+.c-overlay--code {
+  z-index: var(--z-code);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background-color: rgba(0, 0, 0, .4);
+}

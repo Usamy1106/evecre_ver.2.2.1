@@ -93,6 +93,30 @@
   color: var(--color-danger);
 }
 
+/* 管理者が選ぶときのカード。選択中は赤い枠＋淡い塗りにする。
+   ★表示専用の .p-event-settings__motivation-tag（上）とは別物。
+     あちらは既に選ばれたものを並べるだけで、押せない。 */
+.p-event-settings__motivation-pick {
+  padding: 6px var(--space-3);
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-full);
+  background-color: var(--white);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-event-settings__motivation-pick:active {
+  transform: scale(.95);
+}
+
+.p-event-settings__motivation-pick.is-on {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-tint);
+  color: var(--color-danger);
+}
+
 /* --- メンバー・ロールの一覧 ---------------------------------------------- */
 
 .p-event-settings__member {
