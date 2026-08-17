@@ -146,7 +146,11 @@ export function initMountainPathSync(restoreTop = null) {
   // ★offsetHeight（要素の高さ）ではなく getBoundingClientRect().bottom（画面上の実位置）を使う。
   //   standalone では viewport-fit=cover によりステータスバー領域が加わるため、
   //   「高さ」と「下端の位置」が一致しない場合がある。
-  const sticky = document.querySelector('#app .sticky') || document.querySelector('.sticky');
+  // ★目印は js-mountain-sticky（views/mainBoard.js のヘッダー＋タブのラッパー）。
+  //   以前は Tailwind の .sticky を掴んでいたため、ユーティリティを外した瞬間に
+  //   山の上端がずれる状態だった。スタイルではなく JS フック用のクラスを見ること。
+  const sticky = document.querySelector('#app .js-mountain-sticky')
+              || document.querySelector('.js-mountain-sticky');
   if (sticky) bg.style.top = `${Math.round(sticky.getBoundingClientRect().bottom)}px`;
 
   const sync = () => { canvas.style.transform = `translateY(${-win.scrollTop}px)`; };

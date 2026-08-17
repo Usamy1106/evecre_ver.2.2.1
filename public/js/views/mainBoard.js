@@ -120,7 +120,10 @@ export function renderMainBoard(container) {
     <div class="flex flex-col ${isMain ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#FDFBF8]">
       <!-- standalone（ホーム画面から起動）ではステータスバー領域にコンテンツが潜るため、
            safe-area 分の余白を足す。ブラウザ表示では env() が 0 なので見た目は変わらない。 -->
-      <div class="sticky top-0 bg-[#FDFBF8] z-30 shadow-sm" style="padding-top:env(safe-area-inset-top)">
+      <!-- ヘッダー＋タブ。★js-mountain-sticky は mountainPath.js が山の上端を
+           合わせるための目印（以前は Tailwind の .sticky を掴んでいた）。
+           スタイル: public/css/layout/_header.css の .l-header-stack -->
+      <div class="l-header-stack js-mountain-sticky">
         ${Components.Header(p)}
         ${Components.Tabs(state.mainBoardTab)}
       </div>
@@ -135,11 +138,11 @@ export function renderMainBoard(container) {
         <!-- 下部パネル：提案＋ミッション一覧（独立スクロール・上ドラッグで拡大） -->
         <!-- id は mission-panel と衝突させないこと（modals/mission.js の作成モーダル内部パネルが
              その id を使っており、被せるとモーダルのスライドインが壊れて白画面になる） -->
-        <div id="mainboard-bottom-panel" class="fixed left-0 right-0 bottom-0 mx-auto max-w-md z-20 flex flex-col bg-[#FDFBF8] shadow-[0_-4px_20px_rgba(0,0,0,0.06)] rounded-t-2xl" style="top:56vh">
-          <div data-mpanel-handle class="flex-shrink-0 flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing rounded-t-2xl" style="touch-action:none">
-            <div class="w-10 h-1.5 rounded-full bg-[#C9CDD1]"></div>
+        <div id="mainboard-bottom-panel" class="l-bottom-panel" style="top:56vh">
+          <div data-mpanel-handle class="l-bottom-panel__handle">
+            <div class="l-bottom-panel__grip"></div>
           </div>
-          <div class="flex-1 overflow-y-auto px-6 pt-1 u-pb-safe space-y-6">
+          <div class="l-bottom-panel__body u-pb-safe">
             ${mainLayout.bottomPanelInner}
           </div>
         </div>
@@ -150,18 +153,15 @@ export function renderMainBoard(container) {
         </main>
       `}
       ${state.mainBoardTab === 'MAIN' && state.canManageCurrentEvent() ? `
-        <button onclick="window._app.openMissionModal()" data-log="mission_add_open" data-coach="fab"
-          class="u-fab-safe fixed bottom-10 right-6 w-14 h-14 bg-[#0CA1E3] rounded-full shadow-[0_4px_15px_rgba(12,161,227,0.4)]
-          flex items-center justify-center text-white active:scale-90 transition-transform z-40">
+        <button type="button" onclick="window._app.openMissionModal()" data-log="mission_add_open" data-coach="fab"
+          class="l-fab l-fab--primary" aria-label="ミッションを作成">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>` : ''}
       ${state.mainBoardTab === 'MAIN' && !state.canManageCurrentEvent() && state.currentUser ? `
-        <button onclick="window._app.openMemberProposalSheet()"
-          class="u-fab-safe fixed bottom-10 right-6 w-14 h-14 rounded-full shadow-[0_4px_15px_rgba(158,223,5,0.4)]
-          flex items-center justify-center text-white active:scale-90 transition-transform z-40"
-          style="background-color: #9EDF05">
+        <button type="button" onclick="window._app.openMemberProposalSheet()"
+          class="l-fab l-fab--member" aria-label="ミッションを提案">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>

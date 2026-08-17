@@ -48,6 +48,9 @@
 | アニメーションの動き方（`@keyframes`） | `foundation/_animation.css` |
 | 要素の初期化（`box-sizing` など） | `foundation/_reset.css` |
 | アプリの最大幅・中央寄せ | `layout/_app.css` |
+| ヘッダー（HOME / イベント） | `layout/_header.css` |
+| タブ（メインボード・通知・アーカイブ）とアクティブ表示 | `layout/_tabs.css` |
+| メインボード下部のパネル・FAB | `layout/_fixed-bottom.css` |
 | 起動時のローディング画面 | `layout/_loading.css` |
 | 画面切り替え時のフェード | `layout/_page.css` |
 | ボタン（`btn-primary` / `btn-secondary`） | `object/component/_button.css` |
@@ -93,6 +96,12 @@
 ```html
 <div class="c-notice-card js-notif-swipe-card" data-notif-id="...">
 ```
+
+**現在ある `js-` フック**（クラス名を変えるときは対になる JS も直すこと）:
+
+| クラス | 掴んでいる場所 | 用途 |
+|---|---|---|
+| `js-mountain-sticky` | `mountainPath.js` | ヘッダー＋タブの下端を測り、山ビジュアルの上端を合わせる |
 
 ---
 
@@ -172,9 +181,9 @@ public/css/
 │  ├─ _app.css                  ✅ .l-app（#app）
 │  ├─ _loading.css              ✅ .l-loading（#loading-screen）
 │  ├─ _page.css                 ✅ .page-transition
-│  ├─ _header.css               ⬜ Phase 1 — Components.Header
-│  ├─ _tabs.css                 ⬜ Phase 1 — Components.Tabs
-│  └─ _fixed-bottom.css         ⬜ Phase 1 — 下部固定パネル・FAB
+│  ├─ _header.css               ✅ .l-header（--home / --event）／.l-header-stack
+│  ├─ _tabs.css                 ✅ .l-tabs（.is-active）
+│  └─ _fixed-bottom.css         ✅ .l-bottom-panel / .l-fab
 │
 ├─ object/component/
 │  ├─ _button.css               ✅ btn-primary / btn-secondary
@@ -222,6 +231,8 @@ public/css/
 | `.hide`（ローディング） | `.is-hidden` | ✅ Phase 0（`state.js` / `main.js` も同時に修正済み） |
 | `.fab-safe` | `.u-fab-safe` | ✅ Phase 0 |
 | `.pb-safe` | `.u-pb-safe` | ✅ Phase 0 |
+| `.sticky`（`mountainPath.js` のフック） | `.js-mountain-sticky` | ✅ Phase 1 |
+| `.fab-safe`（FAB） | `.l-fab` に統合 | ✅ Phase 1 |
 | `.btn-primary` / `.btn-secondary` | `.c-button--primary` / `--secondary` | ⬜ Phase 2 |
 | `.input-field` | `.c-input` | ⬜ Phase 2 |
 | `.heading-*` / `.text-*` | 判断待ち | ⬜ Phase 5 |

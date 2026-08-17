@@ -1,0 +1,95 @@
+/* ==========================================================================
+   Layout / tabs — メインボード／通知／アーカイブの切り替え
+   使用箇所: public/js/components.js（Components.Tabs）
+
+   ★アクティブ表示は .is-active。以前は Tailwind クラスを三項演算子で出し分けて
+     いたため、どの状態がどの見た目かがマークアップを読まないと分からなかった。
+   ★タブごとに色が違うので、色は --main / --notifications / --archive の
+     モディファイアが持つ。共通の形は .l-tabs__item に置く。
+   ★非アクティブに透明ボーダーを敷いていない（敷くと中身が 1px 上にずれる）。
+     アクティブのときだけ border-bottom を足す元の実装に合わせてある。
+   ========================================================================== */
+
+.l-tabs {
+  display: flex;
+  padding-inline: var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+}
+
+.l-tabs__item {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  cursor: pointer;
+  opacity: .4;
+}
+
+.l-tabs__item.is-active {
+  opacity: 1;
+  border-bottom: 2px solid;
+}
+
+.l-tabs__icon {
+  width: 20px;
+  height: 20px;
+}
+
+.l-tabs__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- タブごとの色 -------------------------------------------------------- */
+
+.l-tabs__item--main.is-active {
+  border-bottom-color: var(--color-primary);
+}
+
+.l-tabs__item--main.is-active .l-tabs__label {
+  color: var(--color-primary);
+}
+
+.l-tabs__item--notifications {
+  position: relative;
+}
+
+.l-tabs__item--notifications.is-active {
+  border-bottom-color: var(--color-danger);
+}
+
+.l-tabs__item--notifications.is-active .l-tabs__label {
+  color: var(--color-danger);
+}
+
+.l-tabs__item--archive.is-active {
+  border-bottom-color: var(--color-warning);
+}
+
+.l-tabs__item--archive.is-active .l-tabs__label {
+  color: var(--color-warning);
+}
+
+/* --- 未読バッジ ----------------------------------------------------------
+   表示中のイベントに紐づく未読だけを数える（件数の算出は components.js）。 */
+
+.l-tabs__badge {
+  position: absolute;
+  top: var(--space-2);
+  right: 25%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}

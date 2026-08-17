@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Layout / header — 画面上部のヘッダー
+   使用箇所: public/js/components.js（Components.Header）
+             public/js/views/mainBoard.js（.l-header-stack）
+
+   形態は2つ:
+     .l-header--home   HOME 用。自分で sticky する（上に他の要素が無いため）
+     .l-header--event  イベント用。sticky しない。代わりに .l-header-stack が
+                       ヘッダー＋タブをまとめて sticky する
+
+   ★safe-area の吸収場所が形態ごとに違う。
+     HOME は .l-header--home が padding-top で、イベントは .l-header-stack が持つ。
+     二重に持たせるとステータスバーぶんの余白が2回入る。
+   ========================================================================== */
+
+.l-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  background-color: var(--color-bg);
+}
+
+.l-header--home {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  padding-top: calc(var(--space-4) + var(--safe-top));
+}
+
+/* --- HOME：左側（ユーザーメニュー）-------------------------------------- */
+
+.l-header__lead {
+  flex: 1;
+}
+
+.l-header__user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: calc(var(--space-2) * -1);
+  padding: 6px var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background-color .15s;
+}
+
+.l-header__user:active {
+  background-color: rgba(0, 0, 0, .05);
+}
+
+.l-header__username {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* メール未認証の目印。色だけの情報にならないよう title 属性を併記している */
+.l-header__badge-unverified {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-warning);
+}
+
+/* --- HOME：右側（イベントを作成）----------------------------------------
+   ★Phase 2 で c-button に寄せるか判断する。現状はヘッダー専用の見た目。 */
+
+.l-header__create {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background-color: var(--white);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-primary);
+  transition: transform .15s;
+}
+
+/* メール未認証：押せるが、押すと認証を促される。見た目で「まだ」と分かるようにする */
+.l-header__create--locked {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-muted);
+}
+
+.l-header__create:active {
+  transform: scale(.95);
+}
+
+.l-header__create-label {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- イベント：左側（戻る＋タイトル）------------------------------------ */
+
+.l-header__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.l-header__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background-color: rgba(0, 0, 0, .05);
+}
+
+.l-header__back-icon {
+  width: 16px;
+  height: 16px;
+  opacity: .5;
+  filter: brightness(0);
+}
+
+.l-header__title {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- イベント：右側（フィードバック・設定）------------------------------ */
+
+.l-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.l-header__action {
+  padding: var(--space-1);
+}
+
+.l-header__action:active {
+  opacity: .5;
+}
+
+.l-header__action-icon {
+  opacity: .4;
+}
+
+.l-header__action-image {
+  width: 24px;
+  height: 24px;
+}
+
+/* --- ヘッダー＋タブのラッパー（メインボード）----------------------------
+   ★ここは mountainPath.js が山ビジュアルの上端を合わせるために掴んでいる。
+     目印は js-mountain-sticky（クラス名を変えるときは mountainPath.js も直すこと）。
+     以前は Tailwind の .sticky を掴んでいたため、ユーティリティを外した瞬間に
+     山の位置が壊れる状態だった。 */
+
+.l-header-stack {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header-stack);
+  padding-top: var(--safe-top);
+  background-color: var(--color-bg);
+  box-shadow: var(--shadow-sm);
+}

@@ -24,6 +24,9 @@
 @import url("./layout/_app.css");
 @import url("./layout/_loading.css");
 @import url("./layout/_page.css");
+@import url("./layout/_header.css");
+@import url("./layout/_tabs.css");
+@import url("./layout/_fixed-bottom.css");
 
 /* Object: Component -------------------------------------------------------- */
 @import url("./object/component/_button.css");

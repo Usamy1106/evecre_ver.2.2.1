@@ -1,0 +1,100 @@
+/* ==========================================================================
+   Layout / fixed-bottom — 画面下に固定するもの（下部パネル・FAB）
+   使用箇所: public/js/views/mainBoard.js
+
+   ★どちらも position:fixed なので、アプリ幅（--layout-max-width）に自分で
+     合わせる必要がある。#app の中に居ても fixed は #app を基準にしないため。
+   ========================================================================== */
+
+/* --- 下部パネル（提案＋ミッション一覧）----------------------------------
+   ★id は mainboard-bottom-panel。mission-panel にしないこと
+     （modals/mission.js の作成モーダル内部パネルが その id を使っており、
+      被せるとモーダルのスライドインが壊れて白画面になる）。
+   ★top はドラッグで変わるので JS がインライン style で書く（初期 56vh、
+     展開時 22vh）。ここには書かない。 */
+
+.l-bottom-panel {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  max-width: var(--layout-max-width);
+  margin-inline: auto;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background-color: var(--color-bg);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, .06);
+}
+
+/* 上下ドラッグでパネルを広げるつまみ。
+   ★touch-action:none が無いとドラッグ中にページのスクロールが競合する。 */
+.l-bottom-panel__handle {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  padding-top: 10px;
+  padding-bottom: 6px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  cursor: grab;
+  touch-action: none;
+}
+
+.l-bottom-panel__handle:active {
+  cursor: grabbing;
+}
+
+.l-bottom-panel__grip {
+  width: 40px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-handle);
+}
+
+.l-bottom-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding-top: var(--space-1);
+  padding-inline: var(--space-6);
+}
+
+/* 中身どうしの間隔（Tailwind の space-y-6 と同じ挙動）*/
+.l-bottom-panel__body > * + * {
+  margin-top: var(--space-6);
+}
+
+/* --- FAB -----------------------------------------------------------------
+   ★bottom は safe-area を含む。standalone ではホームインジケータに重なるため。
+     env() は viewport-fit=cover（index.html）が無いと常に 0 を返す。 */
+
+.l-fab {
+  position: fixed;
+  right: var(--space-6);
+  bottom: calc(2.5rem + var(--safe-bottom));
+  z-index: var(--z-fab);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-inverse);
+  transition: transform .15s;
+}
+
+.l-fab:active {
+  transform: scale(.9);
+}
+
+/* 管理者：ミッションを作る */
+.l-fab--primary {
+  background-color: var(--color-primary);
+  box-shadow: 0 4px 15px rgba(12, 161, 227, .4);
+}
+
+/* 一般メンバー：ミッションを提案する */
+.l-fab--member {
+  background-color: var(--color-success);
+  box-shadow: 0 4px 15px rgba(158, 223, 5, .4);
+}

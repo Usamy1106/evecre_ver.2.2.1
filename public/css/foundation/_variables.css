@@ -46,6 +46,7 @@
   --color-warning-pale: #FFF7E6;   /* 近い値: #FFF8E1 */
   --color-success-pale: #F0FDE8;
   --color-success-dark: #5B8104;
+  --color-handle: #C9CDD1;         /* ドラッグハンドルのつまみ */
   --color-warning-dark: #9B7700;
 
   /* --- タイポグラフィ ----------------------------------------------------- */
@@ -59,7 +60,10 @@
   --font-size-2xl: 20px;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
-  --font-weight-bold: 600;
+  --font-weight-bold: 600;   /* heading-* / text-* のウェイト */
+  /* ★Tailwind の font-bold は 700。マークアップに font-bold が併記されている箇所は
+     600 ではなく 700 で描かれている。移行時は実測して合わせること。 */
+  --font-weight-heavy: 700;
 
   /* --- スペーシング（4px 基準） ------------------------------------------- */
   --space-1: 4px;
@@ -92,8 +96,9 @@
   /* --- z-index -----------------------------------------------------------
      ★現状の JS は z-[210] のような直書きが多い。移行しながらここへ寄せる。 */
   --z-base: 0;
-  --z-sticky: 20;
-  --z-fab: 30;
+  --z-sticky: 20;            /* HOME のヘッダー */
+  --z-header-stack: 30;      /* メインボードのヘッダー＋タブのラッパー */
+  --z-fab: 40;               /* ラッパーより前に出す（実測値）*/
   --z-overlay: 100;
   --z-sheet: 110;
   --z-modal: 120;
