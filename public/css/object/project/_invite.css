@@ -1,0 +1,66 @@
+/* ==========================================================================
+   Object / Project / invite — 参加まわりのモーダル
+   使用箇所: public/js/modals/leaderMotivationModal.js（参加直後の🔥）
+             ほか招待・参加申請のモーダル
+
+   ★🔥ボタンを置くのは参加確認モーダル（ログイン済み）だけ。認証前の
+     招待バナーでは押せないのでボタン自体を出さない。
+   ========================================================================== */
+
+.p-invite__motivation {
+  margin-bottom: 28px;
+  padding: var(--space-5);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg);
+}
+
+.p-invite__motivation-label {
+  margin-bottom: var(--space-3);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-invite__catchphrase {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-primary);
+}
+
+.p-invite__text {
+  margin-top: var(--space-3);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+}
+
+/* --- 🔥ボタン -------------------------------------------------------------
+   ★押すとモーダルが閉じる。「閉じる」ボタンは置かない（🔥が出口を兼ねる）。 */
+
+.p-invite__fire-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.p-invite__fire {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+  box-shadow: 0 6px 20px rgba(238, 62, 18, .4);
+  font-size: 40px;
+  line-height: 1;
+  color: var(--color-text-inverse);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-invite__fire:active {
+  transform: scale(.9);
+}

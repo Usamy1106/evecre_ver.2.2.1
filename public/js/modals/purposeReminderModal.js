@@ -100,31 +100,31 @@ function _openModal(p) {
 
   const overlay = document.createElement('div');
   overlay.id = 'purpose-reminder-overlay';
-  overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[180] flex items-center justify-center p-6';
+  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
   const purposeBlock = hasPurpose ? `
-    <div class="bg-[#FDFBF8] rounded-2xl p-4 mb-6 text-left">
-      <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">このイベントの目的</p>
-      <p class="text-[13px] text-[#484545] font-medium whitespace-pre-wrap leading-relaxed">${_esc(purposeContent)}</p>
+    <div class="c-modal__quote">
+      <p class="c-modal__quote-label">このイベントの目的</p>
+      <p class="c-modal__quote-text">${_esc(purposeContent)}</p>
     </div>` : '';
 
   const buttonsHtml = hasPurpose
-    ? `<button data-action="close" class="c-button c-button--primary w-full py-3 heading-rs font-bold">閉じる</button>`
-    : `<div class="flex gap-3">
-         <button data-action="close" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">閉じる</button>
-         <button data-action="go" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md" style="background-color:#FFC300">目的を決める</button>
+    ? `<button data-action="close" class="c-button c-button--primary c-modal__button">閉じる</button>`
+    : `<div class="c-modal__actions">
+         <button data-action="close" class="c-button c-button--secondary c-modal__button">閉じる</button>
+         <button data-action="go" class="c-modal__button c-modal__button--accent" style="--accent:#FFC300">目的を決める</button>
        </div>`;
 
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-      <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5" style="background-color:#FFF8E1">
+    <div class="c-modal animate-fadeIn">
+      <div class="c-modal__icon" style="--icon-bg:var(--color-warning-pale2)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFC300" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="#FFC300"/>
         </svg>
       </div>
-      <h3 class="heading-m text-[#484545] mb-2 font-bold">イベントづくりで困ったら</h3>
-      <p class="text-rs text-[#A7AAAC] font-medium mb-6 leading-relaxed">目的という軸に立ち帰ってね</p>
+      <h3 class="c-modal__title c-modal__title--tight">イベントづくりで困ったら</h3>
+      <p class="c-modal__text c-modal__text--tight">目的という軸に立ち帰ってね</p>
       ${purposeBlock}
       ${buttonsHtml}
     </div>`;

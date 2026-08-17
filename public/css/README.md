@@ -62,6 +62,7 @@
 | 進捗のドット（`c-step-indicator`） | `object/component/_step-indicator.css` |
 | メール未認証などの告知バナー | `object/component/_banner.css` |
 | モーダル・シートの暗幕（`c-overlay`） | `object/component/_overlay.css` |
+| 中央モーダルの箱（`c-modal`） | `object/component/_modal.css` |
 | ボトムシートの開閉（`c-sheet` / `.is-open`） | `object/component/_sheet.css` |
 | 確認ダイアログ（`c-dialog`） | `object/component/_dialog.css` |
 | トースト（`c-toast`） | `object/component/_toast.css` |
@@ -87,6 +88,7 @@
 | 通知タブ（応募待ち・確認待ち・通知一覧） | `object/project/_notification.css` |
 | アカウント作成フロー（STEP 0〜8） | `object/project/_signup.css` |
 | 山登りパスビジュアル（背景・マス・スクロール窓） | `object/project/_mountain.css` |
+| 参加まわりのモーダル（🔥・意気込み） | `object/project/_invite.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -230,6 +232,7 @@ public/css/
 │  ├─ _step-indicator.css       ✅ c-step-indicator（.is-active / .is-done）
 │  ├─ _banner.css               ✅ c-banner（VerifyBanner）
 │  ├─ _overlay.css              ✅ c-overlay（用途別に z-index を持つ）
+│  ├─ _modal.css                ✅ c-modal
 │  ├─ _sheet.css                ✅ c-sheet（.is-open）
 │  ├─ _dialog.css               ✅ c-dialog（dialog.js）
 │  ├─ _toast.css                ✅ c-toast
@@ -259,8 +262,9 @@ public/css/
 │  ├─ _archive.css              ✅ アーカイブタブ
 │  ├─ _notification.css         ✅ 通知タブ
 │  ├─ _signup.css               ✅ アカウント作成フロー
-│  └─ _mountain.css             ✅ 山登りパスビジュアル
-│  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _invite / _onboarding                  ⬜ Phase 4
+│  ├─ _mountain.css             ✅ 山登りパスビジュアル
+│  └─ _invite.css               ✅ 参加まわりのモーダル
+│  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _onboarding                            ⬜ Phase 4
 │
 └─ object/utility/
    ├─ _animation.css            ✅ animate-fadeIn

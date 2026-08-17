@@ -1,0 +1,208 @@
+/* ==========================================================================
+   Object / Component / modal — 画面中央に出るモーダルの箱
+   使用箇所: modals/ の各モーダル、main.js のオーバーレイ、onboardingIntro.js
+
+   ★暗幕は c-overlay（_overlay.css）。ここは中の白い箱だけを受け持つ。
+   ★自動表示されるもの（目的リマインド・開催日リマインド・お知らせ・
+     リーダーの意気込み・オンボーディング）は、重ならないよう表示前に
+     modalGuard.js の isAnyAutoModalOpen() を通すこと。
+   ========================================================================== */
+
+.c-modal {
+  width: 100%;
+  max-width: 384px;
+  padding: var(--space-8);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-2xl);
+  text-align: center;
+}
+
+/* 中身が長いもの（オンボーディングの手順など）。本文だけスクロールさせる */
+.c-modal--scroll {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+
+.c-modal__body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* 左寄せで読ませたい中身（手順・引用）*/
+.c-modal--left {
+  text-align: left;
+}
+
+/* --- 中身の部品 ---------------------------------------------------------- */
+
+/* 上に置く丸いアイコン枠。色は用途ごとに違うので --icon-bg で渡す */
+.c-modal__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto var(--space-5);
+  border-radius: var(--radius-full);
+  background-color: var(--icon-bg, var(--button-secondary));
+}
+
+.c-modal__emoji {
+  margin-bottom: var(--space-3);
+  font-size: 44px;
+  line-height: 1;
+}
+
+.c-modal__eyebrow {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.c-modal__title {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-text);
+}
+
+.c-modal__title--tight {
+  margin-bottom: var(--space-2);
+}
+
+.c-modal__title--wide {
+  margin-bottom: var(--space-5);
+}
+
+.c-modal__text {
+  margin-bottom: var(--space-8);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+.c-modal__text--tight {
+  margin-bottom: var(--space-6);
+}
+
+/* 引用・補足を囲む（目的リマインドの「決めた目的」など）*/
+.c-modal__quote {
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg);
+  text-align: left;
+}
+
+.c-modal__quote--bordered {
+  margin-bottom: 28px;
+  padding: var(--space-5);
+  border: 1px solid var(--bg-textbox);
+}
+
+.c-modal__quote-label {
+  margin-bottom: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-modal__quote-text {
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  line-height: 1.625;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+/* --- ボタン -------------------------------------------------------------- */
+
+.c-modal__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.c-modal__button {
+  width: 100%;
+  padding-block: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+}
+
+.c-modal__button--roomy {
+  padding-block: var(--space-4);
+  box-shadow: var(--shadow-md);
+}
+
+/* 横に並べるとき */
+.c-modal__actions .c-modal__button {
+  flex: 1;
+  width: auto;
+}
+
+/* 色を用途ごとに変える（--accent で渡す）。文言でも用件が分かるようにすること */
+.c-modal__button--accent {
+  border-radius: var(--radius-md);
+  background-color: var(--accent, var(--color-primary));
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-inverse);
+}
+
+/* 押さなくてよい選択肢（「あとで」など）*/
+.c-modal__button--quiet {
+  margin-top: var(--space-1);
+  padding-block: var(--space-3);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- 手順のリスト（オンボーディング）------------------------------------- */
+
+.c-modal__steps {
+  margin-bottom: var(--space-5);
+}
+
+.c-modal__steps > * + * {
+  margin-top: var(--space-3);
+}
+
+.c-modal__step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  text-align: left;
+}
+
+.c-modal__step-body {
+  min-width: 0;
+}
+
+.c-modal__step-title {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.c-modal__step-text {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-primary);
+  word-break: break-word;
+}
+
+.c-modal__lead {
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+  white-space: pre-line;
+}

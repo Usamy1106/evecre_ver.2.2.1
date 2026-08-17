@@ -63,17 +63,17 @@ export function checkEventDateReminderModal() {
 function _buildOverlay({ bgColor, color, iconPath, title, desc, buttonsHtml }) {
   const overlay = document.createElement('div');
   overlay.id = 'event-date-reminder-overlay';
-  overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[180] flex items-center justify-center p-6';
+  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-      <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5" style="background-color:${bgColor}">
+    <div class="c-modal animate-fadeIn">
+      <div class="c-modal__icon" style="--icon-bg:${bgColor}">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           ${iconPath}
         </svg>
       </div>
-      <h3 class="heading-m text-[#484545] mb-3 font-bold">${title}</h3>
-      <p class="text-rs text-[#A7AAAC] font-medium mb-8 leading-relaxed">${desc}</p>
+      <h3 class="c-modal__title">${title}</h3>
+      <p class="c-modal__text">${desc}</p>
       ${buttonsHtml}
     </div>`;
   document.body.appendChild(overlay);
@@ -89,7 +89,7 @@ function _openDayStartModal() {
       <circle cx="12" cy="13" r="4"/>`,
     title: 'ついに今日から！',
     desc: '開催日を迎えました。準備してきたことを、当日のミッションで仕上げていきましょう。',
-    buttonsHtml: `<button data-action="close" class="c-button c-button--primary w-full py-3 heading-rs font-bold">閉じる</button>`,
+    buttonsHtml: `<button data-action="close" class="c-button c-button--primary c-modal__button">閉じる</button>`,
   });
   overlay.querySelector('[data-action="close"]').onclick = () => overlay.remove();
 }
@@ -101,9 +101,9 @@ function _openArchiveReminderModal() {
     iconPath: `<path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>`,
     title: 'イベントお疲れさまでした！',
     desc: 'アーカイブから、イベントの振り返りをしよう！',
-    buttonsHtml: `<div class="flex gap-3">
-      <button data-action="close" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">閉じる</button>
-      <button data-action="go" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md" style="background-color:#0CA1E3">アーカイブを見る</button>
+    buttonsHtml: `<div class="c-modal__actions">
+      <button data-action="close" class="c-button c-button--secondary c-modal__button">閉じる</button>
+      <button data-action="go" class="c-modal__button c-modal__button--accent" style="--accent:#0CA1E3">アーカイブを見る</button>
     </div>`,
   });
   overlay.querySelector('[data-action="close"]').onclick = () => overlay.remove();

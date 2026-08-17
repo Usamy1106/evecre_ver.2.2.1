@@ -37,7 +37,7 @@ export function openOnboardingModal(o) {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[180] flex items-center justify-center p-6';
+  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
   // 背景タップでも閉じられる（＝dismissed 扱い）
   overlay.onclick = (e) => { if (e.target === overlay) _dismiss(); };
 
@@ -45,26 +45,26 @@ export function openOnboardingModal(o) {
   // L1 は5ステップの手順、L5 は未割当ミッションの一覧なので見た目を変える。
   const numbered = o.numbered !== false && !o.bullet;
   const stepsHtml = (o.steps || []).map(([label, desc], i) => `
-    <div class="flex items-start gap-3 text-left">
+    <div class="c-modal__step">
       <span class="w-6 h-6 rounded-full ${numbered ? 'bg-[#0CA1E3] text-white' : 'bg-[#EBE8E5] text-[#A7AAAC]'}
         text-[11px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">${numbered ? i + 1 : '・'}</span>
-      <div class="min-w-0">
-        <p class="text-[13px] font-bold text-[#484545] break-words">${_esc(label)}</p>
-        <p class="text-[11px] text-[#0CA1E3] font-bold leading-relaxed break-words">${_esc(desc)}</p>
+      <div class="c-modal__step-body">
+        <p class="c-modal__step-title">${_esc(label)}</p>
+        <p class="c-modal__step-text">${_esc(desc)}</p>
       </div>
     </div>`).join('');
 
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center max-h-[85vh] flex flex-col">
-      ${o.emoji ? `<p class="text-[44px] leading-none mb-3">${o.emoji}</p>` : ''}
-      ${o.eyebrow ? `<p class="text-[11px] text-[#0CA1E3] font-bold mb-2">${_esc(o.eyebrow)}</p>` : ''}
-      <h3 class="heading-m text-[#484545] mb-5 font-bold leading-snug">${o.title}</h3>
-      <div class="flex-1 overflow-y-auto">
-        ${stepsHtml ? `<div class="space-y-3 mb-5">${stepsHtml}</div>` : ''}
-        ${o.body ? `<p class="text-[12px] text-[#484545] font-bold leading-relaxed mb-6 whitespace-pre-line">${_esc(o.body)}</p>` : ''}
+    <div class="c-modal c-modal--scroll animate-fadeIn">
+      ${o.emoji ? `<p class="c-modal__emoji">${o.emoji}</p>` : ''}
+      ${o.eyebrow ? `<p class="c-modal__eyebrow">${_esc(o.eyebrow)}</p>` : ''}
+      <h3 class="c-modal__title c-modal__title--wide">${_esc(o.title)}</h3>
+      <div class="c-modal__body">
+        ${stepsHtml ? `<div class="c-modal__steps">${stepsHtml}</div>` : ''}
+        ${o.body ? `<p class="c-modal__lead">${_esc(o.body)}</p>` : ''}
       </div>
-      <button data-ob="primary" class="c-button c-button--primary w-full py-4 heading-rs font-bold shadow-lg">${_esc(o.primary)}</button>
-      <button data-ob="close" class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]">あとで</button>
+      <button type="button" data-ob="primary" class="c-button c-button--primary c-modal__button c-modal__button--roomy">${_esc(o.primary)}</button>
+      <button type="button" data-ob="close" class="c-modal__button--quiet">あとで</button>
     </div>`;
   document.body.appendChild(overlay);
 

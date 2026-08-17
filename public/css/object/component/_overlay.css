@@ -60,3 +60,15 @@
   z-index: var(--z-emoji-picker);
   background-color: rgba(0, 0, 0, .4);
 }
+
+/* 自動表示モーダル（目的リマインド・開催日リマインド・オンボーディングなど）。
+   ★重ならないよう、表示前に modalGuard.js の isAnyAutoModalOpen() を通すこと */
+.c-overlay--auto {
+  z-index: var(--z-auto-modal);
+}
+
+/* リーダーの意気込み（参加直後）。他の自動表示より前に出す */
+.c-overlay--welcome {
+  z-index: var(--z-welcome);
+  background-color: rgba(0, 0, 0, .6);
+}

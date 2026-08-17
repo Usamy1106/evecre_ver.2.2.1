@@ -84,38 +84,34 @@ function _openModal(p) {
 
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[220] flex items-center justify-center p-6 page-transition';
+  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--welcome page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   document.body.appendChild(overlay);
 
   // 操作は🔥の円形ボタン1つだけ（「閉じる」は置かない）。押すと応援を送って閉じる。
   // 背景タップでも閉じられる（overlay.onclick）。
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-      <h3 class="heading-m text-[#484545] font-bold mb-6">「${_esc(p.name || 'イベント')}」に<br>ようこそ！</h3>
+    <div class="c-modal animate-fadeIn">
+      <h3 class="c-modal__title c-modal__title--wide">「${_esc(p.name || 'イベント')}」に<br>ようこそ！</h3>
 
-      <div class="bg-[#FDFBF8] border border-[#E1DFDC] rounded-2xl p-5 mb-7">
-        <p class="text-[10px] text-[#A7AAAC] font-bold mb-3">
+      <div class="p-invite__motivation">
+        <p class="p-invite__motivation-label">
           ${_esc(_leaderName(p))}さんの意気込み
         </p>
         ${p.catchphrase ? `
-          <p class="text-[14px] text-[#0CA1E3] font-bold leading-snug mb-3">${_esc(p.catchphrase)}</p>
+          <p class="p-invite__catchphrase">${_esc(p.catchphrase)}</p>
         ` : ''}
-        <div class="flex flex-wrap gap-1.5 justify-center">
+        <div class="c-invite-motivation__tags">
           ${labels.map(l => `
-            <span class="text-[11px] font-bold text-[#EE3E12] bg-[#EE3E12]/10 px-2.5 py-1 rounded-full">${_esc(l)}</span>
+            <span class="c-invite-motivation__tag">${_esc(l)}</span>
           `).join('')}
         </div>
-        ${text ? `<p class="text-[13px] text-[#484545] font-bold mt-3 leading-relaxed">「${_esc(text)}」</p>` : ''}
+        ${text ? `<p class="p-invite__text">「${_esc(text)}」</p>` : ''}
       </div>
 
-      <div class="flex justify-center">
-        <button id="lm-fire"
-          class="w-24 h-24 rounded-full bg-[#EE3E12] text-white text-[40px] leading-none
-            shadow-[0_6px_20px_rgba(238,62,18,0.4)] flex items-center justify-center
-            active:scale-90 transition-transform">
-          🔥
-        </button>
+      <!-- ★押すとモーダルが閉じる。「閉じる」は置かない（🔥が出口を兼ねる）-->
+      <div class="p-invite__fire-wrap">
+        <button type="button" id="lm-fire" class="p-invite__fire">🔥</button>
       </div>
     </div>`;
 
