@@ -79,7 +79,7 @@ function _render(overlay, ctx) {
 function _renderInput(ctx) {
   return `
     <input id="jbc-input" type="text" placeholder="https://evecre..."
-      class="input-field w-full px-4 py-3 text-[13px] font-mono focus:outline-none mb-2"
+      class="c-input w-full px-4 py-3 text-[13px] font-mono focus:outline-none mb-2"
       value="${_esc(ctx.input)}"
       autocomplete="off" autocapitalize="off" spellcheck="false"
       ${ctx.sending ? 'disabled' : ''}>

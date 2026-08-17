@@ -31,6 +31,16 @@
 /* Object: Component -------------------------------------------------------- */
 @import url("./object/component/_button.css");
 @import url("./object/component/_input.css");
+@import url("./object/component/_tag.css");
+@import url("./object/component/_avatar.css");
+@import url("./object/component/_thumbnail.css");
+@import url("./object/component/_icon-button.css");
+@import url("./object/component/_step-indicator.css");
+@import url("./object/component/_banner.css");
+@import url("./object/component/_overlay.css");
+@import url("./object/component/_sheet.css");
+@import url("./object/component/_dialog.css");
+@import url("./object/component/_toast.css");
 @import url("./object/component/_coach-mark.css");
 
 /* Object: Project ---------------------------------------------------------- */

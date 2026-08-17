@@ -110,9 +110,9 @@ function _openModal(p) {
     </div>` : '';
 
   const buttonsHtml = hasPurpose
-    ? `<button data-action="close" class="btn-primary w-full py-3 heading-rs font-bold">閉じる</button>`
+    ? `<button data-action="close" class="c-button c-button--primary w-full py-3 heading-rs font-bold">閉じる</button>`
     : `<div class="flex gap-3">
-         <button data-action="close" class="btn-secondary flex-1 py-3 heading-rs font-bold">閉じる</button>
+         <button data-action="close" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">閉じる</button>
          <button data-action="go" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md" style="background-color:#FFC300">目的を決める</button>
        </div>`;
 

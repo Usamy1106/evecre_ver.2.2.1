@@ -1,0 +1,22 @@
+/* ==========================================================================
+   Object / Component / toast — 短い通知
+   使用箇所: public/js/main.js（_showToast）
+
+   ★モーダルより前に出す。操作の結果を伝えるものなので、隠れると意味が無い。
+   ========================================================================== */
+
+.c-toast {
+  position: fixed;
+  bottom: var(--space-8);
+  left: 50%;
+  z-index: var(--z-toast);
+  transform: translateX(-50%);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-full);
+  background-color: var(--color-text);
+  box-shadow: var(--shadow-2xl);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  white-space: nowrap;
+}

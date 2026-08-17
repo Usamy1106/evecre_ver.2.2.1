@@ -149,7 +149,7 @@ export function openSkillCollectModal(project) {
           </div>
           ${ctx.error ? `<p class="text-[11px] text-[#EE3E12] font-bold text-center mb-2">${_esc(ctx.error)}</p>` : ''}
           <button data-sc="next" ${ctx.saving ? 'disabled' : ''}
-            class="btn-primary w-full py-4 heading-m font-bold shadow-lg ${ctx.saving ? 'opacity-60' : ''}">
+            class="c-button c-button--primary w-full py-4 heading-m font-bold shadow-lg ${ctx.saving ? 'opacity-60' : ''}">
             ${ctx.saving ? '保存中…' : (isGood ? '次へ' : '保存する')}
           </button>
           <button data-sc="${isGood ? 'later' : 'back'}"

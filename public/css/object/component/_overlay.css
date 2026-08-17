@@ -1,0 +1,53 @@
+/* ==========================================================================
+   Object / Component / overlay — モーダル・シートの背面の暗幕
+   使用箇所: public/js/dialog.js, public/js/modals/*, public/js/main.js
+
+   ★重ね順はモーダルの種類ごとに違う（自動表示モーダルより確認ダイアログを
+     前に出す等）。用途ごとのモディファイアで z-index を指定し、
+     マークアップに z-[300] のような数値を書かないこと。
+   ========================================================================== */
+
+.c-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  background-color: rgba(0, 0, 0, .5);
+}
+
+/* 中身の寄せ方 */
+.c-overlay--center {
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.c-overlay--bottom {
+  align-items: flex-end;
+}
+
+/* すりガラス。端末によっては効かないので、暗幕だけでも読めることを前提にする */
+.c-overlay--blur {
+  backdrop-filter: blur(4px);
+}
+
+/* 確認ダイアログは他のモーダルより前に出す（操作を止めて選ばせるため）*/
+.c-overlay--dialog {
+  z-index: var(--z-modal);
+}
+
+/* ボトムシートの背面。シート自体が絶対配置なので寄せ指定は要らない */
+.c-overlay--sheet {
+  z-index: var(--z-sheet);
+}
+
+/* シートの上に更にシートを重ねるとき（タグ作成など）*/
+.c-overlay--sheet-stacked {
+  z-index: var(--z-sheet-stacked);
+}
+
+/* 全画面のモーダル（ミッション作成）。暗幕ではなく画面ごと差し替える */
+.c-overlay--full {
+  z-index: var(--z-overlay);
+  background-color: var(--color-bg);
+}

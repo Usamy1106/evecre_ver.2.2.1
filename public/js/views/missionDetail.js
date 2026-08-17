@@ -234,13 +234,13 @@ function _renderClearSection(p, m, canMgr) {
       </div>`;
   }
 
-  // 申告制で自分の担当でない → 入力欄は出さない（応募はメインボードのカードから）
+  // 応募型で自分の担当でない → 入力欄は出さない（応募はメインボードのカードから）
   const assignees = Array.isArray(m.assignees) ? m.assignees : [];
   const myMission = (m.assignee?.type === 'user' && m.assignee.userId === meId) || assignees.includes(meId);
   if (m.selfClaim && !myMission) {
     return `
       <div class="bg-white border border-[#E1DFDC] rounded-2xl p-4 mb-8">
-        <p class="text-[12px] font-bold text-[#A7AAAC]">申告制ミッションです（担当ではありません）</p>
+        <p class="text-[12px] font-bold text-[#A7AAAC]">応募型ミッションです（担当ではありません）</p>
       </div>`;
   }
 
@@ -249,7 +249,7 @@ function _renderClearSection(p, m, canMgr) {
     return `
       <div class="mb-8">
         <button onclick="window._app.submitMissionClear('${m.id}')"
-          class="btn-primary w-full py-4 heading-r font-bold">完了する</button>
+          class="c-button c-button--primary w-full py-4 heading-r font-bold">完了する</button>
       </div>`;
   }
 
@@ -317,7 +317,7 @@ function _renderClearInput(m) {
 
       ${checklistHtml}
       <button onclick="window._app.submitMissionClear('${m.id}')"
-        class="btn-primary w-full py-4 mt-5 heading-r font-bold">完了する</button>
+        class="c-button c-button--primary w-full py-4 mt-5 heading-r font-bold">完了する</button>
     </div>`;
 }
 
@@ -358,7 +358,7 @@ function _renderIndividualSection(p, m, canMgr, meId) {
   const myInput = meNotDone
     ? (m.noInput
         ? `<button onclick="window._app.submitMissionClear('${m.id}')"
-             class="btn-primary w-full py-4 mb-5 heading-r font-bold">完了する</button>`
+             class="c-button c-button--primary w-full py-4 mb-5 heading-r font-bold">完了する</button>`
         : _renderClearInput(m))
     : '';
 

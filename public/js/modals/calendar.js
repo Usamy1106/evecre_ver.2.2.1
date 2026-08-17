@@ -112,7 +112,7 @@ export function openCalendarModal(target = 'project') {
   if (target === 'mission' || target === 'claimDeadline') {
     requestAnimationFrame(() => {
       const panel = document.getElementById('calendar-bottomsheet-panel');
-      if (panel) panel.classList.remove('translate-y-full');
+      if (panel) panel.classList.add('is-open');
     });
   }
 }
@@ -127,7 +127,7 @@ function _closeCalendar(target) {
   // ミッション・申告期限用はボトムシートのスライドダウンアニメーション
   if (target === 'mission' || target === 'claimDeadline') {
     const panel = document.getElementById('calendar-bottomsheet-panel');
-    if (panel) panel.classList.add('translate-y-full');
+    if (panel) panel.classList.remove('is-open');
     setTimeout(() => {
       document.getElementById('calendar-modal')?.remove();
       state.render();
@@ -222,9 +222,9 @@ function _renderCalendarInner(target) {
       : '';
     modal.innerHTML = `
       <div id="calendar-bottomsheet-panel" data-sheet
-        class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl p-6 transition-transform transform translate-y-full"
+        class="c-sheet c-sheet--padded"
         style="height: 85vh; overflow-y: auto;">
-        <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
+        <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
         <div class="flex items-center justify-between mb-2">
           <h3 class="heading-r text-[#484545] font-bold">${sheetTitle}</h3>
           <div class="flex gap-2">
@@ -251,7 +251,7 @@ function _renderCalendarInner(target) {
         </div>
         <div id="calendar-grid" class="grid grid-cols-7 gap-1" style="touch-action:none;">${daysHtml}</div>
         ${target === 'mission' ? `<button id="calendar-confirm-btn"
-          class="btn-primary w-full py-3 heading-rs font-bold mt-6">決定</button>` : ''}
+          class="c-button c-button--primary w-full py-3 heading-rs font-bold mt-6">決定</button>` : ''}
       </div>`;
   } else {
     modal.innerHTML = `
@@ -276,7 +276,7 @@ function _renderCalendarInner(target) {
         <div id="calendar-grid" class="grid grid-cols-7 gap-1 ${target === 'projectEdit' ? 'mb-2' : 'mb-8'}" style="touch-action:none;">${daysHtml}</div>
         ${target === 'projectEdit' ? _renderDateTimeList(project) : ''}
         <button id="calendar-confirm-btn"
-          class="btn-primary w-full py-3 heading-rs font-bold">決定</button>
+          class="c-button c-button--primary w-full py-3 heading-rs font-bold">決定</button>
       </div>`;
   }
 
@@ -297,10 +297,10 @@ export function moveCalendarMonth(offset, target) {
   state.calendarDate.setMonth(state.calendarDate.getMonth() + offset);
   _renderCalendarInner(target);
   _bindDragSelection(target);
-  // ボトムシートは HTML 再構築後も表示を維持する（translate-y-full をリセット）
+  // ボトムシートは HTML 再構築後も表示を維持する（is-open を付け直す）
   if (target === 'mission' || target === 'claimDeadline') {
     const panel = document.getElementById('calendar-bottomsheet-panel');
-    if (panel) panel.classList.remove('translate-y-full');
+    if (panel) panel.classList.add('is-open');
   }
 }
 

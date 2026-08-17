@@ -89,7 +89,7 @@ function _openDayStartModal() {
       <circle cx="12" cy="13" r="4"/>`,
     title: 'ついに今日から！',
     desc: '開催日を迎えました。準備してきたことを、当日のミッションで仕上げていきましょう。',
-    buttonsHtml: `<button data-action="close" class="btn-primary w-full py-3 heading-rs font-bold">閉じる</button>`,
+    buttonsHtml: `<button data-action="close" class="c-button c-button--primary w-full py-3 heading-rs font-bold">閉じる</button>`,
   });
   overlay.querySelector('[data-action="close"]').onclick = () => overlay.remove();
 }
@@ -102,7 +102,7 @@ function _openArchiveReminderModal() {
     title: 'イベントお疲れさまでした！',
     desc: 'アーカイブから、イベントの振り返りをしよう！',
     buttonsHtml: `<div class="flex gap-3">
-      <button data-action="close" class="btn-secondary flex-1 py-3 heading-rs font-bold">閉じる</button>
+      <button data-action="close" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">閉じる</button>
       <button data-action="go" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md" style="background-color:#0CA1E3">アーカイブを見る</button>
     </div>`,
   });

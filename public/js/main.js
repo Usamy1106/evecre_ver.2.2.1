@@ -130,7 +130,7 @@ function _openApproveModal(uid, username, roles, onSuccess) {
       </button>
       <div id="role-add-form" class="hidden border border-[#E1DFDC] rounded-xl p-4 bg-[#FDFBF8] mb-3">
         <input id="role-add-name" placeholder="例: サブリーダー、デザイナーなど" maxlength="20"
-          class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+          class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
         <label class="flex items-center gap-2 mb-3 cursor-pointer">
           <input id="role-add-canmanage" type="checkbox" class="w-4 h-4 accent-[#0CA1E3]">
           <span class="text-[12px] text-[#484545] font-bold">管理者権限</span>
@@ -142,7 +142,7 @@ function _openApproveModal(uid, username, roles, onSuccess) {
         </div>
       </div>
       <div class="flex gap-3">
-        <button data-action="cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+        <button data-action="cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
         <button data-action="confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md" style="background-color:#0CA1E3">承認する</button>
       </div>
     </div>`;
@@ -617,7 +617,7 @@ window._app = {
         <h3 class="heading-m text-[#484545] mb-3 font-bold">差し戻しますか？</h3>
         <p class="text-rs text-[#A7AAAC] font-medium mb-8 leading-relaxed">提出内容は破棄されます。</p>
         <div class="flex gap-3">
-          <button data-action="cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+          <button data-action="cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
           <button data-action="confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl" style="background-color:#EE3E12">差し戻す</button>
         </div>
       </div>`;
@@ -1135,7 +1135,7 @@ window._app = {
         <h3 class="heading-m text-[#484545] mb-3 font-bold">${config.title}</h3>
         <p class="text-rs text-[#A7AAAC] font-medium mb-8 leading-relaxed">${config.desc}</p>
         <div class="flex gap-3">
-          <button data-action="skip" class="btn-secondary flex-1 py-3 heading-rs font-bold">スキップ</button>
+          <button data-action="skip" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">スキップ</button>
           <button data-action="go" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md"
             style="background-color:${config.color}">${config.action}</button>
         </div>
@@ -1318,7 +1318,7 @@ window._app = {
         <!-- 参加中メンバー＋リーダーの意気込み（招待プレビューを取得できたときだけ差し込む） -->
         <div id="jec-motivation" class="mb-6"></div>
         <div class="flex gap-3">
-          <button id="jec-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+          <button id="jec-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
           <button id="jec-confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md bg-[#0CA1E3]">次へ</button>
         </div>
       </div>`;
@@ -1428,7 +1428,8 @@ function _removeLeaderCheckCard(missionId) {
 // ===== トーストヘルパー =====
 function _showToast(msg, durationMs = 2500) {
   const t = document.createElement('div');
-  t.className = 'fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#484545] text-white px-5 py-3 rounded-full shadow-2xl text-[13px] font-bold z-[400] whitespace-nowrap';
+  // スタイル: public/css/object/component/_toast.css
+  t.className = 'c-toast';
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(() => t.remove(), durationMs);
@@ -1591,12 +1592,12 @@ function _openNewProjectModal(pendingEventId = null) {
     <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
       <h3 class="heading-m text-[#484545] mb-6 font-bold text-center">新しいプロジェクト</h3>
       <input id="np-name" type="text" maxlength="40" placeholder="プロジェクト名"
-        class="input-field w-full px-4 py-3 focus:outline-none mb-3">
+        class="c-input w-full px-4 py-3 focus:outline-none mb-3">
       <input id="np-desc" type="text" maxlength="100" placeholder="説明（任意）"
-        class="input-field w-full px-4 py-3 focus:outline-none mb-6">
+        class="c-input w-full px-4 py-3 focus:outline-none mb-6">
       <div class="flex gap-3">
-        <button id="np-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-        <button id="np-save"   class="btn-primary   flex-1 py-3 heading-rs font-bold">作成</button>
+        <button id="np-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+        <button id="np-save"   class="c-button c-button--primary   flex-1 py-3 heading-rs font-bold">作成</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1685,11 +1686,11 @@ function _openProjectRenameDialog(folderId) {
     <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
       <h3 class="heading-m text-[#484545] mb-6 font-bold text-center">プロジェクト名を変更</h3>
       <input id="pr-name" type="text" maxlength="40"
-        class="input-field w-full px-4 py-3 focus:outline-none mb-6"
+        class="c-input w-full px-4 py-3 focus:outline-none mb-6"
         value="${_escH(folder.name)}">
       <div class="flex gap-3">
-        <button id="pr-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-        <button id="pr-save"   class="btn-primary   flex-1 py-3 heading-rs font-bold">保存</button>
+        <button id="pr-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+        <button id="pr-save"   class="c-button c-button--primary   flex-1 py-3 heading-rs font-bold">保存</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);

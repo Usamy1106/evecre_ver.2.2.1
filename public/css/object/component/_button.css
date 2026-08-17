@@ -1,26 +1,57 @@
 /* ==========================================================================
    Object / Component / button — ボタン
-   使用箇所: public/js 全体（btn-primary 47箇所 / btn-secondary 23箇所）
+   使用箇所: public/js 全体（c-button--primary 45箇所 / --secondary 22箇所）
 
-   ★Phase 0 ではクラス名を変えていない（移設のみ）。
-     c-button--primary / --secondary への改名は Phase 2 で全参照と同時に行う。
    ★Component は自身の外側の余白を持たない。配置は親（l-/p-）が決める。
+     幅・上下の余白は呼び出し側の Tailwind が持っている（Phase 3〜5 で剥がす）。
    ========================================================================== */
 
-.btn-primary {
+/* 共通の形。色と枠は modifier が持つ。
+   ★幅・padding は呼び出し側が決めるので、ここでは指定しない
+     （w-full / py-4 のような使われ方が場所ごとに違うため）。 */
+.c-button {
   border-radius: var(--radius-md);
+}
+
+.c-button--primary {
   background-color: var(--color-primary);
   color: var(--color-text-inverse);
   transition: opacity .2s;
 }
 
-.btn-primary:disabled {
+.c-button--primary:disabled {
   opacity: .5;
 }
 
-.btn-secondary {
+.c-button--secondary {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
   background-color: var(--white);
   color: var(--color-text);
+}
+
+/* 破壊的な操作（削除・退会）。押す前に何が起きるか文言で示すこと */
+.c-button--danger {
+  background-color: var(--color-danger);
+  color: var(--color-text-inverse);
+}
+
+/* 打ち消し・キャンセル */
+.c-button--muted {
+  background-color: var(--button-secondary);
+  color: var(--color-text);
+}
+
+/* 横幅いっぱい。確認ダイアログのように選択肢を積むときに使う */
+.c-button--block {
+  width: 100%;
+  padding-block: var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+}
+
+.c-button--danger:active,
+.c-button--muted:active,
+.c-button--block:active {
+  opacity: .8;
 }

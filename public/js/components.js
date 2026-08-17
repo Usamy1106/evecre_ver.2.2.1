@@ -30,17 +30,16 @@ export const Components = {
   VerifyBanner() {
     const u = state.currentUser;
     if (!u || u.isVerified) return '';
+    // スタイル: public/css/object/component/_banner.css
     return `
-      <div class="mx-6 mt-2 mb-2 bg-[#FFF7E6] border border-[#FFC300] rounded-2xl p-4">
-        <div class="flex items-start gap-3">
-          <div class="flex-shrink-0 mt-0.5">⚠</div>
-          <div class="flex-1 min-w-0">
-            <p class="text-[12px] font-bold text-[#484545] leading-snug mb-0.5">メールアドレス未認証</p>
-            <p class="text-[11px] text-[#484545] leading-snug">新規イベントの作成など、一部の機能はメール認証完了まで使えません。</p>
-            <button onclick="window._app.openVerifyModal()" class="mt-2 text-[12px] font-bold text-white bg-[#FFC300] px-3 py-1.5 rounded-lg">
-              認証コードを入力する
-            </button>
-          </div>
+      <div class="c-banner">
+        <span class="c-banner__icon" aria-hidden="true">⚠</span>
+        <div class="c-banner__body">
+          <p class="c-banner__title">メールアドレス未認証</p>
+          <p class="c-banner__text">新規イベントの作成など、一部の機能はメール認証完了まで使えません。</p>
+          <button type="button" onclick="window._app.openVerifyModal()" class="c-banner__action">
+            認証コードを入力する
+          </button>
         </div>
       </div>`;
   },
@@ -146,19 +145,19 @@ export const Components = {
    * @param {string} text
    */
   Tag(text) {
-    // 組み込みタグ
+    // スタイル: public/css/object/component/_tag.css
+    // ★色はユーザーが選べるので、ビルトインもカスタムも同じ --tag-color で渡す
+    //   （クラスで塗り分けると2系統になり、カスタムタグ側が表現できない）。
+    const tag = (color) => `<span class="c-tag" style="--tag-color:${color}">${text}</span>`;
+
     const builtIn = LABEL_CONFIG[text];
-    if (builtIn) {
-      return `<span class="px-1.5 py-0.5 rounded text-[8px] text-white font-bold" style="background-color: ${builtIn.color}">${text}</span>`;
-    }
-    // 現在のイベントのカスタムタグ
+    if (builtIn) return tag(builtIn.color);
+
     const p = state.events.find(x => x.id === state.selectedEventId);
     const custom = (p?.customTags || []).find(t => t.name === text);
-    if (custom) {
-      return `<span class="px-1.5 py-0.5 rounded text-[8px] text-white font-bold" style="background-color: ${custom.color}">${text}</span>`;
-    }
-    // フォールバック
-    return `<span class="px-1.5 py-0.5 rounded text-[8px] text-white font-bold" style="background-color: #484545">${text}</span>`;
+    if (custom) return tag(custom.color);
+
+    return tag('var(--color-text)');
   },
 
   /**
@@ -166,8 +165,9 @@ export const Components = {
    * @param {string} type
    */
   PenIcon(type) {
-    return `<button onclick="window._app.editArchiveItem('${type}')" class="p-1 opacity-60 hover:opacity-100 transition-opacity">
-      <img src="/images/icon/%20icon-Pen.svg" class="w-4 h-4">
+    // スタイル: public/css/object/component/_icon-button.css
+    return `<button type="button" onclick="window._app.editArchiveItem('${type}')" class="c-icon-button" aria-label="編集">
+      <img src="/images/icon/%20icon-Pen.svg" class="c-icon-button__image" alt="">
     </button>`;
   },
 
@@ -190,19 +190,20 @@ export const Components = {
    */
   StepIndicator(step, total = 3, opts = {}) {
     const { label = '', compact = false } = opts;
+    // スタイル: public/css/object/component/_step-indicator.css
+    // ★compact は「通過済み」も色が付く（残りが見える）。既定は現在地だけ色が付く。
     const dots = Array.from({ length: total }, (_, i) => i + 1).map(s => {
       if (!compact) {
-        return `<div class="w-2.5 h-2.5 rounded-full transition-colors duration-300 ${
-          s === step ? 'bg-[#0CA1E3]' : 'bg-[#D3D6D8]'}"></div>`;
+        return `<div class="c-step-indicator__dot${s === step ? ' is-active' : ''}"></div>`;
       }
-      return `<div class="h-1.5 rounded-full transition-all duration-300 ${
-        s === step ? 'w-6 bg-[#0CA1E3]' : s < step ? 'w-1.5 bg-[#0CA1E3]' : 'w-1.5 bg-[#D3D6D8]'}"></div>`;
+      const state_ = s === step ? ' is-active' : s < step ? ' is-done' : '';
+      return `<div class="c-step-indicator__bar${state_}"></div>`;
     }).join('');
     return `
-      <div class="${compact ? 'mb-6' : 'mb-10'}">
-        ${label ? `<p class="text-[11px] text-[#0CA1E3] font-bold text-center mb-2">${
+      <div class="c-step-indicator${compact ? ' c-step-indicator--compact' : ''}">
+        ${label ? `<p class="c-step-indicator__label">${
           String(label).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>` : ''}
-        <div class="flex items-center justify-center gap-${compact ? '2' : '3'}">${dots}</div>
+        <div class="c-step-indicator__dots">${dots}</div>
       </div>`;
   },
 
@@ -242,12 +243,12 @@ export const Components = {
    * ★画像パスをここ1箇所に集約している（ホーム・プロジェクト詳細・アーカイブで共用）。
    */
   ThumbnailEmptyState() {
-    // picture は inline 要素なので block + w/h を明示しないと img のサイズ指定が効かない
+    // スタイル: public/css/object/component/_thumbnail.css
     return `
-      <picture class="block w-full h-full">
+      <picture class="c-thumbnail__picture">
         <source srcset="${THUMB_EMPTY_BASE}.avif" type="image/avif">
         <source srcset="${THUMB_EMPTY_BASE}.webp" type="image/webp">
-        <img src="${THUMB_EMPTY_BASE}.png" alt="" class="w-full h-full object-cover" loading="lazy">
+        <img src="${THUMB_EMPTY_BASE}.png" alt="" class="c-thumbnail__image" loading="lazy">
       </picture>`;
   },
 
@@ -262,13 +263,13 @@ export const Components = {
     const rounded = opts.rounded ?? 'rounded-xl';
     const visual  = getEventMainVisual(project);
     const inner = visual
-      ? `<img src="${visual}" alt="" class="w-full h-full object-cover" loading="lazy">`
+      ? `<img src="${visual}" alt="" class="c-thumbnail__image" loading="lazy">`
       : this.ThumbnailEmptyState();
-    // 影はコンテナ側に付ける。画像の内容（白背景・透過など）に関わらず常に落ちる。
-    // overflow-hidden は内側の画像を角丸で切るためで、影は外に出るので干渉しない。
+    // スタイル: public/css/object/component/_thumbnail.css
+    // ★rounded は呼び出し側が Tailwind のクラスで渡してくる（Phase 3 で剥がす）。
+    //   既定の角丸は .c-thumbnail が持つので、渡されなければそのままで良い。
     return `
-      <div class="w-full overflow-hidden bg-[#EBE8E5] ${rounded} ${extra}"
-        style="aspect-ratio:3/2;box-shadow:0 2px 8px rgba(72,69,69,0.12)">
+      <div class="c-thumbnail ${rounded} ${extra}">
         ${inner}
       </div>`;
   },
@@ -279,20 +280,22 @@ export const Components = {
    * @param {{size?:number, ring?:boolean, className?:string}} opts
    */
   UserAvatar(user, opts = {}) {
+    // スタイル: public/css/object/component/_avatar.css
+    // ★大きさは呼び出し側が px で決めるので --avatar-size で渡す（文字サイズも比例する）。
     const size = opts.size || 28;
-    const ring = opts.ring ? 'ring-2 ring-white' : '';
-    const extra = opts.className || '';
+    const ring = opts.ring ? ' c-avatar--ring' : '';
+    const extra = opts.className ? ` ${opts.className}` : '';
     const username = user?.username || '';
     const url = user?.avatarUrl || null;
+    const sizeVar = `--avatar-size:${size}px`;
     if (url) {
+      // ★Google の画像は referrerpolicy が要る。読めなければ頭文字の代替へ差し替える
       return `<img src="${url}" alt="${_escText(username)}" referrerpolicy="no-referrer"
-        class="rounded-full object-cover ${ring} ${extra}"
-        style="width:${size}px;height:${size}px;"
+        class="c-avatar${ring}${extra}" style="${sizeVar}"
         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="rounded-full bg-[#0CA1E3] items-center justify-center text-white font-bold ${ring} ${extra}"
-          style="display:none;width:${size}px;height:${size}px;font-size:${Math.round(size * 0.4)}px;">${_initial(username)}</div>`;
+        <div class="c-avatar c-avatar--fallback${ring}${extra}"
+          style="${sizeVar};display:none">${_initial(username)}</div>`;
     }
-    return `<div class="rounded-full bg-[#0CA1E3] flex items-center justify-center text-white font-bold ${ring} ${extra}"
-      style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.4)}px;">${_initial(username)}</div>`;
+    return `<div class="c-avatar c-avatar--fallback${ring}${extra}" style="${sizeVar}">${_initial(username)}</div>`;
   },
 };

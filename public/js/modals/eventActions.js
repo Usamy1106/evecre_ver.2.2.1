@@ -212,11 +212,11 @@ export function openRenameDialog(projectId) {
     <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
       <h3 class="heading-m text-[#484545] mb-6 font-bold text-center">イベント名を変更</h3>
       <input id="rename-input" type="text" maxlength="40"
-        class="input-field w-full px-4 py-3 focus:outline-none mb-6"
+        class="c-input w-full px-4 py-3 focus:outline-none mb-6"
         value="${_escapeAttr(p.name)}">
       <div class="flex gap-3">
-        <button id="rename-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-        <button id="rename-save"   class="btn-primary   flex-1 py-3 heading-rs font-bold">保存</button>
+        <button id="rename-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+        <button id="rename-save"   class="c-button c-button--primary   flex-1 py-3 heading-rs font-bold">保存</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -254,7 +254,7 @@ export function openDeleteConfirm(projectId) {
       <h3 class="heading-m text-[#484545] mb-3 font-bold">イベントを削除しますか</h3>
       <p class="text-rs text-[#484545] font-medium mb-8 leading-relaxed">一度削除されると元に戻せません。</p>
       <div class="flex gap-3">
-        <button id="del-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">戻る</button>
+        <button id="del-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">戻る</button>
         <button id="del-confirm"
           class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md"
           style="background-color: #EE3E12;">削除</button>

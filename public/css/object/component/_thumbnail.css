@@ -1,0 +1,30 @@
+/* ==========================================================================
+   Object / Component / thumbnail — イベントのサムネイル
+   使用箇所: public/js/components.js（EventThumbnail / ThumbnailEmptyState）
+
+   ★影はコンテナ側に付ける。画像の内容（白背景・透過など）に関わらず常に落ちる。
+     overflow:hidden は内側の画像を角丸で切るためで、影は外に出るので干渉しない。
+   ★picture は inline 要素なので block と幅高さの明示が要る（無いと img の
+     サイズ指定が効かない）。
+   ========================================================================== */
+
+.c-thumbnail {
+  width: 100%;
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius-md);
+  background-color: var(--button-secondary);
+  box-shadow: 0 2px 8px rgba(72, 69, 69, .12);
+}
+
+.c-thumbnail__picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.c-thumbnail__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

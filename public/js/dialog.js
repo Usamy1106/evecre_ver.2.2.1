@@ -21,21 +21,20 @@ export function showConfirmDialog({ message, confirmLabel = '確認', cancelLabe
 
     const overlay = document.createElement('div');
     overlay.id = 'confirm-dialog-overlay';
-    overlay.className = 'fixed inset-0 bg-black/50 z-[300] flex items-end justify-center';
+    // スタイル: public/css/object/component/_dialog.css / _overlay.css / _button.css
+    overlay.className = 'c-overlay c-overlay--bottom c-overlay--dialog';
     overlay.innerHTML = `
-      <div data-sheet class="bg-white rounded-t-3xl w-full max-w-lg px-6 pt-5 pb-10 animate-fadeIn">
-        <div data-sheet-handle class="flex justify-center pt-1 pb-4 -mt-2"><div class="w-10 h-1 bg-[#D3D6D8] rounded-full"></div></div>
-        ${title ? `<h3 class="text-[15px] font-bold text-[#484545] text-center mb-2">${_esc(title)}</h3>` : ''}
-        <p class="text-[13px] text-[#484545] text-center leading-relaxed mb-6 whitespace-pre-wrap">${_esc(message)}</p>
-        <div class="flex flex-col gap-3">
-          <button id="cd-ok"
-            class="w-full py-4 rounded-2xl font-bold text-[14px] active:opacity-80
-              ${destructive ? 'bg-[#EE3E12] text-white' : 'bg-[#0CA1E3] text-white'}">
+      <div data-sheet class="c-dialog animate-fadeIn">
+        <div data-sheet-handle class="c-dialog__handle"><div class="c-dialog__grip"></div></div>
+        ${title ? `<h3 class="c-dialog__title">${_esc(title)}</h3>` : ''}
+        <p class="c-dialog__message">${_esc(message)}</p>
+        <div class="c-dialog__actions">
+          <button type="button" id="cd-ok"
+            class="c-button c-button--${destructive ? 'danger' : 'primary'} c-button--block">
             ${_esc(confirmLabel)}
           </button>
           ${cancelLabel ? `
-          <button id="cd-cancel"
-            class="w-full py-4 rounded-2xl font-bold text-[14px] text-[#484545] bg-[#EBE8E5] active:opacity-80">
+          <button type="button" id="cd-cancel" class="c-button c-button--muted c-button--block">
             ${_esc(cancelLabel)}
           </button>` : ''}
         </div>

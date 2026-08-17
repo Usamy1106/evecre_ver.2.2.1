@@ -144,10 +144,10 @@ function _renderPage(overlay, pages, index, opts = {}) {
         ${page.action === 'push-setup' ? `
           <!-- 押すと同じモーダルの中で通知セットアップに切り替わり、
                「次へ」で続きのお知らせに戻る（overlay は閉じない） -->
-          <button data-action="push-setup" class="btn-primary w-full py-3 heading-rs font-bold mb-2">
+          <button data-action="push-setup" class="c-button c-button--primary w-full py-3 heading-rs font-bold mb-2">
             ${_esc(page.actionLabel || '通知を設定する')}
           </button>` : ''}
-        <button data-action="next" class="${page.action ? 'w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]' : 'btn-primary w-full py-3 heading-rs font-bold'}">
+        <button data-action="next" class="${page.action ? 'w-full py-3 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]' : 'c-button c-button--primary w-full py-3 heading-rs font-bold'}">
           ${isLast ? '閉じる' : '次へ'}
         </button>
         ${!isLast && !page.action ? `

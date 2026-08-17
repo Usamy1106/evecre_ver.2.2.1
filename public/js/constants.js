@@ -134,11 +134,17 @@ export const JOIN_MESSAGE_EXAMPLES = [
   '楽しみにしています！',
 ];
 
+// ★bg / border / text（Tailwind のクラス文字列）は 2026-08-17 に削除した。
+//   全参照箇所（components.js / mainBoard.js / mission.js / eventCalendarSheet.js）が
+//   読んでいたのは color だけで、この3つはどこからも使われていなかった。
+//   ★color は消さないこと。カスタムタグのカラーパレットと突き合わせて
+//     「そのタグ色が既にビルトインで使われていないか」を判定している。
+//   タグの見た目は public/css/object/component/_tag.css（色は --tag-color で渡す）。
 export const LABEL_CONFIG = {
-  '企画': { color: '#0CA1E3', bg: 'bg-[#0CA1E3]/10', border: 'border-[#0CA1E3]', text: 'text-[#0CA1E3]' },
-  '運営': { color: '#EE3E12', bg: 'bg-[#EE3E12]/10', border: 'border-[#EE3E12]', text: 'text-[#EE3E12]' },
-  '制作': { color: '#FFC300', bg: 'bg-[#FFC300]/10', border: 'border-[#FFC300]', text: 'text-[#FFC300]' },
-  '広報': { color: '#9EDF05', bg: 'bg-[#9EDF05]/10', border: 'border-[#9EDF05]', text: 'text-[#9EDF05]' },
+  '企画': { color: '#0CA1E3' },
+  '運営': { color: '#EE3E12' },
+  '制作': { color: '#FFC300' },
+  '広報': { color: '#9EDF05' },
 };
 
 // ===== 規約への同意 =====

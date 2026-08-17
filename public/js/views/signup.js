@@ -255,11 +255,11 @@ function _renderEmail(container, d) {
     <p class="text-rs text-[#A7AAAC] mb-6 font-bold">学校のメールでも個人のメールでもOK</p>
 
     <input id="su-email" type="email" autocomplete="email" inputmode="email"
-      class="input-field w-full px-4 py-3.5 focus:outline-none mb-2 ${d.errors.email ? 'ring-2 ring-[#EE3E12]' : ''}"
+      class="c-input w-full px-4 py-3.5 focus:outline-none mb-2 ${d.errors.email ? 'ring-2 ring-[#EE3E12]' : ''}"
       placeholder="example@mail.com" value="${_esc(d.email)}" maxlength="100">
     ${d.errors.email ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${d.errors.email}</p>` : ''}
 
-    <button id="su-email-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-6">次へ</button>
+    <button id="su-email-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-6">次へ</button>
   `, { back: true });
 
   const input = document.getElementById('su-email');
@@ -331,7 +331,7 @@ function _renderPassword(container, d) {
 
     <div class="relative mb-2">
       <input id="su-password" type="password" autocomplete="new-password"
-        class="input-field w-full px-4 py-3.5 pr-14 focus:outline-none ${d.errors.password ? 'ring-2 ring-[#EE3E12]' : ''}"
+        class="c-input w-full px-4 py-3.5 pr-14 focus:outline-none ${d.errors.password ? 'ring-2 ring-[#EE3E12]' : ''}"
         placeholder="${PW_MIN_LEN}文字以上" value="${_esc(d.password)}" maxlength="100">
       <button type="button" id="su-pw-toggle"
         class="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-[#A7AAAC] font-bold px-2 py-1">表示</button>
@@ -359,7 +359,7 @@ function _renderPassword(container, d) {
     ${d.errors._toLogin ? `
       <button id="su-to-login" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold underline mb-2">ログイン画面へ</button>` : ''}
 
-    <button id="su-pw-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">アカウントを作成</button>
+    <button id="su-pw-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-4">アカウントを作成</button>
 
     <!-- ここでコードを先に送っておくので、STEP 3 に着く頃には届いている -->
     <p class="text-[11px] text-[#A7AAAC] font-bold text-center mt-4 leading-relaxed">
@@ -522,7 +522,7 @@ function _renderOtp(container, d) {
     ${d.devCode ? `<p class="text-[11px] text-[#A7AAAC] mb-2 font-bold">（開発用）コード: ${_esc(d.devCode)}</p>` : ''}
     ${d.otpError ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold leading-relaxed">${_esc(d.otpError)}</p>` : ''}
 
-    <button id="su-otp-submit" class="btn-primary w-full py-3.5 heading-rs font-bold mb-3">認証する</button>
+    <button id="su-otp-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-3">認証する</button>
 
     <button id="su-otp-resend" class="w-full py-2 text-[12px] font-bold text-[#0CA1E3] disabled:text-[#A7AAAC] mb-1">
       ${d.resendLeftSec > 0 ? `コードを再送する（${d.resendLeftSec}秒）` : 'コードを再送する'}
@@ -537,12 +537,12 @@ function _renderOtp(container, d) {
       <div class="border border-[#E1DFDC] rounded-2xl p-4 mt-2">
         <p class="text-[12px] text-[#484545] font-bold mb-2">別のメールアドレスに送り直す</p>
         <input id="su-newmail" type="email" autocomplete="email" inputmode="email"
-          class="input-field w-full px-4 py-3 focus:outline-none mb-2"
+          class="c-input w-full px-4 py-3 focus:outline-none mb-2"
           placeholder="example@mail.com" value="${_esc(d.newEmail || '')}" maxlength="100">
         ${d.newEmailError ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.newEmailError)}</p>` : ''}
         <div class="flex gap-2">
           <button id="su-newmail-cancel" class="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-[#484545] bg-white border border-[#E1DFDC]">キャンセル</button>
-          <button id="su-newmail-save" class="flex-1 btn-primary py-2.5 text-[13px] font-bold">変更して再送信</button>
+          <button id="su-newmail-save" class="flex-1 c-button c-button--primary py-2.5 text-[13px] font-bold">変更して再送信</button>
         </div>
       </div>` : `
       <button id="su-otp-change-email" class="w-full py-2 text-[12px] text-[#0CA1E3] font-bold underline">
@@ -945,13 +945,13 @@ function _renderName(container, d) {
 
     <label class="block text-rs text-[#484545] font-bold mb-2">みんなに表示される名前</label>
     <input id="su-name" type="text" autocomplete="nickname"
-      class="input-field w-full px-4 py-3.5 focus:outline-none mb-1 ${d.errors.name ? 'ring-2 ring-[#EE3E12]' : ''}"
+      class="c-input w-full px-4 py-3.5 focus:outline-none mb-1 ${d.errors.name ? 'ring-2 ring-[#EE3E12]' : ''}"
       placeholder="ニックネーム" value="${_esc(d.name || '')}" maxlength="20">
     <p class="text-[11px] text-[#A7AAAC] font-bold mb-1">2〜20文字（英数字・日本語・全角OK）</p>
     ${d.errors.name ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.errors.name)}</p>` : ''}
     ${_otherErrorsHtml(d.errors, ['name'])}
 
-    <button id="su-name-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-6">次へ</button>
+    <button id="su-name-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-6">次へ</button>
     ${_skipButton('あとで設定する')}
   `, { back: _canBack(d, 4) });
 
@@ -1029,7 +1029,7 @@ function _renderAvatar(container, d) {
 
     ${d.errors.avatar ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold">${_esc(d.errors.avatar)}</p>` : ''}
 
-    <button id="su-avatar-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    <button id="su-avatar-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
     ${_skipButton('あとで設定する')}
   `, { back: _canBack(d, 5) });
 
@@ -1129,10 +1129,10 @@ function _renderChannel(container, d) {
 
     ${d.acquisitionChannel === 'other' ? `
       <input id="su-channel-other" type="text" maxlength="100"
-        class="input-field w-full px-4 py-3 focus:outline-none mt-1 mb-2"
+        class="c-input w-full px-4 py-3 focus:outline-none mt-1 mb-2"
         placeholder="よければ教えてください（任意）" value="${_esc(d.acquisitionChannelOther || '')}">` : ''}
 
-    <button id="su-channel-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    <button id="su-channel-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
     ${_skipButton()}
   `, { back: _canBack(d, 6) });
 
@@ -1177,7 +1177,7 @@ function _renderExperience(container, d) {
 
     ${EXPERIENCES.map(([id, label]) => _choice(id, label, d.eventExperience === id)).join('')}
 
-    <button id="su-exp-next" class="btn-primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
+    <button id="su-exp-next" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mt-4">次へ</button>
     ${_skipButton()}
   `, { back: _canBack(d, 7) });
 
@@ -1338,7 +1338,7 @@ function _renderComplete(container, d) {
         </div>
       </div>
 
-      <button id="cc-start" class="btn-primary w-full py-4 heading-rs font-bold opacity-0">
+      <button id="cc-start" class="c-button c-button--primary w-full py-4 heading-rs font-bold opacity-0">
         イベクリをはじめる
       </button>
     </div>

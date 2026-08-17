@@ -86,10 +86,10 @@ export function openMissionModal(missionId = null, prefill = null) {
   overlay = document.createElement('div');
   overlay.id = 'mission-overlay';
   // フルスクリーン表示。背景クリックで閉じない（明示的な閉じるボタンで）
-  overlay.className = 'fixed inset-0 z-[100] bg-[#FDFBF8]';
+  overlay.className = 'c-overlay c-overlay--full';
   overlay.innerHTML = `
     <div id="mission-panel"
-      class="w-full h-full flex flex-col bg-[#FDFBF8] transition-transform transform translate-y-full">
+      class="c-sheet c-sheet--full">
       <!-- ヘッダー：閉じるボタン + タイトル -->
       <header class="flex items-center justify-between px-5 py-4 border-b border-[#E1DFDC] bg-[#FDFBF8] flex-shrink-0">
         <button onclick="window._app.closeMissionModal()" class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95">
@@ -106,7 +106,7 @@ export function openMissionModal(missionId = null, prefill = null) {
 
   // スライドアップアニメーション
   requestAnimationFrame(() => {
-    document.getElementById('mission-panel')?.classList.remove('translate-y-full');
+    document.getElementById('mission-panel')?.classList.add('is-open');
   });
   renderMissionModalContent();
 
@@ -123,7 +123,7 @@ export function closeMissionModal() {
   // ★途中で閉じても③は「一度見た」として完了扱いにする（状態を宙ぶらりんにしない）
   onMissionFormClosed();
   const panel = document.getElementById('mission-panel');
-  if (panel) panel.classList.add('translate-y-full');
+  if (panel) panel.classList.remove('is-open');
   setTimeout(() => {
     document.getElementById('mission-overlay')?.remove();
   }, 300);
@@ -148,7 +148,7 @@ export function deleteMission(e) {
       <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
         <h3 class="heading-m text-[#484545] mb-3 font-bold">削除できません</h3>
         <p class="text-rs text-[#484545] font-medium mb-8 leading-relaxed">初期フローのミッションは削除できません。</p>
-        <button class="w-full py-3 heading-rs font-bold btn-secondary">閉じる</button>
+        <button class="w-full py-3 heading-rs font-bold c-button c-button--secondary">閉じる</button>
       </div>`;
     overlay.querySelector('button').onclick = () => overlay.remove();
     document.body.appendChild(overlay);
@@ -163,7 +163,7 @@ export function deleteMission(e) {
       <h3 class="heading-m text-[#484545] mb-3 font-bold">ミッションを削除しますか</h3>
       <p class="text-rs text-[#484545] font-medium mb-8 leading-relaxed">一度削除すると元に戻せません。</p>
       <div class="flex gap-3">
-        <button data-action="cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">戻る</button>
+        <button data-action="cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">戻る</button>
         <button data-action="confirm"
           class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md"
           style="background-color: #EE3E12;">削除</button>
@@ -262,7 +262,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
           <input type="text" id="mission-title-input" data-coach="mission-title" placeholder="ミッションを入力"
             value="${state.draftMission.title}"
             oninput="state.draftMission.title=this.value; this.style.borderColor=''"
-            class="input-field w-full px-4 py-3 focus:outline-none border-2 border-transparent transition-colors">
+            class="c-input w-full px-4 py-3 focus:outline-none border-2 border-transparent transition-colors">
           <p id="error-title" class="hidden text-[10px] font-bold mt-1" style="color: #e8383d;">※ミッション名は入力必須です</p>
         </div>
         <div>
@@ -270,7 +270,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
           <textarea id="mission-desc-input" rows="3"
             placeholder="このミッションの目的・進め方など"
             oninput="state.draftMission.description=this.value"
-            class="input-field w-full px-4 py-3 text-[13px] focus:outline-none resize-none">${_esc(state.draftMission.description || '')}</textarea>
+            class="c-input w-full px-4 py-3 text-[13px] focus:outline-none resize-none">${_esc(state.draftMission.description || '')}</textarea>
         </div>
         <div>
           <div class="flex items-center gap-2 mb-1">
@@ -297,7 +297,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
         </div>
       </div>
       <button onclick="window._app.createOrUpdateMission()"
-        class="btn-primary w-full py-4 heading-r font-bold mt-4 shadow-lg shadow-blue-200">
+        class="c-button c-button--primary w-full py-4 heading-r font-bold mt-4 shadow-lg shadow-blue-200">
         ${isEdit ? '保存' : '作成'}
       </button>
     </div>`;
@@ -356,7 +356,7 @@ function _renderDetailTab(isEdit) {
                   <input type="text" data-cl-input="${i}" value="${_esc(item)}"
                     oninput="window._app.updateChecklistItem(${i}, this.value)"
                     placeholder="例：〇〇はできているか"
-                    class="input-field flex-1 px-3 py-2 text-[13px] focus:outline-none">
+                    class="c-input flex-1 px-3 py-2 text-[13px] focus:outline-none">
                   <button onclick="window._app.removeChecklistItem(${i})"
                     class="w-9 h-9 rounded-full bg-[#EBE8E5] flex items-center justify-center active:scale-95">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -458,7 +458,7 @@ function _renderDetailTab(isEdit) {
           </button>` : ''}
       </div>
       <button onclick="window._app.createOrUpdateMission()"
-        class="btn-primary w-full py-4 heading-r font-bold mt-4 shadow-lg shadow-blue-200">
+        class="c-button c-button--primary w-full py-4 heading-r font-bold mt-4 shadow-lg shadow-blue-200">
         ${isEdit ? '保存' : '作成'}
       </button>
     </div>`;
@@ -533,7 +533,7 @@ export function showProposalHelp(e, proposalId) {
         <p class="text-rs text-[#484545] font-bold leading-relaxed whitespace-pre-wrap">${desc}</p>
       </div>
       <button onclick="document.getElementById('help-modal').remove()"
-        class="btn-primary w-full py-4 mt-8 heading-r font-bold">わかった</button>
+        class="c-button c-button--primary w-full py-4 mt-8 heading-r font-bold">わかった</button>
     </div>`;
   document.body.appendChild(overlay);
 }
@@ -681,7 +681,7 @@ function _openMissionDeleteConfirm(missionId) {
       <h3 class="heading-m text-[#484545] mb-3 font-bold">ミッションを削除しますか</h3>
       <p class="text-rs text-[#484545] font-medium mb-8 leading-relaxed">一度削除すると元に戻せません。</p>
       <div class="flex gap-3">
-        <button id="mdel-cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">戻る</button>
+        <button id="mdel-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">戻る</button>
         <button id="mdel-confirm"
           class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md"
           style="background-color: #EE3E12;">削除</button>
@@ -807,7 +807,7 @@ function _renderAssigneeSelect() {
   // 応募制ONの場合は無効化表示
   if (selfClaim) {
     return `
-      <div class="input-field w-full px-4 py-3 text-[13px] text-left flex items-center justify-between opacity-60 cursor-not-allowed">
+      <div class="c-input w-full px-4 py-3 text-[13px] text-left flex items-center justify-between opacity-60 cursor-not-allowed">
         <span class="text-[#A7AAAC]">応募型：メンバーが自分で割り当てます</span>
       </div>`;
   }
@@ -832,7 +832,7 @@ function _renderAssigneeSelect() {
 
   return `
     <button type="button" onclick="window._app.openAssigneeSheet()"
-      class="input-field w-full px-4 py-3 focus:outline-none text-[13px] text-left flex items-center justify-between">
+      class="c-input w-full px-4 py-3 focus:outline-none text-[13px] text-left flex items-center justify-between">
       <span class="${hasValue ? 'text-[#484545] font-bold' : 'text-[#A7AAAC]'}">${_esc(label)}</span>
       <img src="/images/icon/iocn-Chevron.svg" class="w-3 h-3 rotate-180 brightness-0 opacity-40">
     </button>`;
@@ -853,14 +853,14 @@ export function openAssigneeSheet() {
   if (overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'assignee-sheet-overlay';
-  overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[210]';
+  overlay.className = 'c-overlay c-overlay--blur c-overlay--sheet';
   overlay.onclick = (e) => { if (e.target === overlay) closeAssigneeSheet(); };
 
   overlay.innerHTML = `
     <div id="assignee-sheet-panel" data-sheet
-      class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transition-transform transform translate-y-full"
+      class="c-sheet"
       style="height: 85vh; display: flex; flex-direction: column;">
-      <div data-sheet-handle class="flex justify-center pt-3 pb-1 flex-shrink-0"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
+      <div data-sheet-handle class="c-sheet__handle c-sheet__handle--low"><div class="c-sheet__grip"></div></div>
       <h3 class="text-[15px] font-bold text-[#484545] text-center pt-2 pb-3 flex-shrink-0">担当者を選択</h3>
 
       <!-- タブ -->
@@ -881,13 +881,13 @@ export function openAssigneeSheet() {
       <!-- 確定ボタン（ACCOUNTタブのみ表示） -->
       <div id="assignee-confirm-bar" class="px-5 py-4 border-t border-[#E1DFDC] flex-shrink-0" style="display:none">
         <button id="assignee-confirm-btn"
-          class="btn-primary w-full py-3 heading-r font-bold">確定</button>
+          class="c-button c-button--primary w-full py-3 heading-r font-bold">確定</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
 
   requestAnimationFrame(() => {
-    document.getElementById('assignee-sheet-panel')?.classList.remove('translate-y-full');
+    document.getElementById('assignee-sheet-panel')?.classList.add('is-open');
   });
 
   // タブクリック
@@ -1072,7 +1072,7 @@ function _renderAssigneeSheetList() {
 
 export function closeAssigneeSheet() {
   const panel = document.getElementById('assignee-sheet-panel');
-  if (panel) panel.classList.add('translate-y-full');
+  if (panel) panel.classList.remove('is-open');
   setTimeout(() => document.getElementById('assignee-sheet-overlay')?.remove(), 280);
 }
 
@@ -1097,21 +1097,21 @@ export function openTagCreator() {
   if (overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'tag-creator-overlay';
-  overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[220]';
+  overlay.className = 'c-overlay c-overlay--blur c-overlay--sheet-stacked';
   overlay.onclick = (e) => { if (e.target === overlay) closeTagCreator(); };
 
   overlay.innerHTML = `
     <div id="tag-creator-panel" data-sheet
-      class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl p-6 transition-transform transform translate-y-full"
+      class="c-sheet c-sheet--padded"
       style="max-height: 85vh; overflow-y: auto;">
-      <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
+      <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
       <h3 class="text-[15px] font-bold text-[#484545] text-center mb-5">新しいタグを作成</h3>
 
       <div class="mb-5">
         <label class="text-[12px] text-[#484545] font-bold mb-2 block">タグ名</label>
         <input id="tag-name-input" type="text" maxlength="20"
           placeholder="例：会計、デザインなど"
-          class="input-field w-full px-4 py-3 focus:outline-none text-[13px]"
+          class="c-input w-full px-4 py-3 focus:outline-none text-[13px]"
           value="${_esc(state.tagCreator.name)}">
       </div>
 
@@ -1131,7 +1131,7 @@ export function openTagCreator() {
   document.body.appendChild(overlay);
 
   requestAnimationFrame(() => {
-    document.getElementById('tag-creator-panel')?.classList.remove('translate-y-full');
+    document.getElementById('tag-creator-panel')?.classList.add('is-open');
   });
 
   _renderTagColorGrid();
@@ -1230,7 +1230,7 @@ function _doCreateTag() {
 
 export function closeTagCreator() {
   const panel = document.getElementById('tag-creator-panel');
-  if (panel) panel.classList.add('translate-y-full');
+  if (panel) panel.classList.remove('is-open');
   setTimeout(() => document.getElementById('tag-creator-overlay')?.remove(), 280);
 }
 

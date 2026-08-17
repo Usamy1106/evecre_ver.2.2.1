@@ -48,7 +48,7 @@ export function renderCreateAccountInfo(container) {
           <div>
             <label class="block text-rs text-[#484545] font-bold mb-2">ユーザー名</label>
             <input id="ca-username" type="text" autocomplete="username"
-              class="input-field w-full px-4 py-3 focus:outline-none ${errors.username ? 'ring-2 ring-[#EE3E12]' : ''}"
+              class="c-input w-full px-4 py-3 focus:outline-none ${errors.username ? 'ring-2 ring-[#EE3E12]' : ''}"
               placeholder="2〜20文字（英数字・日本語・全角OK）"
               value="${_esc(draft.username)}" maxlength="20">
             ${errors.username ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.username)}</p>` : ''}
@@ -57,7 +57,7 @@ export function renderCreateAccountInfo(container) {
           <div>
             <label class="block text-rs text-[#484545] font-bold mb-2">メールアドレス</label>
             <input id="ca-email" type="email" autocomplete="email"
-              class="input-field w-full px-4 py-3 focus:outline-none ${errors.email ? 'ring-2 ring-[#EE3E12]' : ''}"
+              class="c-input w-full px-4 py-3 focus:outline-none ${errors.email ? 'ring-2 ring-[#EE3E12]' : ''}"
               placeholder="example@mail.com"
               value="${_esc(draft.email)}" maxlength="100">
             ${errors.email ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.email)}</p>` : ''}
@@ -67,7 +67,7 @@ export function renderCreateAccountInfo(container) {
             <label class="block text-rs text-[#484545] font-bold mb-2">パスワード</label>
             <div class="relative">
               <input id="ca-password" type="password" autocomplete="new-password"
-                class="input-field w-full px-4 py-3 pr-12 focus:outline-none ${errors.password ? 'ring-2 ring-[#EE3E12]' : ''}"
+                class="c-input w-full px-4 py-3 pr-12 focus:outline-none ${errors.password ? 'ring-2 ring-[#EE3E12]' : ''}"
                 placeholder="8文字以上"
                 value="${_esc(draft.password)}" maxlength="100">
               <button type="button" id="ca-pw-toggle"
@@ -79,7 +79,7 @@ export function renderCreateAccountInfo(container) {
 
         ${errors._global ? `<p class="text-[13px] text-[#EE3E12] text-center font-bold mb-4">${_esc(errors._global)}</p>` : ''}
 
-        <button id="ca-submit" class="btn-primary w-full py-3.5 heading-rs font-bold mb-4">アカウントを作成</button>
+        <button id="ca-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-4">アカウントを作成</button>
 
         <!-- Google で続行 -->
         <div id="ca-google-section" class="hidden mb-4">
@@ -194,7 +194,7 @@ export function renderLogin(container) {
           <div>
             <label class="block text-rs text-[#484545] font-bold mb-2">メールアドレス</label>
             <input id="lg-id" type="email" autocomplete="email"
-              class="input-field w-full px-4 py-3 focus:outline-none ${errors._global ? 'ring-2 ring-[#EE3E12]' : ''}"
+              class="c-input w-full px-4 py-3 focus:outline-none ${errors._global ? 'ring-2 ring-[#EE3E12]' : ''}"
               placeholder="your@example.com"
               value="${_esc(draft.identifier)}" maxlength="100">
           </div>
@@ -202,7 +202,7 @@ export function renderLogin(container) {
             <label class="block text-rs text-[#484545] font-bold mb-2">パスワード</label>
             <div class="relative">
               <input id="lg-password" type="password" autocomplete="current-password"
-                class="input-field w-full px-4 py-3 pr-12 focus:outline-none ${errors._global ? 'ring-2 ring-[#EE3E12]' : ''}"
+                class="c-input w-full px-4 py-3 pr-12 focus:outline-none ${errors._global ? 'ring-2 ring-[#EE3E12]' : ''}"
                 value="${_esc(draft.password)}" maxlength="100">
               <button type="button" id="lg-pw-toggle"
                 class="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-[#A7AAAC] font-bold px-2 py-1">表示</button>
@@ -212,7 +212,7 @@ export function renderLogin(container) {
 
         ${errors._global ? `<p class="text-[13px] text-[#EE3E12] text-center font-bold mb-4">${_esc(errors._global)}</p>` : ''}
 
-        <button id="lg-submit" class="btn-primary w-full py-3.5 heading-rs font-bold mb-3">ログイン</button>
+        <button id="lg-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-3">ログイン</button>
 
         <p class="text-center mb-4">
           <button id="lg-forgot" class="text-[12px] text-[#0CA1E3] font-bold underline">パスワードをお忘れですか？</button>

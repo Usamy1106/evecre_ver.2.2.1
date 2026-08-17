@@ -1,0 +1,32 @@
+/* ==========================================================================
+   Object / Component / avatar — ユーザーアイコン
+   使用箇所: public/js/components.js（Components.UserAvatar）
+
+   ★大きさは呼び出し側が px で指定するのでインライン style のまま
+     （--avatar-size に入れる）。font-size もそれに比例させる。
+   ★Google の画像は referrerpolicy="no-referrer" が要る（付けないと 403 で
+     出ないことがある）。読み込みに失敗したら頭文字の代替に差し替わる。
+   ========================================================================== */
+
+.c-avatar {
+  width: var(--avatar-size, 28px);
+  height: var(--avatar-size, 28px);
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+/* 画像が無い／読めないときの代替（頭文字）*/
+.c-avatar--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-primary);
+  font-size: calc(var(--avatar-size, 28px) * .4);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}
+
+/* 重ねて並べるときに背景から浮かせる */
+.c-avatar--ring {
+  box-shadow: 0 0 0 2px var(--white);
+}

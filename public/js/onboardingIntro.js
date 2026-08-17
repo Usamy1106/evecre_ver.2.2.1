@@ -169,7 +169,7 @@ export function showUsageModal() {
             </div>
           </div>`).join('')}
       </div>
-      <button data-intro="ack" class="btn-primary w-full py-4 heading-rs font-bold shadow-lg">わかった</button>
+      <button data-intro="ack" class="c-button c-button--primary w-full py-4 heading-rs font-bold shadow-lg">わかった</button>
     </div>`;
   document.body.appendChild(overlay);
   logEvent('intro_usage_shown');

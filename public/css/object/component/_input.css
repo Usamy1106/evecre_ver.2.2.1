@@ -1,13 +1,11 @@
 /* ==========================================================================
    Object / Component / input — 入力欄
-   使用箇所: public/js 全体（input-field 47箇所）
+   使用箇所: public/js 全体（c-input 45箇所）
 
-   ★Phase 0 ではクラス名を変えていない（移設のみ）。
-     c-input への改名は Phase 2 で全参照と同時に行う。
    ★font-size は 16px 未満にしないこと。iOS Safari が入力時に自動ズームする。
    ========================================================================== */
 
-.input-field {
+.c-input {
   border: none;
   border-radius: var(--radius-md);
   background-color: var(--bg-textbox);
@@ -15,6 +13,6 @@
   font-size: var(--font-size-lg);
 }
 
-.input-field::placeholder {
+.c-input::placeholder {
   color: var(--color-text-placeholder);
 }

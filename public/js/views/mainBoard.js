@@ -867,7 +867,7 @@ function _renderArchiveTab(p) {
           </section>
         </div>
         <button onclick="window._app.showMissionListModal()"
-          class="btn-secondary w-full py-4 heading-r font-bold">ミッション一覧</button>
+          class="c-button c-button--secondary w-full py-4 heading-r font-bold">ミッション一覧</button>
       </div>
 
       <!-- Layer 2: ミッションの記録 -->

@@ -1,0 +1,19 @@
+/* ==========================================================================
+   Object / Component / icon-button — アイコンだけのボタン
+   使用箇所: public/js/components.js（Components.PenIcon）
+   ========================================================================== */
+
+.c-icon-button {
+  padding: var(--space-1);
+  opacity: .6;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.c-icon-button:hover {
+  opacity: 1;
+}
+
+.c-icon-button__image {
+  width: 16px;
+  height: 16px;
+}

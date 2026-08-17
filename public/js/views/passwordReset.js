@@ -51,13 +51,13 @@ function _formBlock(sec) {
       <div>
         <label class="block text-rs text-[#484545] font-bold mb-2">メールアドレス</label>
         <input id="pr-email" type="email" autocomplete="email"
-          class="input-field w-full px-4 py-3 focus:outline-none"
+          class="c-input w-full px-4 py-3 focus:outline-none"
           placeholder="your@example.com"
           value="${_esc(sec.email)}">
       </div>
     </div>
     ${sec.error ? `<p class="text-[13px] text-[#EE3E12] text-center font-bold mb-4">${_esc(sec.error)}</p>` : ''}
-    <button id="pr-submit" class="btn-primary w-full py-3.5 heading-rs font-bold mb-4"
+    <button id="pr-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-4"
       ${sec.sending ? 'disabled style="opacity:.6"' : ''}>
       ${sec.sending ? '送信中…' : 'リセットメールを送る'}
     </button>`;
@@ -200,7 +200,7 @@ function _confirmForm(sec) {
       <div>
         <label class="block text-rs text-[#484545] font-bold mb-2">新しいパスワード</label>
         <input id="pc-pw" type="password"
-          class="input-field w-full px-4 py-3 focus:outline-none ${errors.newPassword ? 'ring-2 ring-[#EE3E12]' : ''}"
+          class="c-input w-full px-4 py-3 focus:outline-none ${errors.newPassword ? 'ring-2 ring-[#EE3E12]' : ''}"
           placeholder="8文字以上の英数字"
           value="${_esc(sec.newPassword || '')}" maxlength="100">
         ${errors.newPassword ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.newPassword)}</p>` : ''}
@@ -208,14 +208,14 @@ function _confirmForm(sec) {
       <div>
         <label class="block text-rs text-[#484545] font-bold mb-2">確認のため もう一度</label>
         <input id="pc-pw2" type="password"
-          class="input-field w-full px-4 py-3 focus:outline-none ${errors.mismatch ? 'ring-2 ring-[#EE3E12]' : ''}"
+          class="c-input w-full px-4 py-3 focus:outline-none ${errors.mismatch ? 'ring-2 ring-[#EE3E12]' : ''}"
           placeholder="同じパスワード"
           value="${_esc(sec.newPassword2 || '')}" maxlength="100">
         ${errors.mismatch ? `<p class="text-[12px] text-[#EE3E12] mt-1.5 font-bold">${_esc(errors.mismatch)}</p>` : ''}
       </div>
     </div>
     ${errors._global ? `<p class="text-[13px] text-[#EE3E12] text-center font-bold mb-4">${_esc(errors._global)}</p>` : ''}
-    <button id="pc-submit" class="btn-primary w-full py-3.5 heading-rs font-bold mb-4"
+    <button id="pc-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-4"
       ${sec.submitting ? 'disabled style="opacity:.6"' : ''}>
       ${sec.submitting ? '変更中…' : 'パスワードを変更する'}
     </button>`;

@@ -53,8 +53,18 @@
 | メインボード下部のパネル・FAB | `layout/_fixed-bottom.css` |
 | 起動時のローディング画面 | `layout/_loading.css` |
 | 画面切り替え時のフェード | `layout/_page.css` |
-| ボタン（`btn-primary` / `btn-secondary`） | `object/component/_button.css` |
-| 入力欄（`input-field`） | `object/component/_input.css` |
+| ボタン（`c-button--primary` / `--secondary` / `--danger` / `--muted` / `--block`） | `object/component/_button.css` |
+| 入力欄（`c-input`） | `object/component/_input.css` |
+| ラベルタグの色・形（`c-tag`） | `object/component/_tag.css` |
+| ユーザーアイコン（`c-avatar`） | `object/component/_avatar.css` |
+| イベントのサムネイル（`c-thumbnail`） | `object/component/_thumbnail.css` |
+| ペンなどアイコンだけのボタン | `object/component/_icon-button.css` |
+| 進捗のドット（`c-step-indicator`） | `object/component/_step-indicator.css` |
+| メール未認証などの告知バナー | `object/component/_banner.css` |
+| モーダル・シートの暗幕（`c-overlay`） | `object/component/_overlay.css` |
+| ボトムシートの開閉（`c-sheet` / `.is-open`） | `object/component/_sheet.css` |
+| 確認ダイアログ（`c-dialog`） | `object/component/_dialog.css` |
+| トースト（`c-toast`） | `object/component/_toast.css` |
 | コーチマークの脈動・指の動き | `object/component/_coach-mark.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
@@ -186,22 +196,22 @@ public/css/
 │  └─ _fixed-bottom.css         ✅ .l-bottom-panel / .l-fab
 │
 ├─ object/component/
-│  ├─ _button.css               ✅ btn-primary / btn-secondary
-│  ├─ _input.css                ✅ input-field
+│  ├─ _button.css               ✅ c-button（--primary/--secondary/--danger/--muted/--block）
+│  ├─ _input.css                ✅ c-input
+│  ├─ _tag.css                  ✅ c-tag（色は --tag-color）
+│  ├─ _avatar.css               ✅ c-avatar（大きさは --avatar-size）
+│  ├─ _thumbnail.css            ✅ c-thumbnail
+│  ├─ _icon-button.css          ✅ c-icon-button（PenIcon）
+│  ├─ _step-indicator.css       ✅ c-step-indicator（.is-active / .is-done）
+│  ├─ _banner.css               ✅ c-banner（VerifyBanner）
+│  ├─ _overlay.css              ✅ c-overlay（用途別に z-index を持つ）
+│  ├─ _sheet.css                ✅ c-sheet（.is-open）
+│  ├─ _dialog.css               ✅ c-dialog（dialog.js）
+│  ├─ _toast.css                ✅ c-toast
 │  ├─ _coach-mark.css           ✅ coachMark.js
-│  ├─ _card.css                 ⬜ Phase 2
-│  ├─ _tag.css                  ⬜ Phase 2 — Components.Tag ＋ LABEL_CONFIG
-│  ├─ _avatar.css               ⬜ Phase 2 — Components.UserAvatar
-│  ├─ _thumbnail.css            ⬜ Phase 2 — EventThumbnail / ThumbnailEmptyState
-│  ├─ _step-indicator.css       ⬜ Phase 2
-│  ├─ _banner.css               ⬜ Phase 2 — VerifyBanner ほか
-│  ├─ _sheet.css                ⬜ Phase 2 — ボトムシート
-│  ├─ _modal.css                ⬜ Phase 2 — 中央モーダル＋オーバーレイ
-│  ├─ _dialog.css               ⬜ Phase 2 — dialog.js
-│  ├─ _toast.css                ⬜ Phase 2 — showToast
-│  ├─ _empty.css                ⬜ Phase 2 — 空状態
-│  ├─ _icon.css                 ⬜ Phase 2 — PenIcon ほか
-│  └─ _tooltip.css              ⬜ Phase 2 — tooltipTour.js
+│  ├─ _card.css                 ⬜ Phase 3 — 各画面のカードを見てから切り出す
+│  ├─ _empty.css                ⬜ Phase 3 — 空状態
+│  └─ _tooltip.css              ⬜ Phase 4 — tooltipTour.js
 │
 ├─ object/project/              ⬜ Phase 3〜4（1画面1ファイル）
 │  └─ _home / _main-board / _mission-detail / _mission-modal / _create-event /
@@ -233,8 +243,10 @@ public/css/
 | `.pb-safe` | `.u-pb-safe` | ✅ Phase 0 |
 | `.sticky`（`mountainPath.js` のフック） | `.js-mountain-sticky` | ✅ Phase 1 |
 | `.fab-safe`（FAB） | `.l-fab` に統合 | ✅ Phase 1 |
-| `.btn-primary` / `.btn-secondary` | `.c-button--primary` / `--secondary` | ⬜ Phase 2 |
-| `.input-field` | `.c-input` | ⬜ Phase 2 |
+| `.btn-primary` / `.btn-secondary` | `.c-button--primary` / `--secondary` | ✅ Phase 2 |
+| `.input-field` | `.c-input` | ✅ Phase 2 |
+| `translate-y-full`（シート開閉） | `.c-sheet` ＋ `.is-open` | ✅ Phase 2 |
+| `LABEL_CONFIG` の `bg`/`border`/`text` | 削除（未使用だった） | ✅ Phase 2 |
 | `.heading-*` / `.text-*` | 判断待ち | ⬜ Phase 5 |
 | `.no-scrollbar` | `.u-no-scrollbar` | ⬜ Phase 5 |
 | `.animate-fadeIn` | `.u-fade-in`（判断待ち） | ⬜ Phase 5 |

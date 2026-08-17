@@ -1,0 +1,70 @@
+/* ==========================================================================
+   Object / Component / sheet — ボトムシート
+   使用箇所: public/js/modals/calendar.js, public/js/modals/mission.js
+             （下スワイプで閉じる共通処理は public/js/sheet.js）
+
+   ★開閉は .is-open。以前は Tailwind の translate-y-full を JS から
+     add/remove しており、ユーティリティを外した瞬間にシートが出なくなる
+     状態だった（9箇所）。
+   ★閉じているときが translateY(100%)、開いているときが 0。
+     初期状態を「閉じ」にしておかないと、描画直後に一瞬シートが見える。
+   ★data-sheet / data-sheet-handle は sheet.js が掴む属性。消さないこと。
+   ========================================================================== */
+
+.c-sheet {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background-color: var(--white);
+  box-shadow: var(--shadow-2xl);
+  transform: translateY(100%);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.c-sheet.is-open {
+  transform: translateY(0);
+}
+
+/* 全画面を占めるシート（ミッション作成モーダルなど）*/
+.c-sheet--full {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  background-color: var(--color-bg);
+  box-shadow: none;
+}
+
+/* 内側に余白を持つタイプ */
+.c-sheet--padded {
+  padding: var(--space-6);
+}
+
+/* --- つまみ -------------------------------------------------------------- */
+
+.c-sheet__handle {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-3);
+}
+
+/* ★担当者シートだけ上下が逆（つまみが下寄り）。意図的な差には見えないが、
+   このフェーズは見た目を変えない方針なので元の値のまま残してある。
+   統一するかは別途判断すること。 */
+.c-sheet__handle--low {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-1);
+}
+
+.c-sheet__grip {
+  width: 48px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-textbox);
+}

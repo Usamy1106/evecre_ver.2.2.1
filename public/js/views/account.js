@@ -183,7 +183,7 @@ function _usernameSection(u, sec) {
     </div>
     ${editing ? `
       <input id="acc-username-input" type="text" maxlength="20"
-        class="input-field w-full px-4 py-2.5 focus:outline-none mt-2 ${sec.error ? 'ring-2 ring-[#EE3E12]' : ''}"
+        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2 ${sec.error ? 'ring-2 ring-[#EE3E12]' : ''}"
         value="${_esc(sec.newValue || '')}"
         placeholder="2〜20文字（英数字・日本語・全角OK）">
       <p class="text-[10px] text-[#A7AAAC] mt-1.5">英数字、日本語、全角文字、ハイフン、アンダーバー</p>
@@ -212,11 +212,11 @@ function _emailSection(u, sec) {
     </div>
     ${editing && step === 'edit' ? `
       <input id="acc-email-input" type="email"
-        class="input-field w-full px-4 py-2.5 focus:outline-none mt-2"
+        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2"
         value="${_esc(sec.newValue || '')}" placeholder="新しいメールアドレス">
       ${sec.errors?.email ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.errors.email)}</p>` : ''}
       <input id="acc-email-pw" type="password"
-        class="input-field w-full px-4 py-2.5 focus:outline-none mt-2"
+        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2"
         value="${_esc(sec.currentPassword || '')}" placeholder="現在のパスワード">
       ${sec.errors?.password ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.errors.password)}</p>` : ''}
       <div class="flex gap-2 mt-3">
@@ -251,11 +251,11 @@ function _passwordSection(sec) {
     </div>
     ${editing && step === 'edit' ? `
       <input id="acc-pw-current" type="password"
-        class="input-field w-full px-4 py-2.5 focus:outline-none mt-2"
+        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2"
         value="${_esc(sec.currentPassword || '')}" placeholder="現在のパスワード">
       ${sec.errors?.currentPassword ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.errors.currentPassword)}</p>` : ''}
       <input id="acc-pw-new" type="password"
-        class="input-field w-full px-4 py-2.5 focus:outline-none mt-2"
+        class="c-input w-full px-4 py-2.5 focus:outline-none mt-2"
         value="${_esc(sec.newPassword || '')}" placeholder="新しいパスワード（8文字以上）">
       ${sec.errors?.newPassword ? `<p class="text-[11px] text-[#EE3E12] mt-1 font-bold">${_esc(sec.errors.newPassword)}</p>` : ''}
       <div class="flex gap-2 mt-3">
@@ -374,7 +374,7 @@ function _macNotificationNotice() {
 
 function _otpInput(id, value) {
   return `<input id="${id}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
-    class="input-field w-full px-4 py-3 text-center text-[20px] tracking-[0.5em] font-bold focus:outline-none"
+    class="c-input w-full px-4 py-3 text-center text-[20px] tracking-[0.5em] font-bold focus:outline-none"
     value="${_esc(value)}" placeholder="000000" autocomplete="one-time-code">`;
 }
 

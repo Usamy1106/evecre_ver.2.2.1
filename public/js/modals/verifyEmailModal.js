@@ -61,7 +61,7 @@ function _render(overlay, ctx) {
       <p class="text-[12px] text-[#A7AAAC] font-bold mb-4">届いた6桁のコードを入力してください</p>
 
       <input id="vem-code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
-        class="input-field w-full px-4 py-3 text-center text-[20px] tracking-[0.5em] font-bold focus:outline-none mb-2"
+        class="c-input w-full px-4 py-3 text-center text-[20px] tracking-[0.5em] font-bold focus:outline-none mb-2"
         value="${_esc(ctx.code)}" placeholder="000000" autocomplete="one-time-code">
 
       ${ctx.mailError ? `<p class="text-[11px] text-[#EE3E12] mb-2 font-bold">⚠ メール送信に失敗：${_esc(ctx.mailError)}</p>` : ''}

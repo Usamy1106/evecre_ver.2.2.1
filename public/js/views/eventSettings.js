@@ -112,7 +112,7 @@ function _eventManagementSection(p, sec) {
           <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">イベント名</p>
           ${editingName ? `
             <input id="ps-name-input" type="text" value="${_esc(sec.draftValue || '')}"
-              class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+              class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
             <div class="flex gap-2">
               <button id="ps-name-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
               <button id="ps-name-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
@@ -131,7 +131,7 @@ function _eventManagementSection(p, sec) {
         <div class="p-4">
           <p class="text-[10px] text-[#A7AAAC] font-bold mb-1">概要</p>
           ${editingDesc ? `
-            <textarea id="ps-desc-input" rows="3" class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2 resize-none">${_esc(sec.draftValue || '')}</textarea>
+            <textarea id="ps-desc-input" rows="3" class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2 resize-none">${_esc(sec.draftValue || '')}</textarea>
             <div class="flex gap-2">
               <button id="ps-desc-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
               <button id="ps-desc-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
@@ -160,7 +160,7 @@ function _eventManagementSection(p, sec) {
           ${editingVenue ? `
             <input id="ps-venue-input" type="text" value="${_esc(sec.draftValue || '')}"
               placeholder="例：造形大 12号館 ホール"
-              class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+              class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
             <div class="flex gap-2">
               <button id="ps-venue-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
               <button id="ps-venue-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
@@ -180,7 +180,7 @@ function _eventManagementSection(p, sec) {
           ${editingCatch ? `
             <input id="ps-catch-input" type="text" maxlength="50" placeholder="例：つくる、をみせる。"
               value="${_esc(sec.draftValue || '')}"
-              class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+              class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
             <div class="flex gap-2">
               <button id="ps-catch-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
               <button id="ps-catch-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
@@ -222,7 +222,7 @@ function _eventManagementSection(p, sec) {
           ${editingMotiv ? `
             <input id="ps-motiv-input" type="text" maxlength="50" placeholder="ひとことで言うと？"
               value="${_esc(sec.draftValue || '')}"
-              class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
+              class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2">
             <div class="flex gap-2">
               <button id="ps-motiv-cancel" class="flex-1 py-2 rounded-lg text-[12px] font-bold text-[#484545] bg-[#EBE8E5]">キャンセル</button>
               <button id="ps-motiv-save"   class="flex-1 py-2 rounded-lg text-[12px] font-bold text-white bg-[#0CA1E3]">保存</button>
@@ -243,7 +243,7 @@ function _eventManagementSection(p, sec) {
           <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">ミッション提案の内容がこれに合わせて変わります</p>
           ${canMgr ? `
             <select data-ps-select="eventType"
-              class="input-field w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
+              class="c-input w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
               <option value="" ${!p.eventType ? 'selected' : ''}>(未設定)</option>
               ${EVENT_TYPES.map(t => `
                 <option value="${_esc(t.id)}" ${p.eventType === t.id ? 'selected' : ''}>${_esc(t.label)}</option>
@@ -259,7 +259,7 @@ function _eventManagementSection(p, sec) {
           <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">来てほしい人数</p>
           ${canMgr ? `
             <select data-ps-select="expectedScale"
-              class="input-field w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
+              class="c-input w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
               <option value="" ${!p.expectedScale ? 'selected' : ''}>(未設定)</option>
               ${EXPECTED_SCALES.map(s => `
                 <option value="${_esc(s.id)}" ${p.expectedScale === s.id ? 'selected' : ''}>${_esc(s.label)}（${_esc(s.hint)}）</option>
@@ -385,7 +385,7 @@ function _userManagementSection(p, sec) {
       return `
         <div class="px-4 py-3 bg-[#FDFBF8]">
           <input data-ps-role-name-input value="${_esc(sec.roleEditDraft?.name ?? r.name)}"
-            class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2" maxlength="20">
+            class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2" maxlength="20">
           <label class="flex items-center gap-2 mb-3 cursor-pointer">
             <input type="checkbox" data-ps-role-canmanage-input
               ${(sec.roleEditDraft?.canManage ?? r.canManage) ? 'checked' : ''}
@@ -462,7 +462,7 @@ function _renderRoleAddForm(sec) {
     <div class="px-4 py-3 bg-[#FDFBF8] border-t border-[#E1DFDC]">
       <input id="ps-role-new-name" value="${_esc(sec.roleAdding.name || '')}"
         placeholder="例: サブリーダーデザイナーなど"
-        class="input-field w-full px-3 py-2 text-[13px] focus:outline-none mb-2" maxlength="20">
+        class="c-input w-full px-3 py-2 text-[13px] focus:outline-none mb-2" maxlength="20">
       <label class="flex items-center gap-2 mb-3 cursor-pointer">
         <input id="ps-role-new-canmanage" type="checkbox" ${sec.roleAdding.canManage ? 'checked' : ''}>
         <span class="text-[12px] text-[#484545] font-bold">管理者権限</span>

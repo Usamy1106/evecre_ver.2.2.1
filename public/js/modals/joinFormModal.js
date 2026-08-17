@@ -104,7 +104,7 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
       overlay.innerHTML = shell(
         skillBody('できることは？', 'タップで選べます（複数可）<br>選ばなくても申請できます',
                   SKILL_TAGS, ctx.good),
-        `<button id="jf-next" class="btn-primary w-full py-4 heading-m font-bold shadow-lg">次へ</button>
+        `<button id="jf-next" class="c-button c-button--primary w-full py-4 heading-m font-bold shadow-lg">次へ</button>
          <button id="jf-cancel" class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]">やめる</button>`
       );
       _bindTags();
@@ -115,7 +115,7 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
       overlay.innerHTML = shell(
         skillBody('やってみたいことは？', 'まだ得意ではないけど挑戦したいこと<br>選ばなくても申請できます',
                   wantCandidates(), ctx.want),
-        `<button id="jf-next" class="btn-primary w-full py-4 heading-m font-bold shadow-lg">次へ</button>
+        `<button id="jf-next" class="c-button c-button--primary w-full py-4 heading-m font-bold shadow-lg">次へ</button>
          <button id="jf-back" class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]">戻る</button>`
       );
       _bindTags();
@@ -130,10 +130,10 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
         <p class="text-[11px] text-[#A7AAAC] font-bold text-center mb-4">承認されるとチームに共有されます</p>
         <textarea id="jf-message" rows="4" maxlength="${MAX_MESSAGE}"
           placeholder="${_esc(JOIN_MESSAGE_EXAMPLES[placeholderIdx])}"
-          class="input-field w-full px-4 py-3 text-[13px] focus:outline-none resize-none">${_esc(ctx.message)}</textarea>
+          class="c-input w-full px-4 py-3 text-[13px] focus:outline-none resize-none">${_esc(ctx.message)}</textarea>
         <p id="jf-count" class="text-[10px] text-[#A7AAAC] font-bold text-right mt-1">${ctx.message.length}/${MAX_MESSAGE}</p>
       `, `
-        <button id="jf-submit" class="btn-primary w-full py-4 heading-m font-bold shadow-lg"
+        <button id="jf-submit" class="c-button c-button--primary w-full py-4 heading-m font-bold shadow-lg"
           ${ctx.sending ? 'disabled style="opacity:.5"' : ''}>
           ${ctx.sending ? '送信中…' : '参加を申請する'}
         </button>

@@ -108,7 +108,7 @@ function _openArchiveImageDialog(p) {
         <input type="file" id="arch-file-input" class="hidden" accept="image/*">
       </label>
       <div class="flex gap-3 mt-6">
-        <button data-action="cancel" class="btn-secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
+        <button data-action="cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
         <button data-action="save" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl" style="background-color:#0CA1E3" disabled>保存</button>
       </div>
     </div>`;
@@ -173,7 +173,7 @@ export function openEditModal(title, currentVal, format, onSave) {
       </button>
       <h3 class="heading-m text-[#484545] mb-6 pr-6">${title}の編集</h3>
       ${inputHtml}
-      <button id="save-edit-btn" class="btn-primary w-full py-4 mt-8 heading-r font-bold">保存する</button>
+      <button id="save-edit-btn" class="c-button c-button--primary w-full py-4 mt-8 heading-r font-bold">保存する</button>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -211,7 +211,7 @@ export function openClearMissionModal(missionId, _overrideFormat = null) {
         <h3 class="heading-m text-[#484545] mb-2 pr-6">${_esc(m.title)}</h3>
         ${m.description ? `<p class="text-rs text-[#A7AAAC] mb-6 font-bold whitespace-pre-wrap">${_esc(m.description)}</p>` : '<div class="mb-6"></div>'}
         <button onclick="window._app.submitMissionClear('${missionId}')"
-          class="btn-primary w-full py-4 heading-r font-bold">完了する</button>
+          class="c-button c-button--primary w-full py-4 heading-r font-bold">完了する</button>
       </div>`;
     document.body.appendChild(noInputOverlay);
     return;
@@ -291,7 +291,7 @@ export function openClearMissionModal(missionId, _overrideFormat = null) {
 
       ${checklistHtml}
       <button onclick="window._app.submitMissionClear('${missionId}')"
-        class="btn-primary w-full py-4 mt-8 heading-r font-bold">完了する</button>
+        class="c-button c-button--primary w-full py-4 mt-8 heading-r font-bold">完了する</button>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -1036,7 +1036,7 @@ export function openIndividualClearListModal(missionId) {
     : '';
   const completeBtn = meNotDone ? `
     <button onclick="window._app.completeMissionFromListModal('${missionId}')"
-      class="btn-primary w-full py-3 heading-r font-bold mb-5">完了する</button>` : '';
+      class="c-button c-button--primary w-full py-3 heading-r font-bold mb-5">完了する</button>` : '';
 
   const adminBtn = canMgr && m.status !== 'cleared' ? `
     <button onclick="window._app.forceCloseMission('${missionId}')"

@@ -1,0 +1,71 @@
+/* ==========================================================================
+   Object / Component / step-indicator — 進捗のドット
+   使用箇所: public/js/components.js（Components.StepIndicator）
+             アカウント作成フロー / イベント作成フロー / 参加申請フォーム
+
+   形態は2つ:
+     既定     … 丸を並べる。現在地だけ色が付く
+     compact  … 棒を並べる。現在地が伸び、通過済みも色が付く（残りが見える）
+   ========================================================================== */
+
+.c-step-indicator {
+  margin-bottom: var(--space-10);
+}
+
+.c-step-indicator--compact {
+  margin-bottom: var(--space-6);
+}
+
+.c-step-indicator__label {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.c-step-indicator__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.c-step-indicator--compact .c-step-indicator__dots {
+  gap: var(--space-2);
+}
+
+/* --- 既定（丸）---------------------------------------------------------- */
+
+.c-step-indicator__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+  transition: background-color var(--duration-slow) var(--ease);
+}
+
+.c-step-indicator__dot.is-active {
+  background-color: var(--color-primary);
+}
+
+/* --- compact（棒）------------------------------------------------------- */
+
+.c-step-indicator__bar {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+  transition: all var(--duration-slow) var(--ease);
+}
+
+/* 通過済み：色は付くが伸びない */
+.c-step-indicator__bar.is-done {
+  background-color: var(--color-primary);
+}
+
+/* 現在地：伸びて色が付く */
+.c-step-indicator__bar.is-active {
+  width: 24px;
+  background-color: var(--color-primary);
+}

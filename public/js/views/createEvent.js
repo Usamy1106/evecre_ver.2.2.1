@@ -66,16 +66,16 @@ export function renderCreateEventInfo(container) {
             <input type="text" placeholder="イベント名を入力"
               value="${_esc(state.draftEvent.name)}"
               oninput="window._app.updateDraftInfo('name', this.value)"
-              class="input-field w-full px-5 py-4 focus:outline-none">
+              class="c-input w-full px-5 py-4 focus:outline-none">
             <p class="text-[11px] text-[#A7AAAC] font-bold mt-2">あとで変更できます</p>
           </div>
         </div>
         <div class="mt-auto w-full max-w-sm space-y-3">
           ${_steps(1, 'イベント作成（1/6）')}
           <button id="cp-info-next" onclick="window._app.tryProceedFromInfo()"
-            class="btn-primary w-full py-5 heading-m font-bold shadow-lg" ${canNext ? '' : 'disabled style="opacity:.5"'}>次へ</button>
+            class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg" ${canNext ? '' : 'disabled style="opacity:.5"'}>次へ</button>
           <button onclick="window._app.setView('HOME')"
-            class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>
+            class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>
         </div>
       </main>
     </div>`;
@@ -105,7 +105,7 @@ export function renderCreateEventType(container) {
     body,
     footer: `
       <button onclick="window._app.setView('CREATE_EVENT_INFO')"
-        class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+        class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
   });
 
   container.querySelectorAll('[data-cp-type]').forEach(el =>
@@ -135,7 +135,7 @@ export function renderCreateEventScale(container) {
     body,
     footer: `
       <button onclick="window._app.setView('CREATE_EVENT_TYPE')"
-        class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+        class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
   });
 
   container.querySelectorAll('[data-cp-scale]').forEach(el =>
@@ -239,11 +239,11 @@ export function renderCreateEventDates(container) {
         <div class="mt-auto w-full max-w-sm space-y-3 pt-6">
           ${_steps(4, 'イベント作成（4/6）')}
           <button id="cp-dates-next" onclick="window._app.tryProceedFromDates()"
-            class="btn-primary w-full py-5 heading-m font-bold shadow-lg" ${canNext ? '' : 'disabled style="opacity:.5"'}>次へ</button>
+            class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg" ${canNext ? '' : 'disabled style="opacity:.5"'}>次へ</button>
           <button onclick="window._app.skipStep('dates')"
             class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">あとで決める</button>
           <button onclick="window._app.setView('CREATE_EVENT_SCALE')"
-            class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>
+            class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>
         </div>
       </main>
     </div>`;
@@ -370,7 +370,7 @@ export function renderCreateEventCatchphrase(container) {
     <input type="text" id="cp-catch-input" placeholder="キャッチコピーを入力"
       value="${_esc(d.catchphrase || '')}" maxlength="50"
       oninput="window._app.updateDraftCatchphrase(this.value)"
-      class="input-field w-full px-5 py-4 focus:outline-none mb-3">
+      class="c-input w-full px-5 py-4 focus:outline-none mb-3">
 
     <p class="text-[10px] text-[#A7AAAC] font-bold mb-2">例文（タップで使う）</p>
     <div class="space-y-2 mb-5">
@@ -388,11 +388,11 @@ export function renderCreateEventCatchphrase(container) {
     body,
     footer: `
       <button onclick="window._app.proceedFromCatchphrase()"
-        class="btn-primary w-full py-5 heading-m font-bold shadow-lg">次へ</button>
+        class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg">次へ</button>
       <button onclick="window._app.skipStep('catchphrase')"
         class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">スキップする</button>
       <button onclick="window._app.setView('CREATE_EVENT_DATES')"
-        class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+        class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
   });
 
   container.querySelectorAll('[data-cp-example]').forEach(el =>
@@ -435,7 +435,7 @@ export function renderCreateEventMotivation(container) {
     <input type="text" id="cp-motiv-input" placeholder="例：全部出しきる"
       value="${_esc(d.motivationText || '')}" maxlength="50"
       oninput="window._app.updateDraftMotivationText(this.value)"
-      class="input-field w-full px-5 py-4 focus:outline-none">`;
+      class="c-input w-full px-5 py-4 focus:outline-none">`;
 
   container.innerHTML = _stepShell({
     step: 6, stepLabel: 'イベント作成（6/6）',
@@ -444,11 +444,11 @@ export function renderCreateEventMotivation(container) {
     body,
     footer: `
       <button onclick="window._app.proceedFromMotivation()"
-        class="btn-primary w-full py-5 heading-m font-bold shadow-lg">次へ</button>
+        class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg">次へ</button>
       <button onclick="window._app.skipStep('motivation')"
         class="w-full py-2 text-[12px] font-bold text-[#A7AAAC] active:opacity-50">スキップする</button>
       <button onclick="window._app.setView('CREATE_EVENT_CATCHPHRASE')"
-        class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
+        class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]">戻る</button>`,
   });
 
   container.querySelectorAll('[data-cp-motiv]').forEach(el =>
@@ -475,7 +475,7 @@ export function renderCreateEventInvite(container) {
         <h1 class="heading-l text-[#0CA1E3]">新規イベントの作成</h1>
       </header>
       <main class="flex-1 px-8 pt-2 pb-12 flex flex-col items-center page-transition">
-        <h2 class="heading-m mb-6 text-[#484545] font-bold">チームメンバーを招待</h2>
+        <h2 class="heading-m mb-6 text-[#484545] font-bold">チームメンバーを招待しよう！</h2>
 
         ${sec.creating ? _renderCreating()
           : sec.error    ? _renderError(sec.error)
@@ -485,13 +485,13 @@ export function renderCreateEventInvite(container) {
           ${_steps(TOTAL_STEPS + 1, '完了')}
           ${sec.inviteUrl ? `
             <button id="cpi-finish"
-              class="btn-primary w-full py-5 heading-m font-bold shadow-lg">イベント画面へ</button>
+              class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg">イベント画面へ</button>
           ` : sec.error ? `
             <button id="cpi-retry"
-              class="btn-primary w-full py-5 heading-m font-bold shadow-lg">もう一度試す</button>
+              class="c-button c-button--primary w-full py-5 heading-m font-bold shadow-lg">もう一度試す</button>
           ` : ''}
           <button onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
-            class="btn-secondary w-full py-4 heading-m font-bold text-[#484545]" ${sec.creating ? 'disabled style="opacity:.5"' : ''}>戻る</button>
+            class="c-button c-button--secondary w-full py-4 heading-m font-bold text-[#484545]" ${sec.creating ? 'disabled style="opacity:.5"' : ''}>戻る</button>
         </div>
       </main>
     </div>`;
@@ -543,19 +543,19 @@ function _renderShare(url) {
       <p class="text-[10px] font-mono text-[#484545] text-center break-all">${_esc(url)}</p>
     </div>
     <div class="grid grid-cols-1 gap-2 w-full max-w-sm">
-      <button data-line-share="${_esc(url)}"
-        class="flex items-center justify-center gap-2 bg-[#06C755] text-white px-6 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-transform">
-        LINE で送る
-      </button>
+      <button data-copy="${_esc(url)}"
+          class="bg-white border border-[#0CA1E3] text-[#0CA1E3] py-3 rounded-full font-bold text-[13px] active:scale-95 transition-transform">
+          コピー
+        </button>
       <div class="grid grid-cols-2 gap-2">
         <button data-native-share="${_esc(url)}"
           class="bg-[#0CA1E3] text-white py-3 rounded-full font-bold text-[13px] active:scale-95 transition-transform">
           他のアプリで共有
         </button>
-        <button data-copy="${_esc(url)}"
-          class="bg-white border border-[#0CA1E3] text-[#0CA1E3] py-3 rounded-full font-bold text-[13px] active:scale-95 transition-transform">
-          コピー
-        </button>
+        <button data-line-share="${_esc(url)}"
+        class="flex items-center justify-center gap-2 bg-[#06C755] text-white px-6 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-transform">
+        LINE で送る
+      </button>
       </div>
     </div>`;
 }

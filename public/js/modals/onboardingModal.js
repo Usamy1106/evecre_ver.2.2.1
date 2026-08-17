@@ -63,7 +63,7 @@ export function openOnboardingModal(o) {
         ${stepsHtml ? `<div class="space-y-3 mb-5">${stepsHtml}</div>` : ''}
         ${o.body ? `<p class="text-[12px] text-[#484545] font-bold leading-relaxed mb-6 whitespace-pre-line">${_esc(o.body)}</p>` : ''}
       </div>
-      <button data-ob="primary" class="btn-primary w-full py-4 heading-rs font-bold shadow-lg">${_esc(o.primary)}</button>
+      <button data-ob="primary" class="c-button c-button--primary w-full py-4 heading-rs font-bold shadow-lg">${_esc(o.primary)}</button>
       <button data-ob="close" class="w-full py-3 mt-1 text-[13px] font-bold text-[#A7AAAC]">あとで</button>
     </div>`;
   document.body.appendChild(overlay);
