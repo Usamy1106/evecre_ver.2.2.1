@@ -171,3 +171,12 @@
   align-items: flex-end;
   background-color: rgba(0, 0, 0, .4);
 }
+
+/* 参加確認（招待リンクから来た人に最初に見せる）。他より前に出す */
+.c-overlay--join {
+  z-index: var(--z-join);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background-color: rgba(0, 0, 0, .6);
+}

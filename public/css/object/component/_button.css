@@ -42,6 +42,12 @@
   color: var(--color-text-inverse);
 }
 
+/* 受理・提案など前向きな操作 */
+.c-button--success {
+  background-color: var(--color-success);
+  color: var(--color-text-inverse);
+}
+
 /* 打ち消し・キャンセル */
 .c-button--muted {
   background-color: var(--button-secondary);

@@ -88,6 +88,7 @@
 | 担当者の選択・おすすめ | `object/project/_assignee.css` |
 | 新しいタグを作るシート | `object/project/_tag-creator.css` |
 | メンバーの承認・ロール付与 | `object/project/_member-manage.css` |
+| ユーザーメニュー・参加確認・操作履歴 | `object/project/_app-shell.css` |
 | イベント設定（イベント管理・メンバー・ロール・脱退） | `object/project/_event-settings.css` |
 | メインボードのメインタブ（日付チップ・提案・ミッションカード） | `object/project/_main-board.css` |
 | アーカイブタブ（概要カード・ミッションの記録） | `object/project/_archive.css` |
@@ -101,6 +102,7 @@
 | 通知セットアップの案内・HOME の通知バナー | `object/project/_push-setup.css` |
 | 操作を選ばせるボトムシート（長押しメニュー） | `object/component/_action-sheet.css` |
 | オン・オフのスイッチ | `object/component/_toggle.css` |
+| 一覧を出すボトムシート（承認待ち・確認待ち・履歴） | `object/component/_list-sheet.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -258,6 +260,7 @@ public/css/
 │  ├─ _settings-card.css        ✅ c-settings-card / c-settings-list
 │  ├─ _action-sheet.css         ✅ 操作を選ばせるボトムシート
 │  ├─ _toggle.css               ✅ オン・オフのスイッチ
+│  ├─ _list-sheet.css           ✅ 一覧を出すボトムシート
 │  ├─ _context-menu.css         ✅ c-context-menu
 │  ├─ _emoji-picker.css         ✅ c-emoji-picker
 │  ├─ _coach-mark.css           ✅ coachMark.js
@@ -277,6 +280,7 @@ public/css/
 │  ├─ _assignee.css             ✅ 担当者の選択・おすすめ
 │  ├─ _tag-creator.css          ✅ 新しいタグを作るシート
 │  ├─ _member-manage.css        ✅ メンバーの承認・ロール付与
+│  ├─ _app-shell.css            ✅ ユーザーメニュー・参加確認・操作履歴
 │  ├─ _event-settings.css       ✅ イベント設定
 │  ├─ _main-board.css           ✅ メインタブ・バナー・アナウンス
 │  ├─ _archive.css              ✅ アーカイブタブ

@@ -1,0 +1,186 @@
+/* ==========================================================================
+   Object / Project / app-shell — アプリ共通のメニュー・ダイアログ
+   使用箇所: public/js/main.js
+     - ユーザーメニュー（ヘッダー右上）
+     - プロジェクト（フォルダ）の作成・改名・メニュー
+     - 参加確認モーダル（招待リンクから）
+     - 操作履歴のシート
+
+   ★ここは「どの画面にも属さない共通の器」だけを置く。画面ごとの見た目は
+     それぞれの p- ファイルへ。
+   ========================================================================== */
+
+/* --- ユーザーメニュー ----------------------------------------------------- */
+
+.p-app-shell__user-menu {
+  position: fixed;
+  z-index: var(--z-user-menu);
+  overflow: hidden;
+  padding-block: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--white);
+  box-shadow: var(--shadow-xl);
+}
+
+.p-app-shell__user-head {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--bg-textbox);
+}
+
+.p-app-shell__user-caption {
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-app-shell__user-name {
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-app-shell__user-item {
+  width: 100%;
+  padding: 10px var(--space-4);
+  text-align: left;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-app-shell__user-item:hover {
+  background-color: var(--color-bg);
+}
+
+/* 2つ目以降は仕切り線を引く */
+.p-app-shell__user-item--divided {
+  border-top: 1px solid var(--bg-textbox);
+}
+
+.p-app-shell__user-item--danger {
+  color: var(--color-danger);
+}
+
+.p-app-shell__user-item--danger:hover {
+  background-color: var(--color-danger-pale);
+}
+
+/* 続けて入力欄が並ぶときの下余白（c-modal__field より詰める）*/
+.p-app-shell__field {
+  margin-bottom: var(--space-3);
+}
+
+/* --- 参加確認モーダル ----------------------------------------------------- */
+
+.p-app-shell__join-emoji {
+  margin-bottom: var(--space-2);
+  font-size: 36px;
+}
+
+/* イベント作成時のキャッチコピー。無ければ JS が hidden を付ける */
+.p-app-shell__join-catch {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-primary);
+}
+
+.p-app-shell__join-name {
+  margin-bottom: var(--space-1);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-app-shell__join-note {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 意気込みと🔥を差し込む枠（auth.js と同じ中身を使う）*/
+.p-app-shell__join-motivation {
+  margin-bottom: var(--space-6);
+}
+
+/* --- 操作履歴 ------------------------------------------------------------- */
+
+.p-app-shell__log-sheet {
+  display: flex;
+  width: 100%;
+  max-width: 448px;
+  max-height: 80vh;
+  flex-direction: column;
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  background-color: var(--white);
+  box-shadow: var(--shadow-2xl);
+}
+
+.p-app-shell__log-title {
+  flex-shrink: 0;
+  padding-bottom: var(--space-3);
+  font-size: 15px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-app-shell__log-body {
+  flex: 1;
+  padding: 0 var(--space-5) var(--space-8);
+  overflow-y: auto;
+}
+
+.p-app-shell__log-status {
+  padding-block: var(--space-10);
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-app-shell__log-status--error {
+  color: var(--color-danger);
+}
+
+.p-app-shell__log-row {
+  display: flex;
+  align-items: flex-start;
+  padding-block: 10px;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.p-app-shell__log-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.p-app-shell__log-action {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* ★誰が操作したか。サーバー側の記録は userId なので、表示名が引けない
+   ときは「ゲスト」になる（同意していない匿名ログも混ざる）。 */
+.p-app-shell__log-user {
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-app-shell__log-time {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}

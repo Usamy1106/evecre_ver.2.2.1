@@ -78,3 +78,10 @@
 .c-context-menu__marker {
   color: var(--color-primary);
 }
+
+/* アーカイブのミッションメニュー。カードの右上から下に開く（位置は JS が実測）*/
+.c-context-menu--archive {
+  z-index: var(--z-sort-menu);
+  min-width: 130px;
+  box-shadow: var(--shadow-xl);
+}

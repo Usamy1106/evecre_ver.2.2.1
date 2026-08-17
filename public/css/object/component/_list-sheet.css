@@ -1,0 +1,176 @@
+/* ==========================================================================
+   Object / Component / list-sheet — 一覧を出すボトムシート
+   使用箇所: public/js/main.js
+     - 承認待ちメンバー / リーダーチェック待ち / メンバーからの提案 / 操作履歴
+
+   ★c-action-sheet（操作を並べて選ばせる）とは別物。こちらは
+     「見出し＋スクロールする一覧」で、1件ごとにカードと操作ボタンが付く。
+   ★下スワイプで閉じる共通処理（sheet.js）が data-sheet / data-sheet-handle を
+     掴むので、属性は必ず付けること。
+   ========================================================================== */
+
+.c-list-sheet {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background-color: var(--white);
+  box-shadow: var(--shadow-2xl);
+}
+
+/* 件数が読めない一覧（リーダーチェック・操作履歴）は高さを固定する。
+   中身の量でシートの高さが変わると、開くたびに掴む位置がずれる。 */
+.c-list-sheet--tall { height: 85vh; }
+
+/* 数件で収まることが多い一覧（承認待ち）は中身なりに伸ばし、上限だけ決める */
+.c-list-sheet--capped { max-height: 70vh; }
+
+/* 見出しと一覧を分けずに、シート全体をそのままスクロールさせるタイプ */
+.c-list-sheet--scroll {
+  max-height: 80vh;
+  padding: var(--space-6);
+  overflow-y: auto;
+}
+
+/* 入力欄だけを置くタイプ（提案の送信）*/
+.c-list-sheet--form {
+  padding: var(--space-6);
+}
+
+.c-list-sheet__head {
+  flex-shrink: 0;
+  padding: var(--space-5) var(--space-6) var(--space-4);
+  cursor: grab;
+}
+
+.c-list-sheet__head:active {
+  cursor: grabbing;
+}
+
+.c-list-sheet__grip {
+  width: 48px;
+  height: 6px;
+  margin: 0 auto var(--space-5);
+  border-radius: var(--radius-full);
+  background-color: var(--bg-textbox);
+}
+
+/* --scroll / --form のときは見出しの上に置くだけのつまみ */
+.c-list-sheet__handle {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-4);
+}
+
+.c-list-sheet__title {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 見出しと一覧が分かれている型では、見出しの下余白は head 側が持つ */
+.c-list-sheet__head .c-list-sheet__title {
+  margin-bottom: 0;
+}
+
+.c-list-sheet__body {
+  flex: 1;
+  padding: 0 var(--space-6) var(--space-6);
+  overflow-y: auto;
+}
+
+.c-list-sheet__empty {
+  padding-block: var(--space-8);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.c-list-sheet__empty--tight {
+  padding-block: var(--space-4);
+}
+
+/* --- 1件ぶんのカード ------------------------------------------------------ */
+
+.c-list-sheet__card {
+  margin-bottom: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg);
+}
+
+.c-list-sheet__card-meta {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.c-list-sheet__card-title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.c-list-sheet__card-title--roomy {
+  margin-bottom: var(--space-3);
+}
+
+.c-list-sheet__chips {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-1);
+  gap: var(--space-1);
+}
+
+.c-list-sheet__chip {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 提出内容のプレビュー。画像は高さを固定して一覧の行がばらつかないようにする */
+.c-list-sheet__preview-image {
+  width: 100%;
+  height: 96px;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.c-list-sheet__preview-text {
+  overflow: hidden;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.c-list-sheet__card-actions {
+  display: flex;
+  margin-top: var(--space-3);
+  gap: var(--space-2);
+}
+
+.c-list-sheet__card-actions > button {
+  flex: 1;
+  padding-block: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.c-list-sheet__card-actions > button:active {
+  transform: scale(.95);
+}

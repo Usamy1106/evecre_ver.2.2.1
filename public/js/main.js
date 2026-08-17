@@ -398,13 +398,13 @@ window._app = {
     const menu = document.createElement('div');
     menu.id = 'archive-mission-menu';
     menu.dataset.mid = missionId;
-    menu.className = 'fixed bg-white border border-[#D3D6D8] rounded-xl shadow-xl z-[60] overflow-hidden min-w-[130px] animate-fadeIn';
+    menu.className = 'c-context-menu c-context-menu--archive animate-fadeIn';
     menu.style.top   = `${rect.bottom + 4}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
     menu.innerHTML = `
-      <button id="amm-copy-link" class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">リンクをコピー</button>
-      <button id="amm-revert" class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold border-b border-[#EBE8E5]">未完了に戻す</button>
-      <button id="amm-delete" class="w-full text-left px-4 py-3 active:bg-[#FDFBF8] text-rs font-bold text-[#EE3E12]">削除する</button>`;
+      <button id="amm-copy-link" class="c-context-menu__item">リンクをコピー</button>
+      <button id="amm-revert" class="c-context-menu__item">未完了に戻す</button>
+      <button id="amm-delete" class="c-context-menu__item c-context-menu__item--danger">削除する</button>`;
     document.body.appendChild(menu);
     document.getElementById('amm-copy-link').onclick = (ev) => {
       ev.stopPropagation(); menu.remove();
@@ -819,7 +819,7 @@ window._app = {
       newItems.forEach(m => {
         const card = document.createElement('div');
         card.dataset.pendingUid = m.userId;
-        card.className = 'p-member-manage__card animate-fadeIn';
+        card.className = 'c-list-sheet__card animate-fadeIn';
         card.innerHTML = `
           <div class="p-member-manage__card-head">
             <div class="p-member-manage__card-user">
@@ -875,7 +875,7 @@ window._app = {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     const rows = pending.map(m => `
-      <div data-pending-uid="${_escH(m.userId)}" class="p-member-manage__card">
+      <div data-pending-uid="${_escH(m.userId)}" class="c-list-sheet__card">
           <div class="p-member-manage__card-head">
             <div class="p-member-manage__card-user">
               <div class="p-member-manage__avatar">
@@ -894,13 +894,13 @@ window._app = {
       </div>`).join('');
 
     overlay.innerHTML = `
-      <div data-sheet class="p-member-manage__sheet animate-fadeIn">
-        <div id="pending-sheet-header" data-sheet-handle class="p-member-manage__sheet-head">
-          <div class="p-member-manage__grip"></div>
-          <h3 id="pending-members-count" class="c-modal__title c-modal__title--tight">参加申請（${pending.length}件）</h3>
+      <div data-sheet class="c-list-sheet c-list-sheet--capped animate-fadeIn">
+        <div id="pending-sheet-header" data-sheet-handle class="c-list-sheet__head">
+          <div class="c-list-sheet__grip"></div>
+          <h3 id="pending-members-count" class="c-list-sheet__title">参加申請（${pending.length}件）</h3>
         </div>
-        <div id="pending-members-list" class="p-member-manage__sheet-body">
-          ${rows || '<p class="p-member-manage__empty text-rs">申請はありません</p>'}
+        <div id="pending-members-list" class="c-list-sheet__body">
+          ${rows || '<p class="c-list-sheet__empty text-rs">申請はありません</p>'}
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -952,18 +952,17 @@ window._app = {
   openMemberProposalSheet: () => {
     const overlay = document.createElement('div');
     overlay.id = 'member-proposal-sheet';
-    overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-end';
+    overlay.className = 'c-overlay c-overlay--pending c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div data-sheet class="bg-white rounded-t-3xl w-full p-6 shadow-2xl animate-fadeIn">
-        <div data-sheet-handle class="flex justify-center pt-1 pb-4"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
-        <h3 class="heading-m text-[#484545] mb-4">ミッションを提案する</h3>
+      <div data-sheet class="c-list-sheet c-list-sheet--form animate-fadeIn">
+        <div data-sheet-handle class="c-list-sheet__handle"><div class="c-sheet__grip"></div></div>
+        <h3 class="c-list-sheet__title">ミッションを提案する</h3>
         <textarea id="member-proposal-input" rows="4"
           placeholder="ミッション名を入力してください"
-          class="w-full p-4 rounded-2xl bg-[#EBE8E5] focus:outline-none text-r resize-none leading-relaxed"></textarea>
+          class="p-archive__edit-input"></textarea>
         <button id="member-proposal-submit"
-          class="w-full py-4 mt-4 heading-r font-bold text-white rounded-xl active:scale-95 transition-transform"
-          style="background-color: #9EDF05">提案する</button>
+          class="c-button c-button--success p-member-proposal__submit">提案する</button>
       </div>`;
     document.body.appendChild(overlay);
 
@@ -992,27 +991,24 @@ window._app = {
 
     const overlay = document.createElement('div');
     overlay.id = 'member-proposals-review-sheet';
-    overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-end';
+    overlay.className = 'c-overlay c-overlay--pending c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     const rows = proposals.map(pr => `
-      <div class="bg-[#FDFBF8] rounded-2xl p-4 mb-3 border border-[#E1DFDC]">
-        <p class="text-[11px] text-[#A7AAAC] font-bold mb-1">@${_escH(pr.proposedByName)}</p>
-        <p class="text-[14px] font-bold text-[#484545] mb-3">${_escH(pr.text)}</p>
-        <div class="flex gap-2">
-          <button data-reject="${_escH(pr.id)}"
-            class="flex-1 py-2 text-[12px] font-bold text-[#A7AAAC] bg-[#EBE8E5] rounded-lg active:scale-95 transition-transform">拒否</button>
-          <button data-accept="${_escH(pr.id)}"
-            class="flex-1 py-2 text-[12px] font-bold text-white rounded-lg active:scale-95 transition-transform"
-            style="background-color: #9EDF05">受理</button>
+      <div class="c-list-sheet__card">
+        <p class="c-list-sheet__card-meta">@${_escH(pr.proposedByName)}</p>
+        <p class="c-list-sheet__card-title c-list-sheet__card-title--roomy">${_escH(pr.text)}</p>
+        <div class="c-list-sheet__card-actions">
+          <button data-reject="${_escH(pr.id)}" class="c-button c-button--muted">拒否</button>
+          <button data-accept="${_escH(pr.id)}" class="c-button c-button--success">受理</button>
         </div>
       </div>`).join('');
 
     overlay.innerHTML = `
-      <div data-sheet class="bg-white rounded-t-3xl w-full p-6 shadow-2xl max-h-[80vh] overflow-y-auto animate-fadeIn">
-        <div data-sheet-handle class="flex justify-center pt-1 pb-4"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
-        <h3 class="heading-m text-[#484545] mb-4">ミッションの提案（${proposals.length}件）</h3>
-        ${rows || '<p class="text-center text-[#A7AAAC] text-rs py-4">提案はありません</p>'}
+      <div data-sheet class="c-list-sheet c-list-sheet--scroll animate-fadeIn">
+        <div data-sheet-handle class="c-list-sheet__handle"><div class="c-sheet__grip"></div></div>
+        <h3 class="c-list-sheet__title">ミッションの提案（${proposals.length}件）</h3>
+        ${rows || '<p class="c-list-sheet__empty c-list-sheet__empty--tight text-rs">提案はありません</p>'}
       </div>`;
     document.body.appendChild(overlay);
 
@@ -1121,22 +1117,21 @@ window._app = {
 
     const overlay = document.createElement('div');
     overlay.id = 'info-modal-overlay';
-    overlay.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[180] flex items-center justify-center p-6';
+    overlay.className = 'c-overlay c-overlay--auto c-overlay--center c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-        <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5"
-          style="background-color:${config.bgColor}">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${config.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <div class="c-modal animate-fadeIn">
+        <div class="c-modal__icon" style="--icon-bg:${_escH(config.bgColor)}">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${_escH(config.color)}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             ${config.icon}
           </svg>
         </div>
-        <h3 class="heading-m text-[#484545] mb-3 font-bold">${config.title}</h3>
-        <p class="text-rs text-[#A7AAAC] font-medium mb-8 leading-relaxed">${config.desc}</p>
-        <div class="flex gap-3">
-          <button data-action="skip" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">スキップ</button>
-          <button data-action="go" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md"
-            style="background-color:${config.color}">${config.action}</button>
+        <h3 class="c-modal__title">${_escH(config.title)}</h3>
+        <p class="c-modal__text">${_escH(config.desc)}</p>
+        <div class="c-modal__actions">
+          <button data-action="skip" class="c-button c-button--secondary c-modal__button">スキップ</button>
+          <button data-action="go" class="c-modal__button c-modal__button--accent c-modal__button--shadow"
+            style="--accent:${_escH(config.color)}">${_escH(config.action)}</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1174,7 +1169,7 @@ window._app = {
 
     const overlay = document.createElement('div');
     overlay.id = 'leader-check-sheet';
-    overlay.className = 'fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-end';
+    overlay.className = 'c-overlay c-overlay--pending c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     const rows = missions.map(m => {
@@ -1183,33 +1178,31 @@ window._app = {
       let previewHtml = '';
       if (cd?.content) {
         if (cd.format === 'image') {
-          previewHtml = `<img src="${cd.content}" class="w-full h-24 object-cover rounded-lg mt-2" loading="lazy">`;
+          previewHtml = `<img src="${_escH(cd.content)}" class="c-list-sheet__preview-image" loading="lazy">`;
         } else {
-          previewHtml = `<p class="text-[11px] text-[#484545] bg-[#FDFBF8] px-3 py-2 rounded-lg mt-2 truncate">${_escH(cd.content)}</p>`;
+          previewHtml = `<p class="c-list-sheet__preview-text">${_escH(cd.content)}</p>`;
         }
       }
       return `
-        <div data-leader-check-id="${_escH(m.id)}" class="bg-[#FDFBF8] rounded-2xl p-4 mb-3 border border-[#E1DFDC]">
-          <div class="flex flex-wrap gap-1 mb-1">${tagNames.map(t => `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EBE8E5] text-[#484545]">${_escH(t)}</span>`).join('')}</div>
-          <p class="text-[14px] font-bold text-[#484545] mb-2">${_escH(m.title)}</p>
+        <div data-leader-check-id="${_escH(m.id)}" class="c-list-sheet__card">
+          <div class="c-list-sheet__chips">${tagNames.map(t => `<span class="c-list-sheet__chip">${_escH(t)}</span>`).join('')}</div>
+          <p class="c-list-sheet__card-title">${_escH(m.title)}</p>
           ${previewHtml}
-          <div class="flex gap-2 mt-3">
-            <button data-lc-reject="${_escH(m.id)}"
-              class="flex-1 py-2 text-[12px] font-bold text-[#A7AAAC] bg-[#EBE8E5] rounded-lg active:scale-95 transition-transform">差し戻す</button>
-            <button data-lc-approve="${_escH(m.id)}"
-              class="flex-1 py-2 text-[12px] font-bold text-white rounded-lg active:scale-95 transition-transform" style="background-color:#EE3E12">確認完了</button>
+          <div class="c-list-sheet__card-actions">
+            <button data-lc-reject="${_escH(m.id)}" class="c-button c-button--muted">差し戻す</button>
+            <button data-lc-approve="${_escH(m.id)}" class="c-button c-button--danger">確認完了</button>
           </div>
         </div>`;
     }).join('');
 
     overlay.innerHTML = `
-      <div data-sheet class="bg-white rounded-t-3xl w-full shadow-2xl h-[85vh] flex flex-col animate-fadeIn">
-        <div data-sheet-handle class="shrink-0 px-6 pt-5 pb-4">
-          <div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full mx-auto mb-5"></div>
-          <h3 id="leader-check-count" class="heading-m text-[#484545]">リーダーチェック（${missions.length}件）</h3>
+      <div data-sheet class="c-list-sheet c-list-sheet--tall animate-fadeIn">
+        <div data-sheet-handle class="c-list-sheet__head">
+          <div class="c-list-sheet__grip"></div>
+          <h3 id="leader-check-count" class="c-list-sheet__title">リーダーチェック（${missions.length}件）</h3>
         </div>
-        <div id="leader-check-list" class="flex-1 overflow-y-auto px-6 pb-6">
-          ${rows || '<p class="text-center text-[#A7AAAC] text-rs py-8">確認待ちはありません</p>'}
+        <div id="leader-check-list" class="c-list-sheet__body">
+          ${rows || '<p class="c-list-sheet__empty text-rs">確認待ちはありません</p>'}
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1305,20 +1298,20 @@ window._app = {
     document.getElementById('join-event-confirm-modal')?.remove();
     const overlay = document.createElement('div');
     overlay.id = 'join-event-confirm-modal';
-    overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-6';
+    overlay.className = 'c-overlay c-overlay--join c-overlay--blur';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
-      <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn text-center">
-        <p class="text-[36px] mb-2">🎉</p>
-        <h3 class="heading-m text-[#484545] font-bold mb-3">イベントに参加する</h3>
-        <p id="jec-catch" class="text-[14px] text-[#0CA1E3] font-bold leading-snug mb-2 hidden"></p>
-        <p class="text-[13px] text-[#484545] font-bold mb-1">「${_escH(eventName || 'イベント')}」</p>
-        <p class="text-[12px] text-[#A7AAAC] font-bold mb-4">への参加を申請しますか？<br>管理者の承認後に参加できます。</p>
+      <div class="c-modal animate-fadeIn">
+        <p class="p-app-shell__join-emoji">🎉</p>
+        <h3 class="c-modal__title">イベントに参加する</h3>
+        <p id="jec-catch" class="p-app-shell__join-catch hidden"></p>
+        <p class="p-app-shell__join-name">「${_escH(eventName || 'イベント')}」</p>
+        <p class="p-app-shell__join-note">への参加を申請しますか？<br>管理者の承認後に参加できます。</p>
         <!-- 参加中メンバー＋リーダーの意気込み（招待プレビューを取得できたときだけ差し込む） -->
-        <div id="jec-motivation" class="mb-6"></div>
-        <div class="flex gap-3">
-          <button id="jec-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-          <button id="jec-confirm" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl shadow-md bg-[#0CA1E3]">次へ</button>
+        <div id="jec-motivation" class="p-app-shell__join-motivation"></div>
+        <div class="c-modal__actions">
+          <button id="jec-cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
+          <button id="jec-confirm" class="c-button c-button--primary c-modal__button c-modal__button--shadow">次へ</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1361,22 +1354,22 @@ window._app = {
     const rect = btn.getBoundingClientRect();
     menu = document.createElement('div');
     menu.id = 'user-menu-popover';
-    menu.className = 'fixed bg-white rounded-xl shadow-xl border border-[#D3D6D8] py-1 z-[150] animate-fadeIn';
+    menu.className = 'p-app-shell__user-menu animate-fadeIn';
     menu.style.top  = `${rect.bottom + 4}px`;
     menu.style.left = `${rect.left}px`;
     menu.style.minWidth = '160px';
     menu.innerHTML = `
-      <div class="px-4 py-2 border-b border-[#E1DFDC]">
-        <p class="text-[10px] text-[#A7AAAC] font-bold">ログイン中</p>
-        <p class="text-[12px] text-[#484545] font-bold truncate">${(state.currentUser?.username) || ''}</p>
+      <div class="p-app-shell__user-head">
+        <p class="p-app-shell__user-caption">ログイン中</p>
+        <p class="p-app-shell__user-name">${_escH((state.currentUser?.username) || '')}</p>
       </div>
-      <button id="user-menu-join" class="w-full text-left px-4 py-2.5 text-[13px] font-bold text-[#484545] hover:bg-[#FDFBF8]">
+      <button id="user-menu-join" class="p-app-shell__user-item">
         イベントに参加する
       </button>
-      <button id="user-menu-account" class="w-full text-left px-4 py-2.5 text-[13px] font-bold text-[#484545] hover:bg-[#FDFBF8] border-t border-[#E1DFDC]">
+      <button id="user-menu-account" class="p-app-shell__user-item p-app-shell__user-item--divided">
         アカウント設定
       </button>
-      <button id="user-menu-logout" class="w-full text-left px-4 py-2.5 text-[13px] font-bold text-[#EE3E12] hover:bg-[#FFEEEA] border-t border-[#E1DFDC]">
+      <button id="user-menu-logout" class="p-app-shell__user-item p-app-shell__user-item--divided p-app-shell__user-item--danger">
         ログアウト
       </button>`;
     document.body.appendChild(menu);
@@ -1585,18 +1578,18 @@ function _openNewProjectModal(pendingEventId = null) {
   document.getElementById('new-project-modal')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'new-project-modal';
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[210] flex items-center justify-center p-6 page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
-      <h3 class="heading-m text-[#484545] mb-6 font-bold text-center">新しいプロジェクト</h3>
+    <div class="c-modal c-modal--left animate-fadeIn">
+      <h3 class="c-modal__title c-modal__title--loose">新しいプロジェクト</h3>
       <input id="np-name" type="text" maxlength="40" placeholder="プロジェクト名"
-        class="c-input w-full px-4 py-3 focus:outline-none mb-3">
+        class="c-input c-input--block p-app-shell__field">
       <input id="np-desc" type="text" maxlength="100" placeholder="説明（任意）"
-        class="c-input w-full px-4 py-3 focus:outline-none mb-6">
-      <div class="flex gap-3">
-        <button id="np-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-        <button id="np-save"   class="c-button c-button--primary   flex-1 py-3 heading-rs font-bold">作成</button>
+        class="c-input c-input--block c-modal__field">
+      <div class="c-modal__actions">
+        <button id="np-cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
+        <button id="np-save"   class="c-button c-button--primary c-modal__button">作成</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1632,28 +1625,28 @@ function _openProjectMenu(folderId) {
   document.getElementById('project-menu-sheet')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'project-menu-sheet';
-  overlay.className = 'fixed inset-0 bg-black/40 z-[200] flex items-end justify-center page-transition';
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div data-sheet class="bg-white w-full max-w-md rounded-t-[32px] p-4 pb-8 shadow-2xl animate-fadeIn">
-      <div data-sheet-handle class="flex justify-center pt-1 pb-3"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
-      <p class="text-center text-[12px] text-[#A7AAAC] font-bold mb-3 truncate px-6">${_escH(folder.name)}</p>
+    <div data-sheet class="c-action-sheet animate-fadeIn">
+      <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
+      <p class="c-action-sheet__caption">${_escH(folder.name)}</p>
       <button id="pm-rename"
-        class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FDFBF8] text-[15px] font-bold text-[#484545] flex items-center gap-3">
+        class="c-action-sheet__item">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
         </svg>
         名前を変更
       </button>
       <button id="pm-delete"
-        class="w-full text-left px-6 py-4 rounded-xl hover:bg-[#FFEEEA] text-[15px] font-bold text-[#EE3E12] flex items-center gap-3">
+        class="c-action-sheet__item c-action-sheet__item--danger">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="3 6 5 6 21 6"/>
           <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
         </svg>
         削除
       </button>
-      <button id="pm-cancel" class="w-full py-3 mt-2 text-[14px] font-bold text-[#A7AAAC]">キャンセル</button>
+      <button id="pm-cancel" class="c-action-sheet__cancel">キャンセル</button>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -1679,17 +1672,17 @@ function _openProjectRenameDialog(folderId) {
   document.getElementById('project-rename-dialog')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'project-rename-dialog';
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[210] flex items-center justify-center p-6 page-transition';
+  overlay.className = 'c-overlay c-overlay--action-dialog c-overlay--blur page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
-      <h3 class="heading-m text-[#484545] mb-6 font-bold text-center">プロジェクト名を変更</h3>
+    <div class="c-modal c-modal--left animate-fadeIn">
+      <h3 class="c-modal__title c-modal__title--loose">プロジェクト名を変更</h3>
       <input id="pr-name" type="text" maxlength="40"
-        class="c-input w-full px-4 py-3 focus:outline-none mb-6"
+        class="c-input c-input--block c-modal__field"
         value="${_escH(folder.name)}">
-      <div class="flex gap-3">
-        <button id="pr-cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-        <button id="pr-save"   class="c-button c-button--primary   flex-1 py-3 heading-rs font-bold">保存</button>
+      <div class="c-modal__actions">
+        <button id="pr-cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
+        <button id="pr-save"   class="c-button c-button--primary c-modal__button">保存</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1850,14 +1843,14 @@ async function _openEventLogSheet() {
   document.getElementById('event-log-sheet')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'event-log-sheet';
-  overlay.className = 'fixed inset-0 bg-black/40 z-[200] flex items-end justify-center page-transition';
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action page-transition';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
-    <div data-sheet class="bg-white w-full max-w-md rounded-t-[32px] shadow-2xl animate-fadeIn flex flex-col" style="max-height:80vh">
-      <div data-sheet-handle class="flex justify-center pt-3 pb-2 flex-shrink-0"><div class="w-12 h-1.5 bg-[#E1DFDC] rounded-full"></div></div>
-      <p class="text-center text-[15px] font-bold text-[#484545] pb-3 flex-shrink-0">操作履歴</p>
-      <div id="event-log-body" class="flex-1 overflow-y-auto px-5 pb-8">
-        <p class="text-center text-[13px] text-[#A7AAAC] py-10">読み込み中...</p>
+    <div data-sheet class="p-app-shell__log-sheet animate-fadeIn">
+      <div data-sheet-handle class="c-sheet__handle c-sheet__handle--mid"><div class="c-sheet__grip"></div></div>
+      <p class="p-app-shell__log-title">操作履歴</p>
+      <div id="event-log-body" class="p-app-shell__log-body">
+        <p class="p-app-shell__log-status">読み込み中...</p>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1866,23 +1859,23 @@ async function _openEventLogSheet() {
   try {
     const r = await api.getEventLogs(eventId, 300);
     if (!r.ok) {
-      body.innerHTML = `<p class="text-center text-[13px] text-[#EE3E12] py-10">${_escH(r.error || '取得に失敗しました')}</p>`;
+      body.innerHTML = `<p class="p-app-shell__log-status p-app-shell__log-status--error">${_escH(r.error || '取得に失敗しました')}</p>`;
       return;
     }
     const logs = Array.isArray(r.logs) ? r.logs : [];
     if (logs.length === 0) {
-      body.innerHTML = `<p class="text-center text-[13px] text-[#A7AAAC] py-10">まだ履歴がありません</p>`;
+      body.innerHTML = `<p class="p-app-shell__log-status">まだ履歴がありません</p>`;
       return;
     }
     body.innerHTML = logs.map(l => `
-      <div class="flex items-start gap-3 py-2.5 border-b border-[#F0EEEC]">
-        <div class="flex-1 min-w-0">
-          <p class="text-[13px] font-bold text-[#484545]">${_escH(_logLabel(l.event))}</p>
-          <p class="text-[11px] text-[#A7AAAC] mt-0.5 truncate">${_escH(l.username || 'ゲスト')}</p>
+      <div class="p-app-shell__log-row">
+        <div class="p-app-shell__log-main">
+          <p class="p-app-shell__log-action">${_escH(_logLabel(l.event))}</p>
+          <p class="p-app-shell__log-user">${_escH(l.username || 'ゲスト')}</p>
         </div>
-        <span class="text-[11px] text-[#A7AAAC] flex-shrink-0 whitespace-nowrap">${_fmtLogTime(l.ts)}</span>
+        <span class="p-app-shell__log-time">${_fmtLogTime(l.ts)}</span>
       </div>`).join('');
   } catch (_) {
-    body.innerHTML = `<p class="text-center text-[13px] text-[#EE3E12] py-10">通信エラー</p>`;
+    body.innerHTML = `<p class="p-app-shell__log-status p-app-shell__log-status--error">通信エラー</p>`;
   }
 }
