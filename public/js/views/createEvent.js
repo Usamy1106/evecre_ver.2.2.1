@@ -338,29 +338,30 @@ function _bindCalendarDrag(container) {
     state.render();
   };
 
-  // マウス
-  grid.addEventListener('mousedown', e => { e.preventDefault(); onDown(e.clientX, e.clientY); });
-  document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-  document.addEventListener('mouseup', onUp);
-
-  // タッチ
-  // ★preventDefault が要る。これが無いと、ブラウザが touchstart のあとに
-  //   互換用の mousedown を続けて発火させ、onDown が2回走る
-  //   （1回目で選択 → 2回目は「選択済み」と判定して解除 ＝ タップしても何も起きない）。
-  //   長押しだと互換イベントが抑止されるため、長押しでだけ選べる状態になっていた。
-  //   セルは touch-action:none なのでスクロールを妨げることはない。
-  grid.addEventListener('touchstart', e => {
-    if (e.touches.length !== 1) return;
+  // ★Pointer Events だけで受ける（modals/calendar.js と同じ方式）。
+  //
+  //   以前は mouse 系と touch 系の2系統を張っていたため、1回のタップで
+  //   onDown が2回走ることがあった（touchstart のあとブラウザが互換用の
+  //   mousedown を続けて発火する）。1回目で選択 → 2回目は「選択済み」と
+  //   判定して解除、で「タップしても何も起きない／すぐ戻る」ように見えていた。
+  //   touchstart の preventDefault でも大半は防げるが、端末や入力方法
+  //   （タッチ対応ノート PC・ペン）によっては取りこぼす。
+  //
+  //   ★document にリスナーを張らないこと。この関数は再描画のたびに走るので、
+  //     document へ足すと消されないまま溜まり続ける（実際に溜まっていた）。
+  //     setPointerCapture を使えば、grid の外へ指が出ても move/up は grid に届く。
+  grid.addEventListener('pointerdown', (e) => {
+    if (!e.isPrimary) return;                 // 2本目以降の指は無視する
     e.preventDefault();
-    onDown(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: false });
-  grid.addEventListener('touchmove', e => {
-    if (e.touches.length !== 1) return;
-    e.preventDefault();
-    onMove(e.touches[0].clientX, e.touches[0].clientY);
-  }, { passive: false });
-  grid.addEventListener('touchend', onUp);
-  grid.addEventListener('touchcancel', onUp);
+    onDown(e.clientX, e.clientY);
+    try { grid.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  grid.addEventListener('pointermove', (e) => {
+    if (!_drag.active || !e.isPrimary) return;
+    onMove(e.clientX, e.clientY);
+  });
+  grid.addEventListener('pointerup', onUp);
+  grid.addEventListener('pointercancel', onUp);
 }
 
 // =====================================================
