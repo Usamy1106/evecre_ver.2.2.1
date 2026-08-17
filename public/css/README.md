@@ -66,6 +66,8 @@
 | 確認ダイアログ（`c-dialog`） | `object/component/_dialog.css` |
 | トースト（`c-toast`） | `object/component/_toast.css` |
 | コーチマークの脈動・指の動き | `object/component/_coach-mark.css` |
+| 利用規約・プライバシーポリシー（本文の見出し・表も） | `object/project/_legal.css` |
+| プロジェクト（フォルダ）詳細 | `object/project/_project-detail.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -213,10 +215,12 @@ public/css/
 │  ├─ _empty.css                ⬜ Phase 3 — 空状態
 │  └─ _tooltip.css              ⬜ Phase 4 — tooltipTour.js
 │
-├─ object/project/              ⬜ Phase 3〜4（1画面1ファイル）
+├─ object/project/              （1画面1ファイル）
+│  ├─ _legal.css                ✅ 法務ドキュメント（markdown.js の出力もここ）
+│  ├─ _project-detail.css       ✅ プロジェクト詳細
 │  └─ _home / _main-board / _mission-detail / _mission-modal / _create-event /
 │     _event-settings / _account / _signup / _auth / _notification / _archive /
-│     _calendar / _invite / _mountain / _legal / _onboarding
+│     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
 │
 └─ object/utility/
    ├─ _animation.css            ✅ animate-fadeIn
