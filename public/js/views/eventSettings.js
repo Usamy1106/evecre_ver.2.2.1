@@ -242,7 +242,7 @@ function _eventManagementSection(p, sec) {
           <p class="p-event-settings__sub-title">ミッション提案の内容がこれに合わせて変わります</p>
           ${canMgr ? `
             <select data-ps-select="eventType"
-              class="c-input w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
+              class="c-input p-event-settings__select">
               <option value="" ${!p.eventType ? 'selected' : ''}>(未設定)</option>
               ${EVENT_TYPES.map(t => `
                 <option value="${_esc(t.id)}" ${p.eventType === t.id ? 'selected' : ''}>${_esc(t.label)}</option>
@@ -258,7 +258,7 @@ function _eventManagementSection(p, sec) {
           <p class="p-event-settings__sub-title">来てほしい人数</p>
           ${canMgr ? `
             <select data-ps-select="expectedScale"
-              class="c-input w-full px-3 py-2.5 text-[13px] font-bold text-[#484545] focus:outline-none">
+              class="c-input p-event-settings__select">
               <option value="" ${!p.expectedScale ? 'selected' : ''}>(未設定)</option>
               ${EXPECTED_SCALES.map(s => `
                 <option value="${_esc(s.id)}" ${p.expectedScale === s.id ? 'selected' : ''}>${_esc(s.label)}（${_esc(s.hint)}）</option>
@@ -282,10 +282,9 @@ function _eventManagementSection(p, sec) {
                 const current = p.eventPhase || '企画準備';
                 const active  = current === phase;
                 return `
-                  <button data-ps-phase="${_esc(phase)}"
-                    class="flex-1 py-2.5 text-[12px] font-bold rounded-xl border-2 transition-all active:scale-95
-                      ${active ? 'text-white border-transparent' : 'text-[#484545] border-[#E1DFDC] bg-white'}"
-                    ${active ? `style="background-color:${color}; border-color:${color}"` : ''}>
+                  <button type="button" data-ps-phase="${_esc(phase)}"
+                    class="p-event-settings__phase${active ? ' is-active' : ''}"
+                    ${active ? `style="--phase-color:${color}"` : ''}>
                     ${phase}
                   </button>`;
               }).join('')}

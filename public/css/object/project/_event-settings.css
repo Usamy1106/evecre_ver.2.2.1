@@ -259,3 +259,37 @@
   font-weight: var(--font-weight-heavy);
   color: var(--color-primary);
 }
+
+/* --- セレクト・フェーズ切替 -----------------------------------------------
+   ★フェーズはミッション提案の重み付けに使う（カレンダー判定を主軸に +0.5 加点）。
+     3択なので横並び。選択中は色で塗るが、色は phase ごとに違うので JS が渡す。 */
+
+.p-event-settings__select {
+  width: 100%;
+  padding: 10px var(--space-3);
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-event-settings__phase {
+  flex: 1;
+  padding-block: 10px;
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-event-settings__phase:active {
+  transform: scale(.95);
+}
+
+.p-event-settings__phase.is-active {
+  border-color: var(--phase-color);
+  background-color: var(--phase-color);
+  color: var(--color-text-inverse);
+}
