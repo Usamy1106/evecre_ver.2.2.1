@@ -1,6 +1,7 @@
 // ===== ミッション詳細ページ（MISSION_DETAIL）=====
 // ミッションカード（メインボード / カレンダー / ガント / アナウンス等）のタップで開く。
-// 旧・完了モーダル（openClearMissionModal / openIndividualClearListModal）の後継。
+// 旧・完了モーダル（helpers.js の openClearMissionModal /
+// openIndividualClearListModal）の後継。旧モーダルは 2026-08-18 に削除済み。
 //
 // 構成（上から順）:
 //   - ヘッダー：戻るボタン（遷移元へ復元） / 管理者のみミートボールメニュー（編集・削除）

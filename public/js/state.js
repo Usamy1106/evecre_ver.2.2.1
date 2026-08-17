@@ -624,7 +624,6 @@ export const state = {
       ?? (calSheet ? (calSheet.dataset.calView || 'calendar') : null);
     calSheet?.remove();
     // ページの上に出ているモーダル類を掃除
-    document.getElementById('indiv-clear-list-modal')?.remove();
     document.getElementById('clear-mission-modal')?.remove();
 
     this.missionDetailReturn = {

@@ -41,10 +41,9 @@ import {
 } from './modals/mission.js';
 import {
   editArchiveItem, openEditModal,
-  openClearMissionModal, submitMissionClear, handleImageSelect, clearImagePreview,
+  submitMissionClear, handleImageSelect, clearImagePreview,
   handleGoodClick,
   updateDraftInfo,
-  openIndividualClearListModal,
   copyMissionLink,
 } from './modals/helpers.js';
 import { openVerifyEmailModal } from './modals/verifyEmailModal.js';
@@ -422,20 +421,6 @@ window._app = {
     setTimeout(() => document.addEventListener('click', close), 10);
   },
 
-  completeMissionFromListModal: (missionId) => {
-    document.getElementById('indiv-clear-list-modal')?.remove();
-    const p = state.events.find(x => x.id === state.selectedEventId);
-    const m = p?.missions.find(x => x.id === missionId);
-    // 完了のみ（noInput）ミッションは、タイトル＋説明だけの確認モーダル
-    //（＝「ミッションについて」に見えるもの）を挟まず、その場で完了を記録する。
-    // 説明はリストのボトムシート上部に表示済み。入力ありミッションのみ入力モーダルを開く。
-    if (m?.noInput) {
-      submitMissionClear(missionId);
-    } else {
-      window._app.openClearMissionModal(missionId);
-    }
-  },
-
   forceCloseMission: async (missionId) => {
     const ok = await showConfirmDialog({
       message: 'このミッションを公開終了しますか？\n全員が完了していなくてもアーカイブされます。',
@@ -452,7 +437,6 @@ window._app = {
       event.clearedData[missionId] = { content: '', format: 'text', title: m.title, timestamp: Date.now(), submittedBy: null };
     }
     state.save();
-    document.getElementById('indiv-clear-list-modal')?.remove();
     state.render();
     window._app.showToast('公開終了しました');
   },
@@ -784,8 +768,6 @@ window._app = {
   cancelChatReply: () => cancelChatReply(),
 
   // --- ミッション完了 ---
-  openClearMissionModal: (mid, fmt) => openClearMissionModal(mid, fmt),
-  openIndividualClearListModal: (mid) => openIndividualClearListModal(mid),
   submitMissionClear: (mid) => submitMissionClear(mid),
   handleImageSelect:  (input) => handleImageSelect(input),
   clearImagePreview:  ()      => clearImagePreview(),
