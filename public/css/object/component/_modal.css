@@ -9,6 +9,8 @@
    ========================================================================== */
 
 .c-modal {
+  /* 右上の閉じるボタン（c-modal__close）を絶対配置するため */
+  position: relative;
   width: 100%;
   max-width: 384px;
   padding: var(--space-8);
@@ -16,6 +18,22 @@
   background-color: var(--color-surface);
   box-shadow: var(--shadow-2xl);
   text-align: center;
+}
+
+/* 狭い画面では画面幅の 9 割に留める（左右に余白を残す）*/
+@media (max-width: 639px) {
+  .c-modal--fluid {
+    width: 90%;
+  }
+}
+
+/* 右上の閉じるボタン。★見出しに pr を足して文字と重ならないようにすること */
+.c-modal__close {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  padding: var(--space-2);
+  opacity: .4;
 }
 
 /* 中身が長いもの（オンボーディングの手順など）。本文だけスクロールさせる */
@@ -140,6 +158,11 @@
 .c-modal__actions {
   display: flex;
   gap: var(--space-3);
+}
+
+/* 直前の要素から離すとき */
+.c-modal__actions--spaced {
+  margin-top: var(--space-6);
 }
 
 .c-modal__button {

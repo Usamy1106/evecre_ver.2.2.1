@@ -121,3 +121,12 @@
   padding: var(--space-6);
   background-color: rgba(0, 0, 0, .6);
 }
+
+/* アーカイブの項目を編集するモーダル（概要・開催場所・メインビジュアル）*/
+.c-overlay--edit {
+  z-index: var(--z-edit-modal);
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background-color: rgba(0, 0, 0, .6);
+}

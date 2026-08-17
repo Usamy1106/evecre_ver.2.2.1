@@ -510,3 +510,84 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* --- 項目の編集モーダル --------------------------------------------------
+   使用箇所: public/js/modals/helpers.js（editArchiveItem / openEditModal）
+   ★「概要」と「開催場所」の保存先は utils.js の4関数に集約されている。
+     ここから clearedData を直接触らないこと。 */
+
+/* 見出しの右に閉じるボタンが重なるぶんの余白 */
+.p-archive__edit-title {
+  padding-right: var(--space-6);
+}
+
+.p-archive__edit-input {
+  width: 100%;
+  padding: var(--space-4);
+  border: none;
+  border-radius: var(--radius-lg);
+  background-color: var(--button-secondary);
+  /* ★16px 未満にしないこと。iOS Safari が入力時に自動ズームする */
+  font-size: 16px;
+}
+
+.p-archive__edit-input:focus {
+  outline: none;
+}
+
+/* 概要のように長文を書く欄 */
+.p-archive__edit-input--tall {
+  height: 160px;
+}
+
+.p-archive__edit-save {
+  width: 100%;
+  margin-top: var(--space-8);
+  padding-block: var(--space-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- メインビジュアルの設定ダイアログ ------------------------------------- */
+
+.p-archive__image-preview {
+  margin-bottom: var(--space-4);
+}
+
+.p-archive__image-thumb {
+  width: 100%;
+  height: 160px;
+  border-radius: var(--radius-lg);
+  object-fit: cover;
+}
+
+.p-archive__file-label {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+
+/* 破線の枠で「ここに入れる」と分かるようにする */
+.p-archive__dropzone {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  padding-block: var(--space-4);
+  gap: var(--space-2);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  transition: border-color var(--duration-fast) var(--ease),
+              color var(--duration-fast) var(--ease);
+}
+
+.p-archive__file-label:hover .p-archive__dropzone {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.p-archive__dropzone-text {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+}

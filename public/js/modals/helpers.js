@@ -87,29 +87,30 @@ export function editArchiveItem(type) {
 function _openArchiveImageDialog(p) {
   const overlay = document.createElement('div');
   overlay.id = 'archive-image-dialog';
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-6';
+  // スタイル: public/css/object/project/_archive.css
+  overlay.className = 'c-overlay c-overlay--edit c-overlay--blur';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
   const current = p.clearedData?.['archive-image']?.content;
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl animate-fadeIn">
-      <h3 class="heading-m text-[#484545] mb-6 font-bold">メインビジュアルを設定</h3>
-      <div id="arch-img-preview" class="${current ? '' : 'hidden'} mb-4">
-        <img id="arch-img-src" src="${current || ''}" class="w-full h-40 object-cover rounded-2xl">
+    <div class="c-modal c-modal--left animate-fadeIn">
+      <h3 class="c-modal__title c-modal__title--loose">メインビジュアルを設定</h3>
+      <div id="arch-img-preview" class="p-archive__image-preview${current ? '' : ' hidden'}">
+        <img id="arch-img-src" src="${_esc(current || '')}" class="p-archive__image-thumb">
       </div>
-      <label class="block w-full cursor-pointer">
-        <div class="w-full py-4 rounded-2xl border-2 border-dashed border-[#D3D6D8] flex flex-col items-center gap-2 text-[#A7AAAC] hover:border-[#0CA1E3] hover:text-[#0CA1E3] transition-colors">
+      <label class="p-archive__file-label">
+        <div class="p-archive__dropzone">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
             <polyline points="21 15 16 10 5 21"/>
           </svg>
-          <span class="text-[13px] font-bold">画像を選択</span>
+          <span class="p-archive__dropzone-text">画像を選択</span>
         </div>
         <input type="file" id="arch-file-input" class="hidden" accept="image/*">
       </label>
-      <div class="flex gap-3 mt-6">
-        <button data-action="cancel" class="c-button c-button--secondary flex-1 py-3 heading-rs font-bold">キャンセル</button>
-        <button data-action="save" class="flex-1 py-3 heading-rs font-bold text-white rounded-xl" style="background-color:#0CA1E3" disabled>保存</button>
+      <div class="c-modal__actions c-modal__actions--spaced">
+        <button data-action="cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
+        <button data-action="save" class="c-button c-button--primary c-modal__button" disabled>保存</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -150,30 +151,33 @@ function _openArchiveImageDialog(p) {
 export function openEditModal(title, currentVal, format, onSave) {
   const overlay = document.createElement('div');
   overlay.id = 'edit-archive-modal';
-  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-6 page-transition';
+  // スタイル: public/css/object/project/_archive.css
+  overlay.className = 'c-overlay c-overlay--edit c-overlay--blur page-transition';
 
+  // ★currentVal はユーザーが入れた値。属性・本文どちらにもエスケープして差し込む
+  const val = _esc(currentVal ?? '');
   let inputHtml;
   if (format === 'text' || title === '概要' || title === '期間') {
-    inputHtml = `<textarea id="edit-input" class="w-full h-40 p-4 rounded-2xl bg-[#EBE8E5] focus:outline-none text-r"
-      placeholder="内容を入力してください">${currentVal}</textarea>`;
+    inputHtml = `<textarea id="edit-input" class="p-archive__edit-input p-archive__edit-input--tall"
+      placeholder="内容を入力してください">${val}</textarea>`;
   } else if (format === 'link') {
-    inputHtml = `<input type="url" id="edit-input" class="w-full p-4 rounded-2xl bg-[#EBE8E5] focus:outline-none text-r"
-      placeholder="https://..." value="${currentVal}">`;
+    inputHtml = `<input type="url" id="edit-input" class="p-archive__edit-input"
+      placeholder="https://..." value="${val}">`;
   } else {
-    inputHtml = `<input type="text" id="edit-input" class="w-full p-4 rounded-2xl bg-[#EBE8E5] focus:outline-none text-r"
-      placeholder="内容を入力してください" value="${currentVal}">`;
+    inputHtml = `<input type="text" id="edit-input" class="p-archive__edit-input"
+      placeholder="内容を入力してください" value="${val}">`;
   }
 
   overlay.innerHTML = `
-    <div class="bg-white rounded-3xl w-full max-sm:w-[90%] max-w-sm p-8 shadow-2xl relative animate-fadeIn">
-      <button onclick="document.getElementById('edit-archive-modal').remove()" class="absolute top-4 right-4 p-2 opacity-40">
+    <div class="c-modal c-modal--left c-modal--fluid animate-fadeIn">
+      <button onclick="document.getElementById('edit-archive-modal').remove()" class="c-modal__close">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-      <h3 class="heading-m text-[#484545] mb-6 pr-6">${title}の編集</h3>
+      <h3 class="c-modal__title c-modal__title--loose p-archive__edit-title">${_esc(title)}の編集</h3>
       ${inputHtml}
-      <button id="save-edit-btn" class="c-button c-button--primary w-full py-4 mt-8 heading-r font-bold">保存する</button>
+      <button id="save-edit-btn" class="c-button c-button--primary p-archive__edit-save">保存する</button>
     </div>`;
   document.body.appendChild(overlay);
 
@@ -183,6 +187,22 @@ export function openEditModal(title, currentVal, format, onSave) {
     overlay.remove();
   };
 }
+
+// ★到達不能：ここから下のミッション完了モーダルは呼び出し元が無い。
+//   views/missionDetail.js（ミッション詳細ページ）が後継で、ミッションカードの
+//   タップは全て state.openMissionDetail() を通る。
+//
+//   openIndividualClearListModal → completeMissionFromListModal（main.js）
+//   → openClearMissionModal という閉じたループになっており、この輪の外から
+//   openIndividualClearListModal を呼ぶ箇所が1つも無い。
+//
+//   ★Tailwind を剥がしていないのは意図的（表示されないマークアップを
+//     移行しても意味が無く、詳細ページ側の同じ UI と二重管理になるため）。
+//   削除するときは helpers.js の openClearMissionModal /
+//   openIndividualClearListModal、main.js の import・_app 登録・
+//   completeMissionFromListModal をまとめて消すこと。
+//   ただし initClearDraft / submitMissionClear / handleImageSelect /
+//   clearImagePreview は詳細ページが使っているので残す。
 
 // ===== ミッション完了モーダル =====
 
@@ -603,6 +623,15 @@ export function shareInvite(code) {
  * - メンバー：メンバー一覧の閲覧、自分の脱退
  * @param {string} _legacyCode  旧API互換のため受け取るが未使用（projectId経由で動作）
  */
+// ★到達不能：この招待・メンバー管理モーダルは import している箇所が無い。
+//   招待リンクの発行は modals/inviteIssueModal.js、メンバーの管理は
+//   views/eventSettings.js と main.js の openPendingMembersSheet が担っている。
+//   同じ理由で copyInviteCode / shareInvite / removeDraftDateGroup も未使用。
+//   ★Tailwind を剥がしていないのは意図的。削除するときは
+//   showProjectInviteModal / _renderInviteModal / _renderMemberRow /
+//   _renderInviteRow / _createInvite / _revokeInvite / _removeMember /
+//   _leaveProject / _buildInviteText / _shareToLine / _shareUrl / _copyText /
+//   _flashToast をまとめて消すこと（_esc は他からも使われているので残す）。
 export function showProjectInviteModal(_legacyCode) {
   const project = state.events.find(p => p.id === state.selectedEventId);
   if (!project) return;
