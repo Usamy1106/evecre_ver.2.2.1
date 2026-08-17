@@ -488,3 +488,220 @@
 .p-main-board__mission-list > * + * {
   margin-top: var(--space-3);
 }
+
+/* --- 上部のバナー（管理者向けのお知らせ）---------------------------------
+   ★該当がある場合だけ出る。押すと対応するシートが開く。
+     種類ごとに色を変えるが、必ず件数と用件を文字で書くので色だけの情報にはしない。 */
+
+.p-main-board__banner {
+  padding: var(--space-4);
+  border: 1px solid;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-main-board__banner:active {
+  transform: scale(.99);
+}
+
+/* 押せないもの（中に個別のボタンがある）*/
+.p-main-board__banner--static {
+  cursor: default;
+}
+
+.p-main-board__banner--static:active {
+  transform: none;
+}
+
+.p-main-board__banner--pending {
+  border-color: var(--color-warning-half2);
+  background-color: var(--color-warning-pale2);
+  color: var(--color-warning-dark);
+}
+
+.p-main-board__banner--proposal {
+  border-color: var(--color-success-half);
+  background-color: var(--color-success-pale);
+  color: var(--color-success-dark);
+}
+
+.p-main-board__banner--check {
+  border-color: var(--color-danger-half2);
+  background-color: var(--color-danger-pale2);
+  color: var(--color-danger);
+}
+
+.p-main-board__banner-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.p-main-board__banner-head--spaced {
+  margin-bottom: var(--space-2);
+}
+
+.p-main-board__banner-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* 応募のあったミッションを1行ずつ並べる */
+.p-main-board__claim-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-warning-faint);
+}
+
+.p-main-board__claim-row:last-child {
+  border-bottom: 0;
+}
+
+.p-main-board__claim-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-main-board__claim-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-main-board__claim-names {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.p-main-board__claim-select {
+  flex-shrink: 0;
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-warning);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-main-board__claim-select:active {
+  transform: scale(.95);
+}
+
+/* --- アナウンスカード ----------------------------------------------------
+   ★announce を付けたミッションを上部に出す。タップでミッション詳細へ。
+   ★複数あるときは折りたたむ。開閉は JS が inline style で切り替え、
+     矢印は .announce-chevron を掴んで回す（クラス名を変えるなら JS も直す）。 */
+
+.p-main-board__announce {
+  overflow: hidden;
+  border: 1px solid var(--color-primary-half2);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary-pale3);
+}
+
+.p-main-board__announce-card {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-primary-half2);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary-pale3);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-main-board__announce-card:active {
+  background-color: var(--color-primary-pale4);
+}
+
+/* 折りたたみの中に入るカードは自前の枠を持たない */
+.p-main-board__announce-list .p-main-board__announce-card {
+  border: 0;
+  border-radius: var(--radius-md);
+}
+
+.p-main-board__announce-body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.p-main-board__announce-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-primary);
+}
+
+.p-main-board__announce-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-main-board__announce-title {
+  margin-bottom: var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-main-board__announce-text {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.p-main-board__announce-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.p-main-board__announce-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-primary);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-main-board__announce-toggle:active {
+  background-color: var(--color-primary-pale4);
+}
+
+.p-main-board__announce-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-main-board__announce-list {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.p-main-board__announce-list > * + * {
+  margin-top: var(--space-2);
+}
+
+/* JS が transform で回す。transition だけ CSS が持つ */
+.announce-chevron {
+  transition: transform var(--duration-fast) var(--ease);
+}

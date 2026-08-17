@@ -545,13 +545,13 @@ function _renderMainTab(p) {
 function _renderPendingMembersBanner(members) {
   return `
     <div onclick="window._app.openPendingMembersSheet()"
-      class="cursor-pointer bg-[#FFF8E1] border border-[#FFC300]/60 rounded-2xl p-4 shadow-sm active:scale-[0.99] transition-transform">
-      <div class="flex items-center gap-2">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      class="p-main-board__banner p-main-board__banner--pending">
+      <div class="p-main-board__banner-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
           <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
         </svg>
-        <p class="text-[12px] font-bold text-[#9b7700]">参加申請が届いています（${members.length}件）</p>
+        <p class="p-main-board__banner-text">参加申請が届いています（${members.length}件）</p>
       </div>
     </div>`;
 }
@@ -560,12 +560,12 @@ function _renderPendingMembersBanner(members) {
 function _renderMemberProposalsBanner(proposals) {
   return `
     <div onclick="window._app.openMemberProposalsSheet()"
-      class="cursor-pointer bg-[#F0FDE8] border border-[#9EDF05]/60 rounded-2xl p-4 shadow-sm active:scale-[0.99] transition-transform">
-      <div class="flex items-center gap-2">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      class="p-main-board__banner p-main-board__banner--proposal">
+      <div class="p-main-board__banner-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        <p class="text-[12px] font-bold text-[#5b8104]">ミッションの提案があります（${proposals.length}件）</p>
+        <p class="p-main-board__banner-text">ミッションの提案があります（${proposals.length}件）</p>
       </div>
     </div>`;
 }
@@ -574,13 +574,13 @@ function _renderMemberProposalsBanner(proposals) {
 function _renderLeaderCheckBanner(missions) {
   return `
     <div onclick="window._app.openLeaderCheckSheet()"
-      class="cursor-pointer bg-[#FFF0ED] border border-[#EE3E12]/40 rounded-2xl p-4 shadow-sm active:scale-[0.99] transition-transform">
-      <div class="flex items-center gap-2">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EE3E12" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      class="p-main-board__banner p-main-board__banner--check">
+      <div class="p-main-board__banner-head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="9 11 12 14 22 4"/>
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
         </svg>
-        <p class="text-[12px] font-bold text-[#EE3E12]">リーダーチェック待ちがあります（${missions.length}件）</p>
+        <p class="p-main-board__banner-text">リーダーチェック待ちがあります（${missions.length}件）</p>
       </div>
     </div>`;
 }
@@ -595,25 +595,25 @@ function _renderClaimAnnouncementBanner(p, missions) {
     }).join('、') + (count > 3 ? ` 他${count - 3}名` : '');
 
     return `
-      <div class="flex items-center justify-between gap-2 py-2 border-b border-[#FFC300]/30 last:border-0">
-        <div class="flex-1 min-w-0">
-          <p class="text-[12px] font-bold text-[#484545] truncate">${_esc(m.title)}</p>
-          <p class="text-[10px] text-[#A7AAAC] mt-0.5">${names}</p>
+      <div class="p-main-board__claim-row">
+        <div class="p-main-board__claim-body">
+          <p class="p-main-board__claim-title">${_esc(m.title)}</p>
+          <p class="p-main-board__claim-names">${_esc(names)}</p>
         </div>
-        <button onclick="event.stopPropagation(); window._app.openSelectClaimModal('${m.id}')"
-          class="flex-shrink-0 px-3 py-1.5 rounded-full bg-[#FFC300] text-white text-[11px] font-bold active:scale-95 transition-transform shadow-sm">
+        <button type="button" onclick="event.stopPropagation(); window._app.openSelectClaimModal('${m.id}')"
+          class="p-main-board__claim-select">
           選定する
         </button>
       </div>`;
   }).join('');
 
   return `
-    <div class="bg-[#FFF8E1] border border-[#FFC300]/60 rounded-2xl p-4 shadow-sm">
-      <div class="flex items-center gap-2 mb-2">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5">
+    <div class="p-main-board__banner p-main-board__banner--pending p-main-board__banner--static">
+      <div class="p-main-board__banner-head p-main-board__banner-head--spaced">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
         </svg>
-        <p class="text-[12px] font-bold text-[#9b7700]">ミッションへの応募があります（${missions.length}件）</p>
+        <p class="p-main-board__banner-text">ミッションへの応募があります（${missions.length}件）</p>
       </div>
       <div>${rows}</div>
     </div>`;
@@ -650,17 +650,16 @@ function _renderAnnounceCards(p, meId) {
   const _cardClick = (m) => `onclick="window._app.openMissionDetail('${m.id}')"`;
 
   const cardHtml = (m) => `
-    <div ${_cardClick(m)}
-      class="bg-[#EAF6FF] border border-[#0CA1E3]/40 rounded-2xl px-4 py-3 cursor-pointer active:bg-[#D4EFFF] transition-colors">
-      <div class="flex items-start gap-2">
-        <svg class="flex-shrink-0 mt-0.5" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0CA1E3" stroke-width="2.5">
+    <div ${_cardClick(m)} class="p-main-board__announce-card">
+      <div class="p-main-board__announce-body">
+        <svg class="p-main-board__announce-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
-        <div class="flex-1 min-w-0">
-          <p class="text-[12px] font-bold text-[#484545] mb-1 truncate">${_esc(m.title)}</p>
-          ${m.description ? `<p class="text-[11px] text-[#6b6b6b] mb-1 whitespace-pre-wrap break-words">${_esc(m.description)}</p>` : ''}
-          <div class="flex items-center gap-3 flex-wrap">
+        <div class="p-main-board__announce-main">
+          <p class="p-main-board__announce-title">${_esc(m.title)}</p>
+          ${m.description ? `<p class="p-main-board__announce-text">${_esc(m.description)}</p>` : ''}
+          <div class="p-main-board__announce-meta">
             ${_deadlineLabel(m)}
           </div>
         </div>
@@ -675,26 +674,27 @@ function _renderAnnounceCards(p, meId) {
   const listId = 'announce-list-' + (p.id || 'x');
   const cards = active.map(cardHtml).join('');
   return `
-    <div class="bg-[#EAF6FF] border border-[#0CA1E3]/40 rounded-2xl overflow-hidden">
-      <button onclick="
+    <div class="p-main-board__announce">
+      <button type="button" onclick="
         const el=document.getElementById('${listId}');
         const icon=this.querySelector('.announce-chevron');
         if(el.style.display==='none'){el.style.display='';icon.style.transform='rotate(0deg)';}
         else{el.style.display='none';icon.style.transform='rotate(-90deg)';}
-      " class="w-full flex items-center justify-between px-4 py-3 active:bg-[#D4EFFF]">
-        <div class="flex items-center gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0CA1E3" stroke-width="2.5">
+      " class="p-main-board__announce-toggle">
+        <span class="p-main-board__announce-toggle-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
-          <span class="text-[12px] font-bold text-[#0CA1E3]">アナウンス（${active.length}件）</span>
-        </div>
-        <svg class="announce-chevron transition-transform" width="16" height="16" viewBox="0 0 24 24"
-          fill="none" stroke="#0CA1E3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          アナウンス（${active.length}件）
+        </span>
+        <!-- ★announce-chevron は JS が掴んで回す目印。クラス名を変えるならこの onclick も直すこと -->
+        <svg class="announce-chevron" width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
-      <div id="${listId}" class="space-y-2 px-4 pb-3">${cards}</div>
+      <div id="${listId}" class="p-main-board__announce-list">${cards}</div>
     </div>`;
 }
 
