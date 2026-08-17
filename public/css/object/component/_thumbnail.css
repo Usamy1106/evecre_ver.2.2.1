@@ -28,3 +28,8 @@
   height: 100%;
   object-fit: cover;
 }
+
+/* 横並びリストの小さいサムネイル（角丸を控えめにする）*/
+.c-thumbnail--sm {
+  border-radius: var(--radius-sm);
+}

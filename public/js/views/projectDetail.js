@@ -12,64 +12,60 @@ export function renderProjectDetail(container) {
     .filter(e => e.folderId === folder.id)
     .sort((a, b) => b.createdAt - a.createdAt);
 
+  // スタイル: public/css/object/project/_project-detail.css
   container.innerHTML = `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8]">
-      <!-- ヘッダー -->
-      <div class="sticky top-0 bg-[#FDFBF8] z-30 border-b border-[#E1DFDC]" style="padding-top:env(safe-area-inset-top)">
-        <div class="flex items-center gap-3 px-4 py-3">
-          <button onclick="window._app.setView('HOME')"
-            class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95 flex-shrink-0">
+    <div class="p-project-detail">
+      <header class="p-project-detail__header">
+        <div class="p-project-detail__header-inner">
+          <button type="button" onclick="window._app.setView('HOME')"
+            class="p-project-detail__round-button" aria-label="ホームへ戻る">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
           </button>
-          <div class="flex-1 min-w-0">
-            <h1 class="text-[16px] font-bold text-[#484545] truncate">${_esc(folder.name)}</h1>
-            ${folder.description ? `<p class="text-[11px] text-[#A7AAAC] truncate">${_esc(folder.description)}</p>` : ''}
+          <div class="p-project-detail__titles">
+            <h1 class="p-project-detail__name">${_esc(folder.name)}</h1>
+            ${folder.description ? `<p class="p-project-detail__description">${_esc(folder.description)}</p>` : ''}
           </div>
           <!-- ★ここで作るとそのままこのプロジェクトに格納される（state の selectedFolderId 経由）-->
           ${!!state.currentUser?.isVerified ? `
-            <button onclick="window._app.createEventInFolder('${folder.id}')"
-              class="flex items-center gap-1 text-[12px] font-bold text-[#0CA1E3] px-2.5 py-2 rounded-lg active:opacity-50 flex-shrink-0">
+            <button type="button" onclick="window._app.createEventInFolder('${folder.id}')"
+              class="p-project-detail__add">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
               イベント
             </button>` : ''}
-          <button onclick="window._app.openProjectMenu('${folder.id}')"
-            class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center active:scale-95 flex-shrink-0">
+          <button type="button" onclick="window._app.openProjectMenu('${folder.id}')"
+            class="p-project-detail__round-button" aria-label="プロジェクトのメニュー">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
             </svg>
           </button>
         </div>
-      </div>
+      </header>
       ${Components.VerifyBanner()}
-      <main class="flex-1 px-6 pt-4 pb-36 page-transition">
+      <main class="p-project-detail__main page-transition">
         ${folderEvents.length === 0 ? `
-          <div class="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center">
-            <div class="w-20 h-20 rounded-full bg-[#EBE8E5] flex items-center justify-center">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="1.5">
+          <div class="p-project-detail__empty">
+            <div class="p-project-detail__empty-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
             </div>
-            <p class="text-rs text-[#A7AAAC]">このプロジェクトにイベントがありません</p>
-            <p class="text-[11px] text-[#A7AAAC] mb-2">ここで作るか、イベント一覧から長押しで追加できます</p>
+            <p class="p-project-detail__empty-title">このプロジェクトにイベントがありません</p>
+            <p class="p-project-detail__empty-hint">ここで作るか、イベント一覧から長押しで追加できます</p>
             ${!!state.currentUser?.isVerified ? `
-              <button onclick="window._app.createEventInFolder('${folder.id}')"
-                class="px-6 py-3 rounded-2xl text-white font-bold heading-r shadow-lg active:scale-95 transition-transform"
-                style="background-color:#0CA1E3; box-shadow:0 4px 20px rgba(12,161,227,0.4)">イベントを作成</button>` : ''}
+              <button type="button" onclick="window._app.createEventInFolder('${folder.id}')"
+                class="p-project-detail__empty-action">イベントを作成</button>` : ''}
           </div>
         ` : `
           <section>
-            <h2 class="text-[#484545] heading-m mb-4 pl-1 font-bold">イベント</h2>
+            <h2 class="p-project-detail__heading">イベント</h2>
             ${_renderEventList(folderEvents)}
           </section>
         `}
       </main>
-      <!-- ★右下の＋ボタン（FAB）は廃止した。このフォルダにイベントを足すときは
-           HOME で作成し、イベントを長押し →「プロジェクトに追加」で入れる -->
-      ${''}
     </div>`;
 
   // イベントカードの長押しメニュー（プロジェクトから外す / 名前を変更 / 削除）。
@@ -78,25 +74,21 @@ export function renderProjectDetail(container) {
 }
 
 function _renderEventList(list) {
-  return list.map(p => {
-    return `
+  return list.map(p => `
       <div data-event-card data-event-id="${p.id}"
         onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
-        style="touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;"
-        class="flex items-center gap-4 px-4 py-4 bg-white rounded-2xl shadow-sm mb-3 active:scale-[0.98] transition-transform cursor-pointer border border-[#E1DFDC] select-none">
-        <!-- サムネイル（3:2）。横並びリストなので幅基準で置く -->
-        <div class="w-20 flex-shrink-0">
-          ${Components.EventThumbnail(p, { rounded: 'rounded-lg' })}
+        class="p-project-detail__event">
+        <div class="p-project-detail__event-thumb">
+          ${Components.EventThumbnail(p, { rounded: 'c-thumbnail--sm' })}
         </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-[14px] font-bold text-[#484545] truncate">${_esc(p.name)}</p>
-          ${p.dates?.length ? `<p class="text-[11px] text-[#A7AAAC] mt-0.5">${p.dates[0]}${p.dates.length > 1 ? ` 〜 ${p.dates[p.dates.length - 1]}` : ''}</p>` : ''}
+        <div class="p-project-detail__event-body">
+          <p class="p-project-detail__event-name">${_esc(p.name)}</p>
+          ${p.dates?.length ? `<p class="p-project-detail__event-dates">${p.dates[0]}${p.dates.length > 1 ? ` 〜 ${p.dates[p.dates.length - 1]}` : ''}</p>` : ''}
         </div>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2">
+        <svg class="p-project-detail__event-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="9 18 15 12 9 6"/>
         </svg>
-      </div>`;
-  }).join('');
+      </div>`).join('');
 }
 
 function _esc(s) {

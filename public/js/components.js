@@ -260,7 +260,8 @@ export const Components = {
    */
   EventThumbnail(project, opts = {}) {
     const extra   = opts.className || '';
-    const rounded = opts.rounded ?? 'rounded-xl';
+    // ★rounded は追加の角丸クラス（c-thumbnail--sm など）。既定の角丸は .c-thumbnail が持つ
+    const rounded = opts.rounded ?? '';
     const visual  = getEventMainVisual(project);
     const inner = visual
       ? `<img src="${visual}" alt="" class="c-thumbnail__image" loading="lazy">`

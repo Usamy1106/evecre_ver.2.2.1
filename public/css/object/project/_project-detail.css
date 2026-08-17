@@ -1,0 +1,212 @@
+/* ==========================================================================
+   Object / Project / project-detail — プロジェクト（フォルダ）詳細
+   使用箇所: public/js/views/projectDetail.js
+
+   ★右下の＋ボタン（FAB）は廃止済み。イベントを足す導線はヘッダーの
+     「＋イベント」（そのままこのフォルダに格納される）と、HOME で作成 →
+     イベント長押し →「プロジェクトに追加」の2つ。
+   ========================================================================== */
+
+.p-project-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+/* --- ヘッダー ------------------------------------------------------------
+   ★standalone ではステータスバー領域にコンテンツが潜るため safe-top を足す。
+     ブラウザ表示では env() が 0 なので見た目は変わらない。 */
+
+.p-project-detail__header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header-stack);
+  padding-top: var(--safe-top);
+  border-bottom: 1px solid var(--bg-textbox);
+  background-color: var(--color-bg);
+}
+
+.p-project-detail__header-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+
+.p-project-detail__round-button {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background-color: rgba(0, 0, 0, .05);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-project-detail__round-button:active {
+  transform: scale(.95);
+}
+
+.p-project-detail__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-project-detail__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-project-detail__description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ヘッダーの「＋イベント」。ここで作るとそのままこのフォルダに格納される */
+.p-project-detail__add {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-project-detail__add:active {
+  opacity: .5;
+}
+
+/* --- 本文 ---------------------------------------------------------------- */
+
+.p-project-detail__main {
+  flex: 1;
+  padding: var(--space-4) var(--space-6) 144px;
+}
+
+.p-project-detail__heading {
+  margin-bottom: var(--space-4);
+  padding-left: var(--space-1);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* --- 空状態 -------------------------------------------------------------- */
+
+.p-project-detail__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.p-project-detail__empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-full);
+  background-color: var(--button-secondary);
+  color: var(--color-text-muted);
+}
+
+.p-project-detail__empty-title {
+  font-size: var(--font-size-md);
+  color: var(--color-text-muted);
+}
+
+.p-project-detail__empty-hint {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-project-detail__empty-action {
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-primary);
+  box-shadow: 0 4px 20px rgba(12, 161, 227, .4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-project-detail__empty-action:active {
+  transform: scale(.95);
+}
+
+/* --- イベントのリスト ----------------------------------------------------
+   ★長押しでメニューが出る（modals/eventActions.js が data-event-card を掴む）。
+     長押し中に文字が選択されたりリンクのプレビューが出ないよう、
+     user-select と touch-callout を止めている。 */
+
+.p-project-detail__event {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-project-detail__event:active {
+  transform: scale(.98);
+}
+
+/* サムネイルは 3:2 なので、横並びリストでは幅を決めて置く */
+.p-project-detail__event-thumb {
+  flex-shrink: 0;
+  width: 80px;
+}
+
+.p-project-detail__event-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-project-detail__event-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-project-detail__event-dates {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-project-detail__event-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
