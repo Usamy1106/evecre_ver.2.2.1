@@ -1,0 +1,194 @@
+/* ==========================================================================
+   Object / Project / signup — アカウント作成フロー（STEP 0〜8＋完了カード）
+   使用箇所: public/js/views/signup.js
+
+   STEP 0 入口 / 1 メール / 2 パスワード / 3 ワンタイムコード /
+   4 表示名 / 5 アバター / 6 流入経路 / 7 運営経験 / 8 診断 / COMPLETE
+
+   ★1ステップごとに PATCH /api/account/onboarding で即時保存する。
+     まとめて保存すると途中離脱で全部消える。
+   ★ログイン前の共通ガワ（p-auth）とは別。こちらは戻るボタン付きで
+     1問ずつ出す形なので、独立させてある。
+   ========================================================================== */
+
+.p-signup {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+}
+
+.p-signup__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: var(--space-10) var(--space-6) var(--space-8);
+}
+
+/* 戻るボタン。先頭のステップでは高さだけ確保して位置を揃える */
+.p-signup__back {
+  align-self: flex-start;
+  margin-bottom: var(--space-1);
+  margin-left: calc(var(--space-2) * -1);
+  padding: var(--space-2);
+  color: var(--color-text);
+}
+
+.p-signup__back-spacer {
+  height: 36px;
+}
+
+.p-signup__title {
+  margin-bottom: var(--space-2);
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-signup__lead {
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-signup__lead--relaxed {
+  line-height: 1.625;
+}
+
+.p-signup__note {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+.p-signup__note--indent {
+  margin-bottom: var(--space-6);
+  padding-left: var(--space-8);
+}
+
+/* --- エラー -------------------------------------------------------------
+   ★その画面が個別に描画しないエラーも必ず出す（_otherErrorsHtml）。
+     これが無いと「サーバーはエラーを返しているのに画面に何も出ない」状態になり、
+     ボタンを押しても無反応にしか見えない。実際にそれで詰まった。 */
+
+.p-signup__error {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-danger);
+}
+
+.p-signup__error--center {
+  margin-bottom: var(--space-4);
+  text-align: center;
+}
+
+/* --- ボタン -------------------------------------------------------------- */
+
+.p-signup__submit {
+  width: 100%;
+  margin-bottom: var(--space-3);
+  padding-block: 14px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-signup__submit:disabled {
+  opacity: .5;
+}
+
+/* 主導線ではないもの（メールではじめる・スキップ）*/
+.p-signup__text-button {
+  width: 100%;
+  padding-block: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.p-signup__text-button--spaced {
+  margin-bottom: var(--space-8);
+}
+
+.p-signup__skip {
+  width: 100%;
+  padding-block: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-signup__footer {
+  margin-top: auto;
+  padding-top: var(--space-6);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-signup__link {
+  color: var(--color-primary);
+}
+
+.p-signup__link--inline {
+  margin-left: var(--space-1);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-signup__link--underline {
+  text-decoration: underline;
+}
+
+/* --- Google（GIS のボタンは見た目を変えられない）-------------------------- */
+
+.p-signup__google-section {
+  margin-bottom: var(--space-4);
+}
+
+.p-signup__google-wrap {
+  position: relative;
+}
+
+.p-signup__google {
+  display: flex;
+  justify-content: center;
+}
+
+/* 同意前はクリックを受け止めて案内する（GIS のボタン自体は disabled にできない）*/
+.p-signup__google-guard {
+  position: absolute;
+  inset: 0;
+  cursor: not-allowed;
+}
+
+/* --- 規約同意 ------------------------------------------------------------ */
+
+.p-signup__consent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  cursor: pointer;
+}
+
+.p-signup__consent-box {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+
+.p-signup__consent-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text);
+}

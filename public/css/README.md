@@ -69,6 +69,7 @@
 | フォームの1項目（ラベル・エラー・`is-error`） | `object/component/_field.css` |
 | 読み込み中のくるくる（`c-spinner`） | `object/component/_spinner.css` |
 | 招待の中身（参加中メンバー・意気込み） | `object/component/_invite-preview.css` |
+| ワンタイムコードのマス目入力 | `object/component/_otp-input.css` |
 | 設定の1項目（カード型・一覧型どちらも） | `object/component/_settings-card.css` |
 | 長押し・右クリックのメニュー | `object/component/_context-menu.css` |
 | リアクションの絵文字を選ぶシート | `object/component/_emoji-picker.css` |
@@ -84,6 +85,7 @@
 | メインボードのメインタブ（日付チップ・提案・ミッションカード） | `object/project/_main-board.css` |
 | アーカイブタブ（概要カード・ミッションの記録） | `object/project/_archive.css` |
 | 通知タブ（応募待ち・確認待ち・通知一覧） | `object/project/_notification.css` |
+| アカウント作成フロー（STEP 0〜8） | `object/project/_signup.css` |
 | モーダルのフェードイン（`animate-fadeIn`） | `object/utility/_animation.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`no-scrollbar`） | `object/utility/_scroll.css` |
@@ -130,6 +132,10 @@
 | クラス | 掴んでいる場所 | 用途 |
 |---|---|---|
 | `js-mountain-sticky` | `mountainPath.js` | ヘッダー＋タブの下端を測り、山ビジュアルの上端を合わせる |
+| `[data-otp-box]` | `views/signup.js` | ワンタイムコードのマスを引く（旧 `.flex > div`）|
+| `notif-swipe-card` | `views/mainBoard.js` | 通知の横スワイプ削除の対象 |
+| `announce-chevron` | `views/mainBoard.js` | アナウンス折りたたみの矢印を回す |
+| `archive-section-body` / `-arrow` | `main.js` | アーカイブのカテゴリ折りたたみ |
 
 ---
 
@@ -230,6 +236,7 @@ public/css/
 │  ├─ _field.css                ✅ c-field / c-input--block / .is-error
 │  ├─ _spinner.css              ✅ c-spinner
 │  ├─ _invite-preview.css       ✅ c-invite-members / c-invite-motivation
+│  ├─ _otp-input.css            ✅ c-otp（[data-otp-box]）
 │  ├─ _settings-card.css        ✅ c-settings-card / c-settings-list
 │  ├─ _context-menu.css         ✅ c-context-menu
 │  ├─ _emoji-picker.css         ✅ c-emoji-picker
@@ -250,6 +257,7 @@ public/css/
 │  ├─ _main-board.css           ✅ メインタブ・バナー・アナウンス
 │  ├─ _archive.css              ✅ アーカイブタブ
 │  ├─ _notification.css         ✅ 通知タブ
+│  ├─ _signup.css               🔶 ガワと STEP 0（残りは次）
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _invite / _mountain / _onboarding      ⬜ Phase 3〜4
 │
 └─ object/utility/

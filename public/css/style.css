@@ -45,6 +45,7 @@
 @import url("./object/component/_field.css");
 @import url("./object/component/_spinner.css");
 @import url("./object/component/_settings-card.css");
+@import url("./object/component/_otp-input.css");
 @import url("./object/component/_invite-preview.css");
 @import url("./object/component/_context-menu.css");
 @import url("./object/component/_emoji-picker.css");
@@ -54,6 +55,7 @@
 @import url("./object/project/_main-board.css");
 @import url("./object/project/_archive.css");
 @import url("./object/project/_notification.css");
+@import url("./object/project/_signup.css");
 @import url("./object/project/_event-settings.css");
 @import url("./object/project/_mission-detail.css");
 @import url("./object/project/_create-event.css");

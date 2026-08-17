@@ -79,14 +79,14 @@ function _dots(step) {
 
 function _shell(inner, { back = null } = {}) {
   return `
-    <div class="flex flex-col min-h-screen bg-[#FDFBF8] page-transition">
-      <main class="flex-1 px-6 pt-10 pb-8 flex flex-col">
+    <div class="p-signup page-transition">
+      <main class="p-signup__main">
         ${back ? `
-          <button id="su-back" class="self-start p-2 -ml-2 mb-1" aria-label="戻る">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#484545" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button type="button" id="su-back" class="p-signup__back" aria-label="戻る">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
-          </button>` : '<div class="h-9"></div>'}
+          </button>` : '<div class="p-signup__back-spacer"></div>'}
         ${inner}
       </main>
     </div>`;
@@ -111,7 +111,7 @@ function _otherErrorsHtml(errors, handled = []) {
     .map(([, v]) => v);
   if (msgs.length === 0) return '';
   return msgs.map(m =>
-    `<p class="text-[12px] text-[#EE3E12] font-bold mb-2 leading-relaxed">${_esc(m)}</p>`).join('');
+    `<p class="p-signup__error">${_esc(m)}</p>`).join('');
 }
 
 // =====================================================
@@ -170,42 +170,42 @@ function _goto(step) {
 
 function _renderEntry(container, d) {
   container.innerHTML = _shell(`
-    <h1 class="heading-l text-[#484545] font-bold text-center mb-2">イベクリをはじめる</h1>
-    <p class="text-rs text-[#A7AAAC] text-center mb-6 font-bold">アカウントを作成して、イベントづくりを始めましょう</p>
+    <h1 class="p-signup__title">イベクリをはじめる</h1>
+    <p class="p-signup__lead">アカウントを作成して、イベントづくりを始めましょう</p>
 
     ${_inviteContextBanner()}
 
     <!-- Google を最上部・主導線に。GIS の renderButton は見た目の自由度が低いため、
          幅を広げ、周囲の余白で主導線に見せる -->
-    <div id="ca-google-section" class="hidden mb-4">
-      <div id="su-google-wrap" class="relative">
-        <div id="ca-google-btn" class="flex justify-center"></div>
+    <div id="ca-google-section" class="hidden p-signup__google-section">
+      <div id="su-google-wrap" class="p-signup__google-wrap">
+        <div id="ca-google-btn" class="p-signup__google"></div>
         <!-- 同意前はクリックを受け止めて案内する（GIS のボタン自体は disabled にできない） -->
-        <div id="su-google-guard" class="absolute inset-0 ${d.consented ? 'hidden' : ''}" style="cursor:not-allowed"></div>
+        <div id="su-google-guard" class="p-signup__google-guard ${d.consented ? 'hidden' : ''}"></div>
       </div>
     </div>
 
-    <button id="su-email-start"
-      class="w-full py-3 text-rs text-[#0CA1E3] font-bold underline mb-8">
+    <button type="button" id="su-email-start"
+      class="p-signup__text-button p-signup__text-button--spaced">
       メールアドレスではじめる
     </button>
 
     <!-- 規約同意 -->
-    <label class="flex items-start gap-3 mb-3 cursor-pointer">
-      <input type="checkbox" id="su-consent" class="mt-0.5 w-5 h-5 accent-[#0CA1E3] flex-shrink-0" ${d.consented ? 'checked' : ''}>
-      <span class="text-[12px] text-[#484545] font-bold leading-relaxed">
-        <button type="button" id="su-terms" class="text-[#0CA1E3] underline">利用規約</button>と<button type="button" id="su-privacy" class="text-[#0CA1E3] underline">プライバシーポリシー</button>に同意します
+    <label class="p-signup__consent">
+      <input type="checkbox" id="su-consent" class="p-signup__consent-box" ${d.consented ? 'checked' : ''}>
+      <span class="p-signup__consent-text">
+        <button type="button" id="su-terms" class="p-signup__link p-signup__link--underline">利用規約</button>と<button type="button" id="su-privacy" class="p-signup__link p-signup__link--underline">プライバシーポリシー</button>に同意します
       </span>
     </label>
-    <p class="text-[11px] text-[#A7AAAC] font-bold leading-relaxed mb-6 pl-8">
+    <p class="p-signup__note p-signup__note--indent">
       入力内容は、イベント運営の改善とマッチングに使います。
     </p>
 
-    ${d.errors._consent ? `<p class="text-[12px] text-[#EE3E12] text-center font-bold mb-4">${_esc(d.errors._consent)}</p>` : ''}
+    ${d.errors._consent ? `<p class="p-signup__error p-signup__error--center">${_esc(d.errors._consent)}</p>` : ''}
 
-    <p class="text-center text-rs text-[#484545] font-bold mt-auto pt-6">
+    <p class="p-signup__footer">
       アカウントをお持ちですか？
-      <button id="su-go-login" class="text-[#0CA1E3] font-bold ml-1">ログイン</button>
+      <button type="button" id="su-go-login" class="p-signup__link p-signup__link--inline">ログイン</button>
     </p>
   `);
 
@@ -504,25 +504,23 @@ function _renderOtp(container, d) {
          （autocomplete="one-time-code"）とペーストが標準どおり動く。
          6個の input に分けるとペーストの分配処理やバックスペースの制御が必要になり、
          かつ自動入力が効かなくなる端末がある。 -->
-    <div id="su-otp-boxes" class="relative mb-3">
-      <div class="flex gap-2 justify-between pointer-events-none">
+    <div id="su-otp-boxes" class="c-otp">
+      <div class="c-otp__boxes">
         ${chars.map((c, i) => `
-          <div class="flex-1 aspect-square max-w-[52px] rounded-xl flex items-center justify-center text-[24px] font-bold
-                      ${d.otpError ? 'bg-[#EE3E12]/5 ring-2 ring-[#EE3E12]'
-                        : i === focusIdx ? 'bg-white ring-2 ring-[#0CA1E3]' : 'bg-[#E1DFDC]'}
-                      text-[#484545]">${c.trim() ? _esc(c) : ''}</div>`).join('')}
+          <div data-otp-box class="c-otp__box${
+            d.otpError ? ' is-error' : i === focusIdx ? ' is-focus' : ''
+          }">${c.trim() ? _esc(c) : ''}</div>`).join('')}
       </div>
       <input id="su-otp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="${OTP_LENGTH}"
         autocomplete="one-time-code" aria-label="確認コード"
-        class="absolute inset-0 w-full h-full opacity-0"
-        style="font-size:16px" value="${_esc(d.otp)}">
+        class="c-otp__input" value="${_esc(d.otp)}">
     </div>
 
     ${d.mailError ? `<p class="text-[11px] text-[#EE3E12] mb-2 font-bold">⚠ メール送信に失敗：${_esc(d.mailError)}</p>` : ''}
     ${d.devCode ? `<p class="text-[11px] text-[#A7AAAC] mb-2 font-bold">（開発用）コード: ${_esc(d.devCode)}</p>` : ''}
     ${d.otpError ? `<p class="text-[12px] text-[#EE3E12] mb-2 font-bold leading-relaxed">${_esc(d.otpError)}</p>` : ''}
 
-    <button id="su-otp-submit" class="c-button c-button--primary w-full py-3.5 heading-rs font-bold mb-3">認証する</button>
+    <button id="su-otp-submit" class="c-button c-button--primary p-signup__submit">認証する</button>
 
     <button id="su-otp-resend" class="w-full py-2 text-[12px] font-bold text-[#0CA1E3] disabled:text-[#A7AAAC] mb-1">
       ${d.resendLeftSec > 0 ? `コードを再送する（${d.resendLeftSec}秒）` : 'コードを再送する'}
@@ -650,12 +648,15 @@ async function _changeSignupEmail(d) {
 function _paintBoxes(d) {
   const wrap = document.getElementById('su-otp-boxes');
   if (!wrap) return;
-  const boxes = wrap.querySelectorAll('.flex > div');
+  // ★[data-otp-box] で引く。以前は '.flex > div' という Tailwind の
+  //   ユーティリティ＋構造依存で引いており、flex を外した瞬間や中の div を
+  //   1つ増やした瞬間に無言で壊れる状態だった。
+  const boxes = wrap.querySelectorAll('[data-otp-box]');
   const focusIdx = Math.min(d.otp.length, OTP_LENGTH - 1);
   boxes.forEach((el, i) => {
     el.textContent = d.otp[i] || '';
-    el.className = `flex-1 aspect-square max-w-[52px] rounded-xl flex items-center justify-center text-[24px] font-bold text-[#484545] `
-      + (i === focusIdx ? 'bg-white ring-2 ring-[#0CA1E3]' : 'bg-[#E1DFDC]');
+    el.classList.toggle('is-focus', i === focusIdx);
+    el.classList.remove('is-error');   // 打ち直したらエラー表示を消す
   });
 }
 
