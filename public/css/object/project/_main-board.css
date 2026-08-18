@@ -600,8 +600,11 @@
 
 /* --- アナウンスカード ----------------------------------------------------
    ★announce を付けたミッションを上部に出す。タップでミッション詳細へ。
-   ★複数あるときは折りたたむ。開閉は JS が inline style で切り替え、
-     矢印は .p-main-board__announce-chevron を掴んで回す（クラス名を変えるなら JS も直す）。 */
+   ★2件以上あるときは、いちばん新しい1件だけを常に見せ、残りはプルダウンの
+     中に隠す。全部並べるとボードの上半分がアナウンスで埋まり、肝心の
+     ミッションが見えなくなる。
+   ★開閉状態は mainBoard.js のモジュール変数が持つ（DOM の style で持つと
+     SSE の再描画のたびに畳まれる）。矢印の向きは .is-open で切り替える。 */
 
 .p-main-board__announce {
   overflow: hidden;
@@ -623,8 +626,8 @@
   background-color: var(--color-primary-pale4);
 }
 
-/* 折りたたみの中に入るカードは自前の枠を持たない */
-.p-main-board__announce-list .p-main-board__announce-card {
+/* 枠の中に入るカード（1件目・プルダウンの中）は自前の枠を持たない */
+.p-main-board__announce .p-main-board__announce-card {
   border: 0;
   border-radius: var(--radius-md);
 }
@@ -680,12 +683,14 @@
   gap: var(--space-3);
 }
 
+/* 1件目とプルダウンの境目。線を引いて「ここから先は隠れている」と示す */
 .p-main-board__announce-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-primary-half2);
   color: var(--color-primary);
   transition: background-color var(--duration-fast) var(--ease);
 }
@@ -710,9 +715,14 @@
   margin-top: var(--space-2);
 }
 
-/* JS が transform で回す。transition だけ CSS が持つ */
+/* 閉じているときは右向き、開いたら下向き */
 .p-main-board__announce-chevron {
+  transform: rotate(-90deg);
   transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-main-board__announce-chevron.is-open {
+  transform: rotate(0deg);
 }
 
 /* アナウンスカードの中では1段小さくする */

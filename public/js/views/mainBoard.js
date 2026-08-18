@@ -183,6 +183,15 @@ export function renderMainBoard(container) {
 // 下部パネル（提案＋ミッション一覧）の開閉状態。再レンダリングをまたいで保持する。
 let _missionPanelExpanded = false;
 
+// アナウンスが2件以上あるときの「他N件」を開いているか。
+// ★モジュール変数で保つ（_missionPanelExpanded と同じ方式）。ローカル変数や
+//   DOM の style だけで持つと、SSE の再描画のたびに勝手に畳まれてしまう。
+let _announceExpanded = false;
+export function toggleAnnounceList() {
+  _announceExpanded = !_announceExpanded;
+  state.render();
+}
+
 // 下部パネルのドラッグ配線（ハンドルのみ・上下2スナップ）。app の他シートと同様、
 // ハンドル限定にしてパネル本体のスクロールとジェスチャが競合しないようにする。
 function _initMissionPanelDrag() {
@@ -672,35 +681,36 @@ function _renderAnnounceCards(p, meId) {
       </div>
     </div>`;
 
+  // 1件だけ：説明も出す（2行で打ち切る）
   if (active.length === 1) {
     return cardHtml(active[0], true);
   }
 
-  // 複数の場合：折りたたみ式
-  const listId = 'announce-list-' + (p.id || 'x');
-  const cards = active.map(m => cardHtml(m, false)).join('');
+  // ★2件以上：いちばん新しい1件だけを常に見せ、残りはプルダウンの中に隠す。
+  //   全部並べるとボードの上半分がアナウンスで埋まり、肝心のミッションが
+  //   見えなくなる。並びは新しい順（active は createdAt の降順）。
+  const [newest, ...rest] = active;
   return `
     <div class="p-main-board__announce">
-      <button type="button" onclick="
-        const el=document.getElementById('${listId}');
-        const icon=this.querySelector('.p-main-board__announce-chevron');
-        if(el.style.display==='none'){el.style.display='';icon.style.transform='rotate(0deg)';}
-        else{el.style.display='none';icon.style.transform='rotate(-90deg)';}
-      " class="p-main-board__announce-toggle">
+      ${cardHtml(newest, false)}
+      <button type="button" onclick="window._app.toggleAnnounceList()"
+        class="p-main-board__announce-toggle">
         <span class="p-main-board__announce-toggle-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
-          アナウンス（${active.length}件）
+          ${_announceExpanded ? '他のアナウンスを隠す' : `他のアナウンス${rest.length}件を見る`}
         </span>
-        <!-- ★p-main-board__announce-chevron は JS が掴んで回す目印。クラス名を変えるならこの onclick も直すこと -->
-        <svg class="p-main-board__announce-chevron" width="16" height="16" viewBox="0 0 24 24"
+        <svg class="p-main-board__announce-chevron${_announceExpanded ? ' is-open' : ''}"
+          width="16" height="16" viewBox="0 0 24 24"
           fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
-      <div id="${listId}" class="p-main-board__announce-list">${cards}</div>
+      ${_announceExpanded
+        ? `<div class="p-main-board__announce-list">${rest.map(m => cardHtml(m, false)).join('')}</div>`
+        : ''}
     </div>`;
 }
 

@@ -14,7 +14,7 @@ import {
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
-import { renderMainBoard }          from './views/mainBoard.js';
+import { renderMainBoard, toggleAnnounceList } from './views/mainBoard.js';
 import { renderWelcome } from './views/welcome.js';
 import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
@@ -760,6 +760,9 @@ window._app = {
   toggleMissionMenu: (e, mid) => toggleMissionMenu(e, mid),
   toggleSortMenu: (e) => toggleSortMenu(e),
   showMissionListModal: () => showMissionListModal(),
+  // アナウンスが2件以上のときの「他N件を見る」。開閉状態は mainBoard.js の
+  // モジュール変数が持つので、SSE の再描画では畳まれない
+  toggleAnnounceList: () => toggleAnnounceList(),
   changeMissionSort: (mode) => changeMissionSort(mode),
 
   // --- ミッション詳細ページ ---
