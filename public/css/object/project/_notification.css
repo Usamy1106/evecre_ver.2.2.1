@@ -117,11 +117,16 @@
   color: var(--color-text-muted);
 }
 
+/* ★1行で打ち切る。ミッション名は長く書けるので、折り返すとカードが縦に伸び、
+   下の「差し戻す／確認完了」ボタンが画面外へ押し出される。全文は詳細で読める。 */
 .p-notification__card-title {
+  overflow: hidden;
   margin-bottom: var(--space-2);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 応募者一覧・提出内容 */
@@ -267,10 +272,20 @@
   min-width: 0;
 }
 
+/* ★行数で打ち切るときは3点セット（display / -webkit-box-orient /
+   -webkit-line-clamp）を必ず揃える。どれか1つでも欠けると効かない。 */
+/* 本文にはミッション名や相手の名前がそのまま入るので、2行で打ち切る。
+   一覧の密度を保つのが目的（全文はタップした先で読める）。 */
 .p-notification__message {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: var(--font-size-sm);
   line-height: 1.375;
   color: var(--color-text);
+  word-break: break-word;
 }
 
 .p-notification__swipe-card.is-unread .p-notification__message {

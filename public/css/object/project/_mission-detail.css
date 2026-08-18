@@ -61,11 +61,19 @@
   padding: var(--space-5) var(--space-6) 128px;
 }
 
+/* ★ここは全文を読む場所なので緩めの3行。1〜2行にすると、長い名前の
+   ミッションで「何をするのか」が見出しから読み取れなくなる。 */
 .p-mission-detail__title {
+  display: -webkit-box;
+  overflow: hidden;
   margin-bottom: var(--space-2);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+  word-break: break-word;
 }
 
 .p-mission-detail__meta {

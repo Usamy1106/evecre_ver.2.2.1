@@ -153,11 +153,18 @@
   margin-bottom: var(--space-1);
 }
 
+/* イベント名がそのまま入る。2行で打ち切って、下のカードを押し出さない。 */
 .p-archive__title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-heavy);
   line-height: 1.375;
   color: var(--color-text);
+  word-break: break-word;
 }
 
 .p-archive__sections > * + * {
