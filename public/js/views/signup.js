@@ -207,7 +207,7 @@ function _renderEntry(container, d) {
       アカウントをお持ちですか？
       <button type="button" id="su-go-login" class="p-signup__link p-signup__link--inline">ログイン</button>
     </p>
-  `);
+  `, { back: true });
 
   const consentEl = document.getElementById('su-consent');
   consentEl.addEventListener('change', (e) => {
@@ -215,7 +215,7 @@ function _renderEntry(container, d) {
     d.consentVersion = e.target.checked ? CONSENT_VERSION : null;
     d.errors = {};
     // Google ボタンのガードだけ更新する（再描画すると GIS を作り直すことになるため）
-    document.getElementById('su-google-guard')?.classList.toggle('hidden', d.consented);
+    document.getElementById('su-google-guard')?.classList.toggle('u-hidden', d.consented);
   });
 
   document.getElementById('su-google-guard')?.addEventListener('click', () => {
@@ -231,6 +231,13 @@ function _renderEntry(container, d) {
     logEvent('signup_started', { method: 'email' });
     _goto(1);
   };
+
+  // 戻る＝入口画面（新規登録 / ログインの2択）へ
+  document.getElementById('su-back')?.addEventListener('click', () => {
+    state.signup = null;
+    state.authErrors = {};
+    state.setView('WELCOME');
+  });
 
   document.getElementById('su-terms').onclick   = () => state.openLegal('terms');
   document.getElementById('su-privacy').onclick = () => state.openLegal('privacy');

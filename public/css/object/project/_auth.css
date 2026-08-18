@@ -220,3 +220,12 @@
 .p-auth__dev-hint code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* 戻るボタン（入口画面へ）。アカウント作成側（p-signup__back）と同じ形 */
+.p-auth__back {
+  align-self: flex-start;
+  margin-bottom: var(--space-1);
+  margin-left: calc(var(--space-2) * -1);
+  padding: var(--space-2);
+  color: var(--color-text);
+}

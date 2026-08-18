@@ -54,7 +54,10 @@ export const state = {
   folders: [],               // プロジェクト（フォルダ）一覧
   selectedFolderId: null,    // 現在表示中のフォルダID
   homeTab: 'EVENTS',         // 'EVENTS' | 'PROJECTS'
-  currentView: 'CREATE_ACCOUNT_INFO',  // 起動時は認証ビュー。me() の結果次第で HOME に遷移
+  // 起動時は入口画面（新規登録 / ログインの2択）。me() の結果次第で HOME に遷移。
+  // ★ここを CREATE_ACCOUNT_INFO に戻さないこと。既存ユーザーが毎回いきなり
+  //   アカウント作成画面から始まり、ログインを探すことになる。
+  currentView: 'WELCOME',
   selectedEventId: null,
   pendingInviteToken: null,            // 招待リンク経由で来た場合のトークン保持
   pendingApprovalMessage: null,        // 承認待ち中メッセージ（HOME で表示）
@@ -251,12 +254,12 @@ export const state = {
         // 通常のログイン後フロー
         await this.loadAfterAuth(/*skipRender*/true);
       } else {
-        console.log('[init] 未ログイン → CREATE_ACCOUNT_INFO');
-        this.currentView = 'CREATE_ACCOUNT_INFO';
+        console.log('[init] 未ログイン → WELCOME');
+        this.currentView = 'WELCOME';
       }
     } catch (e) {
       console.error('[init] エラー:', e);
-      this.currentView = 'CREATE_ACCOUNT_INFO';
+      this.currentView = 'WELCOME';
     }
     this.render();
     this._hideLoading();
@@ -337,7 +340,7 @@ export const state = {
         // 連打 → レート制限 →「ページは開けません」まで連鎖するため、
         // セッションは破棄せず HOME に留める（イベントは次回 render / 操作で再取得）。
         this.currentUser = this.currentUser || null;
-        this.currentView = this.currentUser ? 'HOME' : 'CREATE_ACCOUNT_INFO';
+        this.currentView = this.currentUser ? 'HOME' : 'WELCOME';
         syncRealtime();
         if (!skipRender) this.render();
         return;
@@ -445,7 +448,8 @@ export const state = {
     this.currentUser = null;
     this.events = [];
     this.selectedEventId = null;
-    this.currentView = 'LOGIN';
+    // ★入口へ戻す。別のアカウントで入り直す人も、新しく作る人もここから分かれる
+    this.currentView = 'WELCOME';
     this.render();
   },
 
@@ -473,7 +477,7 @@ export const state = {
     this.pendingApprovalMessage = null;
     this.pendingApprovalInvite = null;
     this.pendingMissionLink = null;
-    this.currentView = 'CREATE_ACCOUNT_INFO';
+    this.currentView = 'WELCOME';
     this.render();
     setTimeout(() => window._app?.showToast?.('アカウントを削除しました', 'info'), 100);
   },
@@ -504,7 +508,7 @@ export const state = {
         console.error('保存エラー:', e);
         if (e?.code === 'unauthorized') {
           this.currentUser = null;
-          this.currentView = 'LOGIN';
+          this.currentView = 'WELCOME';
           this.render();
         } else if (e?.code === 'verification_required') {
           window._app?.showToast('メール認証が完了するまで新規イベントを作成できません。アカウント設定からメール認証を完了してください。', 'error');
@@ -638,7 +642,7 @@ export const state = {
   },
 
   closeLegal() {
-    this.currentView = this.legalReturnView || 'CREATE_ACCOUNT_INFO';
+    this.currentView = this.legalReturnView || 'WELCOME';
     this.legalDoc = null;
     this.legalReturnView = null;
     this.render();

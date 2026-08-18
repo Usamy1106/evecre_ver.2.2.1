@@ -229,6 +229,11 @@ export function renderLogin(container) {
       </main>
     </div>`;
 
+  document.getElementById('lg-back')?.addEventListener('click', () => {
+    state.authErrors = {};
+    state.setView('WELCOME');
+  });
+
   // input だけでなく change も拾う（自動入力はフォーカスアウト時に change を出すことがある）
   for (const [id, key] of Object.entries({ 'lg-id': 'identifier', 'lg-password': 'password' })) {
     const el = document.getElementById(id);

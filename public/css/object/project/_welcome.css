@@ -1,0 +1,73 @@
+/* ==========================================================================
+   Object / Project / welcome — 入口画面（新規登録 / ログイン）
+   使用箇所: public/js/views/welcome.js
+
+   ★未ログインのときに最初に出る画面。ここから
+     「新規登録」→ CREATE_ACCOUNT_INFO、「ログイン」→ LOGIN へ分かれる。
+   ★招待リンクから来た人にはこの画面にも招待バナー（p-auth__invite）が出る。
+     何に参加しようとしているのか分からないまま登録させないため。
+   ========================================================================== */
+
+.p-welcome {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+/* ★横幅は .l-app（#app）が持っている。ここで max-width を重ねないこと。 */
+.p-welcome__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  /* 上下中央に置く。要素が少ないので上詰めだと下が間延びして見える */
+  justify-content: center;
+  /* 下は広め。ホームインジケータにボタンが被らないようにする */
+  padding: var(--space-8) var(--space-6) 48px;
+}
+
+.p-welcome__hero {
+  margin-bottom: var(--space-8);
+  text-align: center;
+}
+
+.p-welcome__logo {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto var(--space-4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.p-welcome__title {
+  margin-bottom: var(--space-2);
+  font-size: 28px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-welcome__lead {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.625;
+  color: var(--color-text-muted);
+}
+
+/* --- ボタン --------------------------------------------------------------
+   ★2つを同じ大きさで縦に並べる。「新規登録」を上に置くが、ログインを
+     小さくしたり文字リンクにしたりしないこと。既存ユーザーが毎回ここを
+     通るので、探させると入口で詰まる。 */
+
+.p-welcome__actions {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-8);
+  gap: var(--space-3);
+}
+
+.p-welcome__button {
+  width: 100%;
+  padding-block: var(--space-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+}

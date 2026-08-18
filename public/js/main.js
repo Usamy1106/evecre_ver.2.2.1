@@ -15,6 +15,7 @@ import {
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
 import { renderMainBoard }          from './views/mainBoard.js';
+import { renderWelcome } from './views/welcome.js';
 import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
 import { renderAccount } from './views/account.js';
@@ -69,6 +70,10 @@ import {
 // ===== ビューレンダラーの登録 =====
 // アカウント作成は STEP 0〜3 の段階フロー（views/signup.js）。
 // 旧1画面版 renderCreateAccountInfo は auth.js に残っているが未使用。
+// ★未ログイン時の入口は WELCOME（新規登録 / ログインの2択）。
+//   ここを CREATE_ACCOUNT_INFO に戻すと、既存ユーザーが毎回いきなり
+//   アカウント作成画面から始まることになる。
+registerRenderer('WELCOME',               renderWelcome);
 registerRenderer('CREATE_ACCOUNT_INFO',   renderSignup);
 registerRenderer('LOGIN',                 renderLogin);
 registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
@@ -1714,6 +1719,8 @@ const _LOG_LABELS = {
   // アカウント作成フロー（views/signup.js）。どのステップで落ちるかを追うため、
   // 画面表示・完了・スキップを別イベントにしている。
   // props の step は 'step1'〜'step9' / 'complete'（サーバーの ONBOARDING_STEPS と同じ値域）。
+  welcome_signup_tapped:  '入口で「新規登録」をタップ',
+  welcome_login_tapped:   '入口で「ログイン」をタップ',
   signup_started:         'アカウント作成を開始',
   signup_step_viewed:     'アカウント作成の画面を表示',
   signup_step_completed:  'アカウント作成の項目を入力',
@@ -1754,6 +1761,9 @@ const _LOG_LABELS = {
   intro_board_coach_done:  'ボードの案内を完了',
   intro_completed:         '初期オンボーディングを完了',
   // ★暫定：既存メンバーのスキル回収（回収後に削除）
+  member_approved_modal_shown:  '参加承認モーダルを表示',
+  member_approved_modal_opened: '参加承認モーダルからイベントを開いた',
+  member_approved_modal_closed: '参加承認モーダルを閉じた',
   skill_collect_shown:     'スキル回収モーダルを表示',
   skill_collect_submitted: 'スキルを回答した',
   skill_collect_skipped:   'スキル回収を「あとで」',

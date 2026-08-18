@@ -95,6 +95,7 @@
 | メインボードのメインタブ（日付チップ・提案・ミッションカード） | `object/project/_main-board.css` |
 | アーカイブタブ（概要カード・ミッションの記録） | `object/project/_archive.css` |
 | 通知タブ（応募待ち・確認待ち・通知一覧） | `object/project/_notification.css` |
+| 入口画面（新規登録 / ログイン） | `object/project/_welcome.css` |
 | アカウント作成フロー（STEP 0〜8） | `object/project/_signup.css` |
 | 山登りパスビジュアル（背景・マス・スクロール窓） | `object/project/_mountain.css` |
 | 参加・招待まわりのモーダル（🔥・招待リンク） | `object/project/_invite.css` |
@@ -287,6 +288,7 @@ public/css/
 │  ├─ _main-board.css           ✅ メインタブ・バナー・アナウンス
 │  ├─ _archive.css              ✅ アーカイブタブ
 │  ├─ _notification.css         ✅ 通知タブ
+│  ├─ _welcome.css              ✅ 入口画面（新規登録 / ログイン）
 │  ├─ _signup.css               ✅ アカウント作成フロー
 │  ├─ _mountain.css             ✅ 山登りパスビジュアル
 │  ├─ _invite.css               ✅ 参加・招待まわりのモーダル
