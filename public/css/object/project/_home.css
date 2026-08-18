@@ -437,3 +437,71 @@
   line-height: 1.625;
   color: var(--color-text);
 }
+
+/* --- 参加申請が届いています（管理者向け）---------------------------------
+   ★イベントページを開かないと気づけなかったので HOME にも出す。
+     申請は放置されるほど相手が離れるため、いちばん最初に目に入る場所に置く。 */
+
+.p-home__request {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-warning-half2);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-warning-pale);
+}
+
+.p-home__request-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.p-home__request-icon {
+  flex-shrink: 0;
+  color: var(--color-warning-dark);
+}
+
+.p-home__request-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.375;
+  color: var(--color-warning-dark);
+}
+
+.p-home__request-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--white);
+  text-align: left;
+}
+
+.p-home__request-row:active {
+  opacity: .7;
+}
+
+/* イベント名は1行で省略する（長い名前でも件数と矢印を押し出さない）*/
+.p-home__request-name {
+  overflow: hidden;
+  flex: 1;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-home__request-count {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-warning-dark);
+}
+
+.p-home__request-arrow {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}

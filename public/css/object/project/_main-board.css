@@ -656,8 +656,17 @@
   color: var(--color-text);
 }
 
+/* ★2行で打ち切って「…」にする。1件だけのときに出る説明で、長文を書く人が
+   いるとカード1枚でボードが埋まってしまう。全文はタップした先の詳細で読める。
+   ★3点セット（display / -webkit-box-orient / -webkit-line-clamp）を揃えること。
+     どれか1つでも欠けると打ち切りが効かない。 */
 .p-main-board__announce-text {
+  display: -webkit-box;
+  overflow: hidden;
   margin-bottom: var(--space-1);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: var(--font-size-xs);
   color: var(--color-text-soft);
   white-space: pre-wrap;

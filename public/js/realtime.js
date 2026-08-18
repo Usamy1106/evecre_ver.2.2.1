@@ -11,6 +11,7 @@
 //   - エコーバック抑止: X-Client-Id を保存に乗せる（main.js 側で fetch をラップ）
 
 import { state } from './state.js';
+import { openMemberApprovedModal } from './modals/memberApprovedModal.js';
 import { clientId } from './clientId.js';
 
 let _es = null;
@@ -66,12 +67,17 @@ export function syncRealtime() {
     });
   });
   // 自分が承認されたとき: 申請中バナーを消し、イベント一覧を再取得してホームに反映
-  _es.addEventListener('memberApproved', async () => {
+  _es.addEventListener('memberApproved', async (e) => {
     try {
+      let eventId = null;
+      try { eventId = JSON.parse(e.data)?.eventId || null; } catch (_) {}
       state.pendingApprovalMessage = null;
       if (state.currentView !== 'HOME') state.currentView = 'HOME';
+      // ★イベント一覧を取り込んでからモーダルを出す。先に出すと、
+      //   モーダルがイベント名を引けず「イベント」としか言えない。
       await state.silentReloadEvents?.();
-      _flashToast('参加が承認されました');
+      if (eventId) openMemberApprovedModal(eventId);
+      else _flashToast('参加が承認されました');
     } catch (_) {}
   });
 

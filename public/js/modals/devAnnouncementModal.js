@@ -170,10 +170,15 @@ function _renderPage(overlay, pages, index, opts = {}) {
 
   // 左右のドラッグでページを移動（ページ単位で無効にできる）
   _bindSwipe(overlay, _swipeEnabled(page) ? {
-    canNext: !isLast,
+    // ★最後のページも左スワイプを受ける（送り先が無いので閉じる）。
+    //   ここを false にすると、最後だけスワイプが効かず「固まった」ように見える。
+    canNext: true,
     canPrev: index > 0,
     // 送り出した向きと逆側から新しいカードが入ってくる
-    onNext: () => _renderPage(overlay, pages, index + 1, { enterFrom: 'right' }),
+    onNext: () => {
+      if (isLast) { overlay.remove(); return; }
+      _renderPage(overlay, pages, index + 1, { enterFrom: 'right' });
+    },
     onPrev: () => _renderPage(overlay, pages, index - 1, { enterFrom: 'left' }),
   } : null);
 

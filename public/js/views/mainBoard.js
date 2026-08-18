@@ -651,7 +651,10 @@ function _renderAnnounceCards(p, meId) {
   // タップでミッション詳細ページを開く（ミッションカードと同挙動）
   const _cardClick = (m) => `onclick="window._app.openMissionDetail('${m.id}')"`;
 
-  const cardHtml = (m) => `
+  // ★説明を出すのは1件のときだけ。複数を畳んで並べるときは、どれが何かを
+  //   拾えることが優先なのでタイトルだけにする（説明まで出すと一覧が縦に伸び、
+  //   ボードが見えなくなる）。
+  const cardHtml = (m, withDesc) => `
     <div ${_cardClick(m)} class="p-main-board__announce-card">
       <div class="p-main-board__announce-body">
         <svg class="p-main-board__announce-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -660,7 +663,8 @@ function _renderAnnounceCards(p, meId) {
         </svg>
         <div class="p-main-board__announce-main">
           <p class="p-main-board__announce-title">${_esc(m.title)}</p>
-          ${m.description ? `<p class="p-main-board__announce-text">${_esc(m.description)}</p>` : ''}
+          ${withDesc && m.description
+            ? `<p class="p-main-board__announce-text">${_esc(m.description)}</p>` : ''}
           <div class="p-main-board__announce-meta">
             ${_deadlineLabel(m)}
           </div>
@@ -669,12 +673,12 @@ function _renderAnnounceCards(p, meId) {
     </div>`;
 
   if (active.length === 1) {
-    return cardHtml(active[0]);
+    return cardHtml(active[0], true);
   }
 
   // 複数の場合：折りたたみ式
   const listId = 'announce-list-' + (p.id || 'x');
-  const cards = active.map(cardHtml).join('');
+  const cards = active.map(m => cardHtml(m, false)).join('');
   return `
     <div class="p-main-board__announce">
       <button type="button" onclick="

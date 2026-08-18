@@ -731,8 +731,15 @@ async function _finish(verifyResp = null) {
   state.authErrors = {};
 
   if (verifyResp?.needsJoinConfirm && verifyResp?.inviteToken) {
+    // ★ここでは開かない。プロフィール作成（STEP 4〜8）を先に済ませ、
+    //   完了カードの「はじめる」で消費する。作成途中に出すと質問の上に
+    //   モーダルが重なって、どちらも進められなくなる。
+    state.pendingJoinConfirm = {
+      token: verifyResp.inviteToken,
+      eventName: verifyResp.pendingEventName || 'イベント',
+      eventId: verifyResp.pendingEventId || '',
+    };
     await state.loadAfterAuth();
-    setTimeout(() => window._app?.openJoinEventModal?.(verifyResp.pendingEventName, verifyResp.inviteToken), 300);
     return;
   }
   if (verifyResp?.pendingEventId) {
@@ -791,13 +798,18 @@ async function _enterProfilePhase() {
   const d = _draft();
   const ob = state.currentUser?.onboarding;
   d.googleRoute = ob?.currentStep === 'step6' && !(ob?.completedSteps || []).includes('step4');
-  d.inviteRoute = !!(state.pendingInviteToken || state.inviteContextForAuth);
+  // ★参加確認を予約済み（招待リンク経由でアカウントを作った直後）も招待経路とみなす。
+  //   loadAfterAuth が pendingInviteToken を消費した後にここへ来るため、
+  //   この条件が無いと「どこで知りましたか？」を聞いてしまう。
+  d.inviteRoute = !!(state.pendingInviteToken || state.inviteContextForAuth ||
+                     state.pendingJoinConfirm);
 
   // ★招待経由なら STEP 6（流入経路）は聞かずに自動記録する。聞かずに済むものは聞かない。
   //   ここで済ませること。_gotoProfile の中でやると _normalizeStep が先に STEP 6 を
   //   飛ばしてしまい、到達せず記録漏れになる（実際にそのバグを出した）。
   if (d.inviteRoute && !(ob?.completedSteps || []).includes('step6')) {
-    const eventId = state.inviteContextForAuth?.eventId || '';
+    const eventId = state.inviteContextForAuth?.eventId ||
+                    state.pendingJoinConfirm?.eventId || '';
     await _saveStep('step6', true, {
       acquisitionChannel: 'invite',
       ...(eventId ? { acquisitionInviteEventId: String(eventId) } : {}),
@@ -1382,9 +1394,14 @@ function _renderComplete(container, d) {
     window.scrollTo(0, 0);
   });
   document.getElementById('cc-start').onclick = () => {
-    // HOME に着いてから、ホーム画面追加→通知の案内を順に出す（modals/pushSetupModal.js）。
-    // オンボーディングの途中では出さない（iOS は追加しないと許可できず流れが切れるため）。
-    state.pendingPushSetup = true;
+    // ★招待リンクから来た人には通知の案内を出さず、参加申請を先に済ませてもらう。
+    //   通知は参加後にいくらでも案内できるが、参加申請はこの流れでしか出せない。
+    //   参加確認モーダルは loadAfterAuth の最後で consumePendingJoinConfirm が開く。
+    if (!state.pendingJoinConfirm) {
+      // HOME に着いてから、ホーム画面追加→通知の案内を順に出す（modals/pushSetupModal.js）。
+      // オンボーディングの途中では出さない（iOS は追加しないと許可できず流れが切れるため）。
+      state.pendingPushSetup = true;
+    }
     _finish();
   };
 }

@@ -174,10 +174,16 @@ export function showUsageModal() {
   document.body.appendChild(overlay);
   logEvent('intro_usage_shown');
 
+  // ★「わかった」ではなく**出した時点**で状態を進める。
+  //   以前は ack でしか記録しておらず、読んでいる途中でアプリを閉じたり
+  //   ホームへ移ったりすると、次に開いたときにまた①から出ていた。
+  //   ①は一度読めば足りる案内なので、出したら二度目は出さない。
+  //   （USAGE は「①済み・②待ち」の意味なので、次は②から再開する）
+  advanceIntro(INTRO.USAGE);
+
   overlay.querySelector('[data-intro="ack"]').onclick = () => {
     logEvent('intro_usage_ack');
     overlay.remove();
-    advanceIntro(INTRO.USAGE);
     // ★閉じるアニメーションと重ならないよう1フレーム置いてから②へ
     requestAnimationFrame(() => showFabCoach());
   };
@@ -233,9 +239,19 @@ function isCoachOpen() {
   return !!document.getElementById('coach-mark-overlay');
 }
 
-/** イントロを中断する（画面遷移などで呼ぶ） */
+/**
+ * イントロの表示だけを畳む（画面遷移のときに state.setView から呼ぶ）。
+ *
+ * ★進行状態（localStorage）には触らない。ホームへ移動しても、戻ってきたら
+ *   同じ段階から再開できる必要があるため。
+ * ★これを呼ばないと、コーチマークのオーバーレイが body に残ったままホームに
+ *   重なり、さらに次に戻ったとき isCoachOpen() が真になって②が出せなくなる
+ *   （＝以後まったく進めなくなる）。
+ */
 export function abortIntroVisuals() {
   closeCoachMark();
+  closeTooltipTour();
+  document.getElementById(USAGE_ID)?.remove();
   setIntroRunning(false);
 }
 

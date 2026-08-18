@@ -54,7 +54,7 @@ import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/
 import { openJoinFormModal } from './modals/joinFormModal.js';
 import { SKILL_TAGS } from './constants.js';
 import { checkOnboarding } from './onboarding.js';
-import { checkIntro } from './onboardingIntro.js';
+import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 // ★暫定：既存メンバーのスキル回収。回収が済んだらこの import ごと削除する
@@ -1042,6 +1042,11 @@ window._app = {
     if (state._infoModalShownForEvent === p.id) return;
     // モーダルが既に開いていたら何もしない
     if (document.getElementById('info-modal-overlay')) return;
+    // ★ミッションを作成・編集している最中には割り込まない。
+    //   入力途中に全画面モーダルの上から別のモーダルが出ると、書きかけが
+    //   見えなくなるうえ「表示済み」の印が付いて二度と出なくなる。
+    //   フラグを立てずに帰るので、モーダルを閉じた次の render() で再判定される。
+    if (document.getElementById('mission-overlay')) return;
 
     // 優先度順に確認
     const pendingMembers = p.pendingMembers || [];
@@ -1133,6 +1138,9 @@ window._app = {
   checkOnboarding: () => checkOnboarding(),
   // 初期オンボーディング（イベント作成直後のチュートリアル）
   checkIntro: () => checkIntro(),
+  // ★イベントページを離れるとき state.setView から呼ばれる。表示だけ畳み、
+  //   進行状態は残すので、戻ってきたら同じ段階から再開する。
+  abortIntroVisuals: () => abortIntroVisuals(),
   openLeaderMotivationModal:  () => openLeaderMotivationModal(),
 
   // --- 開催日リマインドモーダル（全メンバー向け・初日/最終日翌日）---

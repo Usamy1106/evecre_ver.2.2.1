@@ -42,6 +42,11 @@ function _esc(s) {
  */
 export function needsSkillCollect(project, userId) {
   if (!project || !userId) return false;
+  // ★イベントを作った本人には聞かない。オーナーは参加申請フォームを通らないので
+  //   必ず未回答になり、自分で作ったイベントを開くたびに聞かれてしまう。
+  //   おすすめは「リーダーが誰に頼むか」を助ける機能なので、リーダー自身の
+  //   スキルは要らない。
+  if (project.ownerId && project.ownerId === userId) return false;
   const me = (project.members || []).find(m => m.userId === userId);
   if (!me) return false;
   if (me.joinedAnswersAt) return false;

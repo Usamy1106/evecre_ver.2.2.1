@@ -21,6 +21,7 @@ export function renderHome(container) {
            HOME から辿り直せる導線を常設している -->
       <div class="p-home__notice">${pushBannerHtml()}</div>
       ${state.pendingApprovalMessage ? _pendingApprovalCard() : ''}
+      ${_incomingRequestsCard()}
       <nav class="p-home__tabs">
         <button type="button" onclick="window._app.setHomeTab('EVENTS')"
           class="p-home__tab${tab === 'EVENTS' ? ' is-active' : ''}">イベント</button>
@@ -39,6 +40,45 @@ export function renderHome(container) {
 
   bindEventLongPress();
   bindFolderLongPress();
+}
+
+/**
+ * 「参加申請が届いています」のアナウンスカード（管理者向け）。
+ *
+ * ★イベントページを開かないと気づけなかったので HOME にも出す。申請は放置される
+ *   ほど相手が離れるため、いちばん最初に目に入る場所に置いている。
+ * ★複数のイベントに届いていることがあるので、イベント名を並べてそれぞれ開ける。
+ */
+function _incomingRequestsCard() {
+  if (!state.currentUser) return '';
+  const targets = (state.events || []).filter(p =>
+    (p.pendingMembers || []).length > 0 && state.canManageCurrentEvent(p.id));
+  if (targets.length === 0) return '';
+
+  const total = targets.reduce((n, p) => n + (p.pendingMembers || []).length, 0);
+  const rows = targets.map(p => `
+    <button type="button" onclick="window._app.setView('MAIN_BOARD', '${_esc(p.id)}')"
+      class="p-home__request-row">
+      <span class="p-home__request-name">${_esc(p.name || 'イベント')}</span>
+      <span class="p-home__request-count">${(p.pendingMembers || []).length}件</span>
+      <svg class="p-home__request-arrow" width="14" height="14" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </button>`).join('');
+
+  return `
+    <div class="p-home__notice p-home__request">
+      <div class="p-home__request-head">
+        <svg class="p-home__request-icon" width="16" height="16" viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
+        </svg>
+        <p class="p-home__request-title">以下のイベントへの参加申請が届いています（${total}件）</p>
+      </div>
+      ${rows}
+    </div>`;
 }
 
 /**

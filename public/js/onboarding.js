@@ -122,11 +122,13 @@ function _suggestMember(p, mission, selfId) {
   const members = (p.members || []).filter(m => m.userId !== selfId && m.username);
   const hit = (key) => members.find(m =>
     (m[key] || []).some(sk => SKILL_TO_MISSION_TAG[sk] === tag));
-  // ★接尾辞まで含めて持たせる（「やってみたい」に「な」を付けると日本語が壊れる）
+  // ★「◯◯さん」に前置きする語なので、体言止めで終わらせる。
+  //   以前は '得意な' / 'やってみたい' で、後者が「やってみたい 田中さん」となり
+  //   意味が通らなかった（田中さんをやってみたい、と読めてしまう）。
   const good = hit('skillsGood');
-  if (good) return { username: good.username, label: '得意な' };
+  if (good) return { username: good.username, label: '得意なメンバー' };
   const want = hit('skillsWant');
-  if (want) return { username: want.username, label: 'やってみたい' };
+  if (want) return { username: want.username, label: 'やってみたいメンバー' };
   return null;
 }
 

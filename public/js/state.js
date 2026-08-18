@@ -68,6 +68,10 @@ export const state = {
   pushSubscribed: null,                // この端末が push を購読済みか（null=未判定）。
                                        // HOME のバナー表示を同期で判定するためのキャッシュ
   pendingPushSetup: false,             // アカウント作成の完了直後に通知セットアップを出す予約
+  // 招待リンクから来た人の「参加しますか？」モーダルの予約 { token, eventName, eventId }。
+  // ★プロフィール作成（STEP 4〜8）が終わってから出す。作成途中に出すと質問の上に
+  //   モーダルが重なり、どちらも進められなくなる（実際にその不具合を出した）。
+  pendingJoinConfirm: null,
   legalDoc: null,                      // LEGAL ビューで表示中の文書 'terms' | 'privacy'
   legalReturnView: null,               // LEGAL を閉じたときに戻るビュー
   mainBoardTab: 'MAIN',
@@ -344,17 +348,25 @@ export const state = {
     if (this.pendingInviteToken) {
       const token = this.pendingInviteToken;
       const eventName = this.inviteContextForAuth?.eventName || this.inviteContextForAuth?.name || 'イベント';
+      const eventId   = this.inviteContextForAuth?.eventId || '';
+      // 未認証ユーザー（新規登録直後）はメール認証後に signup.js の _finish が
+      // needsJoinConfirm レスポンスを受けて予約する。
+      // ここで予約するのは認証済みユーザー（ログイン・Google サインイン）のみ。
+      if (this.currentUser?.isVerified === true) {
+        this.pendingJoinConfirm = { token, eventName, eventId };
+      }
       this.pendingInviteToken = null;
       this.inviteContextForAuth = null;
       this.currentView = 'HOME';
       syncRealtime();
-      if (!skipRender) this.render();
-      // 未認証ユーザー（新規登録直後）はメール認証後に verifyEmailModal.js が
-      // needsJoinConfirm レスポンスを受けて openJoinEventModal を呼ぶ。
-      // ここで開くのは認証済みユーザー（ログイン・Google サインイン）のみ。
-      if (this.currentUser?.isVerified === true) {
-        setTimeout(() => window._app?.openJoinEventModal?.(eventName, token), 300);
+      // ★プロフィール作成が途中ならそちらが先。参加確認は予約したまま持ち越し、
+      //   完了カードの「はじめる」で消費する（signup.js）。
+      if (this._resumeOnboarding && this._resumeOnboarding()) {
+        this._hideLoading();
+        return;
       }
+      if (!skipRender) this.render();
+      this.consumePendingJoinConfirm();
       return;
     }
 
@@ -395,6 +407,18 @@ export const state = {
     this.currentView = 'HOME';
     syncRealtime();
     if (!skipRender) this.render();
+    this.consumePendingJoinConfirm();
+  },
+
+  /**
+   * 予約してある「イベントに参加しますか？」モーダルを開く。
+   * ★プロフィール作成の途中では呼ばないこと（質問の上に重なる）。
+   */
+  consumePendingJoinConfirm() {
+    const j = this.pendingJoinConfirm;
+    if (!j) return;
+    this.pendingJoinConfirm = null;
+    setTimeout(() => window._app?.openJoinEventModal?.(j.eventName, j.token), 300);
   },
 
   // --- 静かに再取得（SSE で他人が招待を承諾した時など） ---
@@ -587,6 +611,12 @@ export const state = {
       this.selectedFolderId = id;
     } else if (view !== 'PROJECT_DETAIL') {
       this.selectedEventId = id;
+    }
+    // ★イベントページを離れるときは初期オンボーディングの表示だけ畳む。
+    //   進行状態は消さないので、戻ってきたら同じ段階から再開する。
+    //   （畳まないとコーチマークがホームに重なり、以後まったく進めなくなる）
+    if (prevView === 'MAIN_BOARD' && view !== 'MAIN_BOARD') {
+      window._app?.abortIntroVisuals?.();
     }
     logEvent('view_changed', { from: prevView, to: view });
     this.currentView = view;
@@ -900,7 +930,10 @@ export const state = {
     // アカウント作成の完了直後：ホーム画面追加 → 通知許可 を順に案内する。
     // ★オンボーディングの途中では出さない（iOS は追加しないと許可できず、
     //   作成途中に共有シートへ誘導すると流れが切れるため）。
-    if (this.currentView === 'HOME' && this.pendingPushSetup && this.currentUser) {
+    // ★招待リンクから来た人には出さない。参加申請を先に済ませてもらう
+    //   （通知の案内は参加後にいくらでも出せるが、参加申請は今しか出せない）。
+    if (this.currentView === 'HOME' && this.pendingPushSetup && this.currentUser &&
+        !this.pendingJoinConfirm) {
       this.pendingPushSetup = false;
       // silent:true … すでにオン／非対応なら何も出さない（自動起動のため）
       setTimeout(() => window._app?.startPushSetup?.('signup_complete', true), 600);
