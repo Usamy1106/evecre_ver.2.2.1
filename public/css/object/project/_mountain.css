@@ -92,6 +92,9 @@
   background-color: var(--color-primary);
 }
 
+/* ★現在この状態は使っていない。マスは「完了数 + 先の1マス」で構成され、
+   確認待ち（pending_leader_check）に対応するマスが無いため。
+   確認待ちをマスで表したくなったときのために定義だけ残してある。 */
 .p-mountain__node--pending {
   border-color: var(--color-warning-quarter);
   background-color: var(--color-warning);

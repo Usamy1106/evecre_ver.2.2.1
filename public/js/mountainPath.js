@@ -11,8 +11,11 @@
 //   持つだけの「スクロール操作の受け皿」。scroll イベントで背景キャンバスを translateY 同期する
 //   （ネイティブ慣性がそのまま効く）。下部パネルが被さった領域はパネル側のスクロールになる。
 //
-// ★円形マスはミッションと連動しない装飾：タップ不可・タイトル無し。ただしマス数はミッション数に
-//   応じて増え、完了ミッション相当のマスは塗りつぶしで進捗が分かる。
+// ★マスは「完了したミッションの数」だけ並び、その先に灰色のマスが1つだけ出る。
+//   ＝1つ完了すると1マス色がつき、次の1マスが現れる。
+//   ★未完了ミッションが何個あっても、先に見えるマスは常に1つだけ。残り全体の長さを
+//     見せないことで、ミッションを追加しても「後退した」ように見えない構造にしてある。
+//   ★したがってマスとミッション一覧は1対1で対応しない（意図的）。タップ不可・タイトル無し。
 //
 // 初期表示は最上部（山頂＝道の先端）。再レンダリングをまたぐスクロール位置保持は
 // mainBoard.js が capture → initMountainPathSync(restoreTop) で復元する。
@@ -55,17 +58,18 @@ function _esc(s) {
 }
 
 // マス列とキャンバス寸法（背景・スクロール窓で共有）
+// ★n は「完了数 + 1」。ミッション数ではない（先に見えるマスは常に1つだけ）。
 function _layout(p) {
-  const missions = [...(p.missions || [])]
-    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  const n = missions.length;
+  const missions = p.missions || [];
+  const clearedCount = missions.filter(m => m.status === 'cleared').length;
+  const n = clearedCount + 1;   // 完了マス + 1個先の灰色マス
   const canvasH = Math.max(
     (typeof window !== 'undefined' ? window.innerHeight : 640) - 120, // 画面全体に見せる最低高
     TOP_PAD + Math.max(n - 1, 0) * NODE_GAP + BOTTOM_PAD + 44,
   );
   const xFor = i => _xAt(i);
   const yFor = i => canvasH - BOTTOM_PAD - i * NODE_GAP;
-  return { missions, n, canvasH, xFor, yFor };
+  return { missionCount: missions.length, clearedCount, n, canvasH, xFor, yFor };
 }
 
 // 小さな山＋旗の山頂マーカー（インラインSVG）
@@ -85,13 +89,13 @@ function _summitSvg(size = 44) {
  * @param {object} p イベント（flat 形式）
  */
 export function renderMountainBg(p) {
-  const { missions, n, canvasH, xFor, yFor } = _layout(p);
+  const { missionCount, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
 
   // 道（マスを結ぶ破線。マスが無い場合はスタート→山頂の直線）
   // ★マスの位置だけを結ぶと、カーブが折れ線に見えてしまう。マスとマスの間も
   //   同じ式で刻んで点を打ち、なめらかな弧として描く。
   const points = [];
-  if (n > 0) {
+  if (n > 1) {
     const STEP = 1 / 8;   // マス1つぶんを8分割
     for (let t = 0; t <= n - 1 + 1e-9; t += STEP) {
       const i = Math.min(t, n - 1);
@@ -107,22 +111,18 @@ export function renderMountainBg(p) {
         stroke-dasharray="1 7" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
     </svg>`;
 
-  // マス＋完了オブジェクト（★装飾のみ。タップ不可・タイトル無し）
-  const nodes = missions.map((m, i) => {
+  // マス（★装飾のみ。タップ不可・タイトル無し）
+  // 下から順に「完了したぶん」を塗り、いちばん上の1つだけ灰色（＝次の1マス）にする。
+  const nodes = Array.from({ length: n }, (_, i) => {
     const x = xFor(i);
     const y = yFor(i);
-    const cleared = m.status === 'cleared';
-    const pending = m.status === 'pending_leader_check';
-    // ★色だけで状態を分けない。完了はチェック、確認待ちは時計のアイコンも入れる
+    const cleared = i < clearedCount;
+    // ★色だけで状態を分けない。完了にはチェックのアイコンも入れる
     const circle = cleared
       ? `<div class="p-mountain__node p-mountain__node--cleared">
            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
          </div>`
-      : pending
-        ? `<div class="p-mountain__node p-mountain__node--pending">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
-           </div>`
-        : `<div class="p-mountain__node"></div>`;
+      : `<div class="p-mountain__node"></div>`;
 
     // ★data-node-y はスクロール時の遠近計算が読む。毎フレーム DOM から
     //   位置を読み直さずに済むよう、描画時に確定した値を持たせておく
@@ -142,7 +142,7 @@ export function renderMountainBg(p) {
   const start = `
     <div class="p-mountain__pin p-mountain__pin--center p-mountain__start" style="top:${canvasH - BOTTOM_PAD + 34}px">スタート</div>`;
 
-  const emptyHint = n === 0
+  const emptyHint = missionCount === 0
     ? `<p class="p-mountain__pin p-mountain__pin--center p-mountain__empty" style="top:220px">ミッションを作ると<br>山頂への道が伸びていきます</p>`
     : '';
 
