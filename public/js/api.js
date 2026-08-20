@@ -113,8 +113,12 @@ export const api = {
   },
 
   // ----- ミッション完了（メンバー可・サーバーで永続化）-----
-  async completeMission(eventId, missionId, { content = '', format = 'text' } = {}) {
-    const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/complete`, { content, format });
+  // struggle / solution / shareable は振り返り（任意）。サーバーが 200 字で切り、
+  // submissions コレクションに保存する（★CRDT 対象外）。
+  async completeMission(eventId, missionId,
+    { content = '', format = 'text', struggle = '', solution = '', shareable = false } = {}) {
+    const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/complete`,
+      { content, format, struggle, solution, shareable });
     return json || { ok: false };
   },
 

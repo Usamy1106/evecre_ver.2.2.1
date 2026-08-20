@@ -62,6 +62,13 @@ export function renderMissionDetail(appEl) {
   const prevClearInput = document.getElementById('clear-input')?.value ?? null;
   const prevImgData    = document.getElementById('preview-img')?.dataset?.base64 || '';
   const prevChecked    = Array.from(document.querySelectorAll('[data-clear-checklist]')).map(cb => !!cb.checked);
+  // ★振り返りも保持する。SSE の再描画で書きかけが消えると、二度と書いてもらえない
+  const prevReflect    = {
+    struggle:  document.getElementById('reflect-struggle')?.value ?? null,
+    solution:  document.getElementById('reflect-solution')?.value ?? null,
+    shareable: document.getElementById('reflect-shareable')?.checked ?? false,
+    open:      document.querySelector('.p-mission-detail__reflect')?.open ?? false,
+  };
   const prevScrollY    = window.scrollY;
   const prevChatScroll = document.getElementById('chat-messages')?.scrollTop ?? 0;
   const hadPage        = !!document.getElementById('mission-detail-page');
@@ -157,6 +164,16 @@ export function renderMissionDetail(appEl) {
     if (prevChecked[idx]) cb.checked = true;
   });
 
+  // 振り返り（開閉状態も戻す。開いて書いていた人を畳まない）
+  const reflectEl = document.querySelector('.p-mission-detail__reflect');
+  if (reflectEl && prevReflect.open) reflectEl.open = true;
+  const rs = document.getElementById('reflect-struggle');
+  const rl = document.getElementById('reflect-solution');
+  const rc = document.getElementById('reflect-shareable');
+  if (rs && prevReflect.struggle !== null) rs.value = prevReflect.struggle;
+  if (rl && prevReflect.solution !== null) rl.value = prevReflect.solution;
+  if (rc) rc.checked = prevReflect.shareable;
+
   // ローカルドラフト（完了入力欄がある場合のみ。復元は入力値保持より先に走らないよう最後に）
   const clearContainer = document.getElementById('clear-mission-modal');
   if (clearContainer) initClearDraft(m.id, clearContainer);
@@ -225,6 +242,7 @@ function _renderClearSection(p, m, canMgr) {
       <div class="p-mission-detail__status">
         <p class="p-mission-detail__status-label">✓ 完了済み</p>
         ${_fmtClearedContent(cd)}
+        ${_reflectionHtml(cd)}
       </div>`;
   }
   if (m.status === 'pending_leader_check') {
@@ -313,8 +331,60 @@ function _renderClearInput(m) {
       </div>
 
       ${checklistHtml}
+      ${_renderReflectionInput()}
       <button type="button" onclick="window._app.submitMissionClear('${m.id}')"
         class="c-button c-button--primary p-mission-detail__submit p-mission-detail__submit--spaced">完了する</button>
+    </div>`;
+}
+
+/**
+ * 振り返りの入力欄（任意）。
+ *
+ * ★完了フローの主動線を邪魔しないよう、既定で畳んでおく。
+ *   ここを開かなくても「完了する」は押せる（必須にすると完了率が落ちる）。
+ * ★入力欄の id は submitMissionClear（modals/helpers.js）が読む。
+ *   通常完了・個別完了の両方から同じ id を使うので、同時に2つ描画しないこと。
+ */
+function _renderReflectionInput() {
+  return `
+    <details class="p-mission-detail__reflect">
+      <summary class="p-mission-detail__reflect-summary">
+        振り返りを残す（任意）
+        <span class="p-mission-detail__reflect-note">あとで引き継ぎに使えます</span>
+      </summary>
+
+      <label class="p-mission-detail__reflect-label" for="reflect-struggle">困ったこと</label>
+      <textarea id="reflect-struggle" maxlength="200" rows="2"
+        class="c-input p-mission-detail__reflect-input"
+        placeholder="例：会場担当者が不在で確認に3日かかった"></textarea>
+
+      <label class="p-mission-detail__reflect-label" for="reflect-solution">どう乗り越えた？</label>
+      <textarea id="reflect-solution" maxlength="200" rows="2"
+        class="c-input p-mission-detail__reflect-input"
+        placeholder="例：事前に担当者名と直通番号を聞いておくべきだった"></textarea>
+
+      <label class="p-mission-detail__reflect-share">
+        <input type="checkbox" id="reflect-shareable" class="p-mission-detail__reflect-check">
+        <span>他の団体にも役立ちそう</span>
+      </label>
+    </details>`;
+}
+
+/** 保存済みの振り返りを読み取り表示する（空なら何も出さない）*/
+function _reflectionHtml(cd) {
+  const struggle = (cd?.struggle || '').trim();
+  const solution = (cd?.solution || '').trim();
+  if (!struggle && !solution) return '';
+  const row = (label, text) => text
+    ? `<div class="p-mission-detail__reflect-row">
+         <p class="p-mission-detail__reflect-row-label">${label}</p>
+         <p class="p-mission-detail__reflect-row-text">${_esc(text)}</p>
+       </div>`
+    : '';
+  return `
+    <div class="p-mission-detail__reflect-view">
+      ${row('困ったこと', struggle)}
+      ${row('どう乗り越えた？', solution)}
     </div>`;
 }
 
@@ -340,6 +410,7 @@ function _renderIndividualSection(p, m, canMgr, meId) {
           <span class="p-mission-detail__member-state${done ? ' is-done' : ''}">${done ? '完了済み' : '未完了'}</span>
         </div>
         ${(done && !m.noInput) ? _fmtClearedContent(cd) : ''}
+        ${done ? _reflectionHtml(cd) : ''}
       </div>`;
   }).join('');
 

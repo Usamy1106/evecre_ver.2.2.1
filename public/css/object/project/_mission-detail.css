@@ -781,3 +781,126 @@
 .p-mission-detail__send:active {
   transform: scale(.95);
 }
+
+/* --- 振り返り（任意入力）--------------------------------------------------
+   使用箇所: public/js/views/missionDetail.js（_renderReflectionInput / _reflectionHtml）
+
+   ★既定で畳んでおく。完了フローの主動線は「入力 → 完了する」で、ここを開かなくても
+     完了できる。必須にすると完了率が落ちるため、開かせる圧をかけないこと。
+   ★<details>/<summary> の素の見た目に頼らず、開閉の三角は自前で描いている
+     （ブラウザごとに位置と大きさが違うため）。 */
+
+.p-mission-detail__reflect {
+  margin-top: var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+}
+
+.p-mission-detail__reflect-summary {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  /* 既定の三角を消して自前のものに差し替える */
+  list-style: none;
+}
+
+.p-mission-detail__reflect-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 自前の開閉マーク。閉じているときは右向き、開いたら下向き */
+.p-mission-detail__reflect-summary::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid var(--color-text-muted);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-mission-detail__reflect[open] .p-mission-detail__reflect-summary::before {
+  transform: rotate(90deg);
+}
+
+/* 「あとで引き継ぎに使えます」。書く理由を添えておく */
+.p-mission-detail__reflect-note {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-mission-detail__reflect-label {
+  display: block;
+  padding: 0 var(--space-4);
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-mission-detail__reflect-input {
+  display: block;
+  width: calc(100% - var(--space-4) * 2);
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  font-size: 13px;
+  resize: none;
+}
+
+.p-mission-detail__reflect-input:focus {
+  outline: none;
+}
+
+.p-mission-detail__reflect-share {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4) var(--space-4);
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-mission-detail__reflect-check {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--color-primary);
+}
+
+/* --- 振り返りの読み取り表示 ----------------------------------------------- */
+
+.p-mission-detail__reflect-view {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--bg-textbox);
+}
+
+.p-mission-detail__reflect-row + .p-mission-detail__reflect-row {
+  margin-top: var(--space-2);
+}
+
+.p-mission-detail__reflect-row-label {
+  margin-bottom: 2px;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-mission-detail__reflect-row-text {
+  font-size: 13px;
+  line-height: 1.625;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -290,7 +290,16 @@ export async function submitMissionClear(missionId) {
   // ── サーバーで永続化 ─────────────────────────────────────
   // PUT /api/data は canManage 必須のため、一般メンバーの完了が保存されず
   // 再読み込みで未完了に戻る不具合があった。完了は専用エンドポイントで永続化する。
-  const r = await api.completeMission(project.id, missionId, { content, format: detectedFormat });
+  // ── 振り返り（任意）──────────────────────────────────────
+  // ★未入力でも完了できる。ここで弾かないこと（必須にすると完了率が落ちる）。
+  //   noInput のミッションには入力欄自体が無いので、要素が無ければ空で送る。
+  const struggle  = (document.getElementById('reflect-struggle')?.value  || '').trim();
+  const solution  = (document.getElementById('reflect-solution')?.value  || '').trim();
+  const shareable = !!document.getElementById('reflect-shareable')?.checked;
+
+  const r = await api.completeMission(project.id, missionId, {
+    content, format: detectedFormat, struggle, solution, shareable,
+  });
   if (!r.ok) {
     window._app?.showToast(r.error || '完了の保存に失敗しました', 'error');
     return;
@@ -301,6 +310,10 @@ export async function submitMissionClear(missionId) {
     tag:      m.tag || (Array.isArray(m.tags) ? m.tags[0] : null),
     format:   detectedFormat,
     priority: m.priority,
+    // ★本文は送らない（行動ログに自由記述を混ぜない）。書かれたかどうかだけ数える
+    hasStruggle: !!struggle,
+    hasSolution: !!solution,
+    shareable,
   });
 
   // 送信成功 → ローカルドラフト破棄

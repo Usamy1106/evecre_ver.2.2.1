@@ -617,6 +617,24 @@ function _setMissionField(p, mid, field, value, ts) {
 // 提出物は format==='image' でも、実体が dataURL とは限らない（R2 アップロード後の
 // URL や、テキスト/リンク形式の完了データも通る）。dataURL のときだけ検証する。
 // @returns {string|null} エラーコード（'invalid_image' | 'image_too_large'）。問題なければ null
+// ミッション完了時の「振り返り」（任意入力）を正規化する。
+// ★クライアントの maxlength は表示上の制限でしかない。ここで必ず切ること。
+// ★shareable は既定 false。true が明示的に送られたときだけ true にする
+//   （「公開してよい」を取り違えると、他団体に見せる前提のデータに
+//     公開意思のないものが混ざる）。
+const REFLECTION_MAX = 200;
+function _sanitizeReflection(body) {
+  const trim = (v) => String(v ?? '').trim().slice(0, REFLECTION_MAX);
+  const struggle = trim(body?.struggle);
+  const solution = trim(body?.solution);
+  return {
+    struggle,
+    solution,
+    // 何も書いていないのに「公開してよい」だけ立つ状態を作らない
+    shareable: body?.shareable === true && !!(struggle || solution),
+  };
+}
+
 function _validateSubmissionImage(content, format) {
   if (format !== 'image') return null;
   if (typeof content !== 'string' || !content.startsWith('data:')) return null; // URL 等は対象外
@@ -2558,6 +2576,8 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     let content   = String(req.body?.content ?? '');
     const format  = ['text', 'image', 'link'].includes(req.body?.format) ? req.body.format : 'text';
     const now     = Date.now();
+    // 振り返り（任意）。★個別完了・通常完了のどちらでも受ける
+    const reflection = _sanitizeReflection(req.body);
 
     // 画像の形式・サイズを検証（R2 へ送る前に弾く。OOM 対策）
     const imgErr = _validateSubmissionImage(content, format);
@@ -2586,6 +2606,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       _setMissionField(p, mid, 'clearFormat', format, now);
       await submissionStore.saveSubmission(p.id, `${mid}_u_${userId}`, {
         content, format, title: m.title, timestamp: now, submittedBy: userId,
+        ...reflection,
       });
 
       // 全担当者が完了したら status を進める
@@ -2605,6 +2626,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       _setMissionField(p, mid, 'status', next, now);
       await submissionStore.saveSubmission(p.id, mid, {
         content, format, title: m.title, timestamp: now, submittedBy: userId,
+        ...reflection,
       });
       becameCleared      = next === 'cleared';
       becamePendingCheck = next === 'pending_leader_check';
