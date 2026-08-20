@@ -17,6 +17,20 @@
 // 初期表示は最上部（山頂＝道の先端）。再レンダリングをまたぐスクロール位置保持は
 // mainBoard.js が capture → initMountainPathSync(restoreTop) で復元する。
 
+// ── 遠近感 ────────────────────────────────────────────────
+// 手前（画面下）ほど大きく、奥（画面上）ほど小さく見せる。
+// ★基準点は「画面下端」に固定する。画面中央を基準にすると、スクロール中に
+//   マスが一度縮んでから膨らむ動きになり酔いやすい。下端基準なら
+//   「手前が大きく、奥ほど小さい」が常に保たれる。
+const SCALE_MIN   = 0.5;   // いちばん奥での倍率
+const SCALE_RANGE = 0.5;   // 1.0 - SCALE_MIN
+
+// ★仮想化のしきい値。可視範囲 ±1画面ぶんの外にあるマスは毎フレームの
+//   書き込み対象から外す。実データは最大でも数十マスなので、いまは
+//   「書き込みを間引く」ところまで。DOM から抜く実装は要らなくなるまで入れない
+//   （抜くと道の破線 SVG との対応が崩れ、復帰時のちらつき対策も要る）。
+const CULL_MARGIN = 1;     // 画面高の何倍まで面倒を見るか
+
 const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
 const BOTTOM_PAD = 56;  // スタート地点の下余白(px)
@@ -88,8 +102,11 @@ export function renderMountainBg(p) {
            </div>`
         : `<div class="p-mountain__node"></div>`;
 
+    // ★data-node-y はスクロール時の遠近計算が読む。毎フレーム DOM から
+    //   位置を読み直さずに済むよう、描画時に確定した値を持たせておく
+    //   （読み取りと書き込みを混ぜるとレイアウトスラッシングが起きる）。
     return `
-      <div class="p-mountain__pin" style="left:${x}%;top:${y}px">
+      <div class="p-mountain__pin" data-node-y="${y}" style="left:${x}%;top:${y}px">
         ${circle}
       </div>`;
   }).join('');
@@ -139,6 +156,11 @@ export function renderMountainScrollWindow(p) {
  * @param {number|null} restoreTop 再レンダリング前のスクロール位置（null なら最上部＝道の先端）
  */
 export function initMountainPathSync(restoreTop = null) {
+  // ★前回の配線を必ず外す。この関数は再描画のたびに呼ばれるので、
+  //   window に張ったリスナーが積み上がる（scroll は要素と一緒に消えるが
+  //   resize / orientationchange は残る）。
+  _teardown();
+
   const bg     = document.getElementById('mountain-bg');
   const canvas = document.getElementById('mountain-canvas');
   const win    = document.getElementById('mountain-path-scroll');
@@ -155,9 +177,69 @@ export function initMountainPathSync(restoreTop = null) {
               || document.querySelector('.js-mountain-sticky');
   if (sticky) bg.style.top = `${Math.round(sticky.getBoundingClientRect().bottom)}px`;
 
-  const sync = () => { canvas.style.transform = `translateY(${-win.scrollTop}px)`; };
-  win.addEventListener('scroll', sync, { passive: true });
+  // ── 毎フレームの書き込み対象を先に集める ──────────────────
+  // ★ここでまとめて読み、以後スクロール中は一切読まない。
+  const pins = Array.from(canvas.querySelectorAll('[data-node-y]'))
+    .map(el => ({ el, y: parseFloat(el.dataset.nodeY) || 0 }));
+
+  // 画面の寸法はスクロール中に変わらない。ここで測って使い回す
+  // （毎フレーム getBoundingClientRect を呼ぶと読み書きが交互になる）。
+  let bgTop = 0, viewH = 1;
+  const measure = () => {
+    bgTop = bg.getBoundingClientRect().top;
+    viewH = Math.max(1, window.innerHeight || 640);
+  };
+  measure();
+
+  // ── 1フレーム1回だけ書く ─────────────────────────────────
+  // ★scroll ハンドラから直接 DOM を触らない。iOS の慣性スクロールは
+  //   1フレームに何度も scroll を発火させるため、そのまま書くと確実に落ちる。
+  let scheduled = false;
+  const paint = () => {
+    scheduled = false;
+    const top = win.scrollTop;
+
+    // 道全体を動かすのは transform だけ（レイアウトを起こさない）
+    canvas.style.transform = `translateY(${-top}px)`;
+
+    // マスの遠近。画面下端からの距離で倍率を決める
+    const margin = viewH * CULL_MARGIN;
+    for (let i = 0; i < pins.length; i++) {
+      const screenY = bgTop + (pins[i].y - top);
+      // 可視範囲 ±1画面の外は書かない（見えないものに毎フレーム書かない）
+      if (screenY < -margin || screenY > viewH + margin) continue;
+      const dist  = viewH - screenY;                 // 下端からの距離
+      const scale = Math.max(SCALE_MIN, 1 - (dist / viewH) * SCALE_RANGE);
+      // ★translate(-50%, -50%) は CSS 側が持つ。ここは倍率だけ渡して合成させる
+      //   （transform をまるごと書くと中央寄せが消える）。
+      pins[i].el.style.setProperty('--node-scale', scale.toFixed(3));
+    }
+  };
+  const request = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(paint);
+  };
+
+  const onResize = () => { measure(); request(); };
+  win.addEventListener('scroll', request, { passive: true });
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
+
+  _teardownFns = [
+    () => win.removeEventListener('scroll', request),
+    () => window.removeEventListener('resize', onResize),
+    () => window.removeEventListener('orientationchange', onResize),
+  ];
 
   if (restoreTop !== null) win.scrollTop = restoreTop;
-  sync();
+  // 初回は rAF を待たずに描く（1フレーム分マスが素の大きさで見えるのを防ぐ）
+  paint();
+}
+
+// 前回の配線を外すための後始末。initMountainPathSync が毎回呼ぶ。
+let _teardownFns = [];
+function _teardown() {
+  for (const fn of _teardownFns) { try { fn(); } catch (_) {} }
+  _teardownFns = [];
 }

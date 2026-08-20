@@ -43,10 +43,13 @@
   pointer-events: none;
 }
 
-/* マス・山頂・スタートなど、座標を JS が決めるもの */
+/* マス・山頂・スタートなど、座標を JS が決めるもの
+   ★--node-scale は mountainPath.js が毎フレーム書き込む遠近の倍率。
+     translate(-50%, -50%) はここが持ち、JS は倍率だけ渡す。
+     JS 側で transform をまるごと書くと中央寄せが消えるので、必ず合成にすること。 */
 .p-mountain__pin {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--node-scale, 1));
   pointer-events: none;
 }
 
@@ -57,14 +60,18 @@
 
 /* --- 円形マス ------------------------------------------------------------
    ★完了・確認待ち・未完了を色で分けるが、完了にはチェック、確認待ちには時計の
-     アイコンも入れてある（色だけの情報にしない）。 */
+     アイコンも入れてある（色だけの情報にしない）。
+   ★横長の楕円にしてある。真円だと正面を向いたコインに見えるが、少し潰すと
+     地面に置かれた足場として読める。遠近（--node-scale）と合わせて奥行きを出す。
+   ★will-change はここに付けないこと。マスの数だけ合成レイヤーが増え、
+     512MB 環境ではメモリを食う。動かすのは #mountain-canvas（そちらに指定済み）。 */
 
 .p-mountain__node {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 44px;
-  height: 44px;
+  height: 38px;
   border: 3px solid var(--color-handle);
   border-radius: var(--radius-full);
   background-color: var(--color-surface);
