@@ -34,8 +34,21 @@ const CULL_MARGIN = 1;     // 画面高の何倍まで面倒を見るか
 const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
 const BOTTOM_PAD = 56;  // スタート地点の下余白(px)
-const X_LEFT     = 32;  // ジグザグの左側 x（%）
-const X_RIGHT    = 68;  // ジグザグの右側 x（%）
+// ── 道の曲がり方 ──────────────────────────────────────────
+// 左右に振れる道だが、折れ線ではなく正弦カーブで滑らかに曲げる
+// （Duolingo の学習パスと同じ見え方）。
+// ★ARC_NODES は「弧ひとつぶんのマス数」＝半周期。4 なら
+//   中央 → 右端 → 中央 → 左端 → 中央 で 8 マス一巡になる。
+// ★X_CENTER ± X_AMPLITUDE が振れ幅。以前の折れ線（32%〜68%）と同じ幅に
+//   合わせてあるので、道が画面外へはみ出すことはない。
+const X_CENTER    = 50;
+const X_AMPLITUDE = 18;
+const ARC_NODES   = 4;
+
+/** i 番目（小数可）のマスの x 座標（%）。道の描画では小数の i も使う */
+function _xAt(i) {
+  return X_CENTER + X_AMPLITUDE * Math.sin((Math.PI * i) / ARC_NODES);
+}
 
 function _esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -50,7 +63,7 @@ function _layout(p) {
     (typeof window !== 'undefined' ? window.innerHeight : 640) - 120, // 画面全体に見せる最低高
     TOP_PAD + Math.max(n - 1, 0) * NODE_GAP + BOTTOM_PAD + 44,
   );
-  const xFor = i => (i % 2 === 0 ? X_LEFT : X_RIGHT);
+  const xFor = i => _xAt(i);
   const yFor = i => canvasH - BOTTOM_PAD - i * NODE_GAP;
   return { missions, n, canvasH, xFor, yFor };
 }
@@ -75,10 +88,19 @@ export function renderMountainBg(p) {
   const { missions, n, canvasH, xFor, yFor } = _layout(p);
 
   // 道（マスを結ぶ破線。マスが無い場合はスタート→山頂の直線）
-  const points = n > 0
-    ? missions.map((m, i) => `${xFor(i)},${yFor(i)}`)
-    : [`50,${canvasH - BOTTOM_PAD}`];
-  points.push(`50,${TOP_PAD - 30}`); // 最後は山頂へ
+  // ★マスの位置だけを結ぶと、カーブが折れ線に見えてしまう。マスとマスの間も
+  //   同じ式で刻んで点を打ち、なめらかな弧として描く。
+  const points = [];
+  if (n > 0) {
+    const STEP = 1 / 8;   // マス1つぶんを8分割
+    for (let t = 0; t <= n - 1 + 1e-9; t += STEP) {
+      const i = Math.min(t, n - 1);
+      points.push(`${_xAt(i).toFixed(2)},${(canvasH - BOTTOM_PAD - i * NODE_GAP).toFixed(1)}`);
+    }
+  } else {
+    points.push(`${X_CENTER},${canvasH - BOTTOM_PAD}`);
+  }
+  points.push(`${X_CENTER},${TOP_PAD - 30}`); // 最後は山頂へ
   const trail = `
     <svg class="p-mountain__trail" viewBox="0 0 100 ${canvasH}" preserveAspectRatio="none">
       <polyline points="${points.join(' ')}" fill="none" stroke="#C9CDD1" stroke-width="3"
