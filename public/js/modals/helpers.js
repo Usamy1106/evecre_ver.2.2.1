@@ -343,6 +343,32 @@ export async function submitMissionClear(missionId) {
   } else {
     window._app?.showToast(m.leaderCheck ? 'リーダーチェック提出完了' : 'ミッション完了');
   }
+
+  // 山に出たオブジェクトを続けて知らせる。
+  // ★期限内に終わらせて珍しいものが出たことが伝わらないと、動機づけとして働かない。
+  //   抽選はサーバーが行い、結果（tier つき）をレスポンスで返してくる。
+  _announceMountainObject(r.object);
+}
+
+/**
+ * 完了で出たオブジェクトをトーストで伝える。
+ * ★tier で文言を変える。tag は毎回必ず出るので控えめに、期限内でしか引けない
+ *   ontime / rare は「期限内に終わらせたから出た」と分かる言い方にする。
+ */
+async function _announceMountainObject(rolled) {
+  if (!rolled?.objectId) return;
+  try {
+    const { findObject } = await import('../mountainObjects.js');
+    const o = findObject(rolled.objectId);
+    if (!o) return;
+    const msg = rolled.objectTier === 'rare'
+      ? `期限内達成！めずらしい「${o.name}」が現れた ${o.icon}`
+      : rolled.objectTier === 'ontime'
+        ? `期限内達成！「${o.name}」が現れた ${o.icon}`
+        : `山に「${o.name}」が増えた ${o.icon}`;
+    // 完了トーストと重ならないよう少し遅らせる
+    setTimeout(() => window._app?.showToast(msg), 1800);
+  } catch (_) { /* 演出なので、失敗しても完了自体は成立している */ }
 }
 
 /**

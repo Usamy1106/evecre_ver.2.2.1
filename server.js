@@ -622,6 +622,37 @@ function _setMissionField(p, mid, field, value, ts) {
 // ★shareable は既定 false。true が明示的に送られたときだけ true にする
 //   （「公開してよい」を取り違えると、他団体に見せる前提のデータに
 //     公開意思のないものが混ざる）。
+// 山に出るオブジェクトの抽選（public/js/mountainObjects.js）。
+// ★クライアントと同じ定義を使うため dynamic import する。あちらは ESM なので
+//   require では読めない。初回だけ読み、以後は使い回す。
+let _mtnObjects = null;
+async function _mountainObjects() {
+  if (!_mtnObjects) _mtnObjects = await import('./public/js/mountainObjects.js');
+  return _mtnObjects;
+}
+
+/**
+ * 完了したミッションに出るオブジェクトを決める。
+ * ★必ずサーバー側で引く。クライアントに引かせると改ざんできる。
+ * ★期限内かどうかもサーバーの時刻で判定する（TZ=Asia/Tokyo が前提）。
+ * @returns {{ objectId: string, objectTier: string }}
+ */
+async function _rollMissionObject(m) {
+  try {
+    const O = await _mountainObjects();
+    const base = O.rollTagObject(O.primaryTag(m));
+    // dates 未設定は期限が無いので対象外（isOnTime が false を返す）
+    const onTime = O.isOnTime(m?.dates, new Date());
+    const up = O.rollUpgrade({ priority: Number(m?.priority) || 3, onTime });
+    const picked = up || base;
+    return { objectId: picked?.id || '', objectTier: picked?.tier || '' };
+  } catch (e) {
+    // ★オブジェクトが決まらなくても完了自体は通す（演出のために完了を落とさない）
+    console.error('[mountain] object roll error:', e.message);
+    return { objectId: '', objectTier: '' };
+  }
+}
+
 const REFLECTION_MAX = 200;
 function _sanitizeReflection(body) {
   const trim = (v) => String(v ?? '').trim().slice(0, REFLECTION_MAX);
@@ -2578,6 +2609,8 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     const now     = Date.now();
     // 振り返り（任意）。★個別完了・通常完了のどちらでも受ける
     const reflection = _sanitizeReflection(req.body);
+    // 山に出るオブジェクト。★サーバーでのみ引く（クライアントに引かせない）
+    const rolled = await _rollMissionObject(m);
 
     // 画像の形式・サイズを検証（R2 へ送る前に弾く。OOM 対策）
     const imgErr = _validateSubmissionImage(content, format);
@@ -2606,7 +2639,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       _setMissionField(p, mid, 'clearFormat', format, now);
       await submissionStore.saveSubmission(p.id, `${mid}_u_${userId}`, {
         content, format, title: m.title, timestamp: now, submittedBy: userId,
-        ...reflection,
+        ...reflection, ...rolled,
       });
 
       // 全担当者が完了したら status を進める
@@ -2626,7 +2659,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       _setMissionField(p, mid, 'status', next, now);
       await submissionStore.saveSubmission(p.id, mid, {
         content, format, title: m.title, timestamp: now, submittedBy: userId,
-        ...reflection,
+        ...reflection, ...rolled,
       });
       becameCleared      = next === 'cleared';
       becamePendingCheck = next === 'pending_leader_check';
@@ -2669,7 +2702,9 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         });
     }
 
-    res.json({ ok: true, mission: _missionToFlat(p.missions[mid], mid) });
+    // ★引いたオブジェクトを返す。クライアントは完了トーストの文言に使う
+    //   （アップグレードが起きたことが伝わらないと動機づけにならない）。
+    res.json({ ok: true, mission: _missionToFlat(p.missions[mid], mid), object: rolled });
   } catch (e) {
     console.error('complete error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });

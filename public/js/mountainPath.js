@@ -34,6 +34,8 @@ const SCALE_RANGE = 0.5;   // 1.0 - SCALE_MIN
 //   （抜くと道の破線 SVG との対応が崩れ、復帰時のちらつき対策も要る）。
 const CULL_MARGIN = 1;     // 画面高の何倍まで面倒を見るか
 
+import { findObject } from './mountainObjects.js';
+
 const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
 const BOTTOM_PAD = 56;  // スタート地点の下余白(px)
@@ -61,7 +63,12 @@ function _esc(s) {
 // ★n は「完了数 + 1」。ミッション数ではない（先に見えるマスは常に1つだけ）。
 function _layout(p) {
   const missions = p.missions || [];
-  const clearedCount = missions.filter(m => m.status === 'cleared').length;
+  // ★完了した順ではなく作成順に並べる。完了のたびに既存のマスが入れ替わると
+  //   「登ってきた道」が作り直されてしまう。
+  const cleared = missions
+    .filter(m => m.status === 'cleared')
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const clearedCount = cleared.length;
   const n = clearedCount + 1;   // 完了マス + 1個先の灰色マス
   const canvasH = Math.max(
     (typeof window !== 'undefined' ? window.innerHeight : 640) - 120, // 画面全体に見せる最低高
@@ -69,7 +76,26 @@ function _layout(p) {
   );
   const xFor = i => _xAt(i);
   const yFor = i => canvasH - BOTTOM_PAD - i * NODE_GAP;
-  return { missionCount: missions.length, clearedCount, n, canvasH, xFor, yFor };
+  return { missionCount: missions.length, cleared, clearedCount, n, canvasH, xFor, yFor };
+}
+
+/**
+ * そのミッションで出たオブジェクトを引く。
+ * ★保存先は submissions（clearedData）。ミッション本体（CRDT）には持たせていない。
+ *   個別完了は `<missionId>_u_<userId>` の複合キーで人数分あるので、
+ *   代表として自分のぶん → 無ければ最初に見つかったものを使う。
+ */
+function _objectFor(p, mission) {
+  if (!mission) return null;
+  const cd = p.clearedData || {};
+  let rec = cd[mission.id];
+  if (!rec?.objectId && mission.individualClear) {
+    const prefix = `${mission.id}_u_`;
+    const mine = cd[`${prefix}${(typeof window !== 'undefined' && window.state?.currentUser?.id) || ''}`];
+    rec = mine?.objectId ? mine
+        : Object.entries(cd).find(([k, v]) => k.startsWith(prefix) && v?.objectId)?.[1];
+  }
+  return rec?.objectId ? findObject(rec.objectId) : null;
 }
 
 // 小さな山＋旗の山頂マーカー（インラインSVG）
@@ -89,7 +115,7 @@ function _summitSvg(size = 44) {
  * @param {object} p イベント（flat 形式）
  */
 export function renderMountainBg(p) {
-  const { missionCount, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
+  const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
 
   // 道（マスを結ぶ破線。マスが無い場合はスタート→山頂の直線）
   // ★マスの位置だけを結ぶと、カーブが折れ線に見えてしまう。マスとマスの間も
@@ -116,9 +142,18 @@ export function renderMountainBg(p) {
   const nodes = Array.from({ length: n }, (_, i) => {
     const x = xFor(i);
     const y = yFor(i);
-    const cleared = i < clearedCount;
+    const isDone = i < clearedCount;
+    // ★完了したマスの横に、そのミッションで出たオブジェクトを置く。
+    //   何を完了したかが景色として残る。抽選はサーバーが完了時に1回だけ行い、
+    //   結果は clearedData（submissions）に入っている。ここは読むだけ。
+    const obj = isDone ? _objectFor(p, cleared[i]) : null;
+    // 道の外側（中央から遠い側）へ置く。道やマスと重ならないようにするため
+    const objHtml = obj
+      ? `<span class="p-mountain__object${x < X_CENTER ? ' p-mountain__object--left' : ''}"
+             role="img" aria-label="${_esc(obj.name)}" title="${_esc(obj.name)}">${obj.icon}</span>`
+      : '';
     // ★色だけで状態を分けない。完了にはチェックのアイコンも入れる
-    const circle = cleared
+    const circle = isDone
       ? `<div class="p-mountain__node p-mountain__node--cleared">
            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
          </div>`
@@ -129,7 +164,7 @@ export function renderMountainBg(p) {
     //   （読み取りと書き込みを混ぜるとレイアウトスラッシングが起きる）。
     return `
       <div class="p-mountain__pin" data-node-y="${y}" style="left:${x}%;top:${y}px">
-        ${circle}
+        ${circle}${objHtml}
       </div>`;
   }).join('');
 

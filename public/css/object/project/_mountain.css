@@ -100,6 +100,36 @@
   background-color: var(--color-warning);
 }
 
+/* --- 完了したマスの横に出るオブジェクト ----------------------------------
+   使用箇所: public/js/mountainPath.js（_objectFor）
+
+   ★何を完了したかが景色として残る。図鑑（集めて溜める機能）は作らない。
+   ★道の外側（中央から遠い側）に置く。内側だと道の破線やマスと重なる。
+   ★中身は当面この絵文字。イラストが用意できたら差し替える前提のプレースホルダー。
+   ★--node-scale の合成対象である .p-mountain__pin の子なので、遠近に合わせて
+     一緒に縮む（別々に倍率を掛けない）。 */
+
+.p-mountain__object {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  /* マスの右外に置く。上下はマスの中心に合わせる */
+  transform: translate(4px, -50%);
+  font-size: 22px;
+  line-height: 1;
+  /* 絵文字の下に薄い影を置いて、地面に載っているように見せる */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .18));
+  pointer-events: none;
+  user-select: none;
+}
+
+/* 道の左側にあるマスでは、オブジェクトも左外に出す */
+.p-mountain__object--left {
+  right: 100%;
+  left: auto;
+  transform: translate(-4px, -50%);
+}
+
 /* --- 山頂・スタート・空状態 ----------------------------------------------- */
 
 .p-mountain__summit {
