@@ -27,6 +27,10 @@
 //   「手前が大きく、奥ほど小さい」が常に保たれる。
 const SCALE_MIN   = 0.5;   // いちばん奥での倍率
 const SCALE_RANGE = 0.5;   // 1.0 - SCALE_MIN
+// ★薄くしすぎないこと。完了マスは「登ってきた道」の記録なので、奥が見えなく
+//   なると達成感が削がれる。0.35 を下限にしてある。
+const OPACITY_MIN   = 0.35;  // いちばん奥での不透明度
+const OPACITY_RANGE = 0.65;  // 1.0 - OPACITY_MIN
 
 // ★仮想化のしきい値。可視範囲 ±1画面ぶんの外にあるマスは毎フレームの
 //   書き込み対象から外す。実データは最大でも数十マスなので、いまは
@@ -298,11 +302,17 @@ export function initMountainPathSync(restoreTop = null) {
       const screenY = bgTop + (pins[i].y - top);
       // 可視範囲 ±1画面の外は書かない（見えないものに毎フレーム書かない）
       if (screenY < -margin || screenY > viewH + margin) continue;
-      const dist  = viewH - screenY;                 // 下端からの距離
-      const scale = Math.max(SCALE_MIN, 1 - (dist / viewH) * SCALE_RANGE);
+      const dist = viewH - screenY;                 // 下端からの距離
+      // 0=手前（画面下端）〜 1=奥。★倍率と透過を同じ t から出す。
+      //   ループを分けないこと（マスの数だけ走るので2周させない）。
+      const t = Math.min(1, Math.max(0, dist / viewH));
+      const scale   = Math.max(SCALE_MIN,   1 - t * SCALE_RANGE);
+      const opacity = Math.max(OPACITY_MIN, 1 - t * OPACITY_RANGE);
       // ★translate(-50%, -50%) は CSS 側が持つ。ここは倍率だけ渡して合成させる
       //   （transform をまるごと書くと中央寄せが消える）。
+      //   opacity も transform と同じく GPU 合成されるので追加コストは小さい。
       pins[i].el.style.setProperty('--node-scale', scale.toFixed(3));
+      pins[i].el.style.setProperty('--node-opacity', opacity.toFixed(3));
     }
   };
   const request = () => {

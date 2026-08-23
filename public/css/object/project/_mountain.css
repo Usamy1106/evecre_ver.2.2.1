@@ -63,9 +63,13 @@
    ★--node-scale は mountainPath.js が毎フレーム書き込む遠近の倍率。
      translate(-50%, -50%) はここが持ち、JS は倍率だけ渡す。
      JS 側で transform をまるごと書くと中央寄せが消えるので、必ず合成にすること。 */
+/* ★--node-opacity も mountainPath.js が毎フレーム書く。奥ほど薄くする。
+   オブジェクト（.p-mountain__object）はこの要素の子なので、親の opacity が
+   そのまま効く。個別に指定しないこと。 */
 .p-mountain__pin {
   position: absolute;
   transform: translate(-50%, -50%) scale(var(--node-scale, 1));
+  opacity: var(--node-opacity, 1);
   pointer-events: none;
 }
 
