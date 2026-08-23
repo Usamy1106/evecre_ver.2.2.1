@@ -50,6 +50,70 @@
   will-change: transform;
 }
 
+/* --- 背景セグメント ------------------------------------------------------
+   使用箇所: public/js/mountainPath.js（_renderBgLayer）
+
+   ★キャンバスの内側・最背面に置く。別レイヤーにして別々に translate すると、
+     サブピクセルの丸めや rAF のタイミング差で必ずマスとずれる。
+     キャンバスの transform 1つで背景もマスも同時に動くのでずれようがない。
+   ★素材は縦シームレスなので repeat-y でタイルする。継ぎ目はセグメント境界と
+     一致しなくてよいが、**テーマが切り替わる位置は必ずマスと一致させる**
+     （高さは JS が SEGMENT_MASSES × NODE_GAP で計算して入れる）。
+   ★will-change はここに付けない。動くのは #mountain-canvas だけ。 */
+
+.p-mountain__bg-layer {
+  position: absolute;
+  inset: 0;
+  /* 道・マス・山頂より必ず後ろ。z-index を上げないこと */
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.p-mountain__bg-seg {
+  position: absolute;
+  right: 0;
+  left: 0;
+  background-image: var(--seg-image);
+  /* 横幅に合わせ、縦は素材の比率のまま繰り返す */
+  background-position: top center;
+  background-repeat: repeat-y;
+  background-size: 100% auto;
+  /* ★テーマの境目にハードな線を出さない。上下 SEGMENT_OVERLAP ぶんを
+     グラデーションで抜き、隣のセグメントとクロスフェードさせる。
+     上下ぶんはみ出させてあるので、境界の位置自体はずれない。 */
+  /* 抜き幅（--seg-overlap）は JS が書き出す。CSS に数値を持たない */
+  mask-image: linear-gradient(to bottom,
+    transparent 0, #000 var(--seg-overlap), #000 calc(100% - var(--seg-overlap)), transparent 100%);
+}
+
+/* いちばん下（キャンバスの底まで）と いちばん上 は、外側を抜かない */
+.p-mountain__bg-seg--first {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--seg-overlap), #000 100%);
+}
+
+.p-mountain__bg-seg--last {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--seg-overlap)), transparent 100%);
+}
+
+/* 1つしかないとき（完了が少ないイベント）は抜かない */
+.p-mountain__bg-seg--first.p-mountain__bg-seg--last {
+  mask-image: none;
+}
+
+/* 山頂の背景。道の先端に敷き、下端をぼかして下のセグメントに繋ぐ */
+.p-mountain__bg-summit {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  background-image: var(--seg-image);
+  background-position: top center;
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+  mask-image: linear-gradient(to bottom, #000 0, #000 50%, transparent 100%);
+}
+
 /* 道（マスを結ぶ破線）*/
 .p-mountain__trail {
   position: absolute;

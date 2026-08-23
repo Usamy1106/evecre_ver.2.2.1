@@ -55,6 +55,28 @@ const SKY_STAGES = [
   { min: -Infinity, mod: 'summit' }, // 開催日当日以降 山頂に日が差す
 ];
 
+// ── 背景セグメント ────────────────────────────────────────
+// 一定マスごとに背景のテーマが変わる。
+//
+// ★セグメントの高さは必ず「マス数 × NODE_GAP」で決める。画像の元の高さを
+//   使うと、マス間隔と割り切れずに重ねるたび誤差が積もり、背景とマスがずれる。
+// ★SEGMENT_MASSES を変えるだけで、高さ・境界位置・テーマの区切りが全部追従する。
+//   704 や 8 をコード中に直書きしないこと。
+// ★これを変えると既存イベントの背景の並びも変わる（区切りが動くため）。
+const SEGMENT_MASSES = 8;
+
+// テーマと素材。★variants に文字列を足すだけでバリエーションが増える。
+//   文字列は CSS 変数の接尾辞（'01' → var(--mtn-bg-01)）。
+//   ファイル名・拡張子は CSS 側（foundation/_variables.css）にしか無い。
+const BG_THEMES = [
+  { id: 1, variants: ['01'] },
+  { id: 2, variants: ['02'] },
+  { id: 3, variants: ['03'] },
+  { id: 4, variants: ['04'] },
+  { id: 5, variants: ['05'] },
+  { id: 6, variants: ['06'] },
+];
+
 const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
 const BOTTOM_PAD = 56;  // スタート地点の下余白(px)
@@ -96,6 +118,94 @@ function _layout(p) {
   const xFor = i => _xAt(i);
   const yFor = i => canvasH - BOTTOM_PAD - i * NODE_GAP;
   return { missionCount: missions.length, cleared, clearedCount, n, canvasH, xFor, yFor };
+}
+
+// 1セグメントの高さ。★必ずこの計算値を使う（画像の元サイズを使わない）
+const SEGMENT_HEIGHT = SEGMENT_MASSES * NODE_GAP;
+// セグメント間のクロスフェード幅。マス1つぶん。境界を中心に上下へ広げる。
+// ★この値は CSS にも要る（マスクの抜き幅）。JS を唯一の出どころにするため、
+//   --seg-overlap として背景レイヤーに書き出し、CSS はそれを参照する。
+const SEGMENT_OVERLAP = NODE_GAP;
+
+/**
+ * 文字列 → 32bit の非負整数（FNV-1a）。
+ * ★暗号用途ではない。「同じ入力なら必ず同じ出力」であればよい。
+ */
+function _hash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/**
+ * セグメントごとの背景を決める。
+ *
+ * ★保存しない。イベントIDとセグメント番号から決定的に導出する。
+ *   - DB に持たせないので CRDT の管理対象が増えず、同時完了の競合も起きない
+ *   - 既存イベントにも遡って適用されるので移行処理が要らない
+ *   - 全メンバー・全デバイスで必ず同じ結果になる
+ * ★Math.random() / Date.now() / ユーザーID / 完了時刻を混ぜないこと。
+ *   同じイベントの同じセグメントなら、いつ誰が見ても同じでなければならない。
+ * ★直前と同じテーマは避ける。8マス（＝8ミッション完了）進んだのに景色が
+ *   変わらないと、進んだ手応えが消えるため。避けても導出は決定的なまま。
+ *
+ * @param {string} eventId
+ * @param {number} count 生成するセグメント数
+ * @returns {Array<{ theme:number, variant:string }>}
+ */
+function _backgroundPlan(eventId, count) {
+  const plan = [];
+  let prev = null;
+  for (let k = 0; k < count; k++) {
+    const pool = (prev === null || BG_THEMES.length <= 1)
+      ? BG_THEMES
+      : BG_THEMES.filter(t => t.id !== prev);
+    const theme = pool[_hash(`${eventId}:${k}:theme`) % pool.length];
+    const variant = theme.variants[_hash(`${eventId}:${k}:variant`) % theme.variants.length];
+    plan.push({ theme: theme.id, variant });
+    prev = theme.id;
+  }
+  return plan;
+}
+
+/**
+ * 背景セグメントのマークアップ。
+ *
+ * ★#mountain-canvas の内側・最背面に置く。別レイヤーにして別々に translate
+ *   すると、サブピクセルの丸めや rAF のタイミング差で必ずマスとずれる。
+ *   キャンバスの transform 1つで背景もマスも同時に動くので、ずれが原理的に起きない。
+ * ★セグメント k の下端は「マス i = k × SEGMENT_MASSES」の y と厳密に一致する。
+ *   起点をキャンバス上端（y=0）にすると TOP_PAD のぶんずれるので、
+ *   必ず canvasH - BOTTOM_PAD（＝マス i=0 の y）から数える。
+ */
+function _renderBgLayer(p, canvasH) {
+  const base = canvasH - BOTTOM_PAD;                       // マス i=0 の y
+  const count = Math.max(1, Math.ceil(base / SEGMENT_HEIGHT));
+  const plan = _backgroundPlan(String(p?.id || ''), count);
+  const half = SEGMENT_OVERLAP / 2;
+
+  const segs = plan.map((seg, k) => {
+    const isFirst = k === 0;
+    const isLast  = k === count - 1;
+    // 素の範囲（境界はマスと厳密に一致する）
+    const rawTop = base - (k + 1) * SEGMENT_HEIGHT;
+    // クロスフェードのぶん上下へはみ出させる。★境界の位置自体はずらさない
+    const top    = rawTop - (isLast ? 0 : half);
+    const bottom = base - k * SEGMENT_HEIGHT + (isFirst ? BOTTOM_PAD : half);
+    return `
+      <div class="p-mountain__bg-seg${isFirst ? ' p-mountain__bg-seg--first' : ''}${isLast ? ' p-mountain__bg-seg--last' : ''}"
+        style="--seg-image:var(--mtn-bg-${seg.variant});top:${Math.round(top)}px;height:${Math.round(bottom - top)}px"></div>`;
+  }).join('');
+
+  // 山頂の背景。★道の先端（山頂マーカーのあたり）に敷く。下端はぼかして繋ぐ
+  const summit = `
+    <div class="p-mountain__bg-summit"
+      style="--seg-image:var(--mtn-bg-summit);height:${TOP_PAD + NODE_GAP}px"></div>`;
+
+  return `<div class="p-mountain__bg-layer" style="--seg-overlap:${SEGMENT_OVERLAP}px">${segs}${summit}</div>`;
 }
 
 /**
@@ -222,6 +332,7 @@ export function renderMountainBg(p) {
     <!-- ★top はヘッダー＋タブの実測高に合わせて initMountainPathSync が設定する -->
     <div id="mountain-bg" class="p-mountain${stage ? ` p-mountain--${stage}` : ''}" style="top:110px">
       <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
+        ${_renderBgLayer(p, canvasH)}
         ${trail}
         ${summit}
         ${nodes}

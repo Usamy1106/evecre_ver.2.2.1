@@ -88,6 +88,21 @@
   --sky-evening-top: #FBE3CC;  --sky-evening-low: #FDF5EE;  /*  7日〜 夕方 */
   --sky-dusk-top:    #DAD5E9;  --sky-dusk-low:    #F6F2F0;  /*  1日〜 薄暮 */
   --sky-summit-top:  #FFEFC9;  --sky-summit-low:  #FFF9EE;  /* 開催日以降 山頂に日が差す */
+
+  /* --- 山の背景素材 --------------------------------------------------------
+     ★素材の差し替えはここだけ。JS にファイル名・拡張子を書かないこと。
+       JS は BG_THEMES の variants（'01' 等）から var(--mtn-bg-01) を組み立てる。
+     ★素材は縦シームレス（上端と下端が繋がる）である前提。セグメント内は
+       repeat-y でタイルする。実測で上下端の差 0 を確認済み。
+     ★テーマは標高順ではない。ランダムな順で出るので、どの順に並んでも成立する
+       対等な風景として描くこと（雪線の次に草原が来ても破綻しないように）。 */
+  --mtn-bg-01: url("/images/bg/bg01.webp");
+  --mtn-bg-02: url("/images/bg/bg02.webp");
+  --mtn-bg-03: url("/images/bg/bg03.webp");
+  --mtn-bg-04: url("/images/bg/bg04.webp");
+  --mtn-bg-05: url("/images/bg/bg05.webp");
+  --mtn-bg-06: url("/images/bg/bg06.webp");
+  --mtn-bg-summit: url("/images/bg/bg-summit.webp");
   --color-primary-quarter: rgba(12, 161, 227, .25);
   --color-warning-quarter: rgba(255, 195, 0, .25);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
