@@ -74,7 +74,20 @@
   --color-violet-tint: rgba(167, 139, 250, .2);
 
   /* 山ビジュアル */
-  --color-sky: #EAF6FD;                          /* 背景の上端（空）*/
+  /* --- 空の色（山ビジュアル）------------------------------------------------
+     開催日までの残り日数で段階が変わる。段階の切り替えは .p-mountain の
+     モディファイア（_mountain.css）で行い、JS からは色を直書きしない。
+     ★上端（--sky-*-top）から下端（--sky-*-low）へのグラデーション。
+       下端はページの地色に馴染ませて、境目が線に見えないようにしてある。 */
+  --color-sky: #EAF6FD;                          /* 既定＝昼。開催日未設定のとき */
+  --color-sky-low: var(--bg-base);               /* 既定の下端 */
+
+  --sky-morning-top: #DCEFFB;  --sky-morning-low: #F7FCFF;  /* 60日〜 朝（澄んだ青）*/
+  --sky-noon-top:    #EAF6FD;  --sky-noon-low:    #FDFBF8;  /* 30日〜 昼 */
+  --sky-afternoon-top: #F1F3EC; --sky-afternoon-low: #FDFBF8; /* 14日〜 午後 */
+  --sky-evening-top: #FBE3CC;  --sky-evening-low: #FDF5EE;  /*  7日〜 夕方 */
+  --sky-dusk-top:    #DAD5E9;  --sky-dusk-low:    #F6F2F0;  /*  1日〜 薄暮 */
+  --sky-summit-top:  #FFEFC9;  --sky-summit-low:  #FFF9EE;  /* 開催日以降 山頂に日が差す */
   --color-primary-quarter: rgba(12, 161, 227, .25);
   --color-warning-quarter: rgba(255, 195, 0, .25);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/

@@ -35,6 +35,21 @@ const SCALE_RANGE = 0.5;   // 1.0 - SCALE_MIN
 const CULL_MARGIN = 1;     // 画面高の何倍まで面倒を見るか
 
 import { findObject } from './mountainObjects.js';
+import { daysUntilSigned } from './utils.js';
+
+// ── 空の時間変化 ──────────────────────────────────────────
+// 開催日までの残り日数で空の段階が変わる。色は CSS のトークン
+// （foundation/_variables.css）が持ち、ここではモディファイア名だけ決める。
+// ★上から順に評価し、最初に当てはまったものを使う。段階を足すときはこの表に
+//   1行入れて、_mountain.css に同名のモディファイアを書けばよい。
+const SKY_STAGES = [
+  { min:  60, mod: 'morning'   },  // 60日〜   朝（澄んだ青）
+  { min:  30, mod: 'noon'      },  // 30〜59日 昼
+  { min:  14, mod: 'afternoon' },  // 14〜29日 午後
+  { min:   7, mod: 'evening'   },  //  7〜13日 夕方
+  { min:   1, mod: 'dusk'      },  //  1〜6日  薄暮
+  { min: -Infinity, mod: 'summit' }, // 開催日当日以降 山頂に日が差す
+];
 
 const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
@@ -80,6 +95,23 @@ function _layout(p) {
 }
 
 /**
+ * 空の段階を返す（'morning' | 'noon' | … | 'summit'）。
+ *
+ * ★開催日が未設定なら null。モディファイアを付けず、既定（昼）のままにする。
+ * ★残り日数は daysUntilSigned（utils.js）で取る。calculateDaysLeft と
+ *   proposalEngine._daysUntil は Math.max(0,…) で負値を潰すため、
+ *   「開催日を過ぎたか」を判定できない。
+ * ★dates は未ソートで保存されるので、必ず並べ替えてから初日を取る。
+ */
+function _skyStage(p) {
+  const dates = Array.isArray(p?.dates) ? [...p.dates].filter(Boolean).sort() : [];
+  if (dates.length === 0) return null;
+  const left = daysUntilSigned(dates[0]);
+  if (left === null) return null;
+  return (SKY_STAGES.find(s => left >= s.min) || SKY_STAGES[SKY_STAGES.length - 1]).mod;
+}
+
+/**
  * そのミッションで出たオブジェクトを引く。
  * ★保存先は submissions（clearedData）。ミッション本体（CRDT）には持たせていない。
  *   個別完了は `<missionId>_u_<userId>` の複合キーで人数分あるので、
@@ -116,6 +148,7 @@ function _summitSvg(size = 44) {
  */
 export function renderMountainBg(p) {
   const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
+  const stage = _skyStage(p);
 
   // 道（マスを結ぶ破線。マスが無い場合はスタート→山頂の直線）
   // ★マスの位置だけを結ぶと、カーブが折れ線に見えてしまう。マスとマスの間も
@@ -183,7 +216,7 @@ export function renderMountainBg(p) {
 
   return `
     <!-- ★top はヘッダー＋タブの実測高に合わせて initMountainPathSync が設定する -->
-    <div id="mountain-bg" class="p-mountain" style="top:110px">
+    <div id="mountain-bg" class="p-mountain${stage ? ` p-mountain--${stage}` : ''}" style="top:110px">
       <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
         ${trail}
         ${summit}

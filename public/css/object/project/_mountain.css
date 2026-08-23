@@ -26,8 +26,24 @@
   overflow: hidden;
   max-width: var(--layout-max-width);
   margin-inline: auto;
-  background-image: linear-gradient(to bottom, var(--color-sky) 0%, var(--color-bg) 100%);
+  background-image: linear-gradient(to bottom, var(--color-sky) 0%, var(--color-sky-low) 100%);
+  /* 段階が切り替わった瞬間に色が飛ばないよう、ゆっくり混ぜる。
+     ★日をまたいだときにしか変わらないので、長くても体感の邪魔にならない */
+  transition: background-image var(--duration-slow) var(--ease);
 }
+
+/* --- 空の時間変化 --------------------------------------------------------
+   開催日までの残り日数で段階が変わる（mountainPath.js の _skyStage）。
+   ★色は foundation/_variables.css のトークン。ここでは差し替えるだけで、
+     JS からインライン style で色を書かないこと。
+   ★開催日が未設定のイベントにはモディファイアが付かず、既定（昼）のままになる。 */
+
+.p-mountain--morning   { --color-sky: var(--sky-morning-top);   --color-sky-low: var(--sky-morning-low); }
+.p-mountain--noon      { --color-sky: var(--sky-noon-top);      --color-sky-low: var(--sky-noon-low); }
+.p-mountain--afternoon { --color-sky: var(--sky-afternoon-top); --color-sky-low: var(--sky-afternoon-low); }
+.p-mountain--evening   { --color-sky: var(--sky-evening-top);   --color-sky-low: var(--sky-evening-low); }
+.p-mountain--dusk      { --color-sky: var(--sky-dusk-top);      --color-sky-low: var(--sky-dusk-low); }
+.p-mountain--summit    { --color-sky: var(--sky-summit-top);    --color-sky-low: var(--sky-summit-low); }
 
 .p-mountain__canvas {
   position: relative;
