@@ -31,6 +31,9 @@ const SCALE_RANGE = 0.5;   // 1.0 - SCALE_MIN
 //   なると達成感が削がれる。0.35 を下限にしてある。
 const OPACITY_MIN   = 0.35;  // いちばん奥での不透明度
 const OPACITY_RANGE = 0.65;  // 1.0 - OPACITY_MIN
+// ★画面上端の帯。ここに入ったマスは追加でフェードさせ、上から「にじみ出る」
+//   ように現れる。遠近だけだと、上端で急に切り取られたように見えてしまう。
+const FADE_IN_BAND = 140;    // 上端からこの高さ(px)でフェードイン
 
 // ★仮想化のしきい値。可視範囲 ±1画面ぶんの外にあるマスは毎フレームの
 //   書き込み対象から外す。実データは最大でも数十マスなので、いまは
@@ -264,26 +267,6 @@ export function renderMountainBg(p) {
   const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
   const stage = _skyStage(p);
 
-  // 道（マスを結ぶ破線。マスが無い場合はスタート→山頂の直線）
-  // ★マスの位置だけを結ぶと、カーブが折れ線に見えてしまう。マスとマスの間も
-  //   同じ式で刻んで点を打ち、なめらかな弧として描く。
-  const points = [];
-  if (n > 1) {
-    const STEP = 1 / 8;   // マス1つぶんを8分割
-    for (let t = 0; t <= n - 1 + 1e-9; t += STEP) {
-      const i = Math.min(t, n - 1);
-      points.push(`${_xAt(i).toFixed(2)},${(canvasH - BOTTOM_PAD - i * NODE_GAP).toFixed(1)}`);
-    }
-  } else {
-    points.push(`${X_CENTER},${canvasH - BOTTOM_PAD}`);
-  }
-  points.push(`${X_CENTER},${TOP_PAD - 30}`); // 最後は山頂へ
-  const trail = `
-    <svg class="p-mountain__trail" viewBox="0 0 100 ${canvasH}" preserveAspectRatio="none">
-      <polyline points="${points.join(' ')}" fill="none" stroke="#C9CDD1" stroke-width="3"
-        stroke-dasharray="1 7" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-    </svg>`;
-
   // マス（★装飾のみ。タップ不可・タイトル無し）
   // 下から順に「完了したぶん」を塗り、いちばん上の1つだけ灰色（＝次の1マス）にする。
   const nodes = Array.from({ length: n }, (_, i) => {
@@ -316,10 +299,11 @@ export function renderMountainBg(p) {
   }).join('');
 
   // 山頂（ゴール）とスタート
+  // ★イベント名のラベルは出さない。プログレスマップ上に文字を置かない方針
+  //   （背景イラストの上に載ると読みづらく、地図としても情報が増えすぎる）。
   const summit = `
     <div class="p-mountain__pin p-mountain__pin--center p-mountain__summit" style="top:${TOP_PAD - 84}px">
       ${_summitSvg()}
-      <p class="p-mountain__summit-label">${_esc(p.name || '')}</p>
     </div>`;
   const start = `
     <div class="p-mountain__pin p-mountain__pin--center p-mountain__start" style="top:${canvasH - BOTTOM_PAD + 34}px">スタート</div>`;
@@ -333,7 +317,6 @@ export function renderMountainBg(p) {
     <div id="mountain-bg" class="p-mountain${stage ? ` p-mountain--${stage}` : ''}" style="top:110px">
       <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
         ${_renderBgLayer(p, canvasH)}
-        ${trail}
         ${summit}
         ${nodes}
         ${start}
@@ -417,8 +400,14 @@ export function initMountainPathSync(restoreTop = null) {
       // 0=手前（画面下端）〜 1=奥。★倍率と透過を同じ t から出す。
       //   ループを分けないこと（マスの数だけ走るので2周させない）。
       const t = Math.min(1, Math.max(0, dist / viewH));
-      const scale   = Math.max(SCALE_MIN,   1 - t * SCALE_RANGE);
-      const opacity = Math.max(OPACITY_MIN, 1 - t * OPACITY_RANGE);
+      const scale = Math.max(SCALE_MIN, 1 - t * SCALE_RANGE);
+      // 遠近ぶんの薄さ
+      let opacity = Math.max(OPACITY_MIN, 1 - t * OPACITY_RANGE);
+      // ★上端の帯でさらに薄くする。画面外（screenY < 0）では 0 になり、
+      //   スクロールで下りてくるにつれ にじみ出るように現れる。
+      if (screenY < FADE_IN_BAND) {
+        opacity *= Math.min(1, Math.max(0, screenY / FADE_IN_BAND));
+      }
       // ★translate(-50%, -50%) は CSS 側が持つ。ここは倍率だけ渡して合成させる
       //   （transform をまるごと書くと中央寄せが消える）。
       //   opacity も transform と同じく GPU 合成されるので追加コストは小さい。

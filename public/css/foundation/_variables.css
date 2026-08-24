@@ -103,6 +103,13 @@
   --mtn-bg-05: url("/images/bg/bg05.webp");
   --mtn-bg-06: url("/images/bg/bg06.webp");
   --mtn-bg-summit: url("/images/bg/bg-summit.webp");
+
+  /* --- 山のマス ------------------------------------------------------------
+     ★背景イラストの上に載るので、塗りは半透明にして下の風景を透かす。
+       不透明にすると、せっかくの背景が丸く抜けたように見える。 */
+  --mtn-node-border: #E2611F;                  /* 枠（オレンジ）*/
+  --mtn-node-fill: rgba(255, 255, 255, .30);   /* 次の1マス。ほぼ素通し */
+  --mtn-node-fill-done: rgba(107, 142, 74, .55); /* 完了。風景に馴染む緑 */
   --color-primary-quarter: rgba(12, 161, 227, .25);
   --color-warning-quarter: rgba(255, 195, 0, .25);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/

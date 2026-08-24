@@ -2,7 +2,7 @@
    Object / Project / mountain — 山登りパスビジュアル（メインボード）
    使用箇所: public/js/mountainPath.js
 
-   下から上へ円形マスがジグザグに増えていく「山登りの道」。
+   下から上へ楕円のマスが波打ちながら増えていく「山登りの道」。
 
    ★3層構成のうちの「背景レイヤー」と「スクロール窓」。
      背景（#mountain-bg）は position:fixed で、ヘッダー＋タブの下から画面下端まで。
@@ -11,7 +11,10 @@
    ★背景の top はヘッダーの実測高に依存するので JS が設定する（ここには書かない）。
    ★マスの座標（left / top）も JS が計算するのでインライン style で入る。
 
-   ★円形マスはミッションと連動しない装飾：タップ不可・タイトル無し。
+   ★マスはミッションと連動しない装飾：タップ不可・タイトル無し。
+   ★プログレスマップ上に文字と線は置かない（マスを結ぶ点線・イベント名の
+     ラベルは撤去済み）。背景イラストの上に載ると読みづらく、地図としても
+     情報が増えすぎるため。
      ただしマス数はミッション数に応じて増え、完了相当のマスは塗りつぶす。
      全体に pointer-events:none を敷いているのは、裏側にあるこの層が
      手前のコンテンツ（提案・ミッション一覧）の操作を奪わないため。
@@ -114,15 +117,6 @@
   mask-image: linear-gradient(to bottom, #000 0, #000 50%, transparent 100%);
 }
 
-/* 道（マスを結ぶ破線）*/
-.p-mountain__trail {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
 /* マス・山頂・スタートなど、座標を JS が決めるもの
    ★--node-scale は mountainPath.js が毎フレーム書き込む遠近の倍率。
      translate(-50%, -50%) はここが持ち、JS は倍率だけ渡す。
@@ -142,38 +136,35 @@
   transform: translateX(-50%);
 }
 
-/* --- 円形マス ------------------------------------------------------------
-   ★完了・確認待ち・未完了を色で分けるが、完了にはチェック、確認待ちには時計の
-     アイコンも入れてある（色だけの情報にしない）。
-   ★横長の楕円にしてある。真円だと正面を向いたコインに見えるが、少し潰すと
-     地面に置かれた足場として読める。遠近（--node-scale）と合わせて奥行きを出す。
+/* --- マス（楕円の足場）----------------------------------------------------
+   ★横長の楕円。真円だと正面を向いたコインに見えるが、潰すと地面に置かれた
+     足場として読める。遠近（--node-scale / --node-opacity）と合わせて奥行きを出す。
+   ★背景イラストの上に載るので塗りは半透明。不透明にすると、せっかくの風景が
+     丸く抜けたように見える。
+   ★完了にはチェックのアイコンを入れる。塗りの濃さだけで分けると色覚に頼ることになる。
    ★will-change はここに付けないこと。マスの数だけ合成レイヤーが増え、
      512MB 環境ではメモリを食う。動かすのは #mountain-canvas（そちらに指定済み）。 */
 
 .p-mountain__node {
   display: flex;
+  width: 88px;
+  height: 44px;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 38px;
-  border: 3px solid var(--color-handle);
+  border: 4px solid var(--mtn-node-border);
   border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  background-color: var(--mtn-node-fill);
+  /* 枠が半透明の塗りに侵食されないようにする */
+  background-clip: padding-box;
 }
 
 .p-mountain__node--cleared,
 .p-mountain__node--pending {
-  border-width: 4px;
-  box-shadow: var(--shadow-md);
   color: var(--color-text-inverse);
-  /* 枠を半透明にするので、下の背景色が枠まで広がらないようにする */
-  background-clip: padding-box;
 }
 
 .p-mountain__node--cleared {
-  border-color: var(--color-primary-quarter);
-  background-color: var(--color-primary);
+  background-color: var(--mtn-node-fill-done);
 }
 
 /* ★現在この状態は使っていない。マスは「完了数 + 先の1マス」で構成され、
@@ -220,13 +211,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.p-mountain__summit-label {
-  margin-top: 2px;
-  font-size: 10px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
 }
 
 .p-mountain__start {
