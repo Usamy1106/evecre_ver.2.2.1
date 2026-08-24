@@ -25,12 +25,15 @@
 // ★基準点は「画面下端」に固定する。画面中央を基準にすると、スクロール中に
 //   マスが一度縮んでから膨らむ動きになり酔いやすい。下端基準なら
 //   「手前が大きく、奥ほど小さい」が常に保たれる。
-const SCALE_MIN   = 0.5;   // いちばん奥での倍率
-const SCALE_RANGE = 0.5;   // 1.0 - SCALE_MIN
+const SCALE_MIN   = 0.32;  // いちばん奥での倍率
+const SCALE_RANGE = 0.68;  // 1.0 - SCALE_MIN
+// ★遠近の効き方のカーブ。1 で直線、大きいほど「手前は大きいまま、奥で一気に
+//   小さくなる」。実際の遠近はこの形なので、直線より奥行きが強く見える。
+const DEPTH_CURVE = 1.8;
 // ★薄くしすぎないこと。完了マスは「登ってきた道」の記録なので、奥が見えなく
 //   なると達成感が削がれる。0.35 を下限にしてある。
-const OPACITY_MIN   = 0.35;  // いちばん奥での不透明度
-const OPACITY_RANGE = 0.65;  // 1.0 - OPACITY_MIN
+const OPACITY_MIN   = 0.18;  // いちばん奥での不透明度
+const OPACITY_RANGE = 0.82;  // 1.0 - OPACITY_MIN
 // ★画面上端の帯。ここに入ったマスは追加でフェードさせ、上から「にじみ出る」
 //   ように現れる。遠近だけだと、上端で急に切り取られたように見えてしまう。
 const FADE_IN_BAND = 140;    // 上端からこの高さ(px)でフェードイン
@@ -80,7 +83,10 @@ const BG_THEMES = [
   { id: 6, variants: ['06'] },
 ];
 
-const NODE_GAP   = 88;  // マス間の縦間隔(px)
+// ★マス間の縦間隔。狭めるほど手前に多くのマスが並ぶ。
+//   マスの見た目の高さ（--node-size × --node-squash ＝ 約64px）より
+//   小さくすると重なるので、下げすぎないこと。
+const NODE_GAP   = 72;
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
 // ★下端の余白。マスがここより下には来ない。
 //   #mainboard-bottom-panel（初期 top:56vh）の裏にいちばん下のマスが
@@ -100,7 +106,7 @@ const ARC_NODES   = 6;
 //   AMP_MIN は画面上端での倍率。
 //   ★キャンバス上の位置ではなく画面位置で決めるので、スクロールすると
 //     マスは横にも動く。paint() の中で毎フレーム計算する。
-const AMP_MIN = 0.35;
+const AMP_MIN = 0.22;
 
 /** i 番目のマスの x 座標（%）。これは画面下端にいるときの位置 */
 function _xAt(i) {
@@ -401,9 +407,11 @@ export function initMountainPathSync(restoreTop = null) {
       // 0=手前（画面下端）〜 1=奥。★倍率と透過を同じ t から出す。
       //   ループを分けないこと（マスの数だけ走るので2周させない）。
       const t = Math.min(1, Math.max(0, dist / viewH));
-      const scale = Math.max(SCALE_MIN, 1 - t * SCALE_RANGE);
+      // ★カーブをかける。手前は大きいまま保ち、奥で一気に落とす
+      const d = Math.pow(t, DEPTH_CURVE);
+      const scale = Math.max(SCALE_MIN, 1 - d * SCALE_RANGE);
       // 遠近ぶんの薄さ
-      let opacity = Math.max(OPACITY_MIN, 1 - t * OPACITY_RANGE);
+      let opacity = Math.max(OPACITY_MIN, 1 - d * OPACITY_RANGE);
       // ★上端の帯でさらに薄くする。画面外（screenY < 0）では 0 になり、
       //   スクロールで下りてくるにつれ にじみ出るように現れる。
       if (screenY < FADE_IN_BAND) {
@@ -411,7 +419,7 @@ export function initMountainPathSync(restoreTop = null) {
       }
       // ★振れ幅も同じ t から。画面下ほど大きく振れ、上へ行くほど中央に寄る。
       //   横位置は left（レイアウト）ではなく transform で動かす。
-      const amp = AMP_MIN + (1 - AMP_MIN) * (1 - t);
+      const amp = AMP_MIN + (1 - AMP_MIN) * (1 - d);
       const dx = -(1 - amp) * (pins[i].dx / 100) * canvasW;
       // ★translate(-50%, -50%) は CSS 側が持つ。ここは倍率・ずらし量・透過だけを
       //   渡して合成させる（transform をまるごと書くと中央寄せが消える）。
