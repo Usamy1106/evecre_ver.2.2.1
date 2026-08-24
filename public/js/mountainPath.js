@@ -82,7 +82,10 @@ const BG_THEMES = [
 
 const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
-const BOTTOM_PAD = 56;  // スタート地点の下余白(px)
+// ★下端の余白。マスがここより下には来ない。
+//   #mainboard-bottom-panel（初期 top:56vh）の裏にいちばん下のマスが
+//   潜り込まないよう、パネルの高さぶんの逃げを取ってある。狭めないこと。
+const BOTTOM_PAD = 150;
 // ── 道の曲がり方 ──────────────────────────────────────────
 // 左右に振れる道を正弦カーブで滑らかに曲げる。
 // ★ARC_NODES は「弧ひとつぶんのマス数」＝半周期。6 なら
@@ -92,31 +95,16 @@ const X_CENTER    = 50;
 const X_AMPLITUDE = 26;   // 24%〜76%。マスの幅を足しても画面内に収まる
 const ARC_NODES   = 6;
 
-// ★奥へ行くほど振れ幅を狭める（消失点へ向かうように見せる）。
-//   AMP_FADE_NODES マスかけて AMP_MIN 倍まで細くなる。
-//   ここは「キャンバス上の位置」で決まる静的な形。スクロールで変えないこと
-//   （変えるとスクロール中にマスが横滑りするうえ、毎フレームの計算が増える）。
-const AMP_MIN        = 0.40;
-const AMP_FADE_NODES = 14;
+// ★振れ幅は「画面のどこにいるか」で決まる。画面下ほど大きく振れ、
+//   上へ行くほど中央に寄る（大きさ・不透明度と同じ軸で遠近を作る）。
+//   AMP_MIN は画面上端での倍率。
+//   ★キャンバス上の位置ではなく画面位置で決めるので、スクロールすると
+//     マスは横にも動く。paint() の中で毎フレーム計算する。
+const AMP_MIN = 0.35;
 
-// マスの傾き（度）。道が斜めに横切るところほど大きく傾ける。
-// ★左右の折り返し地点では道が縦向きなので傾き 0 になる。
-const NODE_TILT_MAX = 14;
-
-/** i 番目のマスでの振れ幅（%）。奥ほど狭い */
-function _ampAt(i) {
-  const far = Math.min(1, Math.max(0, i / AMP_FADE_NODES));
-  return X_AMPLITUDE * (1 - (1 - AMP_MIN) * far);
-}
-
-/** i 番目のマスの x 座標（%） */
+/** i 番目のマスの x 座標（%）。これは画面下端にいるときの位置 */
 function _xAt(i) {
-  return X_CENTER + _ampAt(i) * Math.sin((Math.PI * i) / ARC_NODES);
-}
-
-/** i 番目のマスの傾き（度）。道の向きに合わせて円盤を寝かせる */
-function _tiltAt(i) {
-  return NODE_TILT_MAX * Math.cos((Math.PI * i) / ARC_NODES);
+  return X_CENTER + X_AMPLITUDE * Math.sin((Math.PI * i) / ARC_NODES);
 }
 
 function _esc(s) {
@@ -267,17 +255,6 @@ function _objectFor(p, mission) {
   return rec?.objectId ? findObject(rec.objectId) : null;
 }
 
-// 小さな山＋旗の山頂マーカー（インラインSVG）
-function _summitSvg(size = 44) {
-  return `
-    <svg width="${size}" height="${size}" viewBox="0 0 48 48" fill="none">
-      <path d="M6 40 L24 10 L42 40 Z" fill="#8A9BB8"/>
-      <path d="M24 10 L30 20 L27 18 L24 21 L21 18 L18 20 Z" fill="#FDFBF8"/>
-      <line x1="24" y1="10" x2="24" y2="1" stroke="#484545" stroke-width="2"/>
-      <path d="M24 1 L33 4 L24 7 Z" fill="#EE3E12"/>
-    </svg>`;
-}
-
 /**
  * 背景レイヤー（画面全体のビジュアル本体）。メインタブのときだけ描画する。
  * top はヘッダー高に依存するため initMountainPathSync が実測でセットする。
@@ -313,22 +290,19 @@ export function renderMountainBg(p) {
     // ★data-node-y はスクロール時の遠近計算が読む。毎フレーム DOM から
     //   位置を読み直さずに済むよう、描画時に確定した値を持たせておく
     //   （読み取りと書き込みを混ぜるとレイアウトスラッシングが起きる）。
+    // ★data-node-dx は「中央からのずれ幅（%）」。paint() が画面位置に応じて
+    //   これを縮め、奥ほど中央へ寄せる。毎フレーム DOM を読まずに済ませるため
+    //   描画時に持たせておく。
     return `
-      <div class="p-mountain__pin" data-node-y="${y}"
-        style="left:${x}%;top:${y}px;--node-tilt:${_tiltAt(i).toFixed(1)}deg">
+      <div class="p-mountain__pin" data-node-y="${y}" data-node-dx="${(x - X_CENTER).toFixed(2)}"
+        style="left:${x}%;top:${y}px">
         ${disc}${check}${objHtml}
       </div>`;
   }).join('');
 
-  // 山頂（ゴール）とスタート
-  // ★イベント名のラベルは出さない。プログレスマップ上に文字を置かない方針
-  //   （背景イラストの上に載ると読みづらく、地図としても情報が増えすぎる）。
-  const summit = `
-    <div class="p-mountain__pin p-mountain__pin--center p-mountain__summit" style="top:${TOP_PAD - 84}px">
-      ${_summitSvg()}
-    </div>`;
-  const start = `
-    <div class="p-mountain__pin p-mountain__pin--center p-mountain__start" style="top:${canvasH - BOTTOM_PAD + 34}px">スタート</div>`;
+  // ★プログレスマップの上には文字もイラストも置かない。
+  //   山頂のイラストとイベント名、下端の「スタート」はいずれも撤去した。
+  //   背景イラストの上に載ると読みづらく、地図としても情報が増えすぎるため。
 
   const emptyHint = missionCount === 0
     ? `<p class="p-mountain__pin p-mountain__pin--center p-mountain__empty" style="top:220px">ミッションを作ると<br>山頂への道が伸びていきます</p>`
@@ -339,9 +313,7 @@ export function renderMountainBg(p) {
     <div id="mountain-bg" class="p-mountain${stage ? ` p-mountain--${stage}` : ''}" style="top:110px">
       <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
         ${_renderBgLayer(p, canvasH)}
-        ${summit}
         ${nodes}
-        ${start}
         ${emptyHint}
       </div>
     </div>`;
@@ -389,14 +361,21 @@ export function initMountainPathSync(restoreTop = null) {
 
   // ── 毎フレームの書き込み対象を先に集める ──────────────────
   // ★ここでまとめて読み、以後スクロール中は一切読まない。
-  const pins = Array.from(canvas.querySelectorAll('[data-node-y]'))
-    .map(el => ({ el, y: parseFloat(el.dataset.nodeY) || 0 }));
+  const pins = Array.from(canvas.querySelectorAll('[data-node-y]')).map(el => ({
+    el,
+    y: parseFloat(el.dataset.nodeY) || 0,
+    // 中央からのずれ幅（%）。奥へ行くほどこれを縮めて中央に寄せる
+    dx: parseFloat(el.dataset.nodeDx) || 0,
+  }));
 
   // 画面の寸法はスクロール中に変わらない。ここで測って使い回す
   // （毎フレーム getBoundingClientRect を呼ぶと読み書きが交互になる）。
-  let bgTop = 0, viewH = 1;
+  let bgTop = 0, viewH = 1, canvasW = 0;
   const measure = () => {
-    bgTop = bg.getBoundingClientRect().top;
+    const r = bg.getBoundingClientRect();
+    bgTop = r.top;
+    // 振れ幅を px で出すのに要る（data-node-dx は % のため）
+    canvasW = r.width || canvas.clientWidth || 0;
     viewH = Math.max(1, window.innerHeight || 640);
   };
   measure();
@@ -430,11 +409,16 @@ export function initMountainPathSync(restoreTop = null) {
       if (screenY < FADE_IN_BAND) {
         opacity *= Math.min(1, Math.max(0, screenY / FADE_IN_BAND));
       }
-      // ★translate(-50%, -50%) は CSS 側が持つ。ここは倍率だけ渡して合成させる
-      //   （transform をまるごと書くと中央寄せが消える）。
-      //   opacity も transform と同じく GPU 合成されるので追加コストは小さい。
+      // ★振れ幅も同じ t から。画面下ほど大きく振れ、上へ行くほど中央に寄る。
+      //   横位置は left（レイアウト）ではなく transform で動かす。
+      const amp = AMP_MIN + (1 - AMP_MIN) * (1 - t);
+      const dx = -(1 - amp) * (pins[i].dx / 100) * canvasW;
+      // ★translate(-50%, -50%) は CSS 側が持つ。ここは倍率・ずらし量・透過だけを
+      //   渡して合成させる（transform をまるごと書くと中央寄せが消える）。
+      //   どれも GPU 合成されるので追加コストは小さい。
       pins[i].el.style.setProperty('--node-scale', scale.toFixed(3));
       pins[i].el.style.setProperty('--node-opacity', opacity.toFixed(3));
+      pins[i].el.style.setProperty('--node-dx', `${dx.toFixed(1)}px`);
     }
   };
   const request = () => {

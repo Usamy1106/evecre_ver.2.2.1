@@ -130,7 +130,9 @@
   position: absolute;
   width: var(--node-size);
   height: var(--node-size);
-  transform: translate(-50%, -50%) scale(var(--node-scale, 1));
+  /* ★--node-dx は「奥ほど中央へ寄せる」ぶんの横ずらし。left（レイアウト）では
+     なく transform で動かすので、スクロール中でも再レイアウトが起きない。 */
+  transform: translate(-50%, -50%) translateX(var(--node-dx, 0px)) scale(var(--node-scale, 1));
   opacity: var(--node-opacity, 1);
   pointer-events: none;
 }
@@ -155,10 +157,8 @@
    ★will-change はここに付けないこと。マスの数だけ合成レイヤーが増え、
      512MB 環境ではメモリを食う。動かすのは #mountain-canvas（そちらに指定済み）。 */
 
-/* ★「潰した楕円」ではなく「円盤を寝かせたもの」として描く。
-   scaleY で寝かせてから rotate で道の向きに合わせる（CSS の transform は
-   右から順に適用されるので、この並びで「寝かせる → 傾ける」になる）。
-   先に回してから潰すと、斜めに引き伸ばされて歪んで見える。 */
+/* ★円盤を寝かせたもの。傾け（rotate）はしない。
+   scaleY だけで潰すので、常に水平な楕円になる。 */
 .p-mountain__node {
   --node-squash: .62;   /* 寝かせ具合。1 で真円、小さいほど深く寝る */
   position: absolute;
@@ -168,7 +168,7 @@
   background-color: var(--mtn-node-fill);
   /* 枠が半透明の塗りに侵食されないようにする */
   background-clip: padding-box;
-  transform: rotate(var(--node-tilt, 0deg)) scaleY(var(--node-squash));
+  transform: scaleY(var(--node-squash));
 }
 
 /* 完了の印。★円盤とは別要素にして傾けない。一緒に傾けると潰れて読めなくなる */
@@ -227,19 +227,9 @@
   transform: translate(-4px, -50%);
 }
 
-/* --- 山頂・スタート・空状態 ----------------------------------------------- */
-
-.p-mountain__summit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.p-mountain__start {
-  font-size: 9px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
+/* --- 空状態 ---------------------------------------------------------------
+   ★山頂のイラストと「スタート」の文字は撤去した。プログレスマップの上には
+     文字もイラストも置かない（背景イラストの上に載ると読みづらいため）。 */
 
 .p-mountain__empty {
   font-size: var(--font-size-xs);
