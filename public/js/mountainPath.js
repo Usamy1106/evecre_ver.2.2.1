@@ -84,19 +84,39 @@ const NODE_GAP   = 88;  // マス間の縦間隔(px)
 const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
 const BOTTOM_PAD = 56;  // スタート地点の下余白(px)
 // ── 道の曲がり方 ──────────────────────────────────────────
-// 左右に振れる道だが、折れ線ではなく正弦カーブで滑らかに曲げる
-// （Duolingo の学習パスと同じ見え方）。
-// ★ARC_NODES は「弧ひとつぶんのマス数」＝半周期。4 なら
-//   中央 → 右端 → 中央 → 左端 → 中央 で 8 マス一巡になる。
-// ★X_CENTER ± X_AMPLITUDE が振れ幅。以前の折れ線（32%〜68%）と同じ幅に
-//   合わせてあるので、道が画面外へはみ出すことはない。
+// 左右に振れる道を正弦カーブで滑らかに曲げる。
+// ★ARC_NODES は「弧ひとつぶんのマス数」＝半周期。6 なら
+//   中央 → 右端 → 中央 → 左端 → 中央 で 12 マス一巡になる（値を上げるほど緩い）。
+// ★X_CENTER ± X_AMPLITUDE が手前での振れ幅。
 const X_CENTER    = 50;
-const X_AMPLITUDE = 18;
-const ARC_NODES   = 4;
+const X_AMPLITUDE = 26;   // 24%〜76%。マスの幅を足しても画面内に収まる
+const ARC_NODES   = 6;
 
-/** i 番目（小数可）のマスの x 座標（%）。道の描画では小数の i も使う */
+// ★奥へ行くほど振れ幅を狭める（消失点へ向かうように見せる）。
+//   AMP_FADE_NODES マスかけて AMP_MIN 倍まで細くなる。
+//   ここは「キャンバス上の位置」で決まる静的な形。スクロールで変えないこと
+//   （変えるとスクロール中にマスが横滑りするうえ、毎フレームの計算が増える）。
+const AMP_MIN        = 0.40;
+const AMP_FADE_NODES = 14;
+
+// マスの傾き（度）。道が斜めに横切るところほど大きく傾ける。
+// ★左右の折り返し地点では道が縦向きなので傾き 0 になる。
+const NODE_TILT_MAX = 14;
+
+/** i 番目のマスでの振れ幅（%）。奥ほど狭い */
+function _ampAt(i) {
+  const far = Math.min(1, Math.max(0, i / AMP_FADE_NODES));
+  return X_AMPLITUDE * (1 - (1 - AMP_MIN) * far);
+}
+
+/** i 番目のマスの x 座標（%） */
 function _xAt(i) {
-  return X_CENTER + X_AMPLITUDE * Math.sin((Math.PI * i) / ARC_NODES);
+  return X_CENTER + _ampAt(i) * Math.sin((Math.PI * i) / ARC_NODES);
+}
+
+/** i 番目のマスの傾き（度）。道の向きに合わせて円盤を寝かせる */
+function _tiltAt(i) {
+  return NODE_TILT_MAX * Math.cos((Math.PI * i) / ARC_NODES);
 }
 
 function _esc(s) {
@@ -282,19 +302,21 @@ export function renderMountainBg(p) {
       ? `<span class="p-mountain__object${x < X_CENTER ? ' p-mountain__object--left' : ''}"
              role="img" aria-label="${_esc(obj.name)}" title="${_esc(obj.name)}">${obj.icon}</span>`
       : '';
-    // ★色だけで状態を分けない。完了にはチェックのアイコンも入れる
-    const circle = isDone
-      ? `<div class="p-mountain__node p-mountain__node--cleared">
-           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-         </div>`
-      : `<div class="p-mountain__node"></div>`;
+    // ★円盤（傾ける）とチェック（傾けない）を分けている。1つにまとめると
+    //   チェックまで潰れて斜めになり、読めなくなる。
+    const disc = `<div class="p-mountain__node${isDone ? ' p-mountain__node--cleared' : ''}"></div>`;
+    const check = isDone
+      ? `<svg class="p-mountain__check" width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+      : '';
 
     // ★data-node-y はスクロール時の遠近計算が読む。毎フレーム DOM から
     //   位置を読み直さずに済むよう、描画時に確定した値を持たせておく
     //   （読み取りと書き込みを混ぜるとレイアウトスラッシングが起きる）。
     return `
-      <div class="p-mountain__pin" data-node-y="${y}" style="left:${x}%;top:${y}px">
-        ${circle}${objHtml}
+      <div class="p-mountain__pin" data-node-y="${y}"
+        style="left:${x}%;top:${y}px;--node-tilt:${_tiltAt(i).toFixed(1)}deg">
+        ${disc}${check}${objHtml}
       </div>`;
   }).join('');
 
@@ -433,8 +455,32 @@ export function initMountainPathSync(restoreTop = null) {
   ];
 
   if (restoreTop !== null) win.scrollTop = restoreTop;
+  else win.scrollTop = _initialScrollTop(win, pins, bgTop, viewH);
   // 初回は rAF を待たずに描く（1フレーム分マスが素の大きさで見えるのを防ぐ）
   paint();
+}
+
+/**
+ * 初回表示のスクロール位置。
+ *
+ * ★いちばん新しいマス（＝次にやる灰色の1マス）を、下部パネルより上の
+ *   「見えている帯」の中に入れる。これを入れないとマスがキャンバスの
+ *   最下部に置かれたままで、下部パネル（#mainboard-bottom-panel、初期 top:56vh）
+ *   の裏に完全に隠れてしまう。
+ * ★測るのはここ1回だけ。スクロール中には測らない。
+ */
+function _initialScrollTop(win, pins, bgTop, viewH) {
+  if (pins.length === 0) return 0;
+  // 見えている帯の下端＝下部パネルの上端（無ければ画面下端）
+  const panel = document.getElementById('mainboard-bottom-panel');
+  const panelTop = panel ? panel.getBoundingClientRect().top : viewH;
+  const visibleBottom = Math.min(viewH, panelTop > bgTop ? panelTop : viewH);
+  // 帯の下寄り（62%）に置く。真ん中だと上に無駄な空きが出て、
+  // 下端ちょうどだとパネルの縁に接して窮屈に見える
+  const target = bgTop + (visibleBottom - bgTop) * 0.62;
+  const newestY = pins[pins.length - 1].y;   // DOM 順 = i 昇順なので最後が最新
+  const max = Math.max(0, (win.scrollHeight || 0) - (win.clientHeight || 0));
+  return Math.min(max, Math.max(0, Math.round(bgTop + newestY - target)));
 }
 
 // 前回の配線を外すための後始末。initMountainPathSync が毎回呼ぶ。

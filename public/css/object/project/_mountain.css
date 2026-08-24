@@ -122,13 +122,23 @@
      translate(-50%, -50%) はここが持ち、JS は倍率だけ渡す。
      JS 側で transform をまるごと書くと中央寄せが消えるので、必ず合成にすること。 */
 /* ★--node-opacity も mountainPath.js が毎フレーム書く。奥ほど薄くする。
-   オブジェクト（.p-mountain__object）はこの要素の子なので、親の opacity が
-   そのまま効く。個別に指定しないこと。 */
+   チェックとオブジェクトはこの要素の子なので、倍率も透過もまとめて効く。
+   ★マスの大きさはここ（--node-size）で決める。中の円盤・チェック・
+     オブジェクトは全部これを基準に置いてある。 */
 .p-mountain__pin {
+  --node-size: 104px;
   position: absolute;
+  width: var(--node-size);
+  height: var(--node-size);
   transform: translate(-50%, -50%) scale(var(--node-scale, 1));
   opacity: var(--node-opacity, 1);
   pointer-events: none;
+}
+
+/* 山頂・スタート・空状態は中央寄せだけで、マスの大きさを持たない */
+.p-mountain__pin--center {
+  width: auto;
+  height: auto;
 }
 
 .p-mountain__pin--center {
@@ -145,17 +155,29 @@
    ★will-change はここに付けないこと。マスの数だけ合成レイヤーが増え、
      512MB 環境ではメモリを食う。動かすのは #mountain-canvas（そちらに指定済み）。 */
 
+/* ★「潰した楕円」ではなく「円盤を寝かせたもの」として描く。
+   scaleY で寝かせてから rotate で道の向きに合わせる（CSS の transform は
+   右から順に適用されるので、この並びで「寝かせる → 傾ける」になる）。
+   先に回してから潰すと、斜めに引き伸ばされて歪んで見える。 */
 .p-mountain__node {
-  display: flex;
-  width: 88px;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
+  --node-squash: .62;   /* 寝かせ具合。1 で真円、小さいほど深く寝る */
+  position: absolute;
+  inset: 0;
   border: 4px solid var(--mtn-node-border);
-  border-radius: var(--radius-full);
+  border-radius: 50%;
   background-color: var(--mtn-node-fill);
   /* 枠が半透明の塗りに侵食されないようにする */
   background-clip: padding-box;
+  transform: rotate(var(--node-tilt, 0deg)) scaleY(var(--node-squash));
+}
+
+/* 完了の印。★円盤とは別要素にして傾けない。一緒に傾けると潰れて読めなくなる */
+.p-mountain__check {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--color-text-inverse);
 }
 
 .p-mountain__node--cleared,
