@@ -25,15 +25,22 @@
 // ★基準点は「画面下端」に固定する。画面中央を基準にすると、スクロール中に
 //   マスが一度縮んでから膨らむ動きになり酔いやすい。下端基準なら
 //   「手前が大きく、奥ほど小さい」が常に保たれる。
-const SCALE_MIN   = 0.32;  // いちばん奥での倍率
-const SCALE_RANGE = 0.68;  // 1.0 - SCALE_MIN
+// 大きさの遠近。★手前は等倍より大きく、奥は思い切り小さくする。
+//   SCALE_MAX を上げすぎるとマスが縦に重なる。上限の目安は
+//   NODE_GAP ÷（--node-size × --node-squash）＝ 72 ÷ (104 × .55) ≒ 1.26。
+const SCALE_MAX = 1.20;   // いちばん手前での倍率
+const SCALE_MIN = 0.20;   // いちばん奥での倍率
 // ★遠近の効き方のカーブ。1 で直線、大きいほど「手前は大きいまま、奥で一気に
 //   小さくなる」。実際の遠近はこの形なので、直線より奥行きが強く見える。
 const DEPTH_CURVE = 1.8;
 // ★薄くしすぎないこと。完了マスは「登ってきた道」の記録なので、奥が見えなく
 //   なると達成感が削がれる。0.35 を下限にしてある。
-const OPACITY_MIN   = 0.18;  // いちばん奥での不透明度
-const OPACITY_RANGE = 0.82;  // 1.0 - OPACITY_MIN
+const OPACITY_MIN   = 0.05;  // いちばん奥での不透明度（ほぼ消える）
+const OPACITY_RANGE = 0.95;  // 1.0 - OPACITY_MIN
+// ★薄まり方は大きさと別のカーブにする。DEPTH_CURVE より小さい値にすると
+//   早い段階から薄くなり、奥がしっかり霞む。大きさは保ったまま透明度だけ
+//   落としたいので、ここは 1 前後にしてある。
+const OPACITY_CURVE = 1.1;
 // ★画面上端の帯。ここに入ったマスは追加でフェードさせ、上から「にじみ出る」
 //   ように現れる。遠近だけだと、上端で急に切り取られたように見えてしまう。
 const FADE_IN_BAND = 140;    // 上端からこの高さ(px)でフェードイン
@@ -376,13 +383,20 @@ export function initMountainPathSync(restoreTop = null) {
 
   // 画面の寸法はスクロール中に変わらない。ここで測って使い回す
   // （毎フレーム getBoundingClientRect を呼ぶと読み書きが交互になる）。
-  let bgTop = 0, viewH = 1, canvasW = 0;
+  let bgTop = 0, viewH = 1, canvasW = 0, depthBottom = 1, depthSpan = 1;
   const measure = () => {
     const r = bg.getBoundingClientRect();
     bgTop = r.top;
     // 振れ幅を px で出すのに要る（data-node-dx は % のため）
     canvasW = r.width || canvas.clientWidth || 0;
     viewH = Math.max(1, window.innerHeight || 640);
+    // ★遠近の基準は「実際に見えている帯」＝ヘッダー下端 〜 下部パネル上端。
+    //   画面全体を基準にすると、いちばん手前の倍率はパネルの裏でしか出ず、
+    //   見えている範囲は中途半端な大きさばかりになる。
+    const panel = document.getElementById('mainboard-bottom-panel');
+    const pTop = panel ? panel.getBoundingClientRect().top : viewH;
+    depthBottom = (pTop > bgTop + 40) ? pTop : viewH;
+    depthSpan = Math.max(1, depthBottom - bgTop);
   };
   measure();
 
@@ -403,19 +417,21 @@ export function initMountainPathSync(restoreTop = null) {
       const screenY = bgTop + (pins[i].y - top);
       // 可視範囲 ±1画面の外は書かない（見えないものに毎フレーム書かない）
       if (screenY < -margin || screenY > viewH + margin) continue;
-      const dist = viewH - screenY;                 // 下端からの距離
-      // 0=手前（画面下端）〜 1=奥。★倍率と透過を同じ t から出す。
-      //   ループを分けないこと（マスの数だけ走るので2周させない）。
-      const t = Math.min(1, Math.max(0, dist / viewH));
+      // 0=手前（帯の下端＝パネルの上）〜 1=奥（帯の上端）。
+      // ★倍率・透過・振れ幅を同じ t から出す。ループを分けないこと
+      //   （マスの数だけ走るので2周させない）。
+      const t = Math.min(1, Math.max(0, (depthBottom - screenY) / depthSpan));
       // ★カーブをかける。手前は大きいまま保ち、奥で一気に落とす
       const d = Math.pow(t, DEPTH_CURVE);
-      const scale = Math.max(SCALE_MIN, 1 - d * SCALE_RANGE);
-      // 遠近ぶんの薄さ
-      let opacity = Math.max(OPACITY_MIN, 1 - d * OPACITY_RANGE);
-      // ★上端の帯でさらに薄くする。画面外（screenY < 0）では 0 になり、
-      //   スクロールで下りてくるにつれ にじみ出るように現れる。
-      if (screenY < FADE_IN_BAND) {
-        opacity *= Math.min(1, Math.max(0, screenY / FADE_IN_BAND));
+      const scale = Math.max(SCALE_MIN, SCALE_MAX - d * (SCALE_MAX - SCALE_MIN));
+      // 遠近ぶんの薄さ。★大きさとは別のカーブ（奥をより霞ませる）
+      const od = Math.pow(t, OPACITY_CURVE);
+      let opacity = Math.max(OPACITY_MIN, 1 - od * OPACITY_RANGE);
+      // ★上端の帯でさらに薄くする。★基準は画面の上端ではなく山の上端（bgTop）。
+      //   山はヘッダーの下から始まるので、そこから にじみ出るように現れる。
+      const fromTop = screenY - bgTop;
+      if (fromTop < FADE_IN_BAND) {
+        opacity *= Math.min(1, Math.max(0, fromTop / FADE_IN_BAND));
       }
       // ★振れ幅も同じ t から。画面下ほど大きく振れ、上へ行くほど中央に寄る。
       //   横位置は left（レイアウト）ではなく transform で動かす。

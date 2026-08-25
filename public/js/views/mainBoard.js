@@ -200,10 +200,10 @@ function _initMissionPanelDrag() {
   if (!panel || !handle) return;
 
   const vh = window.innerHeight || 640;
-  // 通常：画面の下から 1/3。★山を広く見せるため、パネルはここまで。
+  // 通常：画面の下から 38%。★山を広く見せるため、パネルはここまで。
   //   ここを下げる（値を大きくする）とプログレスマップの手前が広く見え、
   //   上げるとミッション一覧が読みやすくなる。トレードオフ。
-  const collapsedTop = Math.round(vh * (2 / 3));
+  const collapsedTop = Math.round(vh * 0.62);
   const expandedTop  = Math.round(vh * 0.22); // 拡大：山を 22% 残して広げる
   panel.style.top = (_missionPanelExpanded ? expandedTop : collapsedTop) + 'px';
 
