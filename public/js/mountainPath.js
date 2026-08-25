@@ -29,7 +29,7 @@
 //   SCALE_MAX を上げすぎるとマスが縦に重なる。上限の目安は
 //   NODE_GAP ÷（--node-size × --node-squash）＝ 72 ÷ (104 × .55) ≒ 1.26。
 const SCALE_MAX = 1.20;   // いちばん手前での倍率
-const SCALE_MIN = 0.20;   // いちばん奥での倍率
+const SCALE_MIN = 0.16;   // いちばん奥での倍率
 // ★遠近の効き方のカーブ。1 で直線、大きいほど「手前は大きいまま、奥で一気に
 //   小さくなる」。実際の遠近はこの形なので、直線より奥行きが強く見える。
 const DEPTH_CURVE = 1.8;
@@ -40,10 +40,10 @@ const OPACITY_RANGE = 0.95;  // 1.0 - OPACITY_MIN
 // ★薄まり方は大きさと別のカーブにする。DEPTH_CURVE より小さい値にすると
 //   早い段階から薄くなり、奥がしっかり霞む。大きさは保ったまま透明度だけ
 //   落としたいので、ここは 1 前後にしてある。
-const OPACITY_CURVE = 1.1;
+const OPACITY_CURVE = 1.5;
 // ★画面上端の帯。ここに入ったマスは追加でフェードさせ、上から「にじみ出る」
 //   ように現れる。遠近だけだと、上端で急に切り取られたように見えてしまう。
-const FADE_IN_BAND = 140;    // 上端からこの高さ(px)でフェードイン
+const FADE_IN_BAND = 120;    // 上端からこの高さ(px)でフェードイン
 
 // ★仮想化のしきい値。可視範囲 ±1画面ぶんの外にあるマスは毎フレームの
 //   書き込み対象から外す。実データは最大でも数十マスなので、いまは
@@ -52,21 +52,6 @@ const FADE_IN_BAND = 140;    // 上端からこの高さ(px)でフェードイ�
 const CULL_MARGIN = 1;     // 画面高の何倍まで面倒を見るか
 
 import { findObject } from './mountainObjects.js';
-import { daysUntilSigned } from './utils.js';
-
-// ── 空の時間変化 ──────────────────────────────────────────
-// 開催日までの残り日数で空の段階が変わる。色は CSS のトークン
-// （foundation/_variables.css）が持ち、ここではモディファイア名だけ決める。
-// ★上から順に評価し、最初に当てはまったものを使う。段階を足すときはこの表に
-//   1行入れて、_mountain.css に同名のモディファイアを書けばよい。
-const SKY_STAGES = [
-  { min:  60, mod: 'morning'   },  // 60日〜   朝（澄んだ青）
-  { min:  30, mod: 'noon'      },  // 30〜59日 昼
-  { min:  14, mod: 'afternoon' },  // 14〜29日 午後
-  { min:   7, mod: 'evening'   },  //  7〜13日 夕方
-  { min:   1, mod: 'dusk'      },  //  1〜6日  薄暮
-  { min: -Infinity, mod: 'summit' }, // 開催日当日以降 山頂に日が差す
-];
 
 // ── 背景セグメント ────────────────────────────────────────
 // 一定マスごとに背景のテーマが変わる。
@@ -76,7 +61,7 @@ const SKY_STAGES = [
 // ★SEGMENT_MASSES を変えるだけで、高さ・境界位置・テーマの区切りが全部追従する。
 //   704 や 8 をコード中に直書きしないこと。
 // ★これを変えると既存イベントの背景の並びも変わる（区切りが動くため）。
-const SEGMENT_MASSES = 8;
+const SEGMENT_MASSES = 5;
 
 // テーマと素材。★variants に文字列を足すだけでバリエーションが増える。
 //   文字列は CSS 変数の接尾辞（'01' → var(--mtn-bg-01)）。
@@ -93,20 +78,33 @@ const BG_THEMES = [
 // ★マス間の縦間隔。狭めるほど手前に多くのマスが並ぶ。
 //   マスの見た目の高さ（--node-size × --node-squash ＝ 約64px）より
 //   小さくすると重なるので、下げすぎないこと。
-const NODE_GAP   = 72;
-const TOP_PAD    = 96;  // 山頂マーカー分の上余白(px)
+const NODE_GAP   = 86;
+const TOP_PAD    = 96;  // 道の先端より上に取る余白(px)。★山頂マーカーも山頂背景も撤去済みだが、
+                        //   先端のマスがキャンバス上端に貼り付かないようにこの余白は残す。
 // ★下端の余白。マスがここより下には来ない。
-//   #mainboard-bottom-panel（初期 top:56vh）の裏にいちばん下のマスが
+//   #mainboard-bottom-panel（通常 top:62vh）の裏にいちばん下のマスが
 //   潜り込まないよう、パネルの高さぶんの逃げを取ってある。狭めないこと。
-const BOTTOM_PAD = 150;
+const BOTTOM_PAD = 320;
+// ★下部パネルの上端に乗っている波の装飾（images/front/…svg）の高さ。
+//   パネルの矩形上端より上に波が張り出すぶん、実際にマスが隠れ始める高さが
+//   変わる。遠近の基準帯と初期スクロールの両方でこのぶんを補正する。
+//   ★CSS の --panel-wave-h と必ず同じ値にすること（片方だけ変えるとずれる）。
+//   補正は波の中心線（高さの半分）で取る。谷と山の平均がいちばん破綻しない。
+const PANEL_WAVE_H = 38;
+
+// ★いちばん新しいマスを、下部パネルのどれだけ上まで持ってこられるようにするか。
+//   スクロールを最後まで送ったとき、最新のマスがここに来る。
+//   これが無いとスクロールが上限に当たり、最新のマスが画面中ほどの小さいまま
+//   止まってしまう（＝手前の大きさで見られない）。
+const NEAR_MARGIN = 56;
 // ── 道の曲がり方 ──────────────────────────────────────────
 // 左右に振れる道を正弦カーブで滑らかに曲げる。
 // ★ARC_NODES は「弧ひとつぶんのマス数」＝半周期。6 なら
 //   中央 → 右端 → 中央 → 左端 → 中央 で 12 マス一巡になる（値を上げるほど緩い）。
 // ★X_CENTER ± X_AMPLITUDE が手前での振れ幅。
 const X_CENTER    = 50;
-const X_AMPLITUDE = 26;   // 24%〜76%。マスの幅を足しても画面内に収まる
-const ARC_NODES   = 6;
+const X_AMPLITUDE = 28;   // 24%〜76%。マスの幅を足しても画面内に収まる
+const ARC_NODES   = 5;
 
 // ★振れ幅は「画面のどこにいるか」で決まる。画面下ほど大きく振れ、
 //   上へ行くほど中央に寄る（大きさ・不透明度と同じ軸で遠近を作る）。
@@ -224,29 +222,10 @@ function _renderBgLayer(p, canvasH) {
         style="--seg-image:var(--mtn-bg-${seg.variant});top:${Math.round(top)}px;height:${Math.round(bottom - top)}px"></div>`;
   }).join('');
 
-  // 山頂の背景。★道の先端（山頂マーカーのあたり）に敷く。下端はぼかして繋ぐ
-  const summit = `
-    <div class="p-mountain__bg-summit"
-      style="--seg-image:var(--mtn-bg-summit);height:${TOP_PAD + NODE_GAP}px"></div>`;
-
-  return `<div class="p-mountain__bg-layer" style="--seg-overlap:${SEGMENT_OVERLAP}px">${segs}${summit}</div>`;
-}
-
-/**
- * 空の段階を返す（'morning' | 'noon' | … | 'summit'）。
- *
- * ★開催日が未設定なら null。モディファイアを付けず、既定（昼）のままにする。
- * ★残り日数は daysUntilSigned（utils.js）で取る。calculateDaysLeft と
- *   proposalEngine._daysUntil は Math.max(0,…) で負値を潰すため、
- *   「開催日を過ぎたか」を判定できない。
- * ★dates は未ソートで保存されるので、必ず並べ替えてから初日を取る。
- */
-function _skyStage(p) {
-  const dates = Array.isArray(p?.dates) ? [...p.dates].filter(Boolean).sort() : [];
-  if (dates.length === 0) return null;
-  const left = daysUntilSigned(dates[0]);
-  if (left === null) return null;
-  return (SKY_STAGES.find(s => left >= s.min) || SKY_STAGES[SKY_STAGES.length - 1]).mod;
+  // ★山頂の背景（--mtn-bg-summit）は敷かない。素材の上4分の1が空だったため、
+  //   空を撤去した今、道の先端にだけ水色が残ってしまう。
+  //   道の先端より上は .p-mountain の地色のままにする。
+  return `<div class="p-mountain__bg-layer" style="--seg-overlap:${SEGMENT_OVERLAP}px">${segs}</div>`;
 }
 
 /**
@@ -273,9 +252,15 @@ function _objectFor(p, mission) {
  * top はヘッダー高に依存するため initMountainPathSync が実測でセットする。
  * @param {object} p イベント（flat 形式）
  */
-export function renderMountainBg(p) {
+export function renderMountainBg(p, opts = {}) {
   const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
-  const stage = _skyStage(p);
+
+  // ★ミッション完了の演出。完了すると clearedCount が 1 増えるので、
+  //   「今しがた色がついたマス」＝ clearedCount - 1、「新しく現れた灰色のマス」＝ n - 1。
+  //   データ側は既にこの形になっているので、ここは印を付けるだけでよい。
+  //   演出を出さないときは -1（どのマスにも一致しない）。
+  const popIdx    = opts.celebrate && clearedCount > 0 ? clearedCount - 1 : -1;
+  const appearIdx = opts.celebrate ? n - 1 : -1;
 
   // マス（★装飾のみ。タップ不可・タイトル無し）
   // 下から順に「完了したぶん」を塗り、いちばん上の1つだけ灰色（＝次の1マス）にする。
@@ -289,14 +274,19 @@ export function renderMountainBg(p) {
     const obj = isDone ? _objectFor(p, cleared[i]) : null;
     // 道の外側（中央から遠い側）へ置く。道やマスと重ならないようにするため
     const objHtml = obj
-      ? `<span class="p-mountain__object${x < X_CENTER ? ' p-mountain__object--left' : ''}"
+      ? `<span class="p-mountain__object${x < X_CENTER ? ' p-mountain__object--left' : ''}${i === popIdx ? ' p-mountain__object--pop' : ''}"
              role="img" aria-label="${_esc(obj.name)}" title="${_esc(obj.name)}">${obj.icon}</span>`
       : '';
     // ★円盤（傾ける）とチェック（傾けない）を分けている。1つにまとめると
     //   チェックまで潰れて斜めになり、読めなくなる。
-    const disc = `<div class="p-mountain__node${isDone ? ' p-mountain__node--cleared' : ''}"></div>`;
+    // 完了の演出。★アニメーションを載せるのは円盤（子）であって .p-mountain__pin ではない。
+    //   pin の transform は paint() が毎フレーム --node-scale / --node-dx で書き換えるので、
+    //   ここで transform を持つアニメーションを付けると遠近と喧嘩して跳ねる。
+    const pop    = i === popIdx    ? ' p-mountain__node--pop'    : '';
+    const appear = i === appearIdx ? ' p-mountain__node--appear' : '';
+    const disc = `<div class="p-mountain__node${isDone ? ' p-mountain__node--cleared' : ''}${pop}${appear}"></div>`;
     const check = isDone
-      ? `<svg class="p-mountain__check" width="22" height="22" viewBox="0 0 24 24" fill="none"
+      ? `<svg class="p-mountain__check${i === popIdx ? ' p-mountain__check--pop' : ''}" width="32" height="32" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
       : '';
 
@@ -323,7 +313,7 @@ export function renderMountainBg(p) {
 
   return `
     <!-- ★top はヘッダー＋タブの実測高に合わせて initMountainPathSync が設定する -->
-    <div id="mountain-bg" class="p-mountain${stage ? ` p-mountain--${stage}` : ''}" style="top:110px">
+    <div id="mountain-bg" class="p-mountain" style="top:110px">
       <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
         ${_renderBgLayer(p, canvasH)}
         ${nodes}
@@ -340,7 +330,9 @@ export function renderMountainScrollWindow(p) {
   const { canvasH } = _layout(p);
   return `
     <div id="mountain-path-scroll" class="p-mountain__scroll u-no-scrollbar">
-      <div style="height:${canvasH}px"></div>
+      <!-- ★スクロール量を決めるスペーサー。initMountainPathSync が上端の余白
+           （headroom）ぶんを足して高さを書き換えるので、目印を消さないこと。 -->
+      <div data-mtn-spacer style="height:${canvasH}px"></div>
     </div>`;
 }
 
@@ -383,7 +375,13 @@ export function initMountainPathSync(restoreTop = null) {
 
   // 画面の寸法はスクロール中に変わらない。ここで測って使い回す
   // （毎フレーム getBoundingClientRect を呼ぶと読み書きが交互になる）。
-  let bgTop = 0, viewH = 1, canvasW = 0, depthBottom = 1, depthSpan = 1;
+  // ★キャンバス上端に足す余白。スクロールを最後まで送ったときに、いちばん新しい
+  //   マスが下部パネルのすぐ上（＝いちばん手前・いちばん大きい位置）まで下りてくる量。
+  //   canvas ごと下へずらすので、背景もマスも一緒に動く＝ずれない。
+  const spacer  = win.querySelector('[data-mtn-spacer]');
+  const canvasH = parseFloat(canvas.style.height) || canvas.offsetHeight || 0;
+
+  let bgTop = 0, viewH = 1, canvasW = 0, depthBottom = 1, depthSpan = 1, headroom = 0;
   const measure = () => {
     const r = bg.getBoundingClientRect();
     bgTop = r.top;
@@ -393,10 +391,17 @@ export function initMountainPathSync(restoreTop = null) {
     // ★遠近の基準は「実際に見えている帯」＝ヘッダー下端 〜 下部パネル上端。
     //   画面全体を基準にすると、いちばん手前の倍率はパネルの裏でしか出ず、
     //   見えている範囲は中途半端な大きさばかりになる。
-    const panel = document.getElementById('mainboard-bottom-panel');
-    const pTop = panel ? panel.getBoundingClientRect().top : viewH;
+    const pTop = _panelVeilTop(viewH);
     depthBottom = (pTop > bgTop + 40) ? pTop : viewH;
     depthSpan = Math.max(1, depthBottom - bgTop);
+
+    // ★上端の余白は実測から決める。「スクロール上限で最新のマスがパネルの
+    //   すぐ上に来る」ぶんだけ、キャンバスを下へずらしてスクロール量を増やす。
+    //   ここは初回と resize のときだけ書く（スクロール中には書かない）。
+    const newestY = pins.length ? pins[pins.length - 1].y : 0;
+    headroom = Math.max(0, Math.round((depthBottom - NEAR_MARGIN) - bgTop - newestY));
+    canvas.style.marginTop = `${headroom}px`;
+    if (spacer && canvasH) spacer.style.height = `${canvasH + headroom}px`;
   };
   measure();
 
@@ -414,7 +419,8 @@ export function initMountainPathSync(restoreTop = null) {
     // マスの遠近。画面下端からの距離で倍率を決める
     const margin = viewH * CULL_MARGIN;
     for (let i = 0; i < pins.length; i++) {
-      const screenY = bgTop + (pins[i].y - top);
+      // ★canvas は headroom ぶん下にずれているので、画面上の位置にも足す
+      const screenY = bgTop + headroom + (pins[i].y - top);
       // 可視範囲 ±1画面の外は書かない（見えないものに毎フレーム書かない）
       if (screenY < -margin || screenY > viewH + margin) continue;
       // 0=手前（帯の下端＝パネルの上）〜 1=奥（帯の上端）。
@@ -463,9 +469,23 @@ export function initMountainPathSync(restoreTop = null) {
   ];
 
   if (restoreTop !== null) win.scrollTop = restoreTop;
-  else win.scrollTop = _initialScrollTop(win, pins, bgTop, viewH);
+  else win.scrollTop = _initialScrollTop(win, pins, bgTop + headroom, viewH);
   // 初回は rAF を待たずに描く（1フレーム分マスが素の大きさで見えるのを防ぐ）
   paint();
+}
+
+/**
+ * 「見えている帯」の下端＝下部パネルに隠され始める高さ。
+ *
+ * ★パネルの矩形上端そのものではなく、波の中心線を返す。パネルの背景は
+ *   上端に波の装飾が乗っており、矩形上端はいちばん高い所ではないため、
+ *   矩形上端をそのまま使うと帯を波1つぶん狭く見積もることになる。
+ * @param {number} fallback パネルが無いときの値（＝画面下端）
+ */
+function _panelVeilTop(fallback) {
+  const panel = document.getElementById('mainboard-bottom-panel');
+  if (!panel) return fallback;
+  return panel.getBoundingClientRect().top + PANEL_WAVE_H / 2;
 }
 
 /**
@@ -473,15 +493,14 @@ export function initMountainPathSync(restoreTop = null) {
  *
  * ★いちばん新しいマス（＝次にやる灰色の1マス）を、下部パネルより上の
  *   「見えている帯」の中に入れる。これを入れないとマスがキャンバスの
- *   最下部に置かれたままで、下部パネル（#mainboard-bottom-panel、初期 top:56vh）
+ *   最下部に置かれたままで、下部パネル（#mainboard-bottom-panel、通常 top:62vh）
  *   の裏に完全に隠れてしまう。
  * ★測るのはここ1回だけ。スクロール中には測らない。
  */
 function _initialScrollTop(win, pins, bgTop, viewH) {
   if (pins.length === 0) return 0;
   // 見えている帯の下端＝下部パネルの上端（無ければ画面下端）
-  const panel = document.getElementById('mainboard-bottom-panel');
-  const panelTop = panel ? panel.getBoundingClientRect().top : viewH;
+  const panelTop = _panelVeilTop(viewH);
   const visibleBottom = Math.min(viewH, panelTop > bgTop ? panelTop : viewH);
   // 帯の下寄り（62%）に置く。真ん中だと上に無駄な空きが出て、
   // 下端ちょうどだとパネルの縁に接して窮屈に見える
