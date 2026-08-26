@@ -1,0 +1,402 @@
+/* ==========================================================================
+   Object / Project / character — 提案キャラクター（mizu / mori / iwa）
+   使用箇所: public/js/views/mainBoard.js の _characterBoxHtml
+
+   下部パネルの提案ボックスは、常に3体が左から mizu → mori → iwa の順で並ぶ
+   （位置固定）。体の色がそのままラベル色を表す：
+     mizu = 青（運営） / mori = 緑（制作・広報） / iwa = 黄（企画）
+
+   ★動きは全部 CSS アニメーション。JS のタイマーで目を動かさないこと。
+     0.5CPU 環境で3体ぶんの setInterval が回り続けると、山のスクロール
+     （60fps 前提）を確実に削る。
+   ★「たまに瞬きする」「タイミングをずらす」は、3体の周期を互いに素な秒数
+     （5.7s / 6.9s / 8.3s）にして実現している。乱数を使わずに永久にずれ続ける。
+   ★animate するのは transform と opacity だけ。
+
+   ■ 要素の分担（transform を奪い合わせないため、1要素につき1つの役割）
+     .p-char        … パネル操作での出入り（沈む）／登場
+     .p-char__body  … 体。呼吸・相槌・完成時のひと弾み
+     .p-char__face  … 瞬き（scaleY で潰す）
+     .p-char__iris  … 視線（translate）
+     .p-char__badge … icon-suggest の出現
+   ========================================================================== */
+
+/* ==========================================================================
+   調整値（ここだけ見ればキャラの大きさと位置は変えられる）
+   ========================================================================== */
+
+.p-main-board__proposals {
+  /* キャラ1体ぶんの高さ。体の SVG は 372×349（横長ぎみ）なので、
+     幅いっぱいに置くと自然な高さは幅とほぼ同じになる。 */
+  --char-h: 136px;
+  /* 3体の間隔。詰めるほど体が大きく見える（幅は3等分なので gap ぶんだけ増える）*/
+  --char-gap: 10px;
+  /* ★波の装飾にどれだけ重ねるか。パネル上端より上へ持ち上げる量。
+     ★--panel-wave-h（38px・_variables.css）より大きくすると、
+       キャラの頭が波を越えて山の側へ出る。参考画像はその状態。 */
+  --char-lift: 50px;
+  /* 体を枠より少しはみ出させる量。大きくすると隣とくっつく */
+  --char-bleed: 4px;
+  /* ヘルプマークの大きさと、体の内側へどれだけ寄せるか。
+     ★体は角の丸い有機的な形なので、右下の「角」に置くと体からはみ出す。
+       割合（%）で内側へ寄せること。px で置くと大きさを変えたとき破綻する。 */
+  --char-help-size: 22px;
+  --char-help-right: 15%;
+  --char-help-bottom: 12%;
+
+  position: relative;
+  z-index: 1;
+  /* ★スクロールする本文の外。パネルは overflow を切っていないので、
+     負のマージンでパネル上端より上へ出せる（波に重なる）。 */
+  margin-top: calc(var(--char-lift) * -1);
+  margin-inline: var(--space-4);
+  /* 体が枠からはみ出すぶん、下の一覧と衝突しないよう空ける */
+  margin-bottom: var(--space-2);
+  /* パネルを上げてキャラが消えたとき、空いた場所を一覧へ返す動き（下記 is-expanded）。
+     ★transition が無いと一覧がガクッと飛ぶ。 */
+  transition: margin-bottom .28s ease;
+  pointer-events: none;
+}
+
+/* ★キャラの行がある場合、波をよけるのはこの行の役目。本文側の余白は詰める。
+   （行が無い＝管理者以外のとき、本文側の padding-top が波をよける） */
+.p-main-board__proposals + .l-bottom-panel__body {
+  padding-top: var(--space-2);
+}
+
+.p-char {
+  /* ★出入りアニメの遅延。左から順に出したいので位置（--char-index）から作る。 */
+  --char-stagger: calc(var(--char-index, 0) * 60ms);
+  position: relative;
+  /* ★中身は全て絶対配置。min-height ではなく height で確定させる */
+  height: var(--char-h);
+  /* 箱そのものの背景・枠は持たない（体の SVG が見た目を作る） */
+  border: 0;
+  background: none;
+  box-shadow: none;
+  /* 行全体は pointer-events:none（上のマスを触れるように）。
+     キャラ自身だけタップを受ける */
+  pointer-events: auto;
+}
+
+/* --- 体 ------------------------------------------------------------------ */
+
+.p-char__body {
+  position: absolute;
+  z-index: 0;
+  /* ★枠より少し大きく敷いて、体を大きく見せる（--char-bleed で調整） */
+  inset: calc(var(--char-bleed) * -1);
+  background-image: var(--char-body);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+
+/* 押した感じ。★箱に背景色を敷くと体の透過ごしに白い板が見えるので、
+   体そのものを縮めて返す。 */
+.p-char:active .p-char__body {
+  transform: scale(.95);
+}
+
+.p-char__body {
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+/* --- 目 ------------------------------------------------------------------
+   ★寸法は素材から実測して決めてある。勝手に変えないこと。
+     白目 character-eye.svg  : viewBox 76.29×40、円 r=20、中心 x=20 / 56.29
+     虹彩 character-*-iris   : viewBox 50.2×13.91、円 r=6.95、中心 x=6.95 / 43.25
+     芯の間隔が 36.29 と 36.30 でほぼ一致するので、等倍で重ねると穴にぴたりと嵌る。
+       虹彩の幅  = 50.2 / 76.29  = 65.8%
+       虹彩の left = (20 - 6.95) / 76.29 = 17.1%
+       虹彩の top  = (40 - 13.91) / 2 / 40 = 32.6%
+   ★可動域は 白目r20 − 虹彩r6.95 = 13.05。虹彩自身の寸法に対して
+     横 ±26% / 縦 ±94% までが「白目からはみ出さない」限界。下の値はその内側。 */
+
+.p-char__face {
+  position: absolute;
+  z-index: 1;
+  /* ★大きさと位置はここだけで決まる。参考画像に合わせて実測で詰めた値 */
+  top: 12%;
+  left: 50%;
+  width: 27%;
+  /* 瞬きは中心を軸に潰す。translate はここが持つので、キーフレーム側でも必ず含める */
+  transform: translateX(-50%) scaleY(1);
+  pointer-events: none;
+}
+
+.p-char__eye {
+  display: block;
+  width: 100%;
+}
+
+.p-char__iris {
+  position: absolute;
+  top: 32.6%;
+  left: 17.1%;
+  width: 65.8%;
+  transform: translate(var(--gaze-x, 0), var(--gaze-y, 0));
+}
+
+/* 普段の目線。★参考画像どおり、両端の2体は内側の上を見る */
+.p-char--mizu { --gaze-x: 20%;  --gaze-y: -42%; }   /* 右上 */
+.p-char--mori { --gaze-x: 0%;   --gaze-y: -48%; }   /* 上 */
+.p-char--iwa  { --gaze-x: -20%; --gaze-y: -42%; }   /* 左上 */
+
+/* --- 提案あり（icon-suggest）--------------------------------------------- */
+
+.p-char__badge {
+  position: absolute;
+  z-index: 2;
+  top: -2px;
+  right: -2px;
+  width: 26%;
+  max-width: 30px;
+  pointer-events: none;
+  filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* --- 中身（タイトル・待ち文言）-------------------------------------------
+   ★文字は絶対配置で「体の内側」に置く。flex の並びに任せると、行数が増えたときに
+     箱を押し広げて目にかぶさり、体からはみ出す（実機で発生した）。
+   ★上端は目の下、左右は体のふくらみの内側、下端はヘルプボタンの上。
+     体の SVG は角が丸い有機的な形なので、四隅は使わない。 */
+
+.p-char .p-main-board__proposal-body {
+  position: absolute;
+  z-index: 1;
+  top: 30.5%;
+  right: 12%;
+  bottom: 30%;
+  left: 12%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ★行数が入りきらないときは省略する。体からはみ出させないことを優先する
+   （タップすれば作成シートに全文が入るので、ここで全部読める必要はない）。 */
+.p-main-board__proposal-title,
+.p-main-board__proposal-wait-text {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.5;
+  letter-spacing: .015em;
+  color: var(--color-text-inverse);
+  text-align: center;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  line-break: strict;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* ★ヘルプは白（提案ボックスの中は体の色で塗られているため）。
+   同じ icon-Help.svg を使う「提案のヒント」モーダル側は明るい背景なので、
+   そちらだけ _main-board.css で暗く戻している。 */
+.p-char .p-main-board__proposal-help {
+  z-index: 2;
+  right: var(--char-help-right);
+  bottom: var(--char-help-bottom);
+  padding: 0;
+  opacity: 1;
+}
+
+.p-char .p-main-board__proposal-help-icon {
+  width: var(--char-help-size);
+  height: var(--char-help-size);
+}
+
+/* ==========================================================================
+   アニメーション
+   ========================================================================== */
+
+/* --- 瞬き ---------------------------------------------------------------- */
+/* ★「たまに」なので周期は長め（13〜19秒に1回）。閉じているのは周期の 3% で、
+   13秒なら 0.4 秒ほど。★ここを詰めすぎると常時ぱちぱちして落ち着かない。
+   3体で周期が違うので、揃って瞬くことがない。 */
+@keyframes charBlink {
+  0%, 97%, 100% { transform: translateX(-50%) scaleY(1); }
+  98.5%         { transform: translateX(-50%) scaleY(.08); }
+}
+
+/* --- たまに左右を見る ----------------------------------------------------- */
+/* ★行き先は絶対値で書く。基準の目線に足すと可動域（±26%）を超える恐れがある */
+@keyframes charGlance {
+  0%, 93%, 100% { transform: translate(var(--gaze-x), var(--gaze-y)); }
+  95%           { transform: translate(-24%, -18%); }
+  97.5%         { transform: translate(24%, -18%); }
+}
+
+/* --- 会議（提案生成中）--------------------------------------------------- */
+/* 中央の mori が左右の2体を交互に見る。両端は瞬きだけ */
+@keyframes charMeetingGaze {
+  from { transform: translate(-24%, -12%); }
+  to   { transform: translate(24%, -12%); }
+}
+
+/* 相槌。ごく浅く上下する */
+@keyframes charNod {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+/* --- 寝息 ---------------------------------------------------------------- */
+@keyframes charBreathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(2px) scale(.985); }
+}
+
+/* --- 完成したときのひと弾み ---------------------------------------------- */
+@keyframes charPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.06); }
+  70%  { transform: scale(.98); }
+  100% { transform: scale(1); }
+}
+
+/* --- icon-suggest の出現 -------------------------------------------------- */
+@keyframes charBadgeIn {
+  0%   { opacity: 0; transform: scale(.2) rotate(-25deg); }
+  60%  { opacity: 1; transform: scale(1.15) rotate(6deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+/* --- 目線が定位置へ戻る（完成の瞬間）------------------------------------- */
+@keyframes charGazeHome {
+  from { transform: translate(0, 10%); }
+  to   { transform: translate(var(--gaze-x), var(--gaze-y)); }
+}
+
+/* --- 登場・退場 ----------------------------------------------------------- */
+/* パネルを上げたとき：下へ沈みながら少し縮んで消える */
+@keyframes charSink {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(24px) scale(.92); }
+}
+
+/* パネルが戻ったとき／イベント作成直後：下から行き過ぎて戻る */
+@keyframes charRise {
+  0%   { opacity: 0; transform: translateY(24px) scale(.92); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.04); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ==========================================================================
+   状態ごとの割り当て
+   ========================================================================== */
+
+/* --- 普段（提案が出ている）----------------------------------------------- */
+.p-char--ready .p-char__face { animation: charBlink var(--blink-dur) linear infinite; }
+.p-char--ready .p-char__iris { animation: charGlance var(--glance-dur) ease-in-out infinite; }
+
+/* ★周期を互いに素にして、3体の瞬きが永久に揃わないようにする。
+   ★「たまに動く」くらいが狙いなので、短くしないこと。
+     瞬き 13〜19秒に1回／目を振るのは 29〜41秒に1回。 */
+.p-char--mizu { --blink-dur: 13s; --glance-dur: 29s; }
+.p-char--mori { --blink-dur: 16s; --glance-dur: 34s; }
+.p-char--iwa  { --blink-dur: 19s; --glance-dur: 41s; }
+
+/* 提案が出た瞬間：バッジが弾んで出て、目線が定位置へ戻り、体がひと弾みする。
+   ★「.p-char--ready に付ける」ことは絶対にしない。提案ボックスは innerHTML ごと
+     作り直されるので、表示モードの切り替え・SSE 受信・あらゆる再描画のたびに
+     バッジが出現し直してしまう（実機で発生した）。
+     出すのは提案が届いた1回だけ ＝ is-revealing が付いているときだけ。 */
+.p-main-board__proposals.is-revealing .p-char__badge,
+.p-main-board__proposals.is-intro .p-char__badge {
+  animation: charBadgeIn .5s cubic-bezier(.34, 1.56, .64, 1) calc(.15s + var(--char-stagger)) both;
+}
+
+.p-main-board__proposals.is-revealing .p-char__body {
+  animation: charPop .5s ease-out var(--char-stagger) both;
+}
+
+.p-main-board__proposals.is-revealing .p-char__iris {
+  animation: charGazeHome .4s ease-out var(--char-stagger) both;
+}
+
+/* --- 提案生成中（会議している）------------------------------------------- */
+.p-char--meeting .p-char__face { animation: charBlink var(--blink-dur) linear infinite; }
+.p-char--meeting .p-char__body { animation: charNod 1.8s ease-in-out infinite; }
+
+/* ★左右に目を動かすのは中央の mori だけ。両端は瞬きのみ（指示どおり） */
+.p-char--meeting.p-char--mori .p-char__iris {
+  animation: charMeetingGaze 2.4s ease-in-out infinite alternate;
+}
+
+/* 相槌のタイミングも3体でずらす */
+.p-char--meeting.p-char--mori .p-char__body { animation-delay: .3s; }
+.p-char--meeting.p-char--iwa  .p-char__body { animation-delay: .6s; }
+
+/* --- 次回の更新待ち（寝ている）------------------------------------------- */
+/* 目は閉じたまま。瞬きのアニメーションは当てない（＝止まって見えるのが正しい） */
+.p-char--sleeping .p-char__face { transform: translateX(-50%) scaleY(.08); }
+.p-char--sleeping .p-char__body { animation: charBreathe 3.2s ease-in-out infinite; }
+.p-char--sleeping.p-char--mori .p-char__body { animation-delay: .5s; }
+.p-char--sleeping.p-char--iwa  .p-char__body { animation-delay: 1s; }
+
+/* --- パネル操作での出入り ------------------------------------------------- */
+/* ★パネルを上げている間はキャラを消す。ミッション一覧を読むための位置なので、
+   キャラが残っていると場所を食うだけになる。
+   ★「消えている状態（is-expanded）」と「消える動き（is-sinking）」を分けてある。
+     状態にアニメーションを持たせると、SSE の再描画のたびに消える動きが
+     再生され、上げっぱなしのパネルで数百 ms ごとにチラつく。 */
+/* ★状態クラスはパネル（.l-bottom-panel）ではなく提案コンテナに付ける。
+   project レイヤの CSS は .p- で始まるセレクタしか書けない規約のため
+   （scripts/checkFlocss.mjs が検査している）。 */
+.p-main-board__proposals.is-expanded .p-char {
+  opacity: 0;
+  transform: translateY(24px) scale(.92);
+  pointer-events: none;
+}
+
+/* 消えたぶんの場所をミッション一覧へ返す。
+   ★-(--char-lift) にすると、行の占める高さがちょうど波の高さぶんになり、
+     本文がキャラの居ない状態の正しい位置（波のすぐ下）から始まる。
+     計算：margin-top(-lift) + height(char-h) + margin-bottom(-lift) ≒ 波の高さ */
+.p-main-board__proposals.is-expanded {
+  margin-bottom: calc(var(--char-lift) * -1);
+}
+
+/* 実際に指で動かした1回だけ付く。付いている間はアニメーション（both）が
+   上の静的な指定に勝ち、外れたあとは上の指定に着地する */
+.p-main-board__proposals.is-sinking .p-char {
+  animation: charSink .24s ease-in calc(var(--char-index, 0) * 50ms) both;
+}
+
+.p-main-board__proposals.is-rising .p-char {
+  animation: charRise .38s cubic-bezier(.34, 1.56, .64, 1) calc(var(--char-index, 0) * 50ms) both;
+}
+
+/* --- イベント作成直後の登場 ----------------------------------------------- */
+/* ★出入りより遅らせて、3体が順に跳ねて出てくるのが分かるようにする */
+.p-main-board__proposals.is-intro .p-char {
+  animation: charRise .55s cubic-bezier(.34, 1.56, .64, 1) calc(var(--char-index, 0) * 140ms) both;
+}
+
+/* --- 動きを減らす設定 ------------------------------------------------------ */
+/* ★目の動きは残す（キャラクターの生気そのもののため）が、位置が動くものは止める */
+/* ★!important は使わない（規約）。同じセレクタをこの位置で書き直して
+   後勝ちさせる。セレクタを1つでも取りこぼすと、その動きだけ残る。 */
+@media (prefers-reduced-motion: reduce) {
+  .p-main-board__proposals.is-sinking .p-char,
+  .p-main-board__proposals.is-rising .p-char,
+  .p-main-board__proposals.is-intro .p-char {
+    animation: none;
+  }
+
+  .p-char--meeting .p-char__body,
+  .p-char--sleeping .p-char__body,
+  .p-main-board__proposals.is-revealing .p-char__body {
+    animation: none;
+  }
+
+  .p-main-board__proposals.is-revealing .p-char__badge,
+  .p-main-board__proposals.is-intro .p-char__badge {
+    animation-duration: .01ms;
+    animation-delay: 0s;
+  }
+}

@@ -99,13 +99,26 @@
 /* --- タグフィルタ --------------------------------------------------------
    ★横スクロール。スクロールバーは隠す（細いバーが宙に浮いて見えるため）。 */
 
+/* ラベル絞り込み（横スクロール）と並び替えボタンを1行に並べる。
+   ★並び替えメニューはボタンの親（＝この行）に absolute で差し込まれるので
+     position:relative が必須。右端は親のパディング内に揃える（負マージンを付けない）ため、
+     メニューの right:0 がそのままボタンの直下に来る。 */
+.p-main-board__filter-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: calc(var(--space-6) * -1);
+  margin-bottom: var(--space-3);
+}
+
 .p-main-board__tag-filter {
   display: flex;
+  flex: 1;
   gap: var(--space-2);
   overflow-x: auto;
-  margin-inline: calc(var(--space-6) * -1);
-  margin-bottom: var(--space-3);
-  padding: 0 var(--space-6) var(--space-2);
+  min-width: 0;
+  padding: 0 0 var(--space-2) var(--space-6);
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -148,28 +161,23 @@
    ★管理者だけに出る。タップすると内容を事前入力した作成シートが開く
      （即時追加はしない）。12時間ごとに3枠すべて入れ替わる。 */
 
+/* 提案キャラクターの行。★下部パネルの直下（スクロールする本文の外）に置く。
+   位置と大きさの調整値は _character.css のカスタムプロパティにまとめてある。 */
 .p-main-board__proposals {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
+  gap: var(--char-gap);
 }
 
+/* ★見た目（枠・地色・影）はキャラクターの体の SVG が持つ。
+   中身（目・文字・バッジ・ヘルプ）は全て絶対配置なので、ここは器だけ。 */
 .p-main-board__proposal {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  min-height: 120px;
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-  transition: background-color var(--duration-fast) var(--ease);
 }
 
-.p-main-board__proposal:active {
-  background-color: var(--color-bg);
-}
+/* ★押したときに箱へ地色を敷かないこと。体の SVG は塗りに透過を含むので、
+   箱の背景がそのまま「キャラの後ろの白い板」として透けて見える。
+   押した感じは体（.p-char__body）を縮めて出す（_character.css）。 */
 
 .p-main-board__proposal-body {
   display: flex;
@@ -178,26 +186,8 @@
   cursor: pointer;
 }
 
-.p-main-board__proposal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.p-main-board__proposal-no {
-  font-size: 7.5px;
-  font-weight: var(--font-weight-heavy);
-  color: rgba(0, 0, 0, .4);
-}
-
-.p-main-board__proposal-title {
-  flex: 1;
-  font-size: 13px;
-  font-weight: var(--font-weight-heavy);
-  line-height: 1.375;
-  word-break: break-word;
-}
+/* ★提案タイトルの見た目（大きさ・白抜き・行数の省略）は _character.css が持つ。
+   体の内側に収める必要があり、キャラの寸法と一体で決まるため。 */
 
 .p-main-board__proposal-help {
   position: absolute;
@@ -217,38 +207,8 @@
   height: 16px;
 }
 
-/* AI 生成の待ち時間 */
-.p-main-board__proposal-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: 120px;
-  padding: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.p-main-board__proposal-loading-text {
-  font-size: 9px;
-  font-weight: var(--font-weight-heavy);
-  line-height: 1.25;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-.p-main-board__proposal-wait {
-  grid-column: span 3;
-  padding-block: var(--space-4);
-  font-size: 10px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-  text-align: center;
-  animation: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite;
-}
+/* ★AI 生成中／更新待ちの専用カードは廃止した。空きスロットも
+   キャラクター（会議している／寝ている）で埋める（_character.css）。 */
 
 /* --- ミッション一覧 ------------------------------------------------------ */
 
@@ -265,7 +225,11 @@
   color: var(--color-text);
 }
 
+/* ★margin-left:auto は「ラベルが1つ以下でチップを出さない」ときに効く。
+   チップがあるときは .p-main-board__tag-filter の flex:1 が押し出す。 */
 .p-main-board__sort {
+  flex-shrink: 0;
+  margin-left: auto;
   padding: var(--space-1);
   transition: transform var(--duration-fast) var(--ease);
 }
@@ -323,8 +287,7 @@
   display: flex;
   flex-direction: column;
   padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: 1.6em;
   background-color: var(--color-surface);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
@@ -844,9 +807,13 @@
   gap: var(--space-3);
 }
 
+/* ★icon-Help.svg は提案ボックス用に白（#fff）になっている。ここは明るい背景の
+   モーダル見出しなので、そのままだと見えない。フィルタで暗く戻す。
+   ★ファイルを2つに分けなかったのは、白い方が主用途で、暗いのはここ1箇所だけのため。 */
 .p-main-board__help-icon {
   width: 24px;
   height: 24px;
+  filter: brightness(0) saturate(100%) opacity(.75);
 }
 
 .p-main-board__help-box {

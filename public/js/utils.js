@@ -87,28 +87,6 @@ export function calculateDaysLeft(dateStr) {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
-/**
- * 開催日までの残り日数。**負の値を返す**（開催日を過ぎたら -1, -2, …）。
- *
- * ★calculateDaysLeft() と proposalEngine._daysUntil() は
- *   Math.max(0, ...) で負値を 0 に丸めるため、「開催日を過ぎたか」を判定できない。
- *   丸めない版が要る場面（空の色の段階判定など）はこちらを使うこと。
- * ★既存2関数の挙動は変えない。ミッションの締め切り表示などが 0 丸めに依存している。
- *
- * @param {string} dateStr 'YYYY-MM-DD'
- * @returns {number|null} 残り日数。日付が無ければ null
- */
-export function daysUntilSigned(dateStr) {
-  if (!dateStr) return null;
-  const [y, m, d] = String(dateStr).split('-').map(Number);
-  if (!y || !m || !d) return null;
-  const target = new Date(y, m - 1, d);
-  const now = new Date();
-  target.setHours(0, 0, 0, 0);
-  now.setHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - now.getTime()) / 86_400_000);
-}
-
 // ===== アーカイブの「概要」「開催場所」=====
 // ★イベント設定（eventSettings.js）とアーカイブのペン（modals/helpers.js）の
 //   両方から編集される。どちらから直しても同じ場所を読み書きするよう、

@@ -10,8 +10,21 @@
    ★id は mainboard-bottom-panel。mission-panel にしないこと
      （modals/mission.js の作成モーダル内部パネルが その id を使っており、
       被せるとモーダルのスライドインが壊れて白画面になる）。
-   ★top はドラッグで変わるので JS がインライン style で書く（初期 56vh、
-     展開時 22vh）。ここには書かない。 */
+   ★top はスワイプで変わるので JS がインライン style で書く（通常 62vh、
+     展開時 30vh ＝ 下から 70%）。ここには書かない。
+
+   ★背景は「波の装飾（上）＋ 単色（下）」の2枚重ね。
+     - 波は images/front/…svg。塗りは --panel-bg と同じ #FFCE46 / 80%。
+       ★色を揃えないと波の裾に色差の帯が出る（＝「途切れて」見える）。
+     - 単色は波の高さぶん下げた位置から下端まで。SVG の下端（viewBox の y=101.17）は
+       全幅が塗り潰されているので、そこに単色を突き合わせれば隙間は原理的に出ない。
+     - ★重ねないこと。どちらも 80% の塗りなので、1px でも重ねると
+       そこだけ 96% になって濃い線が横切る。--panel-wave-h の位置で
+       ぴったり突き合わせる（SVG の下端は全幅が塗り潰されているので隙間は出ない）。
+     - ★SVG 側に preserveAspectRatio="none" が要る。既定のままだと縦横比を
+       保って縮小され、パネルの左右に数 px の余白が出る。
+   ★角丸と box-shadow は付けないこと。どちらも「矩形の上端」に効くので、
+     波の背後に直線が浮いて形が二重に見える。 */
 
 .l-bottom-panel {
   position: fixed;
@@ -23,39 +36,28 @@
   flex-direction: column;
   max-width: var(--layout-max-width);
   margin-inline: auto;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background-color: var(--color-bg);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, .06);
+  background-image:
+    url("/images/front/mainboard-bottom-panel-decolation.svg"),
+    linear-gradient(var(--panel-bg), var(--panel-bg));
+  background-repeat: no-repeat, no-repeat;
+  background-position: top center, bottom center;
+  background-size:
+    100% var(--panel-wave-h),
+    100% calc(100% - var(--panel-wave-h));
 }
 
-/* 上下ドラッグでパネルを広げるつまみ。
-   ★touch-action:none が無いとドラッグ中にページのスクロールが競合する。 */
-.l-bottom-panel__handle {
-  display: flex;
-  flex-shrink: 0;
-  justify-content: center;
-  padding-top: 10px;
-  padding-bottom: 6px;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  cursor: grab;
-  touch-action: none;
-}
-
-.l-bottom-panel__handle:active {
-  cursor: grabbing;
-}
-
-.l-bottom-panel__grip {
-  width: 40px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background-color: var(--color-handle);
-}
-
+/* ★パネル本体がスワイプ領域とスクロール領域を兼ねる（つまみは廃止した）。
+   - overscroll-behavior:contain … iOS のラバーバンドが裏のページへ抜けるのを止める。
+     これが無いと、一覧の端まで来たとき画面全体が引っ張られる。
+   - touch-action は指定しない。JS 側が「パネルを動かすとき」だけ
+     preventDefault して、それ以外は通常のスクロールに任せるため
+     （none にすると 70% まで上げた後にスクロールできなくなる）。
+   - padding-top は波の高さぶん。中身が波の上に乗ると読めなくなる。 */
 .l-bottom-panel__body {
   flex: 1;
   overflow-y: auto;
-  padding-top: var(--space-1);
+  overscroll-behavior: contain;
+  padding-top: calc(var(--panel-wave-h) + var(--space-2));
   padding-inline: var(--space-6);
 }
 
@@ -90,11 +92,11 @@
 /* 管理者：ミッションを作る */
 .l-fab--primary {
   background-color: var(--color-primary);
-  box-shadow: 0 4px 15px rgba(12, 161, 227, .4);
+  box-shadow: 0 4px 15px rgba(32, 157, 219, .4);
 }
 
 /* 一般メンバー：ミッションを提案する */
 .l-fab--member {
   background-color: var(--color-success);
-  box-shadow: 0 4px 15px rgba(158, 223, 5, .4);
+  box-shadow: 0 4px 15px rgba(40, 171, 61, .4);
 }

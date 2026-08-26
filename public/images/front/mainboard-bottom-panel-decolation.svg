@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1179 101.17" preserveAspectRatio="none">
+  <!-- ★preserveAspectRatio="none" は必須。既定（xMidYMid meet）だと CSS 背景として
+       使ったときに縦横比を保ったまま縮小＋中央寄せされ、パネルの左右に数 px の
+       余白が出る（＝波が画面端まで届かない）。 -->
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #FFCE46;
+        opacity: .8;
+      }
+    </style>
+  </defs>
+  <g id="ui">
+    <path class="cls-1" d="M1179,46.08s-137.61-103.67-589.5,0C137.61,149.75,0,46.08,0,46.08v55.09h1179s0-75.47,0-55.09Z"/>
+  </g>
+</svg>

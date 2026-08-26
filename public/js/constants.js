@@ -140,12 +140,30 @@ export const JOIN_MESSAGE_EXAMPLES = [
 //   ★color は消さないこと。カスタムタグのカラーパレットと突き合わせて
 //     「そのタグ色が既にビルトインで使われていないか」を判定している。
 //   タグの見た目は public/css/object/component/_tag.css（色は --tag-color で渡す）。
+// ★色は提案キャラクター（PROPOSAL_CHARACTERS）の体の色と対応させてある。
+//   運営=青(mizu) / 企画=黄(iwa) / 制作=緑(mori)。
+//   ★広報だけは対応する体色のキャラが居ないため、緑の mori が制作と兼任する
+//     （赤い体のキャラが無い。色の不一致は許容と判断済み）。
+//   ここを変えるときは PROPOSAL_CHARACTERS の domains も一緒に見直すこと。
 export const LABEL_CONFIG = {
-  '企画': { color: '#0CA1E3' },
-  '運営': { color: '#EE3E12' },
-  '制作': { color: '#FFC300' },
-  '広報': { color: '#9EDF05' },
+  '企画': { color: '#F5B600' },
+  '運営': { color: '#209DDB' },
+  '制作': { color: '#28AB3D' },
+  '広報': { color: '#EE3E12' },
 };
+
+// ===== 提案キャラクター =====
+// 提案ボックスは常に3体を左から mizu → mori → iwa の順で並べる（位置固定）。
+// ★body / iris ともファイル名は id と一致させてある（以前 body だけ kusa / ishi
+//   だったが 2026-08-26 にリネーム済み）。素材を差し替えるときも命名を崩さないこと。
+//   体の色：mizu=青 #209DDB / mori=緑 #28AB3D / iwa=黄 #F5B600
+// ★domains は「その枠に出したい提案のタグ」。AI プロンプト（lib/aiProposalClient.js）と
+//   表示時の並べ替え（views/mainBoard.js）の両方がこの順に依存している。
+export const PROPOSAL_CHARACTERS = [
+  { id: 'mizu', body: 'character-mizu-body.svg', iris: 'character-mizu-iris.svg', domains: ['運営'] },
+  { id: 'mori', body: 'character-mori-body.svg', iris: 'character-mori-iris.svg', domains: ['制作', '広報'] },
+  { id: 'iwa',  body: 'character-iwa-body.svg',  iris: 'character-iwa-iris.svg',  domains: ['企画'] },
+];
 
 // ===== 規約への同意 =====
 // アカウント作成の STEP 0 で同意を取った時点の版数を users.consentVersion に記録する。

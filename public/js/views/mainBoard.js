@@ -2,7 +2,7 @@
 import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
-import { LABEL_CONFIG } from '../constants.js';
+import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync } from '../mountainPath.js';
 
@@ -111,6 +111,14 @@ export function renderMainBoard(container) {
   // 初回は null → 最上部＝道の先端のまま）
   const _mountainScrollTop = document.getElementById('mountain-path-scroll')?.scrollTop ?? null;
 
+  // ★ミッション完了の演出（1回きり）。submitMissionClear が status:'cleared' の
+  //   ときだけ立てる。ここでは読むだけで、消費（フラグ倒し）は配線の最後に行う
+  //   （HTML 構築で renderMountainBg に渡す必要があるため）。
+  const celebrate = !!state.mountainCelebrate;
+  // 演出中はパネルを通常位置へ戻す。70% まで上がったままだと山が見えず、
+  // マスが色づくところを見せられない。
+  if (celebrate) collapseMissionPanel();
+
   const isMain = state.mainBoardTab === 'MAIN';
   // MAIN タブはページ自体をスクロールさせない（上部＝山スクロール／下部＝提案・ミッションパネル）。
   // ARCHIVE / NOTIFICATIONS は従来どおり <main> のページスクロール。
@@ -128,7 +136,7 @@ export function renderMainBoard(container) {
         ${Components.Tabs(state.mainBoardTab)}
       </div>
       <!-- 山ビジュアルの背景レイヤー（ヘッダー下〜画面全体。コンテンツ(z-10)の裏側） -->
-      ${isMain ? renderMountainBg(p) : ''}
+      ${isMain ? renderMountainBg(p, { celebrate }) : ''}
       ${Components.VerifyBanner() ? `<div class="p-main-board__layer">${Components.VerifyBanner()}</div>` : ''}
       ${isMain ? `
         <!-- 上部固定：日付チップ・お知らせ・各バナー（スクロールしない） -->
@@ -138,11 +146,10 @@ export function renderMainBoard(container) {
         <!-- 下部パネル：提案＋ミッション一覧（独立スクロール・上ドラッグで拡大） -->
         <!-- id は mission-panel と衝突させないこと（modals/mission.js の作成モーダル内部パネルが
              その id を使っており、被せるとモーダルのスライドインが壊れて白画面になる） -->
-        <div id="mainboard-bottom-panel" class="l-bottom-panel" style="top:56vh">
-          <div data-mpanel-handle class="l-bottom-panel__handle">
-            <div class="l-bottom-panel__grip"></div>
-          </div>
-          <div class="l-bottom-panel__body u-pb-safe">
+        <div id="mainboard-bottom-panel" class="l-bottom-panel" style="top:62vh">
+          <!-- ★提案キャラクターはスクロール領域の外。上へはみ出して波に重なるため -->
+          ${mainLayout.proposalsRow}
+          <div data-mpanel-body class="l-bottom-panel__body u-pb-safe">
             ${mainLayout.bottomPanelInner}
           </div>
         </div>
@@ -169,11 +176,21 @@ export function renderMainBoard(container) {
     </div>`;
 
   if (state.mainBoardTab === 'MAIN') {
-    // 背景レイヤーの位置合わせ・スクロール同期を配線（スクロール位置も復元。
-    // 初回=null なら最上部＝道の先端）
-    initMountainPathSync(_mountainScrollTop);
-    // 下部パネルのドラッグ（上に広げる）を配線＋前回の開閉状態を復元
-    _initMissionPanelDrag();
+    // ★パネルの配線を先に行う。パネルの top はこの中で確定するので、
+    //   逆順にすると山側が「まだ初期値のままのパネル位置」で遠近の基準帯を
+    //   測ってしまう（マスの大きさと初期スクロール位置がずれる）。
+    _initMissionPanelGesture();
+    // 背景レイヤーの位置合わせ・スクロール同期を配線。
+    // ★演出中は復元位置を捨てて null（＝_initialScrollTop）にする。
+    //   いちばん新しいマスを「見えている帯」に入れるロジックが既にあるので、
+    //   これだけで「一番上のマスを映す」が満たせる。
+    initMountainPathSync(celebrate ? null : _mountainScrollTop);
+    // 演出は1回きり。ここで消費する（次の SSE 再描画で再生されないように）
+    if (celebrate) state.mountainCelebrate = false;
+    // ★キャラクターの一度きりの演出も同じ扱い。HTML を組む時点では立っている
+    //   必要があるので、消費するのは描画が終わったこの位置。
+    state.charactersIntro = false;
+    state.proposalsRevealed = false;
     _checkMissionDeadlineNotifications(p.missions || []);
     // ミッションカード：タップ＝完了モーダル（inline onclick）、管理者長押し＝編集/削除メニュー
     bindMissionInteractions(container, p, { useInlineTap: true });
@@ -192,50 +209,206 @@ export function toggleAnnounceList() {
   state.render();
 }
 
-// 下部パネルのドラッグ配線（ハンドルのみ・上下2スナップ）。app の他シートと同様、
-// ハンドル限定にしてパネル本体のスクロールとジェスチャが競合しないようにする。
-function _initMissionPanelDrag() {
-  const panel  = document.getElementById('mainboard-bottom-panel');
-  const handle = panel?.querySelector('[data-mpanel-handle]');
-  if (!panel || !handle) return;
+// 下部パネルのスワイプ配線（つまみは廃止。パネル本体が兼ねる）。
+//
+// ★スワイプとスクロールを1つの領域で両立させるのが肝。指を下ろした時点では
+//   どちらの操作か決まらないので、最初の数 px の向きと scrollTop で決める：
+//
+//   | パネル | 指の向き | scrollTop | 動作                         |
+//   |--------|----------|-----------|------------------------------|
+//   | 通常   | ↑ 上     | —         | パネルを 70% まで上げる      |
+//   | 70%    | ↑ 上     | —         | 通常スクロール（触らない）   |
+//   | 70%    | ↓ 下     | 0         | パネルを通常位置へ戻す       |
+//   | 70%    | ↓ 下     | >0        | 通常スクロール（触らない）   |
+//
+// ★一度 'scroll' と決めたらそのジェスチャの間は二度とパネルを動かさない
+//   （途中で奪うと、スクロールしている最中に急にパネルが飛ぶ）。
+// ★touchmove は { passive:false }。preventDefault しないと、パネルを
+//   動かしながら裏の一覧もスクロールしてしまう。
+function _initMissionPanelGesture() {
+  const panel = document.getElementById('mainboard-bottom-panel');
+  const body  = panel?.querySelector('[data-mpanel-body]');
+  if (!panel || !body) return;
 
   const vh = window.innerHeight || 640;
   // 通常：画面の下から 38%。★山を広く見せるため、パネルはここまで。
   //   ここを下げる（値を大きくする）とプログレスマップの手前が広く見え、
   //   上げるとミッション一覧が読みやすくなる。トレードオフ。
   const collapsedTop = Math.round(vh * 0.62);
-  const expandedTop  = Math.round(vh * 0.22); // 拡大：山を 22% 残して広げる
-  panel.style.top = (_missionPanelExpanded ? expandedTop : collapsedTop) + 'px';
+  // 展開：下から 70%（＝上端が画面の 30%）。一覧を読むための位置。
+  const expandedTop  = Math.round(vh * 0.30);
+  const setTop = (v) => { panel.style.top = v + 'px'; };
+  // ★transition はインラインで付け外しする（CSS に常時置かない）。
+  //   常時付けておくと、SSE の再描画のたびにパネルが 62vh から今の位置へ
+  //   毎回スライドして見える（innerHTML ごと作り直しているため）。
+  const SNAP = 'top .28s cubic-bezier(.22,.61,.36,1)';
 
-  let startY = 0, startTop = 0, dragging = false;
-  const down = (y) => { startY = y; startTop = parseFloat(panel.style.top) || collapsedTop; dragging = true; panel.style.transition = 'none'; };
+  // ★キャラクターの表示状態。「消えている状態」と「消える動き」は別クラス。
+  //   状態にアニメーションを持たせると、SSE の再描画のたびに動きが再生されて
+  //   上げっぱなしのパネルでチラつく（_character.css のコメント参照）。
+  //   ★クラスを付けるのはパネルではなく提案コンテナ。project レイヤの CSS は
+  //     .p- で始まるセレクタしか書けない規約のため（scripts/checkFlocss.mjs）。
+  //   ★提案は管理者にしか描画されないので、要素が無いことは普通にありうる。
+  const CHAR_ANIM_MS = 700;   // stagger + duration より十分長く取る
+  let charAnimTimer = null;
+  const setCharState = (expanded, animate) => {
+    const box = panel.querySelector('.p-main-board__proposals');
+    if (!box) return;
+    box.classList.toggle('is-expanded', expanded);
+    box.classList.remove('is-sinking', 'is-rising');
+    clearTimeout(charAnimTimer);
+    if (!animate) return;
+    box.classList.add(expanded ? 'is-sinking' : 'is-rising');
+    charAnimTimer = setTimeout(() => box.classList.remove('is-sinking', 'is-rising'), CHAR_ANIM_MS);
+  };
+  setCharState(_missionPanelExpanded, false);
+
+  if (_panelReturnFrom !== null) {
+    // ミッション完了の演出：上がっていた位置から通常位置へ滑らせて戻す。
+    // 再描画で DOM は作り直されているので、まず元の位置に置いてから animate する。
+    setTop(_panelReturnFrom);
+    void panel.offsetHeight;          // ここで一度レイアウトさせないと transition が走らない
+    panel.style.transition = SNAP;
+    setTop(collapsedTop);
+    // ミッション完了でパネルが戻る＝キャラも戻ってくる
+    setCharState(false, true);
+    _panelReturnFrom = null;
+  } else {
+    panel.style.transition = '';
+    setTop(_missionPanelExpanded ? expandedTop : collapsedTop);
+  }
+
+  // 指の移動が閾値を超えたら「スワイプだった」とみなし、次の click を1回だけ
+  // 握り潰す。★これが無いと、パネルを上げた指の真下にあったミッションカードが
+  // そのまま開いてしまう（touchend の後に click が発火するため）。
+  const TAP_SLOP = 10;
+  let swallowClick = false;
+  panel.addEventListener('click', (e) => {
+    if (!swallowClick) return;
+    swallowClick = false;
+    e.stopPropagation();
+    e.preventDefault();
+  }, true);
+
+  let startY = 0, startTop = 0, mode = null, moved = 0;
+
+  const down = (y) => {
+    startY = y;
+    startTop = parseFloat(panel.style.top) || collapsedTop;
+    mode = null;
+    moved = 0;
+    panel.style.transition = 'none';   // 指に貼り付けて動かす（遅れて追従させない）
+  };
+
   const move = (y) => {
-    if (!dragging) return;
-    const nt = Math.max(expandedTop, Math.min(collapsedTop, startTop + (y - startY)));
-    panel.style.top = nt + 'px';
-  };
-  const up = () => {
-    if (!dragging) return;
-    dragging = false;
-    panel.style.transition = 'top 0.25s ease';
-    const cur = parseFloat(panel.style.top) || collapsedTop;
-    _missionPanelExpanded = cur < (collapsedTop + expandedTop) / 2;
-    panel.style.top = (_missionPanelExpanded ? expandedTop : collapsedTop) + 'px';
+    const dy = y - startY;
+    moved = Math.max(moved, Math.abs(dy));
+
+    if (mode === null) {
+      // 向きが定まるまでは何もしない（1〜2px のブレで誤判定しないため）
+      if (Math.abs(dy) < 4) return false;
+      const up = dy < 0;
+      if (!_missionPanelExpanded && up) mode = 'panel';           // 通常 → 上げる
+      else if (_missionPanelExpanded && !up && body.scrollTop <= 0) mode = 'panel'; // 上端で下へ → 戻す
+      else mode = 'scroll';
+    }
+    if (mode !== 'panel') return false;
+
+    setTop(Math.max(expandedTop, Math.min(collapsedTop, startTop + dy)));
+    return true;   // 呼び出し側が preventDefault する
   };
 
-  handle.addEventListener('touchstart', e => down(e.touches[0].clientY), { passive: true });
-  handle.addEventListener('touchmove',  e => { move(e.touches[0].clientY); e.preventDefault(); }, { passive: false });
-  handle.addEventListener('touchend', up);
-  handle.addEventListener('mousedown', e => {
+  const up = () => {
+    if (mode === 'panel') {
+      panel.style.transition = SNAP;
+      const cur = parseFloat(panel.style.top) || collapsedTop;
+      const wasExpanded = _missionPanelExpanded;
+      _missionPanelExpanded = cur < (collapsedTop + expandedTop) / 2;
+      setTop(_missionPanelExpanded ? expandedTop : collapsedTop);
+      // ★状態が変わったときだけ動かす。同じ位置へスナップし直しただけなら
+      //   キャラは動かさない（指を離すたびに出入りすると鬱陶しい）。
+      setCharState(_missionPanelExpanded, _missionPanelExpanded !== wasExpanded);
+      if (moved > TAP_SLOP) swallowClick = true;
+    }
+    mode = null;
+  };
+
+  body.addEventListener('touchstart', e => down(e.touches[0].clientY), { passive: true });
+  body.addEventListener('touchmove', e => {
+    if (move(e.touches[0].clientY)) e.preventDefault();
+  }, { passive: false });
+  body.addEventListener('touchend', up);
+  body.addEventListener('touchcancel', up);
+
+  // PC の確認用。ホイールは通常スクロールのままで、ドラッグだけ拾う。
+  body.addEventListener('mousedown', e => {
     down(e.clientY);
-    const mm = ev => move(ev.clientY);
+    const mm = ev => { if (move(ev.clientY)) ev.preventDefault(); };
     const mu = () => { up(); document.removeEventListener('mousemove', mm); document.removeEventListener('mouseup', mu); };
     document.addEventListener('mousemove', mm);
     document.addEventListener('mouseup', mu);
   });
 }
 
+// 完了の演出で「どの位置から通常位置へ戻すか」。null なら戻す動きは無し。
+// ★再描画で DOM ごと作り直されるため、元の位置を数値で持っておかないと
+//   アニメーションの開始点が失われる（いきなり通常位置で描かれてしまう）。
+let _panelReturnFrom = null;
+
+/**
+ * ミッション完了の演出：パネルを通常位置へ戻す。
+ * ★山側のスクロールとマスのアニメーションは mountainPath.js が持つ。
+ *   ここはパネルの位置だけを戻し、山が見える状態を作る役。
+ * ★上がっていなければ何もしない（動く必要がない）。
+ */
+export function collapseMissionPanel() {
+  if (!_missionPanelExpanded) return;
+  _panelReturnFrom = parseFloat(document.getElementById('mainboard-bottom-panel')?.style.top)
+    || Math.round((window.innerHeight || 640) * 0.30);
+  _missionPanelExpanded = false;
+}
+
 // ===== メインタブ =====
+// ===== 提案キャラクター =====
+/**
+ * 提案ボックス1体ぶんの HTML。提案あり／生成中／更新待ち で共用する。
+ *
+ * ★見た目の状態は修飾クラス1つで切り替える（p-char--ready / --meeting / --sleeping）。
+ *   目の動きも登場も、実体は CSS アニメーション（object/project/_character.css）。
+ *   ★JS のタイマーで目を動かさないこと。0.5CPU 環境で3体ぶんの setInterval が
+ *     回り続けることになり、山のスクロール（60fps 前提）を確実に削る。
+ * ★「たまに瞬きする」「タイミングをずらす」は、3体の周期を互いに素な秒数
+ *   （5.7s / 6.9s / 8.3s）にすることで実現している。乱数を使わずに永久にずれ続ける。
+ *
+ * @param {{id:string, body:string, iris:string}} ch  PROPOSAL_CHARACTERS の1体
+ * @param {number} idx  左からの位置（登場アニメの遅延に使う）
+ * @param {{state:string, badge:boolean, onClick?:string, inner:string, help?:string}} opt
+ */
+function _characterBoxHtml(ch, idx, opt) {
+  // ★タップはキャラ全体で受ける。文字は体の内側の狭い範囲にしか無いので、
+  //   そこだけを当たり判定にすると「キャラを押したのに反応しない」になる。
+  //   ヘルプボタンは showProposalHelp が stopPropagation するので競合しない。
+  const tap = opt.onClick ? ` onclick="${opt.onClick}"` : '';
+  return `
+    <div class="p-main-board__proposal p-char p-char--${ch.id} p-char--${opt.state}"
+      style="--char-index:${idx}"${tap}>
+      <!-- ★体は専用の要素に敷く。箱そのものに背景を置くと、箱が担う
+           「パネル操作での出入り」と体の呼吸／弾みが同じ transform を奪い合う。 -->
+      <div class="p-char__body" style="--char-body:url('/images/character/${ch.body}')"></div>
+      <div class="p-char__face">
+        <img class="p-char__eye" src="/images/character/character-eye.svg" alt="" aria-hidden="true">
+        <img class="p-char__iris" src="/images/character/${ch.iris}" alt="" aria-hidden="true">
+      </div>
+      ${opt.badge ? `<img class="p-char__badge" src="/images/icon/icon-suggest.svg" alt="" aria-hidden="true">` : ''}
+      <div class="p-main-board__proposal-body">${opt.inner}</div>
+      ${opt.help ? `
+        <button type="button" onclick="${opt.help}"
+          class="p-main-board__proposal-help" aria-label="この提案について">
+          <img src="/images/icon/icon-Help.svg" class="p-main-board__proposal-help-icon" alt="">
+        </button>` : ''}
+    </div>`;
+}
+
 function _renderMainTab(p) {
   const canMgr = state.canManageCurrentEvent();
   const meId   = state.currentUser?.id;
@@ -292,7 +465,9 @@ function _renderMainTab(p) {
       return tags.includes(state.missionFilterTag);
     });
   }
-  const tagFilterHtml = allTags.length > 1 ? `
+  // ★ラベルが2つ以上あるときだけ絞り込みチップを出す。
+  //   ラベルが0〜1個なら「絞る意味が無い」のでチップは出さないが、並び替えボタンは残す。
+  const tagChipsHtml = allTags.length > 1 ? `
     <div class="p-main-board__tag-filter">
       <button type="button" onclick="window._app.setMissionFilterTag(null)"
         class="p-main-board__tag p-main-board__tag--all${!state.missionFilterTag ? ' is-active' : ''}">
@@ -309,20 +484,41 @@ function _renderMainTab(p) {
       }).join('')}
     </div>` : '';
 
-  const proposalCards = p.proposals.map((pr, i) => `
-    <div class="p-main-board__proposal">
-      <div onclick="window._app.addProposalToMission('${pr.id}')" class="p-main-board__proposal-body">
-        <div class="p-main-board__proposal-head">
-          <span class="p-main-board__proposal-no">提案${i + 1}</span>
-          ${Components.Tag(pr.tag)}
-        </div>
-        <h3 class="p-main-board__proposal-title">${_esc(pr.title)}</h3>
-      </div>
-      <button type="button" onclick="window._app.showProposalHelp(event, '${pr.id}')"
-        class="p-main-board__proposal-help" aria-label="この提案について">
-        <img src="/images/icon/icon-Help.svg" class="p-main-board__proposal-help-icon" alt="">
+  // ★行そのものは常に描画する（ラベルが無くても右端の並び替えは出す）。
+  //   並び替えメニュー（toggleSortMenu）はボタンの親要素に absolute で差し込まれるので、
+  //   この行に position:relative が要る（_main-board.css の .p-main-board__filter-row）。
+  const tagFilterHtml = `
+    <div class="p-main-board__filter-row">
+      ${tagChipsHtml}
+      <button type="button" onclick="window._app.toggleSortMenu(event)" class="p-main-board__sort" aria-label="並び替え">
+        <img src="/images/icon/icon-Filter.svg" class="p-main-board__sort-icon" alt="">
       </button>
-    </div>`).join('');
+    </div>`;
+
+  // ★提案は「担当領域の順」に並べ替えてから枠に流し込む。枠の位置は固定で、
+  //   左から mizu（運営）→ mori（制作・広報）→ iwa（企画）が必ず1体ずつ並ぶ。
+  //   AI には1件ずつ別領域で返すよう指示してあるが（lib/aiProposalClient.js）、
+  //   外したときのために、ここでも領域順に寄せて体の色とタグを合わせにいく。
+  //   ★同率のときは元の順を保つ（安定ソート）。並びが毎回入れ替わると落ち着かない。
+  const _domainRank = (tag) => {
+    const i = PROPOSAL_CHARACTERS.findIndex(c => c.domains.includes(tag));
+    return i < 0 ? PROPOSAL_CHARACTERS.length : i;
+  };
+  const orderedProposals = [...p.proposals]
+    .map((pr, i) => ({ pr, i }))
+    .sort((a, b) => (_domainRank(a.pr.tag) - _domainRank(b.pr.tag)) || (a.i - b.i))
+    .map(x => x.pr);
+
+  const proposalCards = orderedProposals.map((pr, i) => {
+    const ch = PROPOSAL_CHARACTERS[i] || PROPOSAL_CHARACTERS[PROPOSAL_CHARACTERS.length - 1];
+    return _characterBoxHtml(ch, i, {
+      state: 'ready',
+      badge: true,
+      onClick: `window._app.addProposalToMission('${pr.id}')`,
+      inner: `<h3 class="p-main-board__proposal-title">${_esc(pr.title)}</h3>`,
+      help: `window._app.showProposalHelp(event, '${pr.id}')`,
+    });
+  }).join('');
 
   const missionCards = displayMissions.length === 0
     ? (state.missionFilterTag
@@ -505,36 +701,38 @@ function _renderMainTab(p) {
       ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}
     </div>`;
 
-  // 下部パネルの中身：提案カード＋ミッション一覧（背景レイヤーの山がカードの隙間から見える）
-  const bottomPanelInner = `
+  // ★提案キャラクターの行は「スクロールする本文」から出して、パネルの直下に置く。
+  //   キャラは波の装飾に重なるようパネルの上端より上へはみ出すので、
+  //   overflow-y:auto の中に入れたままだと上側が切り取られる。
+  const proposalsRow = `
       <!-- 提案カード（管理者権限のあるユーザーのみ表示）-->
       ${canMgr ? `
-        <div class="p-main-board__proposals" data-coach="proposals">
+        <div class="p-main-board__proposals${state.charactersIntro ? ' is-intro' : ''}${state.proposalsRevealed ? ' is-revealing' : ''}" data-coach="proposals">
           ${proposalCards}
-          ${(p.proposals.length < 3 && (!p.lastProposalGeneratedAt || state._proposalFetching))
-            // 動的枠を AI 生成中：空きスロットにローディングカードを出す（静的提案は出さない）
-            ? Array.from({ length: 3 - p.proposals.length }).map(() => `
-                <div class="p-main-board__proposal-loading">
-                  <div class="c-spinner c-spinner--sm"></div>
-                  <span class="p-main-board__proposal-loading-text">AIが提案を<br>生成中</span>
-                </div>`).join('')
-            : (p.proposals.length === 0 ? (() => {
-                const nextAt  = (p.lastProposalGeneratedAt || 0) + 12 * 60 * 60 * 1000;
-                const remMs   = Math.max(0, nextAt - Date.now());
-                const remHr   = Math.ceil(remMs / (1000 * 60 * 60));
-                const label   = remMs <= 0 ? '準備中...' : `${remHr}時間後に新しい提案が届きます`;
-                return `<div class="p-main-board__proposal-wait">${label}</div>`;
-              })() : '')}
-        </div>` : ''}
+          ${(() => {
+            // ★空きスロットもキャラクターで埋める（枠は常に3つ・位置固定）。
+            //   生成中＝会議している見た目、更新待ち＝寝ている見た目。
+            const missing = 3 - p.proposals.length;
+            if (missing <= 0) return '';
+            const generating = !p.lastProposalGeneratedAt || state._proposalFetching;
+            const nextAt = (p.lastProposalGeneratedAt || 0) + 12 * 60 * 60 * 1000;
+            const remHr  = Math.ceil(Math.max(0, nextAt - Date.now()) / (1000 * 60 * 60));
+            const label  = generating
+              ? 'AIが提案を<br>生成中'
+              : (remHr <= 0 ? '準備中...' : `${remHr}時間後に<br>新しい提案が<br>届きます`);
+            return PROPOSAL_CHARACTERS.slice(p.proposals.length).map((ch, k) =>
+              _characterBoxHtml(ch, p.proposals.length + k, {
+                state: generating ? 'meeting' : 'sleeping',
+                badge: false,
+                inner: `<p class="p-main-board__proposal-wait-text">${label}</p>`,
+              })).join('');
+          })()}
+        </div>` : ''}`;
 
+  // 下部パネルの中身：ミッション一覧（背景レイヤーの山がカードの隙間から見える）
+  const bottomPanelInner = `
       <!-- ミッション一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
       <section data-coach="mission-list">
-        <div class="p-main-board__section-head">
-          <h2 class="p-main-board__section-title">ミッション</h2>
-          <button type="button" onclick="window._app.toggleSortMenu(event)" class="p-main-board__sort" aria-label="並び替え">
-            <img src="/images/icon/icon-Filter.svg" class="p-main-board__sort-icon" alt="">
-          </button>
-        </div>
         <!-- 表示モード切替（私のみ / 全て）-->
         <div class="p-main-board__view-toggle">
           <button type="button" onclick="window._app.setMissionViewMode('mine')"
@@ -550,7 +748,7 @@ function _renderMainTab(p) {
         <div class="p-main-board__mission-list">${missionCards}</div>
       </section>`;
 
-  return { pinnedAux, bottomPanelInner };
+  return { pinnedAux, proposalsRow, bottomPanelInner };
 }
 
 // ===== 承認待ちメンバーバナー（管理者向け）=====
@@ -1146,23 +1344,23 @@ function _notifIcon(type) {
   const cls = 'w-4 h-4';
   switch (type) {
     case 'mission_cleared':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
     case 'assigned_to_me':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#0CA1E3" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#209DDB" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     case 'someone_claimed':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
     case 'assignment_decided':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>`;
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>`;
     case 'pending_leader_check':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#EE3E12" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
     case 'leader_approved':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
     case 'leader_rejected':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#EE3E12" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
     case 'member_joined':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#5b8104" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>`;
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>`;
     case 'role_assigned':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#0CA1E3" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7"/><polyline points="15 17 17 19 21 15"/></svg>`;
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#209DDB" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7"/><polyline points="15 17 17 19 21 15"/></svg>`;
     case 'mission_created':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
     case 'mission_updated':

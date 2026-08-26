@@ -324,6 +324,13 @@ export async function submitMissionClear(missionId) {
   // サーバーの権威ある状態（status / individualClearedBy / clearedData）を取り込む
   await state.silentReloadEvents();
 
+  // ★山の演出（マスに色がつく／次のマスが現れる）は、実際にマスが増えたときだけ。
+  //   マスの数は「完了数 + 先の1マス」なので、status が 'cleared' になった時にしか増えない。
+  //   leaderCheck（承認待ち）と、individualClear で全員が終わっていない間は
+  //   status が 'yet' / 'pending_leader_check' のままなので、ここで祝うと
+  //   「増えていないのに祝う」ことになる。フラグは renderMainBoard が消費する。
+  if (r.mission?.status === 'cleared') state.mountainCelebrate = true;
+
   document.getElementById('clear-mission-modal')?.remove();
 
   // ★ミッション詳細ページから完了したときは、そのページを自動で閉じてイベントページへ戻す。

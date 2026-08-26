@@ -84,6 +84,17 @@ export const state = {
   _eventDateReminderCheckedForEvent: null, // 開催日リマインドモーダル（初日/翌日）のチェック実施済みか（セッション1回）
   _devAnnouncementChecked: false, // 開発者からのお知らせモーダルのチェックを実施済みか（セッション1回、イベント非依存）
   _skillCollectCheckedForEvent: null, // ★暫定：既存メンバーのスキル回収チェック済みか（回収後に削除）
+  // ミッション完了の演出を次の描画で1回だけ出す。submitMissionClear（helpers.js）が
+  // status が 'cleared' になったときだけ立て、renderMainBoard が消費して倒す。
+  // ★leaderCheck（承認待ち）と individualClear の途中では立てないこと。
+  //   どちらも status が cleared にならない＝マスが増えないので、
+  //   増えていないのに祝う演出になってしまう。
+  mountainCelebrate: false,
+  // 提案キャラクターの一度きりの演出。どちらも renderMainBoard が消費して倒す。
+  //   charactersIntro    … イベント作成直後、3体が順に跳ねて登場する
+  //   proposalsRevealed  … 提案が届いた瞬間、バッジが出て目線が定位置へ戻る
+  charactersIntro: false,
+  proposalsRevealed: false,
   missionViewMode: 'all',      // 'all' | 'mine'  ミッション表示モード
   missionFilterTag: null,      // ミッション絞り込みタグ（null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority' | 'assignee'
@@ -777,6 +788,8 @@ export const state = {
       return null;
     }
     logEvent('event_created', { seedType: randomSeed?.id });
+    // ★作ったイベントを最初に開いたとき、提案キャラクターを登場させる
+    this.charactersIntro = true;
 
     // フォルダ内から作成した場合は folderId を設定
     if (this.selectedFolderId) {
@@ -1079,6 +1092,8 @@ export const state = {
       if (r.ok && Array.isArray(r.proposals)) {
         // 既存の提案は破棄して3枠すべて入れ替える（12時間ごと更新）
         p.proposals = buildResult(r.proposals);
+        // ★届いた瞬間だけ「完成」の演出を出す（バッジの出現・目線が定位置へ戻る）
+        this.proposalsRevealed = true;
         p.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
         p.lastProposalClearedTime = null;
         // AI 生成結果は失うと再生成でクレジットを消費するため即時保存

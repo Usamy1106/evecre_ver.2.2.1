@@ -81,6 +81,7 @@
 | コーチマークの脈動・指の動き | `object/component/_coach-mark.css` |
 | 利用規約・プライバシーポリシー（本文の見出し・表も） | `object/project/_legal.css` |
 | プロジェクト（フォルダ）詳細 | `object/project/_project-detail.css` |
+| 提案キャラクター（mizu / mori / iwa）と目・登場のアニメーション | `object/project/_character.css` |
 | ホーム（イベント一覧・プロジェクト一覧・承認待ちカード） | `object/project/_home.css` |
 | ログイン・アカウント作成・パスワードリセット | `object/project/_auth.css` |
 | アカウント設定（プロフィール・通知・退会） | `object/project/_account.css` |
@@ -274,6 +275,7 @@ public/css/
 ├─ object/project/              （1画面1ファイル）
 │  ├─ _legal.css                ✅ 法務ドキュメント（markdown.js の出力もここ）
 │  ├─ _project-detail.css       ✅ プロジェクト詳細
+│  ├─ _character.css           ✅ 提案キャラクター（体・目・状態ごとのアニメーション）
 │  ├─ _home.css                 ✅ ホーム
 │  ├─ _auth.css                 ✅ ログイン前の画面（auth / passwordReset）
 │  ├─ _account.css              ✅ アカウント設定
