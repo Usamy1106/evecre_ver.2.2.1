@@ -122,23 +122,20 @@ function _render(overlay, ctx) {
       </div>
 
       <div class="p-invite__share">
-        <button type="button" id="iim-line"
-          class="p-invite__share-button p-invite__share-button--line">
-          LINE で送る
-        </button>
+        <button type="button" id="iim-copy"
+            class="p-invite__share-button p-invite__share-button--sm p-invite__share-button--copy">
+            コピー
+          </button>
         <div class="p-invite__share-row">
           <button type="button" id="iim-share"
             class="p-invite__share-button p-invite__share-button--sm p-invite__share-button--native">
             他のアプリで共有
           </button>
-          <button type="button" id="iim-copy"
-            class="p-invite__share-button p-invite__share-button--sm p-invite__share-button--copy">
-            コピー
-          </button>
-        </div>
-        <button type="button" id="iim-skip" class="p-invite__later">
-          後で招待する
+          <button type="button" id="iim-line"
+          class="p-invite__share-button p-invite__share-button--line">
+          LINE で送る
         </button>
+        </div>
       </div>
     </div>`;
 
