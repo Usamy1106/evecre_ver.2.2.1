@@ -1070,7 +1070,7 @@ window._app = {
     if (pendingMembers.length > 0) {
       config = {
         icon: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>`,
-        color: '#FFC300', bgColor: '#FFF8E1',
+        color: '#F5B600', bgColor: '#FFF8E1',
         title: '参加申請が届いています',
         desc:  `${pendingMembers.length}件の参加申請があります。承認または拒否してください。`,
         action: '承認リストを開く',
@@ -1079,7 +1079,7 @@ window._app = {
     } else if (claimMissions.length > 0) {
       config = {
         icon: `<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>`,
-        color: '#0CA1E3', bgColor: '#E8F7FD',
+        color: '#209DDB', bgColor: '#E8F7FD',
         title: '担当申請があります',
         desc:  `${claimMissions.length}件のミッションに担当申請が届いています。`,
         action: '通知タブで確認する',
@@ -1097,7 +1097,7 @@ window._app = {
     } else if (proposals.length > 0) {
       config = {
         icon: `<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`,
-        color: '#9EDF05', bgColor: '#F0FDE8',
+        color: '#28AB3D', bgColor: '#ECF9F2',
         title: 'ミッション提案が届いています',
         desc:  `${proposals.length}件の提案があります。確認してください。`,
         action: '提案を確認する',

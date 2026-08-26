@@ -83,7 +83,7 @@ for (const [dir] of LAYERS) {
 
 section('[A-2] トークン');
 const vars = R('public/css/foundation/_variables.css');
-ok('原色は :root に集約されている', vars.includes('--create-blue: #0CA1E3'));
+ok('原色は :root に集約されている', vars.includes('--create-blue: #209DDB'));
 ok('z-index は用途名で持つ', /--z-modal:\s*300/.test(vars) && /--z-toast:\s*400/.test(vars));
 ok('★z-index を連番に振り直していない（z-[…] の直書きがまだ残る）',
   vars.includes('重なり順が入れ替わる'));

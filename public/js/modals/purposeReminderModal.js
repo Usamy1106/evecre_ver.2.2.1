@@ -113,14 +113,14 @@ function _openModal(p) {
     ? `<button data-action="close" class="c-button c-button--primary c-modal__button">閉じる</button>`
     : `<div class="c-modal__actions">
          <button data-action="close" class="c-button c-button--secondary c-modal__button">閉じる</button>
-         <button data-action="go" class="c-modal__button c-modal__button--accent" style="--accent:#FFC300">目的を決める</button>
+         <button data-action="go" class="c-modal__button c-modal__button--accent" style="--accent:#F5B600">目的を決める</button>
        </div>`;
 
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
       <div class="c-modal__icon" style="--icon-bg:var(--color-warning-pale2)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFC300" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="#FFC300"/>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F5B600" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="#F5B600"/>
         </svg>
       </div>
       <h3 class="c-modal__title c-modal__title--tight">イベントづくりで困ったら</h3>

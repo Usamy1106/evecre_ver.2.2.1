@@ -6,11 +6,16 @@
 
 :root {
   /* --- ブランド原色 -------------------------------------------------------
-     ★値を変更しないこと。既存の JS が同じ HEX を直書きしており、
-       ここだけ変えると画面内で色が食い違う（移行が終わるまでは両方が並存する）。 */
-  --create-yellow: #FFC300;
-  --create-green: #9EDF05;
-  --create-blue: #0CA1E3;
+     ★ここを変えるときは JS 側の直書き HEX も必ず一緒に変えること。
+       移行が終わるまでは同じ HEX が JS に散らばっており（constants.js の
+       LABEL_CONFIG、main.js の通知カード、signup.js のタグ等）、
+       ここだけ変えると画面内で色が食い違う。
+       検出コマンド： grep -rniE '#(F5B600|28AB3D|209DDB)' public lib
+       ★rgba() の派生色（--color-primary-* / --color-success-* / --color-warning-*）と
+       ライム前提だった緑の派生色も同時に追従させること（2026-08-25 に実施済み）。 */
+  --create-yellow: #F5B600;
+  --create-green: #28AB3D;
+  --create-blue: #209DDB;
   --create-red: #EE3E12;
   --primary-black: #484545;
   --white: #FFFFFF;
@@ -44,51 +49,35 @@
   --color-primary-pale: #E8F6FD;   /* 近い値: #EBF7FE, #EAF6FF, #EBF8FF */
   --color-danger-pale: #FFEEEA;    /* 近い値: #FFF0ED */
   --color-warning-pale: #FFF7E6;   /* 近い値: #FFF8E1 */
-  --color-success-pale: #F0FDE8;
-  --color-success-dark: #5B8104;
-  --color-handle: #C9CDD1;         /* ドラッグハンドルのつまみ */
+  --color-success-pale: #ECF9F2;
+  --color-success-dark: #1A6B27;
   --color-table-head: #F5F3F0;     /* 表のヘッダ行（法務ドキュメント）*/
   --color-hairline: #F0EEEB;       /* カード内の淡い仕切り線 */
   /* 半透明の派生色。rgba を各所に直書きしないためここで名前を付ける */
-  --color-pending-border: rgba(158, 223, 5, .6);
-  --color-pending-divider: rgba(158, 223, 5, .3);
+  --color-pending-border: rgba(40, 171, 61, .6);
+  --color-pending-divider: rgba(40, 171, 61, .3);
   --color-danger-tint: rgba(238, 62, 18, .1);
-  --color-primary-faint: rgba(12, 161, 227, .2);
-  --color-primary-wash: rgba(12, 161, 227, .05);
+  --color-primary-faint: rgba(32, 157, 219, .2);
+  --color-primary-wash: rgba(32, 157, 219, .05);
   --color-danger-wash: rgba(238, 62, 18, .05);
   --color-danger-half: rgba(238, 62, 18, .3);
-  --color-success-tint: rgba(158, 223, 5, .2);
-  --color-success-tint2: #F0FCD4;
-  --color-warning-half2: rgba(255, 195, 0, .6);
-  --color-warning-faint: rgba(255, 195, 0, .3);
-  --color-success-half: rgba(158, 223, 5, .6);
+  --color-success-tint: rgba(40, 171, 61, .2);
+  --color-success-tint2: #DBF5DF;
+  --color-warning-half2: rgba(245, 182, 0, .6);
+  --color-warning-faint: rgba(245, 182, 0, .3);
+  --color-success-half: rgba(40, 171, 61, .6);
   --color-danger-half2: rgba(238, 62, 18, .4);
   --color-danger-pale2: #FFF0ED;   /* --color-danger-pale と近い。統合は Phase 5 で判断 */
-  --color-primary-half2: rgba(12, 161, 227, .4);
+  --color-primary-half2: rgba(32, 157, 219, .4);
   --color-primary-pale4: #D4EFFF;  /* アナウンスカードの押下時 */
   --color-text-soft: #6B6B6B;      /* 本文より少し薄い文字 */
   /* 通知アイコンの背景（種類ごとに色を変える。20% の淡い塗り）*/
-  --color-primary-tint: rgba(12, 161, 227, .2);
-  --color-warning-tint: rgba(255, 195, 0, .2);
+  --color-primary-tint: rgba(32, 157, 219, .2);
+  --color-warning-tint: rgba(245, 182, 0, .2);
   --color-danger-tint2: rgba(238, 62, 18, .2);
   --color-violet-tint: rgba(167, 139, 250, .2);
 
   /* 山ビジュアル */
-  /* --- 空の色（山ビジュアル）------------------------------------------------
-     開催日までの残り日数で段階が変わる。段階の切り替えは .p-mountain の
-     モディファイア（_mountain.css）で行い、JS からは色を直書きしない。
-     ★上端（--sky-*-top）から下端（--sky-*-low）へのグラデーション。
-       下端はページの地色に馴染ませて、境目が線に見えないようにしてある。 */
-  --color-sky: #EAF6FD;                          /* 既定＝昼。開催日未設定のとき */
-  --color-sky-low: var(--bg-base);               /* 既定の下端 */
-
-  --sky-morning-top: #DCEFFB;  --sky-morning-low: #F7FCFF;  /* 60日〜 朝（澄んだ青）*/
-  --sky-noon-top:    #EAF6FD;  --sky-noon-low:    #FDFBF8;  /* 30日〜 昼 */
-  --sky-afternoon-top: #F1F3EC; --sky-afternoon-low: #FDFBF8; /* 14日〜 午後 */
-  --sky-evening-top: #FBE3CC;  --sky-evening-low: #FDF5EE;  /*  7日〜 夕方 */
-  --sky-dusk-top:    #DAD5E9;  --sky-dusk-low:    #F6F2F0;  /*  1日〜 薄暮 */
-  --sky-summit-top:  #FFEFC9;  --sky-summit-low:  #FFF9EE;  /* 開催日以降 山頂に日が差す */
-
   /* --- 山の背景素材 --------------------------------------------------------
      ★素材の差し替えはここだけ。JS にファイル名・拡張子を書かないこと。
        JS は BG_THEMES の variants（'01' 等）から var(--mtn-bg-01) を組み立てる。
@@ -102,23 +91,35 @@
   --mtn-bg-04: url("/images/bg/bg04.webp");
   --mtn-bg-05: url("/images/bg/bg05.webp");
   --mtn-bg-06: url("/images/bg/bg06.webp");
-  --mtn-bg-summit: url("/images/bg/bg-summit.webp");
 
   /* --- 山のマス ------------------------------------------------------------
      ★背景イラストの上に載るので、塗りは半透明にして下の風景を透かす。
        不透明にすると、せっかくの背景が丸く抜けたように見える。 */
   --mtn-node-border: #E2611F;                  /* 枠（オレンジ）*/
   --mtn-node-fill: rgba(255, 255, 255, .30);   /* 次の1マス。ほぼ素通し */
-  --mtn-node-fill-done: rgba(107, 142, 74, .55); /* 完了。風景に馴染む緑 */
-  --color-primary-quarter: rgba(12, 161, 227, .25);
-  --color-warning-quarter: rgba(255, 195, 0, .25);
+  --mtn-node-fill-done: #F5B600;                /* 完了。ブランド黄 */
+  --color-primary-quarter: rgba(32, 157, 219, .25);
+  --color-warning-quarter: rgba(245, 182, 0, .25);
+  /* --- 下部パネル（メインボード）-------------------------------------------
+     ★--color-bg（アプリ全体の地色）とは絶対に共用しないこと。
+       --color-bg は 33ファイル・65箇所（ヘッダー・タブ・全モーダル・全シート・
+       HOME・アーカイブ…）と山の地色（.p-mountain）に効くため、
+       ここを --bg-base に混ぜると画面全部が黄色くなる。
+     ★アルファ付き（CC ＝ 80%）。裏の山がうっすら透ける前提の色。
+       波の装飾 SVG（images/front/…）の塗りと必ず同じ値にすること。
+       ズレると波と本体の境目に色差の帯が出る。 */
+  --panel-bg: #FFCE46CC;
+  /* 波の装飾の高さ。SVG の viewBox は 1179×101.17 なので、パネル幅 448px では
+     448 × 101.17 ÷ 1179 ≒ 38px。★幅を変えたらこの値も計算し直すこと。
+     mountainPath.js の PANEL_WAVE_H とも合わせる（遠近の基準帯が１波ぶんずれる）。 */
+  --panel-wave-h: 38px;
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
   --color-alert: #E74C3C;          /* 締め切り超過・当日 */
   --color-warning-pale2: #FFF8E1;  /* --color-warning-pale と近い。統合は Phase 5 で判断 */
-  --color-warning-half: rgba(255, 195, 0, .5);
+  --color-warning-half: rgba(245, 182, 0, .5);
   --color-bg-translucent: rgba(253, 251, 248, .95);
   --color-primary-pale3: #EAF6FF;  /* 押したリアクション。他の pale と近い（統合は Phase 5）*/
-  --color-primary-half: rgba(12, 161, 227, .3);
+  --color-primary-half: rgba(32, 157, 219, .3);
   --color-primary-pale2: #EBF7FE;   /* --color-primary-pale と近い。統合は Phase 5 で判断 */
   --color-primary-pale6: #EBF8FF;  /* 担当者シートの選択行。他の pale と近い（統合は Phase 5）*/
   --color-warning-dark: #9B7700;
@@ -126,18 +127,18 @@
   --color-event-date: #CFD8FF;     /* イベントの開催日のマス（日付ピッカー）*/
   --color-error-input: #e8383d;    /* 未入力エラーの枠と文字（--create-red とは別の赤）*/
   --color-picked-ring: rgba(72, 69, 69, .3);  /* 選んだ色の外側の輪（タグ作成）*/
-  --color-primary-tint2: rgba(12, 161, 227, .1);   /* 得意タグの塗り */
-  --color-success-tint3: rgba(158, 223, 5, .15);   /* やってみたいタグの塗り */
-  --color-success-dark2: #7BB100;  /* やってみたいタグの文字。--color-success-dark と近い */
+  --color-primary-tint2: rgba(32, 157, 219, .1);   /* 得意タグの塗り */
+  --color-success-tint3: rgba(40, 171, 61, .15);   /* やってみたいタグの塗り */
+  --color-success-dark2: #1F9232;  /* やってみたいタグの文字。--color-success-dark と近い */
   --color-saturday: #5C6BC0;       /* 土曜の文字。日曜は --create-red を使う */
 
   /* ガントの列の塗り。ヘッダー行は濃く、ミッション行は薄くする
      （行が続くと濃い塗りが縞に見えて、バーが読み取れなくなるため）*/
-  --gantt-today-head: rgba(12, 161, 227, .14);
+  --gantt-today-head: rgba(32, 157, 219, .14);
   --gantt-project-head: rgba(207, 216, 255, .55);
   --gantt-sunday-head: rgba(255, 180, 180, .18);
   --gantt-saturday-head: rgba(190, 210, 255, .18);
-  --gantt-today-row: rgba(12, 161, 227, .06);
+  --gantt-today-row: rgba(32, 157, 219, .06);
   --gantt-project-row: rgba(207, 216, 255, .22);
   --gantt-sunday-row: rgba(255, 180, 180, .06);
   --gantt-saturday-row: rgba(190, 210, 255, .06);
@@ -198,8 +199,13 @@
   --ease: cubic-bezier(.4, 0, .2, 1);
 
   /* --- レイアウト ---------------------------------------------------------
-     448px は Tailwind の max-w-md（28rem）の実測値。#app と固定パネルが共有する。 */
-  --layout-max-width: 448px;
+     ★スマホでは画面の端から端まで使う（100%）。448px で固定していたころは、
+       横幅が 448px を超える端末（Android の大画面など）で左右に白い帯が出て、
+       山の背景も下部パネルも画面の端まで届かなかった。
+     ★デスクトップでだけ 448px に絞る（下の @media）。PC で全幅に伸びると
+       1行が長くなりすぎて読めないため。448px は Tailwind の max-w-md（28rem）。
+     #app（.l-app）・#mountain-bg・#mainboard-bottom-panel がこの値を共有する。 */
+  --layout-max-width: 100%;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
 
@@ -244,4 +250,12 @@
   --z-coach: 420;            /* コーチマーク（②FAB・④ボード）*/
   --z-tooltip: 430;          /* ツールチップ・ツアー（③作成モーダル）*/
   --z-loading: 9999;
+}
+
+/* ★デスクトップ幅でだけ、アプリを中央の1カラムに絞る。
+   640px はスマホ横向き（一般的な最大 ~430px）より十分上に取ってある。 */
+@media (min-width: 640px) {
+  :root {
+    --layout-max-width: 448px;
+  }
 }

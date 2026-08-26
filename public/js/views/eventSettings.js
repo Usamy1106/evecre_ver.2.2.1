@@ -275,8 +275,8 @@ function _eventManagementSection(p, sec) {
             <div class="c-settings-card__actions">
               ${[
                 { phase: '企画準備', color: '#A7AAAC', activeColor: '#484545' },
-                { phase: '告知',     color: '#0CA1E3', activeColor: '#0CA1E3' },
-                { phase: '完了',     color: '#9EDF05', activeColor: '#9EDF05' },
+                { phase: '告知',     color: '#209DDB', activeColor: '#209DDB' },
+                { phase: '完了',     color: '#28AB3D', activeColor: '#28AB3D' },
               ].map(({ phase, color }) => {
                 const current = p.eventPhase || '企画準備';
                 const active  = current === phase;

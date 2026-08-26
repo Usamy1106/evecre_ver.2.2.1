@@ -249,8 +249,8 @@ function _renderBasicTab(isEdit, dateDisplay) {
   const starButtons = [1, 2, 3, 4, 5].map(v =>
     `<button onclick="window._app.setMissionPriority(${v})" class="p-mission-form__star">
       <svg width="32" height="32" viewBox="0 0 24 24"
-        fill="${state.draftMission.priority >= v ? '#FFC300' : 'none'}"
-        stroke="${state.draftMission.priority >= v ? '#FFC300' : '#E1DFDC'}"
+        fill="${state.draftMission.priority >= v ? '#F5B600' : 'none'}"
+        stroke="${state.draftMission.priority >= v ? '#F5B600' : '#E1DFDC'}"
         stroke-width="1.5">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
       </svg>
@@ -352,7 +352,7 @@ function _renderDetailTab(isEdit) {
         <!-- チェック項目 -->
         <div>
           <label class="heading-rs p-mission-form__label p-mission-form__label--loose">チェック項目</label>
-          <p class="p-mission-form__desc">完了時にチェックしないと提出できません</p>
+          <p class="p-mission-form__desc">担当者にチェックしてもらいたい項目を設定できます。</p>
           ${checklist.length === 0 ? `
             <button onclick="window._app.addChecklistItem()"
               class="p-mission-form__checklist-add">
@@ -389,7 +389,7 @@ function _renderDetailTab(isEdit) {
             </button>
           </div>
 
-          <p class="p-mission-form__desc p-mission-form__desc--tight">担当したいメンバーがこのミッションへ応募し、管理者が担当者を選定する形式になります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--tight">担当したいメンバーがこのミッションへ応募し、管理者が担当者を選定することができるようになります。</p>
           ${selfClaim ? `
             <!-- 応募期限（カレンダーUIで設定） -->
             <div>
@@ -416,7 +416,7 @@ function _renderDetailTab(isEdit) {
               <span class="c-toggle__knob"></span>
             </button>
           </div>
-          <p class="p-mission-form__desc p-mission-form__desc--flush">担当者（無割当の場合は全員）のメインボード上部にアナウンスカードで表示します。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">メインボードにてアナウンスされます。</p>
         </div>
 
         <!-- ワンタップ完了 -->
@@ -428,7 +428,7 @@ function _renderDetailTab(isEdit) {
               <span class="c-toggle__knob"></span>
             </button>
           </div>
-          <p class="p-mission-form__desc p-mission-form__desc--flush">テキスト・画像の入力欄はなく、完了ボタンのみで即完了するミッションになります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">テキスト・完了ボタンのみで即完了するミッションになります。</p>
         </div>
 
         <!-- 個別完了 -->
@@ -452,7 +452,7 @@ function _renderDetailTab(isEdit) {
               <span class="c-toggle__knob"></span>
             </button>
           </div>
-          <p class="p-mission-form__desc p-mission-form__desc--flush">完了後すぐにはアーカイブされず、リーダーの確認待ちになります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">完了だけではアーカイブ化されず、提出の確認ができるようになります。</p>
         </div>
 
         ${canDelete ? `
@@ -1074,7 +1074,7 @@ export function closeAssigneeSheet() {
 // =====================================================
 // 利用可能なカラーパレット（重複なし）
 const TAG_PALETTE = [
-  '#0CA1E3', '#EE3E12', '#FFC300', '#9EDF05',
+  '#209DDB', '#EE3E12', '#F5B600', '#28AB3D',
   '#7C4DFF', '#FF6B9D', '#00BFA5', '#FF7043',
   '#5C6BC0', '#26A69A', '#EC407A', '#FFA726',
 ];

@@ -154,7 +154,7 @@
   padding: var(--space-4);
   border-radius: var(--radius-lg);
   background-color: var(--color-primary);
-  box-shadow: 0 4px 20px rgba(12, 161, 227, .4);
+  box-shadow: 0 4px 20px rgba(32, 157, 219, .4);
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);

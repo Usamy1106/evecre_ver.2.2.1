@@ -82,8 +82,8 @@ function _buildOverlay({ bgColor, color, iconPath, title, desc, buttonsHtml }) {
 
 function _openDayStartModal() {
   const overlay = _buildOverlay({
-    bgColor: '#F0FDE8',
-    color: '#9EDF05',
+    bgColor: '#ECF9F2',
+    color: '#28AB3D',
     iconPath: `<path d="M12 2v4"/><path d="m6.4 5.4 2.8 2.8"/><path d="M2 13h4"/><path d="m5.4 20.6 2.8-2.8"/>
       <path d="M12 22v-4"/><path d="m18.6 20.6-2.8-2.8"/><path d="M22 13h-4"/><path d="m18.6 5.4-2.8 2.8"/>
       <circle cx="12" cy="13" r="4"/>`,
@@ -97,13 +97,13 @@ function _openDayStartModal() {
 function _openArchiveReminderModal() {
   const overlay = _buildOverlay({
     bgColor: '#E8F7FD',
-    color: '#0CA1E3',
+    color: '#209DDB',
     iconPath: `<path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>`,
     title: 'イベントお疲れさまでした！',
     desc: 'アーカイブから、イベントの振り返りをしよう！',
     buttonsHtml: `<div class="c-modal__actions">
       <button data-action="close" class="c-button c-button--secondary c-modal__button">閉じる</button>
-      <button data-action="go" class="c-modal__button c-modal__button--accent" style="--accent:#0CA1E3">アーカイブを見る</button>
+      <button data-action="go" class="c-modal__button c-modal__button--accent" style="--accent:#209DDB">アーカイブを見る</button>
     </div>`,
   });
   overlay.querySelector('[data-action="close"]').onclick = () => overlay.remove();

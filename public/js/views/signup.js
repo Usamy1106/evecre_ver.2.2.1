@@ -326,7 +326,7 @@ function _renderPassword(container, d) {
   const c  = _pwCheck(d.password);
   const sc = c.score;
   const label = ['要件を満たしていません', '使えます', 'よい強度です', '強力なパスワードです'][sc];
-  const color = ['#D3D6D8', '#FFC300', '#9EDF05', '#9EDF05'][sc];
+  const color = ['#D3D6D8', '#F5B600', '#28AB3D', '#28AB3D'][sc];
   // ★満たしたかどうかは記号（●/○）でも示す。色だけに頼らない
   const mark = (okFlag) => `<span class="p-signup__requirement-mark">${okFlag ? '●' : '○'}</span>`;
 
@@ -399,7 +399,7 @@ function _renderPassword(container, d) {
 function _updateStrength(d) {
   const c     = _pwCheck(d.password);
   const sc    = c.score;
-  const color = ['var(--color-border)', '#FFC300', '#9EDF05', '#9EDF05'][sc];
+  const color = ['var(--color-border)', '#F5B600', '#28AB3D', '#28AB3D'][sc];
   const label = ['要件を満たしていません', '使えます', 'よい強度です', '強力なパスワードです'][sc];
 
   // ★色は --meter-color で渡す（形と余白は CSS が持つ）。
@@ -1308,13 +1308,13 @@ function _profileTags(u) {
   const p = u?.profile || {};
   const tags = [];
   const exp = { first: 'はじめて', few: '経験あり', many: 'ベテラン' }[p.eventExperience];
-  if (exp) tags.push({ label: exp, color: '#0CA1E3' });
+  if (exp) tags.push({ label: exp, color: '#209DDB' });
 
   const planning = { planner: '計画派', mover: '勢い派' }[p.workStylePlanning];
-  if (planning) tags.push({ label: planning, color: '#9EDF05' });
+  if (planning) tags.push({ label: planning, color: '#28AB3D' });
 
   const social = { group: 'ワイワイ派', solo: 'もくもく派' }[p.workStyleSocial];
-  if (social) tags.push({ label: social, color: '#FFC300' });
+  if (social) tags.push({ label: social, color: '#F5B600' });
 
   return tags;
 }
