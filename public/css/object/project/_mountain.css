@@ -29,24 +29,11 @@
   overflow: hidden;
   max-width: var(--layout-max-width);
   margin-inline: auto;
-  background-image: linear-gradient(to bottom, var(--color-sky) 0%, var(--color-sky-low) 100%);
-  /* 段階が切り替わった瞬間に色が飛ばないよう、ゆっくり混ぜる。
-     ★日をまたいだときにしか変わらないので、長くても体感の邪魔にならない */
-  transition: background-image var(--duration-slow) var(--ease);
+  /* ★空（残り日数で変わるグラデーション）は撤去した。背景セグメントの
+     イラストが敷かれていない範囲だけがここで見える地色になる。
+     グラデーションを戻さないこと。 */
+  background-color: var(--color-bg);
 }
-
-/* --- 空の時間変化 --------------------------------------------------------
-   開催日までの残り日数で段階が変わる（mountainPath.js の _skyStage）。
-   ★色は foundation/_variables.css のトークン。ここでは差し替えるだけで、
-     JS からインライン style で色を書かないこと。
-   ★開催日が未設定のイベントにはモディファイアが付かず、既定（昼）のままになる。 */
-
-.p-mountain--morning   { --color-sky: var(--sky-morning-top);   --color-sky-low: var(--sky-morning-low); }
-.p-mountain--noon      { --color-sky: var(--sky-noon-top);      --color-sky-low: var(--sky-noon-low); }
-.p-mountain--afternoon { --color-sky: var(--sky-afternoon-top); --color-sky-low: var(--sky-afternoon-low); }
-.p-mountain--evening   { --color-sky: var(--sky-evening-top);   --color-sky-low: var(--sky-evening-low); }
-.p-mountain--dusk      { --color-sky: var(--sky-dusk-top);      --color-sky-low: var(--sky-dusk-low); }
-.p-mountain--summit    { --color-sky: var(--sky-summit-top);    --color-sky-low: var(--sky-summit-low); }
 
 .p-mountain__canvas {
   position: relative;
@@ -69,7 +56,10 @@
   inset: 0;
   /* 道・マス・山頂より必ず後ろ。z-index を上げないこと */
   z-index: 0;
-  overflow: hidden;
+  /* ★はみ出しを切らないこと。キャンバス上端より上にも背景を敷いており
+     （canvas を headroom ぶん下へずらすため）、ここで切ると上端に
+     背景の無い帯ができる。外側の .p-mountain が overflow:hidden で切る。 */
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -104,19 +94,6 @@
   mask-image: none;
 }
 
-/* 山頂の背景。道の先端に敷き、下端をぼかして下のセグメントに繋ぐ */
-.p-mountain__bg-summit {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  background-image: var(--seg-image);
-  background-position: top center;
-  background-repeat: no-repeat;
-  background-size: 100% auto;
-  mask-image: linear-gradient(to bottom, #000 0, #000 50%, transparent 100%);
-}
-
 /* マス・山頂・スタートなど、座標を JS が決めるもの
    ★--node-scale は mountainPath.js が毎フレーム書き込む遠近の倍率。
      translate(-50%, -50%) はここが持ち、JS は倍率だけ渡す。
@@ -126,7 +103,7 @@
    ★マスの大きさはここ（--node-size）で決める。中の円盤・チェック・
      オブジェクトは全部これを基準に置いてある。 */
 .p-mountain__pin {
-  --node-size: 104px;
+  --node-size: 100px;
   position: absolute;
   width: var(--node-size);
   height: var(--node-size);
@@ -163,7 +140,7 @@
   /* 寝かせ具合。1 で真円、小さいほど深く寝る。
      ★手前でマスが縦に重ならない範囲にすること。
        目安：--node-size × これ × SCALE_MAX < NODE_GAP(72px) */
-  --node-squash: .55;
+  --node-squash: .64;
   position: absolute;
   inset: 0;
   border: 4px solid var(--mtn-node-border);
@@ -228,6 +205,89 @@
   right: 100%;
   left: auto;
   transform: translate(-4px, -50%);
+}
+
+/* --- ミッション完了の演出 --------------------------------------------------
+   完了すると「灰色だったマスに色がつく」「その先に新しい灰色のマスが現れる」。
+   データ側は _layout（完了数 + 先の1マス）が既にその形になっているので、
+   ここは1回きりのアニメーションを載せるだけ。
+
+   ★アニメーションを載せるのは円盤（.p-mountain__node）であって
+     .p-mountain__pin ではない。pin の transform は mountainPath.js の paint() が
+     毎フレーム --node-scale / --node-dx で書き換えるため、pin に transform を
+     持つアニメーションを付けると遠近と喧嘩して跳ねる（落とし穴 0-7）。
+   ★円盤の平常時の transform は scaleY(var(--node-squash))。キーフレームでも
+     必ずこれを含めること。抜くとアニメーション中だけ真円に戻って目立つ。
+   ★animation-fill-mode は both。終わったあとに平常の見た目へ確実に着地させる。
+   ★1回きり（再描画のたびに走らない）。演出のフラグは state.mountainCelebrate を
+     renderMainBoard が1回で消費する。 */
+
+/* 灰色 → 色つき。弾んでから収まる（楽しげに見せるのは「行き過ぎて戻る」形）*/
+@keyframes mtnNodePop {
+  0%   { background-color: var(--mtn-node-fill); transform: scaleY(var(--node-squash)) scale(1); }
+  30%  { background-color: var(--mtn-node-fill-done); transform: scaleY(var(--node-squash)) scale(1.32); }
+  55%  { transform: scaleY(var(--node-squash)) scale(.92); }
+  75%  { transform: scaleY(var(--node-squash)) scale(1.06); }
+  100% { background-color: var(--mtn-node-fill-done); transform: scaleY(var(--node-squash)) scale(1); }
+}
+
+/* 完了のチェックが少し遅れて描かれる */
+@keyframes mtnCheckPop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.3) rotate(-18deg); }
+  60%  { opacity: 1; transform: translate(-50%, -50%) scale(1.18) rotate(4deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+}
+
+/* 完了で出たオブジェクトが、マスの色がついた後にひょいと現れる */
+@keyframes mtnObjectPop {
+  0%   { opacity: 0; transform: translate(4px, -50%) scale(.2); }
+  70%  { opacity: 1; transform: translate(4px, -50%) scale(1.2); }
+  100% { opacity: 1; transform: translate(4px, -50%) scale(1); }
+}
+
+@keyframes mtnObjectPopLeft {
+  0%   { opacity: 0; transform: translate(-4px, -50%) scale(.2); }
+  70%  { opacity: 1; transform: translate(-4px, -50%) scale(1.2); }
+  100% { opacity: 1; transform: translate(-4px, -50%) scale(1); }
+}
+
+/* 次にやる1マスが、色がついた後に下からふわりと現れる */
+@keyframes mtnNodeAppear {
+  0%   { opacity: 0; transform: scaleY(var(--node-squash)) scale(.4); }
+  70%  { opacity: 1; transform: scaleY(var(--node-squash)) scale(1.12); }
+  100% { opacity: 1; transform: scaleY(var(--node-squash)) scale(1); }
+}
+
+.p-mountain__node--pop {
+  animation: mtnNodePop .72s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+.p-mountain__check--pop {
+  animation: mtnCheckPop .5s cubic-bezier(.34, 1.56, .64, 1) .22s both;
+}
+
+.p-mountain__object--pop {
+  animation: mtnObjectPop .5s cubic-bezier(.34, 1.56, .64, 1) .42s both;
+}
+
+.p-mountain__object--left.p-mountain__object--pop {
+  animation-name: mtnObjectPopLeft;
+}
+
+/* ★新しいマスは色がつき切ってから出す。同時に動かすと何が起きたのか読めない */
+.p-mountain__node--appear {
+  animation: mtnNodeAppear .5s cubic-bezier(.34, 1.56, .64, 1) .5s both;
+}
+
+/* 動きを減らす設定の端末では、跳ねさせずに色と表示だけ変える */
+@media (prefers-reduced-motion: reduce) {
+  .p-mountain__node--pop,
+  .p-mountain__check--pop,
+  .p-mountain__object--pop,
+  .p-mountain__node--appear {
+    animation-duration: .01ms;
+    animation-delay: 0s;
+  }
 }
 
 /* --- 空状態 ---------------------------------------------------------------

@@ -61,7 +61,7 @@ import { findObject } from './mountainObjects.js';
 // ★SEGMENT_MASSES を変えるだけで、高さ・境界位置・テーマの区切りが全部追従する。
 //   704 や 8 をコード中に直書きしないこと。
 // ★これを変えると既存イベントの背景の並びも変わる（区切りが動くため）。
-const SEGMENT_MASSES = 5;
+const SEGMENT_MASSES = 8;
 
 // テーマと素材。★variants に文字列を足すだけでバリエーションが増える。
 //   文字列は CSS 変数の接尾辞（'01' → var(--mtn-bg-01)）。
@@ -205,7 +205,13 @@ function _backgroundPlan(eventId, count) {
  */
 function _renderBgLayer(p, canvasH) {
   const base = canvasH - BOTTOM_PAD;                       // マス i=0 の y
-  const count = Math.max(1, Math.ceil(base / SEGMENT_HEIGHT));
+  // ★キャンバス上端より上にも敷いておく。initMountainPathSync が canvas を
+  //   headroom ぶん下へずらすので、そのままだと上端に背景の無い帯ができる。
+  //   headroom は描画時にはまだ分からないので、1画面ぶん余分に作って被せる
+  //   （余った枚数は #mountain-bg の overflow:hidden で切られる）。
+  const viewH = (typeof window !== 'undefined' ? window.innerHeight : 640);
+  const extra = Math.ceil(viewH / SEGMENT_HEIGHT) + 1;
+  const count = Math.max(1, Math.ceil(base / SEGMENT_HEIGHT)) + extra;
   const plan = _backgroundPlan(String(p?.id || ''), count);
   const half = SEGMENT_OVERLAP / 2;
 
@@ -395,11 +401,13 @@ export function initMountainPathSync(restoreTop = null) {
     depthBottom = (pTop > bgTop + 40) ? pTop : viewH;
     depthSpan = Math.max(1, depthBottom - bgTop);
 
-    // ★上端の余白は実測から決める。「スクロール上限で最新のマスがパネルの
-    //   すぐ上に来る」ぶんだけ、キャンバスを下へずらしてスクロール量を増やす。
+    // ★上端の余白は実測から決める。「スクロールを送りきったとき、いちばん最後の
+    //   **完了済み**マスがパネルのすぐ上に来る」ぶんだけキャンバスを下へずらす。
+    //   ★先頭（いちばん上）のマスは「次にやる灰色の1マス」で、まだ完了していない。
+    //     そこを基準にすると、最後の完了マスがパネルの裏に隠れてしまう。
     //   ここは初回と resize のときだけ書く（スクロール中には書かない）。
-    const newestY = pins.length ? pins[pins.length - 1].y : 0;
-    headroom = Math.max(0, Math.round((depthBottom - NEAR_MARGIN) - bgTop - newestY));
+    const targetY = _lastClearedY(pins);
+    headroom = Math.max(0, Math.round((depthBottom - NEAR_MARGIN) - bgTop - targetY));
     canvas.style.marginTop = `${headroom}px`;
     if (spacer && canvasH) spacer.style.height = `${canvasH + headroom}px`;
   };
@@ -489,6 +497,20 @@ function _panelVeilTop(fallback) {
 }
 
 /**
+ * スクロールで手前まで持ってきたいマスの y。
+ *
+ * ★いちばん上のマスは「次にやる灰色の1マス」（未完了）。そこを基準にすると
+ *   最後の完了マスがパネルの裏に隠れるので、**その1つ下（＝最後の完了マス）**を
+ *   基準にする。完了が0件のときは灰色の1マスしかないので、それを使う。
+ * @param {Array<{y:number}>} pins DOM 順（i 昇順＝下から上）
+ */
+function _lastClearedY(pins) {
+  if (pins.length === 0) return 0;
+  const i = pins.length >= 2 ? pins.length - 2 : pins.length - 1;
+  return pins[i].y;
+}
+
+/**
  * 初回表示のスクロール位置。
  *
  * ★いちばん新しいマス（＝次にやる灰色の1マス）を、下部パネルより上の
@@ -505,9 +527,8 @@ function _initialScrollTop(win, pins, bgTop, viewH) {
   // 帯の下寄り（62%）に置く。真ん中だと上に無駄な空きが出て、
   // 下端ちょうどだとパネルの縁に接して窮屈に見える
   const target = bgTop + (visibleBottom - bgTop) * 0.62;
-  const newestY = pins[pins.length - 1].y;   // DOM 順 = i 昇順なので最後が最新
   const max = Math.max(0, (win.scrollHeight || 0) - (win.clientHeight || 0));
-  return Math.min(max, Math.max(0, Math.round(bgTop + newestY - target)));
+  return Math.min(max, Math.max(0, Math.round(bgTop + _lastClearedY(pins) - target)));
 }
 
 // 前回の配線を外すための後始末。initMountainPathSync が毎回呼ぶ。

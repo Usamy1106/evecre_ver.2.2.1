@@ -121,7 +121,12 @@ function wire(done, scrollTop = 0) {
       dx: parseFloat(el.style.getPropertyValue('--node-dx')),
     };
   };
-  return { ...b, headroom, canvas, win, spacer, at, newest: canvas.children.length - 1 };
+  const n = canvas.children.length;
+  return {
+    ...b, headroom, canvas, win, spacer, at,
+    newest: n - 1,                        // いちばん上＝次にやる灰色の1マス（未完了）
+    lastCleared: n >= 2 ? n - 2 : n - 1,  // ★スクロールで手前まで来てほしいのはこちら
+  };
 }
 
 // ── [A] 背景とマスの一致 ──────────────────────────────────
@@ -138,6 +143,14 @@ for (const done of [0, 7, 8, 9, 16, 17, 48]) {
   ok(`完了${String(done).padStart(2)} → セグメント${segs.length}枚・境界が全て一致`, !bad, bad);
 }
 {
+  // ★キャンバス上端より上にも背景を敷いてあること（canvas を headroom ぶん
+  //   下へずらすので、無いと上端に背景の抜けた帯ができる）
+  const w = wire(20, 0);
+  const topMost = w.segs.reduce((a, s) => Math.min(a, s.top), Infinity);
+  ok(`背景がキャンバス上端より上まで伸びている（最上段 top=${topMost}px）`,
+    topMost <= -w.headroom, `top=${topMost} headroom=${w.headroom}`);
+}
+{
   const { canvasH, nodes } = build(8);
   ok(`マス i=0 の y = canvasH - BOTTOM_PAD(${BOTTOM_PAD})`, nodes[0] === canvasH - BOTTOM_PAD);
   ok(`マスの間隔が ${NODE_GAP}px で一定`,
@@ -145,15 +158,24 @@ for (const done of [0, 7, 8, 9, 16, 17, 48]) {
 }
 
 // ── [B] スクロールで最新のマスが手前まで来るか ────────────
-section('[B] ★スクロールの届く範囲');
+section('[B] ★スクロールの届く範囲（基準は「最後の完了マス」）');
 for (const done of [0, 5, 10, 20, 48]) {
   const w = wire(done, 0);
-  const p = w.at(w.newest);
-  const gap = PANEL_TOP - p.screenY;
-  // 最新のマスがパネルのすぐ上（NEAR_MARGIN 付近）に来ていること。
-  // ★ここが大きいと「小さいまま止まる」＝報告された不具合になる。
-  ok(`完了${String(done).padStart(2)} → 最新マスがパネルの ${gap}px 上・倍率 ${p.scale.toFixed(2)}`,
-    gap <= NEAR_MARGIN + 8 && p.scale > SCALE_MAX * 0.9, `gap=${gap} scale=${p.scale}`);
+  const c = w.at(w.lastCleared);
+  const gap = PANEL_TOP - c.screenY;
+  // ★最後の**完了**マスがパネルのすぐ上（NEAR_MARGIN 付近）に来ていること。
+  //   いちばん上のマスは未完了（次にやる灰色の1マス）なので、そこを基準にすると
+  //   最後の完了マスがパネルの裏に隠れる＝報告された不具合になる。
+  ok(`完了${String(done).padStart(2)} → 最後の完了マスがパネルの ${gap}px 上・倍率 ${c.scale.toFixed(2)}`,
+    gap <= NEAR_MARGIN + 8 && c.scale > SCALE_MAX * 0.9, `gap=${gap} scale=${c.scale}`);
+}
+{
+  // 灰色の1マスはその1つ上に見えていること（隠れも飛びもしない）
+  const w = wire(20, 0);
+  const g = w.at(w.newest), c = w.at(w.lastCleared);
+  ok('次にやる灰色マスは、最後の完了マスの1つ上に見えている',
+    g.screenY > HEADER && g.screenY < c.screenY && Math.round(c.screenY - g.screenY) === NODE_GAP,
+    `灰色=${g.screenY} 完了=${c.screenY}`);
 }
 {
   const w = wire(20, 0);
