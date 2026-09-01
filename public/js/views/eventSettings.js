@@ -79,7 +79,7 @@ function _membersAvatarsSection(sec) {
       <div class="p-event-settings__avatars">
         ${visible.map(m => `
           <div title="${_esc(m.username)}">
-            ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 44, ring: true })}
+            ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 44, ring: true, userId: m.userId })}
           </div>`).join('')}
         ${extra > 0 ? `
           <div class="p-event-settings__avatars-more">+${extra}</div>` : ''}
@@ -149,6 +149,17 @@ function _eventManagementSection(p, sec) {
           <div class="c-settings-list__view c-settings-list__view--center">
             <span class="c-settings-list__value c-settings-list__value--pre">${_formatDates(p.dates, p.dateTimes)}</span>
             ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="c-settings-list__edit">変更</button>` : ''}
+          </div>
+        </div>
+
+        <!-- 引き継ぎ日（振り返りをやる日。複数日可）
+             ★開催日（dates）とは別の配列（handoverDates）。締切計算やガントには入らない。
+             ★最終日の翌日に、フェーズが自動で「完了」になる（state.js の _checkEventPhase）。 -->
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">引き継ぎ日</p>
+          <div class="c-settings-list__view c-settings-list__view--center">
+            <span class="c-settings-list__value c-settings-list__value--pre">${_formatHandover(p.handoverDates)}</span>
+            ${canMgr ? `<button onclick="window._app.openCalendarModal('handover')" class="c-settings-list__edit">変更</button>` : ''}
           </div>
         </div>
 
@@ -275,7 +286,7 @@ function _eventManagementSection(p, sec) {
             <div class="c-settings-card__actions">
               ${[
                 { phase: '企画準備', color: '#A7AAAC', activeColor: '#484545' },
-                { phase: '告知',     color: '#209DDB', activeColor: '#209DDB' },
+                { phase: '振り返り', color: '#209DDB', activeColor: '#209DDB' },
                 { phase: '完了',     color: '#28AB3D', activeColor: '#28AB3D' },
               ].map(({ phase, color }) => {
                 const current = p.eventPhase || '企画準備';
@@ -346,7 +357,7 @@ function _userManagementSection(p, sec) {
       return `
         <div class="p-event-settings__form p-event-settings__form--flush">
           <div class="p-event-settings__member-main p-event-settings__group">
-            ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 32 })}
+            ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 32, userId: m.userId })}
             <p class="p-event-settings__member-name">${_esc(m.username)}${isMe ? ' <span class="p-event-settings__sub-title">(あなた)</span>' : ''}</p>
           </div>
           <p class="c-settings-list__label">ロール（複数選択可）</p>
@@ -361,7 +372,7 @@ function _userManagementSection(p, sec) {
     return `
       <div class="p-event-settings__member">
         <div class="p-event-settings__member-main">
-          ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 32 })}
+          ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 32, userId: m.userId })}
           <div class="p-event-settings__member-body">
             <p class="p-event-settings__member-name c-settings-list__value--truncate">${_esc(m.username)}${isMe ? ' <span class="p-event-settings__sub-title">(あなた)</span>' : ''}</p>
             <p class="p-event-settings__member-sub c-settings-list__value--truncate">${_esc(labels)}</p>
@@ -776,6 +787,15 @@ function _bindEvents(p, sec) {
 // =====================================================
 // ヘルパ
 // =====================================================
+/** 引き継ぎ日の表示。★時刻は持たないので開催日とは別の整形にする */
+function _formatHandover(dates) {
+  const list = Array.isArray(dates) ? [...dates].filter(Boolean).sort() : [];
+  if (list.length === 0) return '未設定';
+  const fmt = (d) => { const [, m, dd] = d.split('-'); return `${Number(m)}月${Number(dd)}日`; };
+  if (list.length === 1) return fmt(list[0]);
+  return `${fmt(list[0])}〜${fmt(list.at(-1))}（${list.length}日）`;
+}
+
 function _formatDates(dates, dateTimes) {
   const lines = formatEventPeriodLines(dates, dateTimes);
   return lines.length === 0 ? '未設定' : lines.join('\n');

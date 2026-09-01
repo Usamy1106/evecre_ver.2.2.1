@@ -87,12 +87,27 @@ export function calculateDaysLeft(dateStr) {
   return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
+/**
+ * 今日の日付を 'YYYY-MM-DD'（ローカル時刻）で返す。
+ *
+ * ★new Date().toISOString() を使わないこと。UTC に変換されるため、日本時間の
+ *   0〜9時に「昨日」を返す（サーバー側の TZ=Asia/Tokyo と同じ落とし穴）。
+ * ★日付は文字列のまま辞書順で比較できる（'2026-09-01' < '2026-09-02'）。
+ *   Date に戻して比較しないこと。
+ */
+export function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ===== アーカイブの「概要」「開催場所」=====
 // ★イベント設定（eventSettings.js）とアーカイブのペン（modals/helpers.js）の
 //   両方から編集される。どちらから直しても同じ場所を読み書きするよう、
 //   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
 
-/** 概要。表示・編集の実体は clearedData['def-3']（初期ミッション「イベントの概要を決める」） */
+/** 概要。実体は clearedData['def-3']（初期ミッション「イベントの概要を定めよう」）。
+ *  ★ミッションが無くても成立する（clearedData に直接書くため）。イベント設定と
+ *    アーカイブのペンからも同じ場所を読み書きする。個別に clearedData を触らないこと。 */
 export function getArchiveSummary(project) {
   return project?.clearedData?.['def-3']?.content ?? project?.description ?? '';
 }
@@ -106,7 +121,7 @@ export function setArchiveSummary(project, value) {
   const v = String(value ?? '').trim();
   if (!project.clearedData) project.clearedData = {};
   project.clearedData['def-3'] = {
-    content: v, timestamp: Date.now(), title: 'イベントの概要を決める', format: 'text',
+    content: v, timestamp: Date.now(), title: 'イベントの概要を定めよう', format: 'text',
   };
   project.description = v;
 }

@@ -82,6 +82,7 @@
 @import url("./object/project/_project-detail.css");
 @import url("./object/project/_legal.css");
 @import url("./object/project/_character.css");
+@import url("./object/project/_user-profile.css");
 
 /* Object: Utility ---------------------------------------------------------- */
 @import url("./object/utility/_transition.css");

@@ -1,0 +1,126 @@
+/* ==========================================================================
+   Object / Project / user-profile — ユーザー紹介モーダル
+   使用箇所: public/js/modals/userProfileModal.js
+
+   メンバーのアイコンをタップすると開く自己紹介。
+   ★中身は「タイプ（診断の回答）」「意気込み」「できること」「やってみたいこと」の
+     4ブロックで、どれも未回答がありうる。JS 側が空のブロックを出さないので、
+     ここでは「あるものだけが並ぶ」前提でよい。
+   ========================================================================== */
+
+.p-user-profile__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+  text-align: center;
+}
+
+.p-user-profile__name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* リーダー（オーナー）であることの印 */
+.p-user-profile__role {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-tint2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* --- タイプ（はじめて／計画派／ワイワイ派 …）------------------------------
+   ★色は JS が --type-color で渡す（signup.js のプロフィールカードと同じ対応）。
+     ここで色を直書きしないこと。 */
+
+.p-user-profile__types {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.p-user-profile__type {
+  padding: 4px var(--space-3);
+  border: 1px solid var(--type-color, var(--color-border));
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--type-color, var(--color-text));
+}
+
+/* --- 各ブロック ----------------------------------------------------------- */
+
+.p-user-profile__section + .p-user-profile__section {
+  margin-top: var(--space-4);
+}
+
+.p-user-profile__label {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-user-profile__message {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* --- スキルのチップ -------------------------------------------------------
+   ★得意（青）とやってみたい（黄緑）で色を分ける。参加申請フォームと同じ配色に
+     しておかないと、答えた本人が自分の回答だと分からなくなる。
+   ★色だけに頼らず、ラベルの見出し（できること／やってみたいこと）でも区別が付く。 */
+
+.p-user-profile__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.p-user-profile__chip {
+  padding: 4px var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-user-profile__chip--good {
+  border-color: var(--color-primary-half);
+  background-color: var(--color-primary-tint2);
+  color: var(--color-primary);
+}
+
+.p-user-profile__chip--want {
+  border-color: var(--color-success-half);
+  background-color: var(--color-success-tint3);
+  color: var(--color-success-dark2);
+}
+
+/* リーダーの意気込みカード。★参加フォームの得意／やってみたいとは別の色にして、
+   出どころが違うこと（イベント作成時の回答）が見た目で分かるようにする。 */
+.p-user-profile__chip--motivation {
+  margin-bottom: var(--space-2);
+  border-color: var(--color-warning-half);
+  background-color: var(--color-warning-tint);
+  color: var(--color-text);
+}
+
+/* 何も答えていない人（参加申請フォームより前から居るメンバーなど）*/
+.p-user-profile__empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+}

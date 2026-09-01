@@ -7,6 +7,7 @@ import { logEvent } from '../logger.js';
 import {
   getPushState, hasSubscription, enablePush, disablePush, isStandalone, isIOS, isMacDesktop,
 } from '../push.js';
+import { refreshPushSubscribed, snoozePushBanner } from '../modals/pushSetupModal.js';
 
 /**
  * アカウント設定画面
@@ -400,11 +401,18 @@ function _bindEvents() {
       _toast(msg);
       // 許可ダイアログで拒否された場合は表示状態も更新する
       _pushState = getPushState();
+      await refreshPushSubscribed();
       state.render();
       return;
     }
     _pushSubscribed = !wasOn;
     _pushState = getPushState();
+    // ★HOME のバナー判定は state.pushSubscribed を見ている。ここで更新しないと、
+    //   通知をオフにしてもアプリを開き直すまでバナーが出ない（逆にオンにしても消えない）。
+    await refreshPushSubscribed();
+    // ★自分の意思でオフにした直後にバナーで催促しない。× で閉じたときと同じ
+    //   スヌーズを掛けて、しばらく経ってから改めて促す。
+    if (wasOn) snoozePushBanner();
     _toast(wasOn ? '通知をオフにしました' : '通知をオンにしました');
     state.render();
   });

@@ -47,6 +47,8 @@ export function closeCoachMark() {
  *        'target'  … 穴をタップしたときだけ進む（②。出口をひとつに絞る）
  *        'anywhere'… どこをタップしても進む（④。操作を強制しない）
  * @param {function} o.onAdvance   進むときに呼ばれる
+ * @param {function} [o.onDismiss] advanceOn:'target' のとき、穴の**外**をタップして
+ *        閉じた場合に呼ばれる。渡さなければ外タップでは何も起きない（従来どおり）。
  * @returns {boolean} 表示できたら true。**対象が見つからなければ false**
  *
  * ★false を返したら、呼び出し側は状態を次へ進めること。
@@ -159,8 +161,13 @@ export function showCoachMark(o) {
   });
   if (o.advanceOn === 'anywhere') {
     overlay.onclick = () => advance();
+  } else if (o.onDismiss) {
+    // ★穴の外をタップしたら「やらずに閉じる」。onAdvance（穴をタップ＝実行）とは
+    //   区別したいので、別のコールバックにしてある。
+    //   これが無いと、対象をタップする以外に逃げ道が無く操作不能に見える。
+    overlay.onclick = (e) => { e.stopPropagation(); closeCoachMark(); o.onDismiss(); };
   } else {
-    // ★穴以外では何も起きない（出口を FAB のタップだけに絞る）
+    // ★穴以外では何も起きない（出口を対象のタップだけに絞る）
     overlay.onclick = (e) => { e.stopPropagation(); };
   }
 

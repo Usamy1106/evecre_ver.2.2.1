@@ -76,7 +76,6 @@ export const MOTIVATION_CARDS = [
   { id: 'enjoy',     label: 'まず自分が全力で楽しむ' },
   { id: 'finish',    label: '最後までやりきる' },
   { id: 'challenge', label: '新しいことに挑戦する' },
-  { id: 'trust',     label: '仲間を信じて任せる' },
 ];
 
 // キャッチコピーの例文。白紙から捻り出させないための出し分け。

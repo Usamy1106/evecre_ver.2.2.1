@@ -282,23 +282,41 @@ export const Components = {
    * @param {{username?:string, avatarUrl?:string|null}} user
    * @param {{size?:number, ring?:boolean, className?:string}} opts
    */
+  /**
+   * アバター。
+   * @param {object} user  { username, avatarUrl }
+   * @param {object} opts
+   *   size      … px（--avatar-size に渡す。文字サイズも比例する）
+   *   ring      … 白フチを付ける
+   *   className … 追加クラス
+   *   userId    … ★渡すとタップでユーザー紹介モーダルが開く。
+   *               自分自身や、イベントのメンバーでない相手（招待プレビューの
+   *               表示など）には渡さないこと。開いても中身が引けない。
+   */
   UserAvatar(user, opts = {}) {
     // スタイル: public/css/object/component/_avatar.css
-    // ★大きさは呼び出し側が px で決めるので --avatar-size で渡す（文字サイズも比例する）。
     const size = opts.size || 28;
     const ring = opts.ring ? ' c-avatar--ring' : '';
     const extra = opts.className ? ` ${opts.className}` : '';
     const username = user?.username || '';
     const url = user?.avatarUrl || null;
     const sizeVar = `--avatar-size:${size}px`;
-    if (url) {
+
+    const inner = url
       // ★Google の画像は referrerpolicy が要る。読めなければ頭文字の代替へ差し替える
-      return `<img src="${url}" alt="${_escText(username)}" referrerpolicy="no-referrer"
-        class="c-avatar${ring}${extra}" style="${sizeVar}"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      ? `<img src="${url}" alt="${_escText(username)}" referrerpolicy="no-referrer"
+          class="c-avatar${ring}${extra}" style="${sizeVar}"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="c-avatar c-avatar--fallback${ring}${extra}"
-          style="${sizeVar};display:none">${_initial(username)}</div>`;
-    }
-    return `<div class="c-avatar c-avatar--fallback${ring}${extra}" style="${sizeVar}">${_initial(username)}</div>`;
+          style="${sizeVar};display:none">${_initial(username)}</div>`
+      : `<div class="c-avatar c-avatar--fallback${ring}${extra}" style="${sizeVar}">${_initial(username)}</div>`;
+
+    if (!opts.userId) return inner;
+    // ★タップ領域はアバターと同じ大きさに保つ（button の既定余白を殺す）。
+    //   stopPropagation しているのは、メンバー行やチャットの吹き出しなど
+    //   親側にもタップ処理がある場所で二重に反応させないため。
+    return `<button type="button" class="c-avatar-button"
+      onclick="event.stopPropagation(); window._app.openUserProfileModal('${_escText(opts.userId)}')"
+      aria-label="${_escText(username)} のプロフィール">${inner}</button>`;
   },
 };

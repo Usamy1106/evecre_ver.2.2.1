@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
+import { characterFigureHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync } from '../mountainPath.js';
 
@@ -392,13 +393,10 @@ function _characterBoxHtml(ch, idx, opt) {
   return `
     <div class="p-main-board__proposal p-char p-char--${ch.id} p-char--${opt.state}"
       style="--char-index:${idx}"${tap}>
-      <!-- ★体は専用の要素に敷く。箱そのものに背景を置くと、箱が担う
+      <!-- ★体と目のマークアップは character.js が組む（HOME のひとことと共用）。
+           体は専用の要素に敷く。箱そのものに背景を置くと、箱が担う
            「パネル操作での出入り」と体の呼吸／弾みが同じ transform を奪い合う。 -->
-      <div class="p-char__body" style="--char-body:url('/images/character/${ch.body}')"></div>
-      <div class="p-char__face">
-        <img class="p-char__eye" src="/images/character/character-eye.svg" alt="" aria-hidden="true">
-        <img class="p-char__iris" src="/images/character/${ch.iris}" alt="" aria-hidden="true">
-      </div>
+      ${characterFigureHtml(ch)}
       ${opt.badge ? `<img class="p-char__badge" src="/images/icon/icon-suggest.svg" alt="" aria-hidden="true">` : ''}
       <div class="p-main-board__proposal-body">${opt.inner}</div>
       ${opt.help ? `

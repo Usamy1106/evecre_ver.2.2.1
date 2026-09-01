@@ -82,6 +82,7 @@
 | 利用規約・プライバシーポリシー（本文の見出し・表も） | `object/project/_legal.css` |
 | プロジェクト（フォルダ）詳細 | `object/project/_project-detail.css` |
 | 提案キャラクター（mizu / mori / iwa）と目・登場のアニメーション | `object/project/_character.css` |
+| ユーザー紹介モーダル（アイコンタップで開く自己紹介） | `object/project/_user-profile.css` |
 | ホーム（イベント一覧・プロジェクト一覧・承認待ちカード） | `object/project/_home.css` |
 | ログイン・アカウント作成・パスワードリセット | `object/project/_auth.css` |
 | アカウント設定（プロフィール・通知・退会） | `object/project/_account.css` |
@@ -276,6 +277,7 @@ public/css/
 │  ├─ _legal.css                ✅ 法務ドキュメント（markdown.js の出力もここ）
 │  ├─ _project-detail.css       ✅ プロジェクト詳細
 │  ├─ _character.css           ✅ 提案キャラクター（体・目・状態ごとのアニメーション）
+│  ├─ _user-profile.css        ✅ ユーザー紹介モーダル
 │  ├─ _home.css                 ✅ ホーム
 │  ├─ _auth.css                 ✅ ログイン前の画面（auth / passwordReset）
 │  ├─ _account.css              ✅ アカウント設定

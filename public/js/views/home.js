@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import { Components } from '../components.js';
 import { bindEventLongPress, bindFolderLongPress } from '../modals/eventActions.js';
 import { pushBannerHtml, bindPushBanner } from '../modals/pushSetupModal.js';
+import { pickCharacterTip, characterTipHtml } from '../character.js';
 
 /**
  * ホーム画面をレンダリングする
@@ -10,6 +11,14 @@ import { pushBannerHtml, bindPushBanner } from '../modals/pushSetupModal.js';
  */
 export function renderHome(container) {
   const tab = state.homeTab || 'EVENTS';
+
+  // ★右下のひとこと。イベントが1件も無いとき（エンプティーステート）は出さない。
+  //   「イベントを作成」へ進んでもらう場面なので、助言で気を散らさないため。
+  // ★引くのは HOME を開いたときの1回だけ。state.homeTip は HOME を離れるときに
+  //   setView が捨てるので、ここで null なら「今 HOME を開いた」ということ。
+  //   render() のたびに引くと、タブ切り替えや SSE のたびに入れ替わってしまう。
+  const showTip = state.events.length > 0;
+  if (showTip && !state.homeTip) state.homeTip = pickCharacterTip();
 
   // スタイル: public/css/object/project/_home.css
   container.innerHTML = `
@@ -34,6 +43,7 @@ export function renderHome(container) {
       <!-- ★右下の丸い＋ボタン（FAB）は3画面とも廃止した。
            イベント作成 → ヘッダーの「イベントを作成」
            プロジェクト作成 → プロジェクトタブ見出し横の「＋ 新規作成」 -->
+      ${showTip ? characterTipHtml(state.homeTip) : ''}
     </div>`;
 
   bindPushBanner();

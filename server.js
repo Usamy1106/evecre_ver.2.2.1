@@ -26,6 +26,7 @@ const pushStore        = require('./lib/pushStore');
 const pushClient       = require('./lib/pushClient');
 const pushScheduler    = require('./lib/pushScheduler');
 const pushRules        = require('./lib/pushRules');
+const pushDispatchLog  = require('./lib/pushDispatchLog');
 const eventLogStore    = require('./lib/eventLogStore');
 const surveyStore     = require('./lib/surveyStore');
 const r2               = require('./lib/r2');
@@ -532,7 +533,8 @@ const _MOTIVATION_LABELS = {
   enjoy:     'まず自分が全力で楽しむ',
   finish:    '最後までやりきる',
   challenge: '新しいことに挑戦する',
-  trust:     '仲間を信じて任せる',
+  // ★'trust'（仲間を信じて任せる）は選択肢から削除済み（2026-08-31）。
+  //   既存イベントに保存された 'trust' は未知の id として無視され、行ごと省略される。
 };
 
 // ===== 参加申請フォームの回答 =====
@@ -723,6 +725,56 @@ function _sendMissionPush(userIds, eventId, missionId, title, body) {
     // 同じミッションの通知は積み上げず置き換える（tag があると renotify で鳴り直す）
     tag: `mission-${missionId}`,
   }).catch(e => console.error('[push] mission push error:', e.message));
+}
+
+/**
+ * イベント単位の Web Push を送る（fire-and-forget）。ミッションに紐づかない通知用。
+ * ★遷移先はイベントページ。ディープリンクはミッション用（/m/...）しか無いので、
+ *   ここではルートへ送り、アプリ側の通常の復帰に任せる。
+ */
+function _sendEventPush(userIds, eventId, title, body, tagSuffix) {
+  const ids = [...new Set(userIds || [])].filter(Boolean);
+  if (ids.length === 0) return;
+  pushClient.sendPushToUsers(ids, {
+    title,
+    body,
+    url: '/',
+    // 同じ種類の通知は積み上げず置き換える
+    tag: `event-${eventId}-${tagSuffix}`,
+  }).catch(e => console.error('[push] event push error:', e.message));
+}
+
+// ★参加申請の push を、同じイベント・同じ宛先に対して短時間で連投しないための間隔。
+//   1人ずつ申請が届くたびに全管理者の端末が鳴るのを防ぐ。この時間内の2件目以降は
+//   push を送らない（アプリ内通知は従来どおり毎回作られるので、取りこぼしはしない）。
+const APPLIED_PUSH_INTERVAL_MS = 3 * 60 * 60 * 1000;   // 3時間
+
+/**
+ * 参加申請の push を送る（間隔ゲート付き）。
+ * ★冪等性は push_dispatch_log の unique 制約に任せる（定期通知と同じ仕組み）。
+ *   「送信前に insert して、取れた人にだけ送る」ので、同時に2件届いても二重に鳴らない。
+ */
+async function _sendMemberAppliedPush(managerIds, eventId, eventName, applicantName) {
+  const ids = [...new Set(managerIds || [])].filter(Boolean);
+  if (ids.length === 0) return;
+  // 3時間ごとのバケツ番号をキーに混ぜる（同じバケツでは1回しか取れない）
+  const bucket = Math.floor(Date.now() / APPLIED_PUSH_INTERVAL_MS);
+  const winners = [];
+  for (const uid of ids) {
+    try {
+      const ok = await pushDispatchLog.claim(`applied:${eventId}:${uid}:${bucket}`, {
+        userId: uid, ruleId: 'member_applied', slot: 'event', dateJst: String(bucket),
+      });
+      if (ok) winners.push(uid);
+    } catch (_) { /* ログの失敗で申請自体を止めない */ }
+  }
+  if (winners.length === 0) return;
+  _sendEventPush(
+    winners, eventId,
+    'イベクリ',
+    `「${eventName}」に参加申請したユーザーがいるよ。`,
+    'applied',
+  );
 }
 
 // ミッションの「内容変更」とみなすフィールド（管理者が編集モーダルで触る項目）。
@@ -1667,6 +1719,22 @@ app.delete('/api/notifications', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * メンバー一覧に載せる「タイプ」。
+ * ★アカウント作成時の診断（signup.js の STEP 7〜8）の回答だけを返す。
+ *   同じイベントの仲間に自己紹介として見せる用途に限る。
+ * ★ここに項目を足すときは「他人に見せてよいか」を必ず考えること。
+ */
+function _memberProfile(u) {
+  if (!u) return null;
+  const p = {
+    eventExperience:   u.eventExperience   || null,
+    workStylePlanning: u.workStylePlanning || null,
+    workStyleSocial:   u.workStyleSocial   || null,
+  };
+  return (p.eventExperience || p.workStylePlanning || p.workStyleSocial) ? p : null;
+}
+
 // ===== イベント =====
 
 // 全イベント取得（HOME 用）
@@ -1686,6 +1754,12 @@ app.get('/api/data', requireAuth, async (req, res) => {
           ...mem,
           username:  usersMap[mem.userId]?.username  || '(削除されたユーザー)',
           avatarUrl: usersMap[mem.userId]?.avatarUrl || null,
+          // ★同じイベントのメンバーに見せてよい「タイプ」だけを載せる
+          //   （ユーザー紹介モーダル・public/js/modals/userProfileModal.js が使う）。
+          //   ★email / acquisitionChannel / notificationPreference は絶対に載せないこと。
+          //     本人にしか返さない情報で、他人が見る画面には要らない
+          //     （userPublic はログイン本人向けなので、あちらとは別物として扱う）。
+          profile: _memberProfile(usersMap[mem.userId]),
         }));
       }
       // submissions をマージ（clearedData として返す）
@@ -2790,6 +2864,13 @@ app.post('/api/events/:id/missions/:mid/chat', requireAuth, async (req, res) => 
     const memberIds = new Set((p.members || []).map(x => x.userId));
     const targets = [...new Set([..._getManagerIds(p), ...assigneeIds, ...participants])]
       .filter(uid => uid !== req.user.id && memberIds.has(uid));
+    // ★担当が誰にも決まっていないミッションは、全メンバーを宛先にする。
+    //   担当未定のまま会話が始まっているので、拾える人が誰か分からないため。
+    const pushTargets = (assigneeIds.length === 0
+      ? [...memberIds]
+      : targets
+    ).filter(uid => uid !== req.user.id && memberIds.has(uid));
+
     if (targets.length > 0) {
       const snippet = text.length > 30 ? text.slice(0, 30) + '…' : text;
       await notifStore.notifyAll(targets, {
@@ -2798,6 +2879,17 @@ app.post('/api/events/:id/missions/:mid/chat', requireAuth, async (req, res) => 
         eventId: p.id, missionId: mid,
         actorId:   req.user.id, actorName: req.user.username,
       });
+    }
+    if (pushTargets.length > 0) {
+      // ★push はアプリ内通知と宛先を揃える（担当者 ∪ 管理者 ∪ 過去の発言者）。
+      //   加えて担当未割当なら全メンバー。tag が mission-<id> なので、
+      //   同じミッションの連投は積み上がらず最新だけが残る。
+      const snippet = text.length > 40 ? text.slice(0, 40) + '…' : text;
+      _sendMissionPush(
+        pushTargets, p.id, mid,
+        `${m.title}`,
+        `${req.user.username}：${snippet}`,
+      );
     }
 
     res.json({ ok: true, message: enriched });
@@ -3176,6 +3268,12 @@ app.post('/api/invites/:token/accept', requireAuth, async (req, res) => {
         actorId:   req.user.id,
         actorName: req.user.username,
       });
+      // ★push は「その都度」送らない。3時間に1回までに絞る（_sendMemberAppliedPush）。
+      //   1人ずつ申請が届くたびに全管理者の端末が鳴ると、開催直前の告知後に
+      //   一気に申請が来たとき鳴り止まなくなる。
+      //   アプリ内通知は上のとおり毎回作るので、件数を取りこぼすことはない。
+      _sendMemberAppliedPush(managerIds, p.id, eventName, req.user.username)
+        .catch(e => console.error('[push] member_applied error:', e.message));
     }
 
     eventBus.broadcast(p.id, 'eventUpdated', { eventId: p.id, event: flatP });

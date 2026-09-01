@@ -1,8 +1,16 @@
 // ===== 初期オンボーディング（イベント作成直後のチュートリアル）=====
-// リーダーがイベントを作った直後に、①使い方 → ②FABコーチマーク →
-// ③作成モーダルのツールチップ → ④メインボードのコーチマーク3連 を順に通す。
+// リーダーがイベントを作った直後に、
+//   ① 進め方（モーダル）
+//   ② イベント主要機能の紹介（コーチマーク4連：残り日数／AI提案／ミッション一覧／作成ボタン）
+//   ③ 「目的を定めよう」の促し（コーチマーク）
+// を順に通す。
 //
-// ★4段階は厳密に順序があり、途中で中断・再開されうる。独立したフラグを並べず、
+// ★ミッション作成フォームのツールチップは**この流れに含めない**。
+//   作成フォームを初めて開いたときに独立して1回だけ出す（startMissionFormTour）。
+//   単位はユーザー（全イベントを通じて生涯1回）。フォームの使い方はイベントごとに
+//   変わらないので、イベントを作るたびに出すと鬱陶しいため。
+//
+// ★3段階は厳密に順序があり、途中で中断・再開されうる。独立したフラグを並べず、
 //   **1つの進行状態（状態機械）**として持つ。
 //
 // ★判定は state.render() 駆動のみ。バックグラウンドタイマー禁止
@@ -19,12 +27,20 @@ import { startTooltipTour, closeTooltipTour } from './modals/tooltipTour.js';
 
 // ── 進行状態 ────────────────────────────────────────────────
 export const INTRO = {
-  NONE:  null,          // 未開始
-  USAGE: 'usage_shown', // ①表示済み。★FAB をタップするまで②を出し続ける
-  FAB:   'fab_coach',   // ★FAB を実際にタップした。③待ち
-  FORM:  'form_tour',   // ③表示済み。④待ち
-  DONE:  'done',        // 完了。以後表示しない
+  NONE:  null,           // 未開始
+  USAGE: 'usage_shown',  // ①表示済み。②待ち
+  TOUR:  'feature_tour', // ②表示済み。③待ち
+  DONE:  'done',         // 完了。以後表示しない
 };
+
+// ★旧フローの途中で止まっている人の読み替え表。
+//   旧: usage → fab_coach（FABタップ）→ form_tour（作成フォームのツアー）→ done
+//   いずれも「①は見た」状態なので、②（機能紹介）から再開させる。
+//   ★これを消すと、旧フローの途中だった人が①からやり直しになる。
+const LEGACY_STATES = { fab_coach: 'usage_shown', form_tour: 'usage_shown' };
+
+// ミッション作成フォームのツアーは**ユーザー単位**で1回だけ（イベント単位ではない）。
+const FORM_TOUR_KEY = (userId) => `evecre:onboardingIntro:formTour:v1:${userId}`;
 
 // ★この時刻より前に作られたイベントでは①〜④を一切出さない。
 //   既存のテストユーザーが作ったイベントに、いまさらチュートリアルを出さないため。
@@ -39,9 +55,12 @@ function _key(userId, eventId) {
   return `evecre:onboardingIntro:v1:${userId}:${eventId}`;
 }
 
-/** 現在の進行状態（未開始は null） */
+/** 現在の進行状態（未開始は null）。★旧フローの値はここで読み替える */
 export function getIntroState(userId, eventId) {
-  try { return localStorage.getItem(_key(userId, eventId)); } catch (_) { return null; }
+  try {
+    const v = localStorage.getItem(_key(userId, eventId));
+    return (v && LEGACY_STATES[v]) || v;
+  } catch (_) { return null; }
 }
 
 export function setIntroState(userId, eventId, value) {
@@ -91,7 +110,7 @@ setIntroRunningProbe(isIntroRunning);
 /**
  * ★state.render() からのみ呼ぶこと。
  * 現在の進行状態を見て、次に出すべき段階を返す（表示自体は各 Phase で実装する）。
- * @returns {'usage'|'fab'|'board'|null} 次に出す段階
+ * @returns {'usage'|'tour'|'purpose'|null} 次に出す段階
  */
 export function nextIntroStep() {
   const p = state.events.find(x => x.id === state.selectedEventId);
@@ -99,13 +118,9 @@ export function nextIntroStep() {
   if (!isIntroEligible(state.currentUser.id, p)) return null;
 
   const cur = getIntroState(state.currentUser.id, p.id);
-  if (cur === INTRO.NONE || cur === null) return 'usage';   // ①
-  // ★usage_shown の間は②を出し続ける。②の出口は FAB のタップだけなので、
-  //   アプリを落として戻ってきたときにコーチマークが消えていると先へ進めなくなる。
-  //   FAB を実際にタップしたとき（Phase C）に fab_coach へ進めること。
-  if (cur === INTRO.USAGE) return 'fab';                    // ②
-  // ③はミッション作成モーダルを開いた時に出すので、ここでは扱わない
-  if (cur === INTRO.FORM)  return 'board';                  // ④
+  if (cur === INTRO.NONE || cur === null) return 'usage';    // ①進め方
+  if (cur === INTRO.USAGE) return 'tour';                    // ②主要機能の紹介
+  if (cur === INTRO.TOUR)  return 'purpose';                 // ③目的の促し
   return null;
 }
 
@@ -133,9 +148,9 @@ export function checkIntro() {
     if (isIntroRunning() && !document.getElementById('coach-mark-overlay')) setIntroRunning(false);
     return;
   }
-  if (step === 'usage') { showUsageModal(); return; }
-  if (step === 'fab')   { showFabCoach();   return; }
-  if (step === 'board') { showBoardCoach(); return; }
+  if (step === 'usage')   { showUsageModal();   return; }
+  if (step === 'tour')    { showFeatureTour();  return; }
+  if (step === 'purpose') { showPurposeCoach(); return; }
 }
 
 // ── ① 「イベクリの使い方」モーダル ──────────────────────────
@@ -150,7 +165,7 @@ export function showUsageModal() {
   overlay.className = 'c-overlay c-overlay--intro c-overlay--blur';
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
-      <p class="c-modal__eyebrow">イベクリの使い方</p>
+      <p class="c-modal__eyebrow">進め方</p>
       <!-- ★<br> を含むので esc しないこと（ユーザー入力は入らない） -->
       <h3 class="c-modal__title">イベントづくりは<br>5つのステップで進みます</h3>
       <div class="c-modal__steps c-modal__steps--roomy">
@@ -185,53 +200,8 @@ export function showUsageModal() {
     logEvent('intro_usage_ack');
     overlay.remove();
     // ★閉じるアニメーションと重ならないよう1フレーム置いてから②へ
-    requestAnimationFrame(() => showFabCoach());
+    requestAnimationFrame(() => showFeatureTour());
   };
-}
-
-// ── ② FAB コーチマーク ──────────────────────────────────────
-/**
- * FAB をスポットライトで指し示す。出口は FAB のタップだけ。
- *
- * ★フェイルセーフ：FAB が取得できない場合はオーバーレイを出さず、状態を次へ進める。
- *   出口がひとつしか無いので、出せないまま止めると操作不能になる。
- * ★FAB は MAIN タブ・管理者のときだけ描画されるので、先に MAIN タブへ戻す。
- */
-export function showFabCoach() {
-  const p = state.events.find(x => x.id === state.selectedEventId);
-  if (!p || !state.currentUser) return;
-  if (isCoachOpen()) return;
-
-  // FAB が無いタブにいると出せない。MAIN に戻して次の render に任せる
-  if (state.mainBoardTab !== 'MAIN') {
-    state.mainBoardTab = 'MAIN';
-    state.render();
-    return;
-  }
-
-  setIntroRunning(true);
-  const shown = showCoachMark({
-    selector: '[data-coach="fab"]',
-    title:   'まずはここから。',
-    body:    '最初のミッションをつくってみよう',
-    hint:    'タップしてね',
-    finger:  true,
-    advanceOn: 'target',
-    onAdvance: () => {
-      // ★FAB を実際にタップしたときだけ次の状態へ進める
-      logEvent('intro_fab_tapped');
-      advanceIntro(INTRO.FAB);
-      window._app?.openMissionModal?.();
-    },
-  });
-
-  if (!shown) {
-    // ★出せなかったら止めない。③から再開できるよう状態を進める
-    setIntroRunning(false);
-    advanceIntro(INTRO.FAB);
-    return;
-  }
-  logEvent('intro_fab_coach_shown');
 }
 
 /** コーチマークが開いているか（多重表示の防止） */
@@ -255,17 +225,25 @@ export function abortIntroVisuals() {
   setIntroRunning(false);
 }
 
-// ── ③ ミッション作成モーダルのツールチップ ──────────────────
+// ── ミッション作成フォームのツールチップ（初期オンボーディングとは独立）──
 /**
- * ミッション作成モーダルが開いた直後に呼ぶ（main.js の openMissionModal 経由）。
- * ★初回のみ。2回目以降は出さない。
- * ★中断（モーダルを閉じた）場合も「一度見た」として扱い、③完了として次へ進める。
+ * ミッション作成モーダルが開いた直後に呼ぶ（modals/mission.js 経由）。
+ *
+ * ★①〜③の流れには含めない。作成フォームを**初めて開いたとき**に1回だけ出す。
+ * ★単位はユーザー（イベント単位ではない）。フォームの使い方はイベントごとに
+ *   変わらないので、イベントを作るたびに出すと鬱陶しい。
+ * ★見たかどうかは開いた時点で記録する。途中で閉じても二度目は出さない
+ *   （閉じた時に記録すると、アプリを落とされたときに毎回出てしまう）。
  */
+function _formTourSeen(userId) {
+  try { return localStorage.getItem(FORM_TOUR_KEY(userId)) === 'done'; } catch (_) { return false; }
+}
+
 export function startMissionFormTour() {
-  const p = state.events.find(x => x.id === state.selectedEventId);
-  if (!p || !state.currentUser) return;
-  if (!isIntroEligible(state.currentUser.id, p)) return;
-  if (getIntroState(state.currentUser.id, p.id) !== INTRO.FAB) return;   // ②を済ませた直後だけ
+  const u = state.currentUser;
+  if (!u) return;
+  if (_formTourSeen(u.id)) return;
+  try { localStorage.setItem(FORM_TOUR_KEY(u.id), 'done'); } catch (_) {}
 
   setIntroRunning(true);
   const ok = startTooltipTour({
@@ -295,36 +273,30 @@ export function startMissionFormTour() {
 
 function _finishFormTour() {
   setIntroRunning(false);
-  advanceIntro(INTRO.FORM);
 }
 
 /**
  * ミッション作成モーダルが閉じられたときに呼ぶ。
- * ★途中で閉じても「一度見た」として③を完了扱いにする（宙ぶらりんにしない）。
+ * ★このツアーは初期オンボーディングの進行状態には触らない（独立しているため）。
+ *   表示を畳んで抑止フラグを落とすだけ。
+ * ★モーダルの閉じるアニメーション（300ms）の間はボードの座標が測れないので、
+ *   閉じ切ってから一度 render() を促す。判定自体は checkIntro に任せる
+ *   （②や③がこのあと出る場合があるため）。
  */
 export function onMissionFormClosed() {
   closeTooltipTour();
-  const p = state.events.find(x => x.id === state.selectedEventId);
-  if (!p || !state.currentUser) return;
-  if (getIntroState(state.currentUser.id, p.id) === INTRO.FAB) _finishFormTour();
-  else setIntroRunning(false);
-
-  // ★④はボードの実座標を測るので、モーダルの閉じるアニメーション(300ms)が
-  //   終わってから始める。createOrUpdateMission は closeMissionModal() の直後に
-  //   render() を呼ぶが、その時点ではまだ mission-overlay が残っていて測れない。
-  //   ここで一度だけ render() を促し、判定自体は checkIntro に任せる（render 駆動のまま）。
-  if (getIntroState(state.currentUser.id, p.id) === INTRO.FORM) {
-    setTimeout(() => state.render(), 350);
-  }
+  setIntroRunning(false);
+  setTimeout(() => state.render(), 350);
 }
 
-// ── ④ メインボードのコーチマーク3連 ────────────────────────
-// ★ここは②と違い操作を強制しない（どこをタップしても次へ）。
-//   ミッションを1件作り終えた直後なので、以降は自由に触れるべきだから。
+// ── ② イベント主要機能の紹介（コーチマーク4連）──────────────
+// ★操作を強制しない（どこをタップしても次へ）。ここは「見せる」段階で、
+//   実際に手を動かしてもらうのは次の③（目的を定めよう）。
 //
 // ★対象が無いステップは出さず、番号は残った数で詰める
-//   （2枚しか出ないのに 1/3 と表示されるのは不自然）。
-const BOARD_STEPS = [
+//   （3枚しか出ないのに 1/4 と表示されるのは不自然）。
+// ★並びは画面の上から下へ。最後に「作成ボタン」を置いて、次の行動へ繋げる。
+const FEATURE_STEPS = [
   {
     selector: '[data-coach="days-left"]',
     title: 'ここで開催日までの残りを確認できるよ',
@@ -343,6 +315,14 @@ const BOARD_STEPS = [
     title: '作成したミッションはここに並ぶよ',
     available: () => true,
   },
+  {
+    // ★FAB は MAIN タブ・管理者のときだけ描画される。
+    //   isIntroEligible が管理者に限っているので、MAIN タブなら必ずある。
+    selector: '[data-coach="fab"]',
+    title: 'ミッションはここから作れるよ',
+    body:  'やることを書き出して、担当と期間を決めよう',
+    available: () => true,
+  },
 ];
 
 /**
@@ -351,10 +331,15 @@ const BOARD_STEPS = [
  * ★出せない状況では**状態を進めない**で戻る。次の render() でやり直せばよい。
  *   ②と違って出口が塞がるわけではないので、無理に出すより待つほうが安全。
  */
-export function showBoardCoach() {
+export function showFeatureTour() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p || !state.currentUser) return;
   if (isCoachOpen()) return;
+  // ★①がまだ開いている間は次へ進めない。①は「出した時点」で状態を進めるため
+  //   （読んでいる途中でアプリを閉じても①を繰り返さないための仕様）、
+  //   SSE などで render() が走ると、まだ「わかった」を押していないのに
+  //   ここが動いてモーダルの上にコーチマークが重なってしまう。
+  if (document.getElementById(USAGE_ID)) return;
 
   // ミッション作成モーダルの閉じるアニメーション中は座標が取れない。
   // 閉じ切ってから onMissionFormClosed() が render() を促すので、ここでは何もしない
@@ -367,14 +352,14 @@ export function showBoardCoach() {
     return;
   }
 
-  const steps = BOARD_STEPS.filter(s => s.available(p) && document.querySelector(s.selector));
+  const steps = FEATURE_STEPS.filter(s => s.available(p) && document.querySelector(s.selector));
   if (steps.length === 0) {
     // 出すものが何も無い（＝ボードが未描画など）。完了にはせず次の render に任せる
     return;
   }
 
   setIntroRunning(true);
-  logEvent('intro_board_coach_shown', { total: steps.length });
+  logEvent('intro_feature_tour_shown', { total: steps.length });
 
   const show = (i) => {
     const s = steps[i];
@@ -388,19 +373,96 @@ export function showBoardCoach() {
       advanceOn: 'anywhere',
       cta:      isLast ? 'はじめる' : '',
       onAdvance: () => {
-        logEvent('intro_board_coach_step', { step: i + 1 });
-        if (isLast) _finishBoardCoach();
+        logEvent('intro_feature_tour_step', { step: i + 1 });
+        if (isLast) _finishFeatureTour();
         else show(i + 1);
       },
     });
     // 途中で対象が消えた（再描画など）→ 止めずに次へ。最後だったら完了
-    if (!ok) { if (isLast) _finishBoardCoach(); else show(i + 1); }
+    if (!ok) { if (isLast) _finishFeatureTour(); else show(i + 1); }
   };
   show(0);
 }
 
-function _finishBoardCoach() {
-  logEvent('intro_board_coach_done');
+function _finishFeatureTour() {
+  logEvent('intro_feature_tour_done');
+  setIntroRunning(false);
+  // ★ここでは完了にしない。③（目的の促し）が残っている。
+  //   次の render() で checkIntro が 'purpose' を返す。
+  advanceIntro(INTRO.TOUR);
+  setTimeout(() => state.render(), 250);
+}
+
+// ── ③ 「目的を定めよう」の促し ──────────────────────────────
+/**
+ * イベント作成時に自動生成される「イベントの目的を定めよう」（def-1）を指し示す。
+ *
+ * ★②と違い、出口を穴のタップに絞る（advanceOn:'target'）。ここだけは実際に
+ *   手を動かしてほしい段階なので、眺めて流せないようにしてある。
+ *   ★ただし対象が無ければ**出さずに完了**させる。出せないまま止めると操作不能になる
+ *     （②で同じ設計にして踏んだ落とし穴）。対象が無くなるのは、
+ *     すでに目的を書き終えている（cleared なので一覧に出ない）ときなど。
+ */
+const PURPOSE_MISSION_ID = 'def-1';
+
+// ★③を「やらずに閉じた」ことをこのセッションの間だけ覚える。
+//   localStorage には書かないので、アプリを開き直せばまた出る（＝次回また促す）。
+//   ★これが無いと、閉じた直後の render() で即座に出し直され、暗転が消えず
+//     何も操作できなくなる。逆に localStorage に書くと二度と出なくなる。
+let _purposeDismissedThisSession = false;
+
+export function showPurposeCoach() {
+  const p = state.events.find(x => x.id === state.selectedEventId);
+  if (!p || !state.currentUser) return;
+  if (isCoachOpen()) return;
+  if (_purposeDismissedThisSession) return;
+  // ★①がまだ開いている間は次へ進めない。①は「出した時点」で状態を進めるため
+  //   （読んでいる途中でアプリを閉じても①を繰り返さないための仕様）、
+  //   SSE などで render() が走ると、まだ「わかった」を押していないのに
+  //   ここが動いてモーダルの上にコーチマークが重なってしまう。
+  if (document.getElementById(USAGE_ID)) return;
+  if (document.getElementById('mission-overlay')) return;
+
+  if (state.mainBoardTab !== 'MAIN') {
+    state.mainBoardTab = 'MAIN';
+    state.render();
+    return;
+  }
+
+  const shown = showCoachMark({
+    selector: `[data-mission-id="${PURPOSE_MISSION_ID}"]`,
+    title:   'まずは目的を定めよう',
+    body:    'ここが決まると、迷ったときに立ち帰る軸になる',
+    hint:    'タップして書いてみよう',
+    finger:  true,
+    advanceOn: 'target',
+    onAdvance: () => {
+      logEvent('intro_purpose_tapped');
+      _finishIntro();
+      state.openMissionDetail(PURPOSE_MISSION_ID);
+    },
+    // ★穴の外をタップしたら、目的ミッションを開かずに閉じる。
+    //   出口が「目的ミッションのタップ」だけだと、他を触りたい人が閉じ込められる。
+    // ★ここでは進行状態を進めない（＝次にアプリを開いたときにまた促す）。
+    //   代わりにセッション内フラグで抑止する。localStorage に書いて完了扱いに
+    //   すると、目的を書かないまま二度と促されなくなる。
+    onDismiss: () => {
+      logEvent('intro_purpose_dismissed');
+      _purposeDismissedThisSession = true;
+      setIntroRunning(false);   // 他の自動モーダルの抑止を解く
+    },
+  });
+
+  if (!shown) {
+    // 目的ミッションが一覧に無い（＝すでに完了している等）。止めずに完了させる
+    _finishIntro();
+    return;
+  }
+  setIntroRunning(true);
+  logEvent('intro_purpose_shown');
+}
+
+function _finishIntro() {
   setIntroRunning(false);
   advanceIntro(INTRO.DONE);
 }

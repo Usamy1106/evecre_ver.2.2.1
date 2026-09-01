@@ -26,6 +26,23 @@
   color: var(--color-text-inverse);
 }
 
+/* タップでユーザー紹介モーダルを開くときの器（Components.UserAvatar に userId を渡した場合）。
+   ★button の既定の余白・枠を殺して、当たり判定をアバターと同じ大きさに保つ。
+     大きいと隣のアイコンや行のタップを食う。 */
+.c-avatar-button {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.c-avatar-button:active {
+  transform: scale(.92);
+}
+
 /* 重ねて並べるときに背景から浮かせる */
 .c-avatar--ring {
   box-shadow: 0 0 0 2px var(--white);

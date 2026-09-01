@@ -2,7 +2,7 @@
 import { api } from './api.js';
 import { SEED_TYPES, PROPOSAL_POOL } from './constants.js';
 import { logEvent } from './logger.js';
-import { calculateDaysLeft } from './utils.js';
+import { calculateDaysLeft, todayStr } from './utils.js';
 import { syncRealtime, disconnectRealtime } from './realtime.js';
 import { showConfirmDialog } from './dialog.js';
 
@@ -93,6 +93,9 @@ export const state = {
   // 提案キャラクターの一度きりの演出。どちらも renderMainBoard が消費して倒す。
   //   charactersIntro    … イベント作成直後、3体が順に跳ねて登場する
   //   proposalsRevealed  … 提案が届いた瞬間、バッジが出て目線が定位置へ戻る
+  // HOME 右下のひとこと。{ character, text } か null。
+  // ★HOME を開いたとき（renderHome）に引き、HOME を離れるとき（setView）に捨てる。
+  homeTip: null,
   charactersIntro: false,
   proposalsRevealed: false,
   missionViewMode: 'all',      // 'all' | 'mine'  ミッション表示モード
@@ -607,6 +610,10 @@ export const state = {
   // --- ビュー遷移 ---
   setView(view, id = null) {
     const prevView = this.currentView;
+    // ★HOME のひとことは「HOME を開くたび」に引き直す。HOME から離れるときに
+    //   捨てておき、次に HOME を描くときに引かせる（renderHome が null なら引く）。
+    //   render() のたびに引くと、タブ切り替えや SSE の受信で入れ替わってしまう。
+    if (view !== 'HOME') this.homeTip = null;
     // イベント設定画面に入るたびにキャッシュをリセット（別イベントを開いた時のメンバー混入防止）
     if (view === 'EVENT_SETTINGS') {
       this.eventSettingsScreen = null;
@@ -735,10 +742,17 @@ export const state = {
     // 種をランダム選択
     const randomSeed = SEED_TYPES[Math.floor(Math.random() * SEED_TYPES.length)];
 
+    // ★自動作成するミッションは「目的」と「概要」の2件。
+    //   def-2（タイトル）は作らない。タイトルはアーカイブのペンから入力でき
+    //   （modals/helpers.js の editArchiveItem('title')、保存時に def-2 を作る）、
+    //   ミッションとして並べるほどの作業ではないため。★この入口は消さないこと。
+    //   ★def-3（概要）は utils.js の setArchiveSummary と同じ clearedData キーを使う。
+    //     イベント設定・アーカイブのペンからも同じ場所を読み書きするので、
+    //     どこから書いても表示が食い違わない。
+    //   ★ヒント文は constants.js の MISSION_DESCRIPTIONS['def-1'] / ['def-3']。
     const defaultMissions = [
-      { id: 'def-1', title: 'イベントの目的を決める',     tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
-      { id: 'def-2', title: 'イベントのタイトルを決める', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
-      { id: 'def-3', title: 'イベントの概要を決める',     tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
+      { id: 'def-1', title: 'イベントの目的を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
+      { id: 'def-3', title: 'イベントの概要を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
     ];
 
     const newProject = {
@@ -875,7 +889,10 @@ export const state = {
     const appEl = document.getElementById('app');
     if (!appEl) return;
 
-    // 提案の更新チェック（判定本体は _checkProposalCycle。main.js の定期タイマーからも呼ばれる）
+    // ★フェーズの自動遷移を先に判定する。提案の可否がフェーズに依存するため、
+    //   順番を入れ替えると「開催が終わった直後の1回だけ提案が生成される」ことになる。
+    this._checkEventPhase();
+    // 提案の更新チェック（判定本体は _checkProposalCycle）
     this._checkProposalCycle();
 
     const fn = _renderers[this.currentView];
@@ -1031,6 +1048,79 @@ export const state = {
     this.render();
   },
 
+  // --- 引き継ぎ日の編集をコミットする ---
+  // ★開催日（commitEventDatesEdit）と違い daysLeft は触らない。
+  //   引き継ぎ日は表示と自動フェーズ遷移にしか使わず、締切計算には入れないため。
+  commitHandoverDatesEdit() {
+    const p = this.events.find(x => x.id === this.selectedEventId);
+    if (!p) return;
+    if (!Array.isArray(p.handoverDates)) p.handoverDates = [];
+    p.handoverDates.sort();
+    this.save();
+    this.render();
+  },
+
+  // --- フェーズの自動遷移 ---
+  //
+  //   企画準備 ──（最後の開催日を過ぎた）──▶ 振り返り
+  //   振り返り ──（引き継ぎ日の最終日を過ぎた）──▶ 完了
+  //
+  // ★手で設定したフェーズを勝手に巻き戻さない。進める方向にしか動かさない。
+  //   「完了」にしたイベントを開いても振り返りへ戻らないし、開催前に手で
+  //   「振り返り」にした人の設定も尊重する。
+  // ★render() 駆動のみ（他の自動処理と同じ方針）。バックグラウンドタイマー禁止。
+  // ★保存は canManage が要るので管理者のときだけ走らせる。一般メンバーの画面では
+  //   PUT /api/data が黙ってスキップされ、毎回 save を投げ続けることになる。
+  // ★1セッション1回のゲートは置かない。日付は日をまたいで変わるので、
+  //   長時間開きっぱなしのタブでも次の render で拾えるようにしておく
+  //   （実際に書き込むのは状態が変わる瞬間だけなので、無駄な保存は起きない）。
+  /**
+   * このイベントで提案を生成してよいか。
+   * ★「止める条件」を書くこと。判定を増やすときもここ1箇所に足す。
+   */
+  _proposalsAllowed(p) {
+    if (p.isCompleted) return false;
+    const phase = p.eventPhase || '企画準備';
+    if (phase === '完了' || phase === '振り返り') return false;
+    // フェーズが手で「企画準備」のままでも、開催日を過ぎていれば止める
+    const dates = Array.isArray(p.dates) ? [...p.dates].filter(Boolean).sort() : [];
+    const lastDate = dates.at(-1);
+    if (lastDate && todayStr() > lastDate) return false;
+    return true;
+  },
+
+  _checkEventPhase() {
+    if (!this.selectedEventId) return;
+    if (!this.canManageCurrentEvent()) return;
+    const p = this.events.find(x => x.id === this.selectedEventId);
+    if (!p) return;
+
+    const cur = p.eventPhase || '企画準備';
+    if (cur === '完了') return;
+
+    const today = todayStr();
+    const lastOf = (arr) => (Array.isArray(arr) && arr.length > 0)
+      ? [...arr].filter(Boolean).sort().at(-1) : null;
+
+    // 振り返り → 完了：引き継ぎ日の「最終日の翌日」から完了扱い
+    if (cur === '振り返り') {
+      const lastHandover = lastOf(p.handoverDates);
+      if (lastHandover && today > lastHandover) {
+        p.eventPhase  = '完了';
+        p.isCompleted = true;
+        this.save();
+      }
+      return;
+    }
+
+    // 企画準備 → 振り返り：最後の開催日を過ぎたら
+    const lastDate = lastOf(p.dates);
+    if (lastDate && today > lastDate) {
+      p.eventPhase = '振り返り';
+      this.save();
+    }
+  },
+
   // --- 提案の更新サイクル判定 ---
   // スロット構成（最大3件）：
   // - ★固定枠は廃止済み。3枠すべてが動的枠（Cloudflare Workers AI 生成）で、
@@ -1052,6 +1142,12 @@ export const state = {
     if (!this.canManageCurrentEvent()) return;
     const p = this.events.find(x => x.id === this.selectedEventId);
     if (!p || !Array.isArray(p.proposals)) return;
+    // ★開催が終わったイベントと完了したイベントでは提案しない。
+    //   やることを増やす提案は、片付ける段階に入ったチームには邪魔でしかなく、
+    //   Cloudflare Workers AI のクレジットも無駄に消費する。
+    // ★状態を持たずに毎回判定する。開催日を後ろへ動かしたり、フェーズを
+    //   「企画準備」に戻したりすれば、次の render で自然に再開する（指示どおり）。
+    if (!this._proposalsAllowed(p)) return;
     const TWELVE_H = 12 * 60 * 60 * 1000;
     const last = p.lastProposalGeneratedAt;
     const due  = !last || (Date.now() - last >= TWELVE_H);

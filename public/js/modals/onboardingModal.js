@@ -110,6 +110,12 @@ function _runAction(action, arg) {
     state.render();
     return;
   }
+  if (action === 'openHandoverCalendar') {
+    // 引き継ぎ（振り返り）をいつやるかをカレンダーで選ばせる（複数日可）。
+    // ★閉じたときに state.commitHandoverDatesEdit() が保存する（calendar.js）。
+    window._app?.openCalendarModal?.('handover');
+    return;
+  }
   if (action === 'openInvite') {
     openInviteIssueModal(state.selectedEventId);
     return;

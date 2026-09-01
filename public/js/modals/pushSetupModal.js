@@ -267,7 +267,9 @@ export async function startPushSetupFlow({ source = 'unknown', silent = false } 
 export function shouldShowPushBanner() {
   if (!state.currentUser) return false;
   if (getPushState() === 'unsupported') return false;
-  if (state.pushSubscribed === true) return false;      // 購読済み
+  // ★false は「購読が無い」だけでなく「許可を取り消された」も含む
+  //   （refreshPushSubscribed が両方を見ている）。オンにした後オフにした人も対象。
+  if (state.pushSubscribed === true) return false;      // 実際に届く状態
   if (state.pushSubscribed === null) return false;      // 未判定のうちは出さない（ちらつき防止）
   const key = `evecre:pushBanner:dismissedAt:${state.currentUser.id}`;
   const at = Number(localStorage.getItem(key) || 0);
@@ -275,10 +277,20 @@ export function shouldShowPushBanner() {
   return (Date.now() - at) > BANNER_SNOOZE_DAYS * 24 * 60 * 60 * 1000;
 }
 
-/** バナーを閉じた記録（BANNER_SNOOZE_DAYS 日は出さない） */
-export function dismissPushBanner() {
+/**
+ * バナーを BANNER_SNOOZE_DAYS 日ぶん出さないようにする（記録のみ）。
+ * ★アカウント設定から自分でオフにした直後にも使う。自分で切ったそばから
+ *   「オンにしませんか？」と出すと、操作を否定されたように見えるため。
+ */
+export function snoozePushBanner() {
   if (!state.currentUser) return;
   localStorage.setItem(`evecre:pushBanner:dismissedAt:${state.currentUser.id}`, String(Date.now()));
+}
+
+/** バナーの × を押したとき */
+export function dismissPushBanner() {
+  if (!state.currentUser) return;
+  snoozePushBanner();
   logEvent('push_banner_dismissed');
   state.render();
 }
@@ -286,6 +298,8 @@ export function dismissPushBanner() {
 /** HOME に出すバナーの HTML（出さないときは空文字） */
 export function pushBannerHtml() {
   if (!shouldShowPushBanner()) return '';
+  // ★「一度オンにしてから、ブラウザ／OS の設定でオフに戻した」人はここに来る。
+  const denied = getPushState() === 'denied';
   return `
     <div class="p-push-banner">
       <span class="p-push-banner__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -293,11 +307,15 @@ export function pushBannerHtml() {
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg></span>
       <button id="push-banner-open" class="p-push-banner__open">
-        <p class="p-push-banner__title">通知をオンにしませんか？</p>
+        <p class="p-push-banner__title">${_esc(denied ? '通知がオフになっています' : '通知をオンにしませんか？')}</p>
         <p class="p-push-banner__sub">
-          ${_esc(isIOS() && !isStandalone()
-            ? 'ホーム画面に追加すると受け取れます'
-            : '締め切りや割り当てをお知らせします')}
+          ${_esc(denied
+            // ★一度ブロックされるとプログラムからは二度と許可を求められない。
+            //   「オンにしよう」と誘っても何も起きないので、設定から戻す旨を伝える。
+            ? 'ブラウザの設定から通知を許可できます'
+            : (isIOS() && !isStandalone())
+              ? 'ホーム画面に追加すると受け取れます'
+              : '締め切りや割り当てをお知らせします')}
         </p>
       </button>
       <button id="push-banner-close" class="p-push-banner__close" aria-label="閉じる">
@@ -318,10 +336,18 @@ export function bindPushBanner() {
 }
 
 /**
- * 購読状態を調べて state に載せる（バナーの表示判定を同期で行えるようにする）。
- * アプリ起動時と、通知をオンにした直後に呼ぶ。
+ * 通知が「実際に届く状態か」を調べて state に載せる
+ * （バナーの表示判定を同期で行えるようにする）。
+ *
+ * ★購読オブジェクトの有無だけでは足りない。ブラウザや OS の設定から通知を
+ *   オフにされても PushSubscription は残るため、hasSubscription() は true を
+ *   返し続ける。そのまま信じると「通知が来ないのにバナーも出ない」人が生まれる。
+ *   許可（Notification.permission）が granted であることも必ず確認する。
+ *
+ * アプリ起動時と、通知をオン／オフした直後に呼ぶ。
  */
 export async function refreshPushSubscribed() {
-  try { state.pushSubscribed = await hasSubscription(); }
-  catch (_) { state.pushSubscribed = false; }
+  try {
+    state.pushSubscribed = (getPushState() === 'granted') && await hasSubscription();
+  } catch (_) { state.pushSubscribed = false; }
 }

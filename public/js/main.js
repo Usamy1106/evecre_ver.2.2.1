@@ -56,6 +56,7 @@ import { openJoinFormModal } from './modals/joinFormModal.js';
 import { SKILL_TAGS } from './constants.js';
 import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
+import { openUserProfileModal } from './modals/userProfileModal.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 // ★暫定：既存メンバーのスキル回収。回収が済んだらこの import ごと削除する
@@ -1146,6 +1147,7 @@ window._app = {
   checkOnboarding: () => checkOnboarding(),
   // 初期オンボーディング（イベント作成直後のチュートリアル）
   checkIntro: () => checkIntro(),
+  openUserProfileModal: (userId) => openUserProfileModal(userId),
   // ★イベントページを離れるとき state.setView から呼ばれる。表示だけ畳み、
   //   進行状態は残すので、戻ってきたら同じ段階から再開する。
   abortIntroVisuals: () => abortIntroVisuals(),
@@ -1750,19 +1752,21 @@ const _LOG_LABELS = {
   // オンボーディング（onboarding.js）。「出したが誰も押さないステップ」を特定するため
   // shown / action / dismissed の3つを必ず揃えて記録する。
   // 初期オンボーディング（onboardingIntro.js）。イベント作成直後の4段階。
-  // ★「①は見たが FAB を押していない」人がどれだけいるかが最重要の指標。
-  //   ここで落ちているなら、コーチマークの見せ方が機能していない。
-  intro_usage_shown:       '使い方モーダルを表示',
-  intro_usage_ack:         '使い方モーダルで「わかった」',
-  intro_fab_coach_shown:   'FABコーチマークを表示',
-  intro_fab_tapped:        'FABをタップした',
-  intro_form_tour_shown:   '作成モーダルの案内を表示',
-  intro_form_tour_step:    '作成モーダルの案内を進めた',
-  intro_form_tour_skipped: '作成モーダルの案内をスキップ',
-  intro_board_coach_shown: 'ボードの案内を表示',
-  intro_board_coach_step:  'ボードの案内を進めた',
-  intro_board_coach_done:  'ボードの案内を完了',
-  intro_completed:         '初期オンボーディングを完了',
+  // ★最重要の指標は「①は見たが③（目的）をタップしていない」人の数。
+  //   ここで落ちているなら、目的を書いてもらう導線が機能していない。
+  intro_usage_shown:         '進め方モーダルを表示',
+  intro_usage_ack:           '進め方モーダルで「わかった」',
+  intro_feature_tour_shown:  '主要機能の案内を表示',
+  intro_feature_tour_step:   '主要機能の案内を進めた',
+  intro_feature_tour_done:   '主要機能の案内を完了',
+  intro_purpose_shown:       '目的の促しを表示',
+  intro_purpose_tapped:      '目的の促しから目的ミッションを開いた',
+  intro_purpose_dismissed:   '目的の促しを閉じた（書かずに離脱）',
+  intro_completed:           '初期オンボーディングを完了',
+  // ミッション作成フォームのツアー（初期オンボーディングとは独立・ユーザー単位で1回）
+  intro_form_tour_shown:     '作成フォームの案内を表示',
+  intro_form_tour_step:      '作成フォームの案内を進めた',
+  intro_form_tour_skipped:   '作成フォームの案内をスキップ',
   // ★暫定：既存メンバーのスキル回収（回収後に削除）
   member_approved_modal_shown:  '参加承認モーダルを表示',
   member_approved_modal_opened: '参加承認モーダルからイベントを開いた',

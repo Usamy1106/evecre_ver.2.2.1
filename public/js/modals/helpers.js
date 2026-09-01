@@ -60,7 +60,10 @@ export function editArchiveItem(type) {
       m = {
         id: missionId,
         // venue / summary はここを通らない（上で早期 return して utils.js 経由で保存する）
-        title: type === 'url' ? '広報リンクを挿入'
+        // ★イベント作成時に def-2 を自動生成しなくなったので、タイトルは必ず
+        //   ここで作られる。type をそのまま入れると 'title' という名前になる。
+        title: type === 'url'   ? '広報リンクを挿入'
+             : type === 'title' ? 'イベントのタイトルを決める'
              : type === 'period' ? '開催日時' : type,
         tag: type === 'url' ? '広報' : '企画',
         clearFormat: format,

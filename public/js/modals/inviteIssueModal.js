@@ -140,7 +140,6 @@ function _render(overlay, ctx) {
     </div>`;
 
   document.getElementById('iim-close')?.addEventListener('click', () => _close(overlay));
-  document.getElementById('iim-skip')?.addEventListener('click', () => _close(overlay));
   document.getElementById('iim-line')?.addEventListener('click', () => _shareToLine(url));
   document.getElementById('iim-share')?.addEventListener('click', () => _nativeShare(url));
   document.getElementById('iim-copy')?.addEventListener('click', () => _copyText(url));

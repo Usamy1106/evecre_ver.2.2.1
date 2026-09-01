@@ -571,7 +571,7 @@ function _renderChatMessage(msg, meId, canMgr) {
   return `
     <div class="p-mission-detail__msg p-mission-detail__msg--theirs">
       <div class="p-mission-detail__msg-avatar">
-        ${Components.UserAvatar({ username: msg.username, avatarUrl: msg.avatarUrl }, { size: 28 })}
+        ${Components.UserAvatar({ username: msg.username, avatarUrl: msg.avatarUrl }, { size: 28, userId: msg.userId })}
       </div>
       <div class="p-mission-detail__msg-main">
         <div class="p-mission-detail__msg-head">

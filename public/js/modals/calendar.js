@@ -78,11 +78,12 @@ function _bindDateTimeInputs(project) {
 // - 'projectEdit'   : 確定済みイベントの開催日（実施日）を編集（project.dates）
 // - 'mission'       : ミッション期限（単日のみ）
 // - 'claimDeadline' : 申告期限（単日のみ、選択日の23:59をタイムスタンプとして保存）
+// - 'handover'      : 引き継ぎ（振り返り）を行う日を編集（project.handoverDates・複数日可）
 // - 'view'          : 旧・閲覧専用。後方互換で projectEdit と同じ挙動にする
 
 /**
  * カレンダーモーダルを開く
- * @param {'project'|'projectEdit'|'mission'|'view'} target
+ * @param {'project'|'projectEdit'|'handover'|'mission'|'view'} target
  */
 export function openCalendarModal(target = 'project') {
   // 後方互換：'view' は 'projectEdit' にエイリアスする
@@ -125,6 +126,9 @@ function _closeCalendar(target) {
   if (target === 'projectEdit') {
     state.commitEventDatesEdit();
   }
+  if (target === 'handover') {
+    state.commitHandoverDatesEdit();
+  }
   // ミッション・申告期限用はボトムシートのスライドダウンアニメーション
   if (target === 'mission' || target === 'claimDeadline') {
     const panel = document.getElementById('calendar-bottomsheet-panel');
@@ -153,6 +157,14 @@ function _getTargetDates(target) {
   if (target === 'projectEdit') {
     const p = state.events.find(x => x.id === state.selectedEventId);
     return p ? p.dates : [];
+  }
+  if (target === 'handover') {
+    // ★引き継ぎ日は開催日（dates）とは別の配列。混ぜないこと
+    //   （daysLeft の計算・ガント・締切表示は dates だけを見ている）。
+    const p = state.events.find(x => x.id === state.selectedEventId);
+    if (!p) return [];
+    if (!Array.isArray(p.handoverDates)) p.handoverDates = [];
+    return p.handoverDates;
   }
   if (target === 'mission')     return state.draftMission.dates;
   if (target === 'claimDeadline') {
@@ -186,6 +198,8 @@ function _renderCalendarInner(target) {
   if (target === 'project')          eventDates = state.draftEvent.dates;
   else if (target === 'projectEdit') eventDates = currentTargetDates; // 自身が対象
   else if (target === 'mission')     eventDates = project ? project.dates : [];
+  // 引き継ぎ日を選ぶときは、開催日を背景色で見せて位置関係を分かるようにする
+  else if (target === 'handover')    eventDates = project ? (project.dates || []) : [];
 
   const missionDeadlines = project ? project.missions.flatMap(m => m.dates || []) : [];
 
@@ -276,7 +290,7 @@ function _renderCalendarInner(target) {
         <div class="p-date-picker__week">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
         </div>
-        <div id="calendar-grid" class="p-date-picker__grid ${target === 'projectEdit' ? 'p-date-picker__grid--tight' : 'p-date-picker__grid--loose'}">${daysHtml}</div>
+        <div id="calendar-grid" class="p-date-picker__grid ${(target === 'projectEdit' || target === 'handover') ? 'p-date-picker__grid--tight' : 'p-date-picker__grid--loose'}">${daysHtml}</div>
         ${target === 'projectEdit' ? _renderDateTimeList(project) : ''}
         <button id="calendar-confirm-btn"
           class="c-button c-button--primary p-date-picker__confirm heading-rs">決定</button>

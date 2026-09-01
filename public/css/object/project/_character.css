@@ -211,6 +211,84 @@
 }
 
 /* ==========================================================================
+   HOME 右下のひとこと（object/project/_home.css ではなくここ）
+   使用箇所: public/js/character.js の characterTipHtml
+
+   ★体と目は提案ボックスと同じ .p-char__* を使い回す。そのため .p-char と
+     .p-char--<id> と .p-char--ready を一緒に付けており、瞬きと視線も
+     そのまま効く（別々に書かないこと）。
+   ★エンプティーステートでは JS 側が呼ばない（助言で CTA から気を散らさない）。
+   ========================================================================== */
+
+.p-tip {
+  /* ★ここで .p-char 側の調整値を上書きする。提案ボックスとは大きさが違うので、
+     --char-h などは共有せずこの場で決める。 */
+  --char-h: 84px;
+  --char-bleed: 0px;
+  --char-stagger: 0ms;
+
+  position: fixed;
+  z-index: var(--z-sticky);
+  right: var(--space-4);
+  /* ★safe-area を足す。standalone ではホームインジケータに重なるため
+     （l-fab と同じ考え方）。 */
+  bottom: calc(var(--space-4) + var(--safe-bottom, 0px));
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  /* ★高さは figure 側が持つ。箱に height を持たせると吹き出しが伸びる */
+  height: auto;
+  max-width: min(300px, calc(100% - var(--space-8)));
+  /* 裏のイベントカードを触れなくしないこと。ひとことは読むだけの飾り */
+  pointer-events: none;
+}
+
+/* 吹き出し。キャラの左に出す（右下に居るので左へ開くしかない） */
+.p-tip__bubble {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.5;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* 吹き出しのしっぽ。★枠線ぶん1px ずらした三角を2枚重ねて縁取りを再現する
+   （border だけでは枠線付きの三角が作れない）。 */
+.p-tip__bubble::before,
+.p-tip__bubble::after {
+  position: absolute;
+  right: -7px;
+  bottom: 14px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 7px solid var(--color-border);
+  content: "";
+}
+
+.p-tip__bubble::after {
+  right: -6px;
+  border-left-color: var(--color-surface);
+}
+
+/* キャラ本体。体の SVG は横長ぎみ（372×349）なので幅は高さと同じで足りる */
+.p-tip__figure {
+  position: relative;
+  flex-shrink: 0;
+  width: var(--char-h);
+  height: var(--char-h);
+}
+
+/* ==========================================================================
    アニメーション
    ========================================================================== */
 

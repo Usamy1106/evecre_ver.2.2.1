@@ -159,6 +159,16 @@ function _leaderVoice(p) {
 // ★lib/proposalEngine.js の detectPhase と同じ区分に揃えること
 //   （early >21日 / mid 8〜21日 / late 〜7日 / during 開催中 / after 終了後）。
 //   サーバー側と食い違うと「直前チェック」が出るタイミングがズレる。
+/** 片付けの段階に入っているか（フェーズが振り返り、または開催日を過ぎた） */
+function _isWrapUp(p) {
+  return p.eventPhase === '振り返り' || _detectPhase(p) === 'after';
+}
+
+/** 引き継ぎ日（正規化済み） */
+function _handoverDates(p) {
+  return Array.isArray(p.handoverDates) ? p.handoverDates.filter(Boolean) : [];
+}
+
 function _todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -299,8 +309,8 @@ const STEPS = [
         ['こなす', '実行して提出する'],
         ['残す',   '振り返って次に引き継ぐ'],
       ],
-      // ★def-1〜3 が最初から入っているので「最初の1件を作ろう」は不正確。
-      //   「作ってみよう」に留める（指示どおり）。
+      // ★自動作成される「イベントの目的を定めよう」が既に入っているので、
+      //   「最初の1件を作ろう」は不正確。「作ってみよう」に留める。
       body: 'やることをミッションとして書き出してスケジュールを作ってみましょう。',
       primary: 'わかった',
       action: 'openMissionModal',
@@ -354,10 +364,32 @@ const STEPS = [
 
   {
     // 開催が終わったあと初めて開いたとき
+    // ★開催が終わると eventPhase が自動で「振り返り」になる（state.js の _checkEventPhase）。
+    //   カレンダー判定（_detectPhase === 'after'）も併用しているのは、
+    //   フェーズを手で「企画準備」に戻したまま開催日を過ぎている人にも出すため。
+    // ★引き継ぎ日を決めてもらうのが先。決まると最終日の翌日に自動で「完了」へ
+    //   進むので、イベントを畳むところまでが一本の線になる。
     id: 'L9',
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
-    match: (ctx) => _detectPhase(ctx.p) === 'after',
+    match: (ctx) => _isWrapUp(ctx.p) && _handoverDates(ctx.p).length === 0,
+    build: () => ({
+      emoji: '📅',
+      eyebrow: 'おつかれさまでした',
+      title: '引き継ぎの日を決めましょう',
+      body: 'みんなで振り返る日をカレンダーから選んでください。複数日でも構いません。\n'
+          + '選んだ最終日の翌日に、このイベントは自動で「完了」になります。',
+      primary: '日を選ぶ',
+      action: 'openHandoverCalendar',
+    }),
+  },
+
+  {
+    id: 'L10',
+    role: 'leader',
+    densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    match: (ctx) => _isWrapUp(ctx.p) && _handoverDates(ctx.p).length > 0,
+    // ★引き継ぎ日が決まるまでは出さない。先に L9 で日を決めてもらう。
     build: (ctx) => {
       const missing = [];
       if (!getArchiveSummary(ctx.p)) missing.push(['概要', 'イベント設定から書けます']);
