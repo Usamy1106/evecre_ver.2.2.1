@@ -16,15 +16,44 @@ import { PROPOSAL_CHARACTERS } from './constants.js';
  *
  * ★目は「白目（character-eye.svg）＋ 虹彩（character-*-iris.svg）」の2枚重ね。
  *   1枚の絵にしてしまうと視線を動かせない。位置合わせの根拠は _character.css。
+ * ★寝ているときだけは閉じた目（character-closed-eyes.svg）の1枚絵に差し替える。
+ *   白目を scaleY で潰すより、線で描いた閉じ目のほうが「寝ている」と読める。
+ *   ★縦横比が違う（開き 76.29×40 / 閉じ 79.04×10.88）ので、そのまま置くと
+ *     目の位置が上にずれる。補正は _character.css の translateY で行う。
  *
  * @param {{id:string, body:string, iris:string}} ch PROPOSAL_CHARACTERS の1体
+ * @param {{closedEyes?:boolean}} [opts]
  */
-export function characterFigureHtml(ch) {
-  return `
-      <div class="p-char__body" style="--char-body:url('/images/character/${ch.body}')"></div>
-      <div class="p-char__face">
+export function characterFigureHtml(ch, opts = {}) {
+  const face = opts.closedEyes
+    ? `<div class="p-char__face p-char__face--closed">
+        <img class="p-char__eye" src="/images/character/character-closed-eyes.svg" alt="" aria-hidden="true">
+      </div>`
+    : `<div class="p-char__face">
         <img class="p-char__eye" src="/images/character/character-eye.svg" alt="" aria-hidden="true">
         <img class="p-char__iris" src="/images/character/${ch.iris}" alt="" aria-hidden="true">
+      </div>`;
+  return `
+      <div class="p-char__body" style="--char-body:url('/images/character/${ch.body}')"></div>
+      ${face}`;
+}
+
+/**
+ * 寝ているときの「Zzz」の吹き出し。
+ *
+ * ★構図は images/front/sample-sleep.svg が正。3つの Z は同じ素材
+ *   （speech-bubble-sleep-z.svg）を倍率と位置だけ変えて置いたもので、
+ *   実測値（倍率 0.52 / 0.72 / 1.00）は _character.css に入れてある。
+ * ★小さいほうから順に現れる。位置も左下→右上に上がっていくので、
+ *   出現順と合わせると「立ちのぼる」ように見える。
+ */
+export function sleepBubbleHtml() {
+  return `
+      <div class="p-char__sleep" aria-hidden="true">
+        <img class="p-char__sleep-bubble" src="/images/front/speech-bubble-sleep.svg" alt="">
+        ${[1, 2, 3].map(i =>
+          `<img class="p-char__sleep-z p-char__sleep-z--${i}" src="/images/front/speech-bubble-sleep-z.svg" alt="">`
+        ).join('')}
       </div>`;
 }
 

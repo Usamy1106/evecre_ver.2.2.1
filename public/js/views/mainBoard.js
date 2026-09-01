@@ -3,7 +3,7 @@ import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
-import { characterFigureHtml } from '../character.js';
+import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync } from '../mountainPath.js';
 
@@ -396,7 +396,8 @@ function _characterBoxHtml(ch, idx, opt) {
       <!-- ★体と目のマークアップは character.js が組む（HOME のひとことと共用）。
            体は専用の要素に敷く。箱そのものに背景を置くと、箱が担う
            「パネル操作での出入り」と体の呼吸／弾みが同じ transform を奪い合う。 -->
-      ${characterFigureHtml(ch)}
+      ${characterFigureHtml(ch, { closedEyes: opt.state === 'sleeping' })}
+      ${opt.state === 'sleeping' ? sleepBubbleHtml() : ''}
       ${opt.badge ? `<img class="p-char__badge" src="/images/icon/icon-suggest.svg" alt="" aria-hidden="true">` : ''}
       <div class="p-main-board__proposal-body">${opt.inner}</div>
       ${opt.help ? `

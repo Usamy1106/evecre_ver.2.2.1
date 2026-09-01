@@ -409,12 +409,71 @@
 .p-char--meeting.p-char--mori .p-char__body { animation-delay: .3s; }
 .p-char--meeting.p-char--iwa  .p-char__body { animation-delay: .6s; }
 
-/* --- 次回の更新待ち（寝ている）------------------------------------------- */
-/* 目は閉じたまま。瞬きのアニメーションは当てない（＝止まって見えるのが正しい） */
-.p-char--sleeping .p-char__face { transform: translateX(-50%) scaleY(.08); }
+/* --- 次回の更新待ち（寝ている）-------------------------------------------
+   目は閉じた1枚絵（character-closed-eyes.svg）に差し替わる。JS 側が
+   .p-char__face--closed を付ける（character.js の characterFigureHtml）。
+   ★白目を scaleY で潰す旧実装は廃止した。線で描いた閉じ目のほうが読める。 */
+
+/* ★閉じ目は開き目と縦横比が違うので（開き 76.29×40 / 閉じ 79.04×10.88）、
+   同じ top に置くと目の位置が上へ上がってしまう。
+   幅 W に対して 開き目の高さ = 0.524W / 閉じ目 = 0.138W なので、
+   中心を揃えるには 0.193W だけ下げる＝閉じ目自身の高さの 140%。
+   ★% の translateY は「自分の高さ」基準なので、箱の大きさが変わっても
+     この比率のまま正しく揃う（px で書かないこと）。 */
+.p-char__face--closed {
+  transform: translateX(-50%) translateY(140%);
+}
+
 .p-char--sleeping .p-char__body { animation: charBreathe 3.2s ease-in-out infinite; }
 .p-char--sleeping.p-char--mori .p-char__body { animation-delay: .5s; }
 .p-char--sleeping.p-char--iwa  .p-char__body { animation-delay: 1s; }
+
+/* --- Zzz の吹き出し -------------------------------------------------------
+   構図は images/front/sample-sleep.svg が正。3つの Z の倍率と位置は
+   その SVG から実測した値（倍率 1.00 / 0.72 / 0.52）。
+   ★% は吹き出し（96.9 × 101.93）に対する比。素材を差し替えるときは
+     sample-sleep.svg の座標から計算し直すこと。 */
+
+.p-char__sleep {
+  /* 吹き出しの大きさ。キャラの高さに対する比で持つ */
+  --sleep-size: calc(var(--char-h) * .36);
+  position: absolute;
+  z-index: 2;
+  /* 頭の右上。少し外へはみ出させて「浮いている」ように見せる */
+  top: calc(var(--sleep-size) * -.34);
+  right: calc(var(--sleep-size) * -.16);
+  width: var(--sleep-size);
+  /* 吹き出しの縦横比 101.93 / 96.9 */
+  aspect-ratio: 96.9 / 101.93;
+  pointer-events: none;
+}
+
+.p-char__sleep-bubble {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.p-char__sleep-z {
+  position: absolute;
+  /* 出現前は見えない。アニメーションが both で持ち上げる */
+  opacity: 0;
+  animation: charSleepZ 3.9s ease-in-out infinite;
+}
+
+/* ★小さいものから順に出す（指示どおり）。位置も左下→右上に上がるので、
+   出現順と合わせると「立ちのぼる」ように読める。 */
+.p-char__sleep-z--1 { left: 22.9%; top: 48.4%; width: 11.6%; animation-delay: 0s; }
+.p-char__sleep-z--2 { left: 38.4%; top: 38.3%; width: 16.1%; animation-delay: .45s; }
+.p-char__sleep-z--3 { left: 58.4%; top: 23.6%; width: 22.3%; animation-delay: .9s; }
+
+@keyframes charSleepZ {
+  0%           { opacity: 0; transform: translateY(4px) scale(.6); }
+  15%          { opacity: 1; transform: translateY(0) scale(1); }
+  55%          { opacity: 1; transform: translateY(0) scale(1); }
+  75%, 100%    { opacity: 0; transform: translateY(-3px) scale(1); }
+}
 
 /* --- パネル操作での出入り ------------------------------------------------- */
 /* ★パネルを上げている間はキャラを消す。ミッション一覧を読むための位置なので、
@@ -469,6 +528,12 @@
   .p-char--meeting .p-char__body,
   .p-char--sleeping .p-char__body,
   .p-main-board__proposals.is-revealing .p-char__body {
+    animation: none;
+  }
+
+  .p-char__sleep-z {
+    /* ★止めるだけだと opacity:0 のまま消えるので、見えるようにしてから止める */
+    opacity: 1;
     animation: none;
   }
 
