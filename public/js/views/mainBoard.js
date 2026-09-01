@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
 import { characterFigureHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync } from '../mountainPath.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
@@ -650,12 +650,11 @@ function _renderMainTab(p) {
   const hasDates = Array.isArray(p.dates) && p.dates.length > 0;
   const _dateChip = (() => {
     if (!hasDates) return `<span class="p-main-board__date-text p-main-board__date-text--muted">開催日時が設定されていません</span>`;
-    const d = new Date();
-    const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const today = todayStr();
     const sorted = [...p.dates].sort();
     const firstDate = sorted[0];
     const lastDate  = sorted[sorted.length - 1];
-    const todayIdx  = sorted.indexOf(todayStr);
+    const todayIdx  = sorted.indexOf(today);
     if (todayIdx !== -1) {
       const dayNum = todayIdx + 1;
       const isFirst = dayNum === 1;
@@ -664,7 +663,7 @@ function _renderMainTab(p) {
       if (isLast)  return `<span class="p-main-board__date-text">Day${dayNum} / ついに最終日！</span>`;
       return `<span class="p-main-board__date-text"><span class="p-main-board__date-count">Day${dayNum}</span></span>`;
     }
-    if (todayStr > lastDate) {
+    if (today > lastDate) {
       const fmt = s => { const [, m, day] = s.split('-'); return `${parseInt(m)}月${parseInt(day)}日`; };
       const range = (firstDate === lastDate)
         ? `${fmt(firstDate)}開催`
@@ -1408,9 +1407,11 @@ function _missionDeadlineText(m) {
 // 締め切り系トースト（sessionStorage でセッション内重複抑制）
 function _checkMissionDeadlineNotifications(missions) {
   if (!Array.isArray(missions)) return;
+  const today = todayStr();
+  // ★日数差（diff）の計算に要るので Date も持つ。時刻を 0 に落としてから引く
+  //   （時刻が残っていると、同じ日でも切り上げで1日ずれる）。
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
   const toasts = [];
   for (const m of missions) {
@@ -1424,21 +1425,21 @@ function _checkMissionDeadlineNotifications(missions) {
     const diff = Math.ceil((target.getTime() - now.getTime()) / 86_400_000);
     const title = m.title.length > 15 ? m.title.slice(0, 15) + '…' : m.title;
 
-    if (startDate === endDate && todayStr === startDate) {
+    if (startDate === endDate && today === startDate) {
       // 1日のみのミッション → 締め切り当日
-      const key = `notif:${m.id}:single:${todayStr}`;
+      const key = `notif:${m.id}:single:${today}`;
       if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」締め切り当日です`); }
-    } else if (todayStr === startDate) {
+    } else if (today === startDate) {
       // 期間スタート（複数日）
-      const key = `notif:${m.id}:start:${todayStr}`;
+      const key = `notif:${m.id}:start:${today}`;
       if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」の期間が始まりました・残り${diff}日`); }
     } else if (diff === 1) {
       // 締め切り前日
-      const key = `notif:${m.id}:1day:${todayStr}`;
+      const key = `notif:${m.id}:1day:${today}`;
       if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」の締め切りまで残り1日`); }
     } else if (diff === 0) {
       // 締め切り当日（複数日ミッションの最終日）
-      const key = `notif:${m.id}:due:${todayStr}`;
+      const key = `notif:${m.id}:due:${today}`;
       if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」の締め切り当日です`); }
     }
   }

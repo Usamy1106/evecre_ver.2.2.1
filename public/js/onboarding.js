@@ -14,7 +14,7 @@
 
 import { state } from './state.js';
 import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
-import { getArchiveSummary, getArchiveVenue } from './utils.js';
+import { getArchiveSummary, getArchiveVenue, todayStr } from './utils.js';
 import { isIntroEligible } from './onboardingIntro.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
@@ -169,13 +169,9 @@ function _handoverDates(p) {
   return Array.isArray(p.handoverDates) ? p.handoverDates.filter(Boolean) : [];
 }
 
-function _todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
 function _detectPhase(p) {
   const sorted = [...(p.dates || [])].filter(Boolean).sort();
-  const today = _todayStr();
+  const today = todayStr();
   if (sorted.length === 0) return null;              // 日程未設定は中立
   if (today > sorted[sorted.length - 1]) return 'after';
   if (today >= sorted[0]) return 'during';

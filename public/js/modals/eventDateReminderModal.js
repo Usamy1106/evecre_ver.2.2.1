@@ -7,14 +7,10 @@
 
 import { state } from '../state.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
+import { todayStr } from '../utils.js';
 
 function _storageKey(userId, eventId, suffix) {
   return `evecre:eventDateReminder:v1:${userId}:${eventId}:${suffix}`;
-}
-
-function _todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // dateStr（'YYYY-MM-DD'）の翌日を返す。new Date(dateStr) の UTC 解釈ズレを避けるため
@@ -42,7 +38,7 @@ export function checkEventDateReminderModal() {
   if (dates.length === 0) return;
 
   const uid = state.currentUser.id;
-  const today = _todayStr();
+  const today = todayStr();
   const firstDate = dates[0];
   const dayAfterLast = _nextDayStr(dates[dates.length - 1]);
 
