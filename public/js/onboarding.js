@@ -143,6 +143,21 @@ function _myMissions(p, userId) {
 }
 
 /**
+ * 「**他の人から**割り当てられた」担当ミッション。M3 の案内だけがこれを使う。
+ *
+ * ★自分で作って自分に割り当てたものを除く。除かないと、リーダーが自分で
+ *   作ったミッションに対して「あなたの担当が決まりました／お願いします」と
+ *   案内され、さらに自分で書いた意気込みを自分に読み聞かせることになる。
+ * ★_myMissions とは分けること。M2（担当が1件も無い人への案内）は
+ *   「自分で作ったものも担当のうち」で判定する必要があり、意味が違う。
+ * ★createdBy は途中で入れたフィールドなので、古いミッションには無い。
+ *   その場合は除外せず従来どおり案内する（安全側に倒す）。
+ */
+function _assignedByOthers(p, userId) {
+  return _myMissions(p, userId).filter(m => !m.createdBy || m.createdBy !== userId);
+}
+
+/**
  * リーダーの意気込みを一行で。
  * ★意気込み機能を最も活かす使い方。ひとことがあればそれを、無ければカードから1つ。
  */
@@ -431,12 +446,14 @@ const STEPS = [
   {
     // 自分に初めて担当が付いたとき。
     // ★リーダー／メンバーを問わず、担当が付いた人全員に出す（リーダーも実作業を持つため）。
+    // ★ただし「自分で作って自分に割り当てた」ものは対象外（_assignedByOthers）。
+    //   自分で決めた作業に「お願いします」と案内しても意味が無い。
     id: 'M3',
     role: 'any',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
-    match: (ctx) => _myMissions(ctx.p, ctx.userId).length > 0,
+    match: (ctx) => _assignedByOthers(ctx.p, ctx.userId).length > 0,
     build: (ctx) => {
-      const mine  = _myMissions(ctx.p, ctx.userId);
+      const mine  = _assignedByOthers(ctx.p, ctx.userId);
       const first = mine[0];
       const voice = _leaderVoice(ctx.p);
       return {
