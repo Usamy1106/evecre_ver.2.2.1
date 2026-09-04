@@ -155,6 +155,20 @@ section('[B] 実機で見つかった不具合');
     ok('①のハンドラで段階を進めている', /onclick = \(\) => \{[\s\S]*?advanceIntro\(/.test(usage));
   }
 
+  // ★歓迎の🔥を閉じたら、次の案内（メンバー向けの進め方 M1）を評価させること。
+  //   閉じる処理が overlay.remove() だけだと判定が走らず、
+  //   「🔥は出たのに進め方が出ない」で止まる（実際にその報告を受けた）。
+  {
+    const lm = R('public/js/modals/leaderMotivationModal.js');
+    ok('★🔥を閉じたら state.render() を呼ぶ（次の案内が続くため）',
+      /const close = \(\) => \{ overlay\.remove\(\); state\.render\(\); \};/.test(lm));
+    // ★意気込みが無いイベントには出さない（空の箱を見せない）という設計。
+    //   代償として、意気込みが未入力のイベントでは🔥が一度も出ない。
+    //   出したいなら作成フローの STEP 6 を書いてもらう側で手当てすること。
+    ok('🔥は意気込みがあるときだけ出す（空の箱を見せない）',
+      /if \(!_hasMotivation\(p\)\) return;/.test(lm));
+  }
+
   // ★ズームを殺して逃げていないこと
   const html = R('public/index.html');
   ok('★viewport でピンチズームを禁止していない（maximum-scale / user-scalable）',
