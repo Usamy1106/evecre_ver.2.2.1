@@ -36,7 +36,9 @@
   width: 100%;
   padding: var(--space-3) var(--space-4);
   border: none;
-  font-size: 13px;
+  /* ★16px 未満にしないこと。iOS Safari がタップ時に自動ズームし、
+     戻す手段が無いのでユーザビリティが落ちる（実際に指摘を受けた）。 */
+  font-size: var(--font-size-lg);
 }
 
 .p-tag-creator__input:focus {

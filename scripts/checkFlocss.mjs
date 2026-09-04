@@ -105,6 +105,47 @@ ok('slideUp と sheetRise を取り違えていない',
 // -------------------------------------------------------- [B] 再発防止
 section('[B] 実機で見つかった不具合');
 
+// ★入力欄の文字が 16px 未満だと、iOS Safari がタップ時に**勝手にズームする**。
+//   一度ズームすると自分では戻せず、以後ずっと拡大表示のままになる（指摘を受けた）。
+//   viewport に maximum-scale=1 を足せば止まるが、それはピンチズーム自体を殺すので
+//   アクセシビリティ上やってはいけない。**入力欄を 16px 以上にするのが唯一の正解。**
+{
+  const FORM_TAGS = /^(input|textarea|select)$/i;
+  // どのクラスが実際に input / textarea / select に付いているかを JS から拾う
+  const formClasses = new Set();
+  for (const f of JS_ALL) {
+    const src = R(f);
+    for (const m of src.matchAll(/<(input|textarea|select)\b[^<>]*?class="([^"]*)"/g)) {
+      if (FORM_TAGS.test(m[1])) for (const c of m[2].split(/\s+/)) if (c) formClasses.add(c);
+    }
+  }
+
+  const PX = { '--font-size-xs': 11, '--font-size-sm': 12, '--font-size-md': 14, '--font-size-lg': 16 };
+  const small = [];
+  // style.css が読み込んでいる全 CSS（＝実際に配信されるもの）を対象にする
+  const cssPaths = [...entry.matchAll(/@import url\("\.\/([^"]+)"\)/g)]
+    .map(m => `public/css/${m[1]}`);
+  for (const f of cssPaths) {
+    const src = R(f);
+    for (const m of src.matchAll(/\.([A-Za-z0-9_-]+)[^{}]*\{([^{}]*)\}/g)) {
+      if (!formClasses.has(m[1])) continue;
+      const fs_ = /font-size:\s*([^;]+);/.exec(m[2]);
+      if (!fs_) continue;
+      const v = fs_[1].trim();
+      let px = v.endsWith('px') ? parseFloat(v) : null;
+      for (const [tok, n] of Object.entries(PX)) if (v.includes(tok)) px = n;
+      if (px !== null && px < 16) small.push(`${path.basename(f)} .${m[1]} = ${v}`);
+    }
+  }
+  ok('★入力欄（input/textarea/select）の文字が 16px 以上（iOS の自動ズーム対策）',
+    small.length === 0, small.join('\n     '));
+
+  // ★ズームを殺して逃げていないこと
+  const html = R('public/index.html');
+  ok('★viewport でピンチズームを禁止していない（maximum-scale / user-scalable）',
+    !/maximum-scale|user-scalable/.test(html));
+}
+
 const overlay = R('public/css/object/component/_overlay.css');
 ok('★ボトムシートの暗幕が横中央に寄せる（左へずれた不具合）',
   /\.c-overlay--bottom\s*\{[^}]*justify-content: center/.test(overlay));
