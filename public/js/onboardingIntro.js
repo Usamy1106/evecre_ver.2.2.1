@@ -219,15 +219,16 @@ export function showUsageModal() {
   document.body.appendChild(overlay);
   logEvent('intro_usage_shown');
 
-  // ★「わかった」ではなく**出した時点**で状態を進める。
-  //   以前は ack でしか記録しておらず、読んでいる途中でアプリを閉じたり
-  //   ホームへ移ったりすると、次に開いたときにまた①から出ていた。
-  //   ①は一度読めば足りる案内なので、出したら二度目は出さない。
-  //   （USAGE は「①済み・②待ち」の意味なので、次は②から再開する）
-  advanceIntro(INTRO.USAGE);
-
+  // ★状態を進めるのは「わかった」を押したときだけ。**出した時点では進めないこと。**
+  //   出した時点で進めていた頃は、読んでいる途中でリロードしたりホームへ移ったり
+  //   すると①を飛ばして②から再開し、進め方を読まないまま先へ行ってしまっていた。
+  //   ★読み終える前に閉じた人には、次にイベントページへ入ったときまた①から出す。
+  //     ②③も同じ考え方（②は最後のコーチマーク、③は目的をタップしたときだけ進む）。
+  //   ★出口は「わかった」だけ（背景タップでは閉じない）。押せば必ず先へ進むので、
+  //     出しっぱなしで詰まることはない。
   overlay.querySelector('[data-intro="ack"]').onclick = () => {
     logEvent('intro_usage_ack');
+    advanceIntro(INTRO.USAGE);   // ①済み・②待ち
     overlay.remove();
     // ★閉じるアニメーションと重ならないよう1フレーム置いてから②へ
     requestAnimationFrame(() => showFeatureTour());
@@ -365,10 +366,9 @@ export function showFeatureTour() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p || !state.currentUser) return;
   if (isCoachOpen()) return;
-  // ★①がまだ開いている間は次へ進めない。①は「出した時点」で状態を進めるため
-  //   （読んでいる途中でアプリを閉じても①を繰り返さないための仕様）、
-  //   SSE などで render() が走ると、まだ「わかった」を押していないのに
-  //   ここが動いてモーダルの上にコーチマークが重なってしまう。
+  // ★①がまだ開いている間は次へ進めない。SSE などで render() が走ったときに、
+  //   まだ「わかった」を押していないのにモーダルの上へコーチマークが
+  //   重なるのを防ぐ（保険。通常は状態が進んでいないのでここまで来ない）。
   if (document.getElementById(USAGE_ID)) return;
 
   // ミッション作成モーダルの閉じるアニメーション中は座標が取れない。
@@ -450,10 +450,9 @@ export function showPurposeCoach() {
   if (!p || !state.currentUser) return;
   if (isCoachOpen()) return;
   if (_purposeDismissedThisSession) return;
-  // ★①がまだ開いている間は次へ進めない。①は「出した時点」で状態を進めるため
-  //   （読んでいる途中でアプリを閉じても①を繰り返さないための仕様）、
-  //   SSE などで render() が走ると、まだ「わかった」を押していないのに
-  //   ここが動いてモーダルの上にコーチマークが重なってしまう。
+  // ★①がまだ開いている間は次へ進めない。SSE などで render() が走ったときに、
+  //   まだ「わかった」を押していないのにモーダルの上へコーチマークが
+  //   重なるのを防ぐ（保険。通常は状態が進んでいないのでここまで来ない）。
   if (document.getElementById(USAGE_ID)) return;
   if (document.getElementById('mission-overlay')) return;
 

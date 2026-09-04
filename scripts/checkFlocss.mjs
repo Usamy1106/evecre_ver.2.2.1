@@ -140,6 +140,21 @@ section('[B] 実機で見つかった不具合');
   ok('★入力欄（input/textarea/select）の文字が 16px 以上（iOS の自動ズーム対策）',
     small.length === 0, small.join('\n     '));
 
+  // ★初期オンボーディングは「完了操作」でだけ段階を進めること。
+  //   表示した時点で進めていた頃は、読んでいる途中でリロードやホーム移動をすると
+  //   ①を飛ばして②から再開し、進め方を読まないまま先へ行っていた（指摘を受けた）。
+  //   途中で閉じた人には、次にイベントページへ入ったときまた同じ段階から出す。
+  {
+    const intro = R('public/js/onboardingIntro.js');
+    // 「わかった」のハンドラを取り除いても advanceIntro が残る＝表示時に進めている
+    const usage = intro.slice(intro.indexOf('export function showUsageModal'),
+                              intro.indexOf('export function showFeatureTour'));
+    const outsideHandler = usage.replace(/onclick = \(\) => \{[\s\S]*?\n  \};/, '');
+    ok('★①は「わかった」を押したときだけ段階を進める（表示時に進めない）',
+      !/advanceIntro\(/.test(outsideHandler));
+    ok('①のハンドラで段階を進めている', /onclick = \(\) => \{[\s\S]*?advanceIntro\(/.test(usage));
+  }
+
   // ★ズームを殺して逃げていないこと
   const html = R('public/index.html');
   ok('★viewport でピンチズームを禁止していない（maximum-scale / user-scalable）',
