@@ -15,7 +15,7 @@
 import { state } from './state.js';
 import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
 import { getArchiveSummary, getArchiveVenue, todayStr } from './utils.js';
-import { isIntroEligible } from './onboardingIntro.js';
+import { isIntroEligible, getIntroState } from './onboardingIntro.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
 
@@ -58,6 +58,34 @@ export function lastSeenAt(userId, eventId, stepId) {
   try { return Number(localStorage.getItem(_key(userId, eventId, stepId))) || 0; } catch (_) { return 0; }
 }
 
+// ★ここより上でも使うので、いちばん先に置く（const は巻き上がらない）
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// ── 参加したばかりかどうか ──────────────────────────────────
+// 入ったばかりの人に「困ったら目的に立ち返ろう」と言っても、まだ何も始めていない
+// ので響かない。それどころか歓迎（リーダーの意気込み＋🔥 → 進め方）の枠を奪う。
+// 実際に「参加した直後に目的リマインドと『ミッションがひとつ終わりました』が出て、
+// 🔥と進め方が出なかった」という報告を受けた。
+//
+// ★オーナーは対象外。イベントを作った本人は「参加したばかり」ではない。
+// ★members に自分が居ないとき（データ未取得）は true を返す＝出さない側に倒す。
+//   分からないまま案内を出すより、次の render() まで待つほうが安全。
+export const NEWCOMER_MS = 7 * DAY_MS;
+
+/**
+ * このユーザーがそのイベントに参加したばかりか。
+ * @param {object} p イベント（flat 形式）
+ * @param {string} userId
+ */
+export function isNewcomer(p, userId) {
+  if (!p || !userId) return false;
+  if (p.ownerId === userId) return false;              // 作った本人は対象外
+  const me = (p.members || []).find(m => m.userId === userId);
+  if (!me) return true;                                // データ未取得。出さない側に倒す
+  if (!me.joinedAt) return false;                      // 参加日時が無い古いデータは従来どおり
+  return (Date.now() - me.joinedAt) < NEWCOMER_MS;
+}
+
 // ── ステップ定義 ────────────────────────────────────────────
 // role: 'leader'（canManage true）/ 'member' / 'any'（どちらにも出す）
 // densities: そのステップを出す濃度。first は全部出す
@@ -66,7 +94,6 @@ export function lastSeenAt(userId, eventId, stepId) {
 // repeatEveryMs: 指定すると既読でもこの間隔で再表示する（L4 のみ。承認されるまで催促する）
 //
 // ★優先度は配列の並び。放置されると被害が大きいものを先に置く。
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** スキルIDを日本語ラベルに直す（表示用。保存は英数キーのまま） */
 function _skillLabels(ids) {
@@ -281,6 +308,9 @@ const STEPS = [
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
     match: (ctx) => {
+      // ★参加したばかりの人には出さない。既に完了があるイベントに今日入った人へ
+      //   「はじめての完了」と言うのは事実と違ううえ、歓迎の枠を奪う。
+      if (isNewcomer(ctx.p, ctx.userId)) return false;
       const done = (ctx.p.missions || []).filter(m => m.status === 'cleared').length;
       // ★既に何件も完了している既存イベントで「はじめての完了」と言わないよう上限を置く。
       //   完了数は減らないので、超えたイベントでは以後も発火しない
@@ -306,10 +336,14 @@ const STEPS = [
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
     // イベントを作った直後（＝管理者として初めてこのイベントを開いたとき）
-    // ★初期オンボーディング（onboardingIntro.js）の①が同じ5ステップを出すので、
-    //   そちらが動くイベントでは出さない（二重表示になる）。
-    //   リリース日時より前に作られた既存イベントだけ、ここが担当する。
-    match: (ctx) => !isIntroEligible(ctx.userId, ctx.p),
+    // ★初期オンボーディング（onboardingIntro.js）の①が**同じ5ステップ**を出すので、
+    //   そちらが動くイベントでは出さない。リリース日時より前に作られた既存イベントや、
+    //   2つ目以降のイベント（初期オンボーディングを出さない）だけ、ここが担当する。
+    // ★`!isIntroEligible` だけでは足りない。初期オンボーディングを**やり終えた**
+    //   イベントでも true になり、終わった直後に同じ内容がもう一度出てしまう
+    //   （getIntroState が null ＝「このイベントで一度も走っていない」を必ず併せて見る）。
+    match: (ctx) => !isIntroEligible(ctx.userId, ctx.p)
+                 && getIntroState(ctx.userId, ctx.p.id) === null,
     build: () => ({
       eyebrow: 'イベクリの使い方',
       title: 'イベントづくりは<br>5つのステップで進みます',
@@ -540,7 +574,18 @@ export function checkOnboarding() {
   // 他の自動表示モーダルが開いていたら、フラグを立てずに持ち越す
   if (isAnyAutoModalOpen()) return;
 
-  const userId    = state.currentUser.id;
+  const userId = state.currentUser.id;
+
+  // ★役割は members から**厳密に**判定する。自分がまだ members に居ないうちは
+  //   何も出さず、次の render() に持ち越す。
+  //   state.canManageCurrentEvent() は members が未取得のとき「分からないので true」を
+  //   返す（イベント作成直後にオーナーのボタンが消えないための保険）。参加が承認された
+  //   直後のメンバーはこれに引っかかり、**リーダー向けの案内（L6 など）が出てしまう**。
+  //   しかも出た時点で既読になるので、本来出るはずの M1（メンバー向けの進め方）が
+  //   二度と出なくなる。実際にその報告を受けた。
+  const me = (p.members || []).find(m => m.userId === userId);
+  if (!me) return;
+
   const canManage = state.canManageCurrentEvent(p.id);
   const role      = canManage ? 'leader' : 'member';
   const density   = densityForEvent(userId, state.events, p);

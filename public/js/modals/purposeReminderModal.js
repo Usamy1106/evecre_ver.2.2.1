@@ -10,6 +10,7 @@
 
 import { state } from '../state.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
+import { isNewcomer } from '../onboarding.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_TARGET_DAYS = 30; // 開催日未設定時の基準日数
@@ -71,6 +72,12 @@ export function checkPurposeReminderModal() {
   if (isAnyAutoModalOpen()) return;
 
   const uid = state.currentUser.id;
+
+  // ★参加したばかりの人には出さない。まだ何も始めていないので「困ったら目的に
+  //   立ち返ろう」が響かないうえ、歓迎（リーダーの意気込み＋🔥 → 進め方）の枠を奪う。
+  //   実際に「参加直後にこれが出て、🔥と進め方が出なかった」という報告を受けた。
+  //   ★フラグは立てずに戻る。参加から日が経てば通常どおり出る。
+  if (isNewcomer(p, uid)) return;
   const quarterKey = _storageKey(uid, p.id, 'quarter');
   const cycleKey   = _storageKey(uid, p.id, 'inactivityCycle');
 

@@ -24,6 +24,7 @@ import { logEvent } from './logger.js';
 import { setIntroRunningProbe } from './modalGuard.js';
 import { showCoachMark, closeCoachMark } from './modals/coachMark.js';
 import { startTooltipTour, closeTooltipTour } from './modals/tooltipTour.js';
+import { isLeaderMotivationPending } from './modals/leaderMotivationModal.js';
 
 // ── 進行状態 ────────────────────────────────────────────────
 export const INTRO = {
@@ -91,11 +92,33 @@ export function hasCompletedElsewhere(userId, currentEventId) {
  */
 export function isIntroEligible(userId, project) {
   if (!userId || !project) return false;
-  if (!(project.createdAt >= ONBOARDING_INTRO_START_AT)) return false;   // 既存イベント
-  if (!state.canManageCurrentEvent(project.id)) return false;            // リーダー向け
+
+  // ★管理者権限は members から**厳密に**判定する。state.canManageCurrentEvent() は
+  //   members が未取得のとき「分からないので true」を返すため、参加直後の一般メンバーに
+  //   リーダー向けのチュートリアルを出してしまう。作成者は members に必ず自分が入るので
+  //   （_createEventAndReturnId が明示的に入れる）、この条件で困らない。
+  const me = (project.members || []).find(m => m.userId === userId);
+  if (!me) return false;
+  if (!state.canManageCurrentEvent(project.id)) return false;            // 管理者権限のある人向け
+
+  // ★出す/出さないの基準日は立場で違う。
+  //   作成者   … イベントの作成日（この日より前のイベントには今さら出さない）
+  //   参加者   … 自分が参加した日（古いイベントに今日入った人には出すのが正しい）
+  const since = project.ownerId === userId ? project.createdAt : me.joinedAt;
+  if (!(since >= ONBOARDING_INTRO_START_AT)) return false;
+
   if (getIntroState(userId, project.id) === INTRO.DONE) return false;
   if (hasCompletedElsewhere(userId, project.id)) return false;           // 2つ目以降
   return true;
+}
+
+/**
+ * 参加して管理者権限をもらった人か（作成者ではない）。
+ * ★この人には③「目的を定めよう」を出さない。目的を決めるのは作った人の仕事で、
+ *   後から入った人が決め直すものではない（たいてい既に決まっている）。
+ */
+export function isJoinedManager(userId, project) {
+  return !!project && project.ownerId !== userId;
 }
 
 // ── 進行中フラグ（他モーダルの抑止に使う）──────────────────
@@ -115,12 +138,19 @@ setIntroRunningProbe(isIntroRunning);
 export function nextIntroStep() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p || !state.currentUser) return null;
-  if (!isIntroEligible(state.currentUser.id, p)) return null;
+  const userId = state.currentUser.id;
+  if (!isIntroEligible(userId, p)) return null;
 
-  const cur = getIntroState(state.currentUser.id, p.id);
+  // ★歓迎は「🔥 → 使い方 → 機能紹介」の順。ここが先に走ると進行中フラグで
+  //   他モーダルを全部止めてしまい、🔥が永久に出なくなる。順番を譲る。
+  //   （🔥を閉じると state.render() が走り、次の判定でここへ戻ってくる）
+  if (isLeaderMotivationPending(p, userId)) return null;
+
+  const cur = getIntroState(userId, p.id);
   if (cur === INTRO.NONE || cur === null) return 'usage';    // ①進め方
   if (cur === INTRO.USAGE) return 'tour';                    // ②主要機能の紹介
-  if (cur === INTRO.TOUR)  return 'purpose';                 // ③目的の促し
+  // ③目的の促しは**作成者だけ**。後から参加した管理者には出さない
+  if (cur === INTRO.TOUR)  return isJoinedManager(userId, p) ? null : 'purpose';
   return null;
 }
 
@@ -385,11 +415,15 @@ export function showFeatureTour() {
 }
 
 function _finishFeatureTour() {
-  logEvent('intro_feature_tour_done');
+  const p = state.events.find(x => x.id === state.selectedEventId);
+  const joined = !!state.currentUser && isJoinedManager(state.currentUser.id, p);
+  logEvent('intro_feature_tour_done', { joined });
   setIntroRunning(false);
-  // ★ここでは完了にしない。③（目的の促し）が残っている。
+  // ★作成者はここで終わりにしない。③（目的の促し）が残っている。
   //   次の render() で checkIntro が 'purpose' を返す。
-  advanceIntro(INTRO.TOUR);
+  // ★後から参加した管理者は②までで完了。目的を決めるのは作った人の仕事なので、
+  //   「目的を定めよう」を出しても行き場がない（たいてい既に決まっている）。
+  advanceIntro(joined ? INTRO.DONE : INTRO.TOUR);
   setTimeout(() => state.render(), 250);
 }
 

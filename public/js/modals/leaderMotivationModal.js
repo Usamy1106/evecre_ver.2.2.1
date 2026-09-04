@@ -43,6 +43,20 @@ function _leaderName(p) {
 }
 
 /**
+ * このユーザー×イベントで、これから🔥を出す予定が残っているか。
+ *
+ * ★歓迎は「🔥 → 使い方 → 機能紹介」の順に見せたい。初期オンボーディング
+ *   （onboardingIntro）は進行中に他のモーダルを全部止めるので、先に走ると
+ *   🔥が永久に出なくなる。あちらがこれを見て順番を譲る。
+ */
+export function isLeaderMotivationPending(p, userId) {
+  if (!p || !userId) return false;
+  if (!_hasMotivation(p)) return false;          // そもそも出すものが無い
+  if (p.ownerId === userId) return false;        // 書いた本人には見せない
+  try { return !localStorage.getItem(_storageKey(userId, p.id)); } catch (_) { return false; }
+}
+
+/**
  * 表示条件を判定して、満たしていればモーダルを開く。
  * ★state.render() からのみ呼ぶこと。
  */
@@ -85,7 +99,12 @@ function _openModal(p) {
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--welcome u-page-transition';
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  // ★閉じたら必ず state.render() を呼ぶこと。これは歓迎の1枚目で、閉じたあとに
+  //   メンバー向けの案内（進め方）が続く。render() を呼ばないと次の判定が走らず、
+  //   「🔥は出たのに進め方が出ない」状態になる（実際にその報告を受けた）。
+  const close = () => { overlay.remove(); state.render(); };
+
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
   document.body.appendChild(overlay);
 
   // 操作は🔥の円形ボタン1つだけ（「閉じる」は置かない）。押すと応援を送って閉じる。
@@ -120,7 +139,7 @@ function _openModal(p) {
     btn.disabled = true;
     // ★押したら必ず閉じる。この画面にトグル解除はない（「閉じる」ボタンを置かない代わりに
     //   🔥が唯一の出口なので、既に押している人がうっかり取り消してしまわないようにする）。
-    if (alreadyReacted) { overlay.remove(); return; }
+    if (alreadyReacted) { close(); return; }
     try {
       const r = await api.toggleMotivationReaction(p.id, '🔥');
       if (r?.ok && r.mine) {
@@ -136,6 +155,6 @@ function _openModal(p) {
     } catch (_) {
       window._app?.showToast('通信エラーが発生しました', 'error');
     }
-    overlay.remove();   // 送信の成否にかかわらず閉じる（歓迎の場で足止めしない）
+    close();   // 送信の成否にかかわらず閉じる（歓迎の場で足止めしない）
   };
 }

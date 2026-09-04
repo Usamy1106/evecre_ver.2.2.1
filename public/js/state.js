@@ -80,7 +80,6 @@ export const state = {
   mainBoardTab: 'MAIN',
   _infoModalShownForEvent: null,
   _purposeReminderCheckedForEvent: null, // 目的リマインドモーダルのチェックをこのイベントで実施済みか（セッション1回）
-  _leaderMotivationCheckedForEvent: null, // リーダーの意気込みモーダルのチェック済みフラグ（セッション1回）
   _eventDateReminderCheckedForEvent: null, // 開催日リマインドモーダル（初日/翌日）のチェック実施済みか（セッション1回）
   _devAnnouncementChecked: false, // 開発者からのお知らせモーダルのチェックを実施済みか（セッション1回、イベント非依存）
   _skillCollectCheckedForEvent: null, // ★暫定：既存メンバーのスキル回収チェック済みか（回収後に削除）
@@ -952,10 +951,11 @@ export const state = {
     // 参加が承認されてイベントページに入った直後、リーダーの意気込みを見せて🔥を送れるようにする。
     // 表示可否（意気込みの有無・オーナー本人か・既読か）はモーダル側が判定する。
     // ★他モーダルより先に出す（歓迎の演出なので、入った直後に見せたい）。
-    if (this.currentView === 'MAIN_BOARD' &&
-        this.selectedEventId &&
-        this._leaderMotivationCheckedForEvent !== this.selectedEventId) {
-      this._leaderMotivationCheckedForEvent = this.selectedEventId;
+    // ★セッション1回ゲートにしないこと。モーダル側は他のモーダルと重なったとき
+    //   「既読フラグを立てずに持ち越す」作りなので、ここでゲートを消費すると
+    //   その回で永久に流れてしまう（🔥が出ないという報告の原因だった）。
+    //   既読判定は localStorage 側が持っているので、毎回評価してよい。
+    if (this.currentView === 'MAIN_BOARD' && this.selectedEventId) {
       setTimeout(() => window._app?.checkLeaderMotivationModal?.(), 300);
     }
 
