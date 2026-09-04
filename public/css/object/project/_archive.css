@@ -598,3 +598,142 @@
   font-size: 13px;
   font-weight: var(--font-weight-heavy);
 }
+
+/* --- 振り返り（アーカイブのミッションブロック内）--------------------------
+   ★完了時に書いたもの（submissions の struggle / solution）を出し、
+     提出者本人と管理者にだけ編集ボタンを添える。
+     権限の担保はサーバー（PATCH .../reflection）。ここは見た目だけ。 */
+
+.p-archive__reflect {
+  position: relative;
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+}
+
+.p-archive__reflect-row + .p-archive__reflect-row {
+  margin-top: var(--space-2);
+}
+
+.p-archive__reflect-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-archive__reflect-text {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.p-archive__reflect-empty {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ★ブロック全体がミッション詳細へのリンクなので、ここは stopPropagation 前提。
+   タップ領域が本文と重ならないよう右上に逃がす。 */
+.p-archive__reflect-edit {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* --- 振り返りの編集モーダル ----------------------------------------------
+   使用箇所: public/js/modals/reflectionEditModal.js */
+
+.p-reflect-edit__mission {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.p-reflect-edit__label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-reflect-edit__input {
+  margin-bottom: var(--space-3);
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.p-reflect-edit__share {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.p-reflect-edit__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.p-reflect-edit__actions > * {
+  flex: 1;
+}
+
+/* --- 振り返り用サブページへの導線 ------------------------------------------
+   ★イベント設定の行（c-settings-list__link）と同じ見た目に揃える。
+     同じ「別ページへ行く」操作なので、別の形にすると学習が無駄になる。 */
+
+.p-archive__links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.p-archive__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-archive__link:active {
+  background-color: var(--color-bg);
+}
+
+.p-archive__link-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__link-sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-archive__link-arrow {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-muted);
+}

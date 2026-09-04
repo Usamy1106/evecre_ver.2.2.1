@@ -96,6 +96,8 @@ export const state = {
   // HOME 右下のひとこと。{ character, text } か null。
   // ★HOME を開いたとき（renderHome）に引き、HOME を離れるとき（setView）に捨てる。
   homeTip: null,
+  // アーカイブの「参加時の回答」ページの表示モード（'user' | 'question'）
+  answersMode: 'user',
   charactersIntro: false,
   proposalsRevealed: false,
   missionViewMode: 'all',      // 'all' | 'mine'  ミッション表示モード
@@ -576,6 +578,27 @@ export const state = {
       const def = roles.find(r => r.id === rid);
       return !!(def && def.canManage);
     });
+  },
+
+  /**
+   * いま開いているイベントで自分が「閲覧のみ」かどうか。
+   *
+   * ★管理者権限が優先される（サーバーの eventStore.isViewOnly と同じ規則）。
+   *   両方に判定があるのは、サーバーが権限の担保、こちらは操作 UI を出さない
+   *   ためのもの。★ここで許しても、サーバーが 403 で弾く。
+   * ★判定を各画面に散らさず必ずこの関数を通すこと。
+   */
+  isViewOnlyCurrentEvent(pid = null) {
+    if (this.canManageCurrentEvent(pid)) return false;   // ★管理者権限が優先
+    const p = this.events.find(x => x.id === (pid || this.selectedEventId));
+    if (!p || !this.currentUser) return false;
+    const me = (p.members || []).find(m => m.userId === this.currentUser.id);
+    if (!me) return false;
+    const myRoleIds = Array.isArray(me.roles) && me.roles.length > 0
+      ? me.roles
+      : (me.role ? [me.role] : []);
+    const roles = p.roles || [];
+    return myRoleIds.some(rid => !!roles.find(r => r.id === rid)?.viewOnly);
   },
 
   // --- 通知タップからの遷移（ウォームスタート専用）---

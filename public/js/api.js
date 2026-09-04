@@ -122,6 +122,16 @@ export const api = {
     return json || { ok: false };
   },
 
+  // 振り返りだけを後から編集する。★completeMission を再送しないこと
+  //   （山のオブジェクトが引き直され、完了通知と push も再送される）。
+  //   個別完了のときサーバーは自分ぶんを対象にする。管理者は targetUserId で他人ぶんも直せる。
+  async updateReflection(eventId, missionId,
+    { struggle = '', solution = '', shareable = false, targetUserId } = {}) {
+    const { json } = await _send('PATCH', `/api/events/${eventId}/missions/${missionId}/reflection`,
+      { struggle, solution, shareable, ...(targetUserId ? { targetUserId } : {}) });
+    return json || { ok: false };
+  },
+
   // ----- 通知（Web Push）のテスト送信 -----
   // 自分自身に送るだけ。診断情報（サーバ時刻・TZ・購読端末数）も返る。
   async sendTestPush() {
@@ -226,8 +236,9 @@ export const api = {
     const { json } = await _send('GET', `/api/events/${eventId}/roles`);
     return json || { ok: false };
   },
-  async createRole(eventId, name, canManage) {
-    const { json } = await _send('POST', `/api/events/${eventId}/roles`, { name, canManage });
+  async createRole(eventId, name, canManage, viewOnly = false) {
+    const { json } = await _send('POST', `/api/events/${eventId}/roles`,
+      { name, canManage, viewOnly });
     return json || { ok: false };
   },
   async updateRole(eventId, roleId, patch) {

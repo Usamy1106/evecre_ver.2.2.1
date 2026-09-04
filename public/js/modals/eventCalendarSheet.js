@@ -13,7 +13,6 @@
 
 import { state } from '../state.js';
 import { getSortedMissions, bindMissionInteractions } from './mission.js';
-import { calculateDaysLeft } from '../utils.js';
 import { LABEL_CONFIG } from '../constants.js';
 
 const OVERLAY_ID = 'event-cal-sheet';
@@ -40,6 +39,10 @@ export function openEventCalendarSheet(initialView = 'calendar') {
     calDate: new Date(today.getFullYear(), today.getMonth(), 1),
     selectedDate: _ymd(today),
     view: initialView === 'gantt' ? 'gantt' : 'calendar', // 'calendar' | 'gantt'
+    // ★開催日の編集モード。null＝閲覧中、配列＝編集中の作業コピー。
+    //   確定するまで p.dates には触らない。誤タップで開催日が変わると
+    //   全メンバーの予定が動くので、必ず「保存」を挟む。
+    editDates: null,
   };
 
   const overlay = document.createElement('div');
@@ -80,7 +83,7 @@ function _render(overlay, ctx) {
     + `--gantt-content-w:${(DAYS_BEFORE + DAYS_AFTER + 1) * CELL_W}px;`;
 
   overlay.innerHTML = `
-    <div data-sheet class="c-sheet c-sheet--rise c-sheet--page p-schedule" style="${ganttVars}">
+    <div data-sheet class="c-sheet c-sheet--rise c-sheet--page p-schedule${isCalendar ? '' : ' p-schedule--full'}" style="${ganttVars}">
 
       <!-- ドラッグハンドル -->
       <div data-sheet-handle class="c-sheet__handle c-sheet__handle--mid">
@@ -165,7 +168,9 @@ function _renderCalendar(ctx) {
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month + 1, 0).getDate();
   const todayYmd = _ymd(new Date());
-  const projDates = new Set(ctx.p.dates || []);
+  const editing = Array.isArray(ctx.editDates);
+  // ★編集中は作業コピーを見る。確定するまで p.dates には触らない
+  const projDates = new Set(editing ? ctx.editDates : (ctx.p.dates || []));
 
   let cells = '';
   for (let i = 0; i < firstDay; i++) cells += '<div class="p-schedule__day-blank"></div>';
@@ -175,9 +180,14 @@ function _renderCalendar(ctx) {
     // ★状態は1つだけ付ける（選択中 > 開催日 > 今日）。重ねると
     //   「開催日かつ今日」で塗りと枠が両方出て、元の見た目と変わる。
     let state = '';
-    if (dateStr === ctx.selectedDate)  state = ' is-selected';
-    else if (projDates.has(dateStr))   state = ' is-project';
-    else if (dateStr === todayYmd)     state = ' is-today';
+    if (editing) {
+      // ★編集中は「開催日かどうか」だけを見せる。閲覧用の選択日（水色）を
+      //   混ぜると、どれが開催日なのか分からなくなる。
+      if (projDates.has(dateStr))    state = ' is-project';
+      else if (dateStr === todayYmd) state = ' is-today';
+    } else if (dateStr === ctx.selectedDate) state = ' is-selected';
+    else if (projDates.has(dateStr))         state = ' is-project';
+    else if (dateStr === todayYmd)           state = ' is-today';
 
     cells += `<div data-mb-day="${dateStr}" class="p-schedule__day${state}">${d}</div>`;
   }
@@ -195,12 +205,25 @@ function _renderCalendar(ctx) {
     <div class="p-schedule__week">
       ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
     </div>
-    <div class="p-schedule__days">${cells}</div>
-    <p class="p-schedule__cal-note${projDates.size > 0 ? ' is-set' : ''}">
-      ${projDates.size > 0
-        ? `開催日 ${projDates.size}件`
-        : (state.canManageCurrentEvent() ? '日付をタップして開催日を設定できます' : '開催日未設定')}
-    </p>`;
+    <div id="mb-cal-days" class="p-schedule__days${editing ? ' is-editing' : ''}">${cells}</div>
+    ${editing ? `
+      <p class="p-schedule__cal-note is-set">
+        タップまたはスワイプで開催日を選択（${projDates.size}件）
+      </p>
+      <div class="p-schedule__cal-actions">
+        <button id="mb-dates-cancel" class="c-button c-button--secondary p-schedule__cal-action">キャンセル</button>
+        <button id="mb-dates-save" class="c-button c-button--primary p-schedule__cal-action">保存</button>
+      </div>
+    ` : `
+      <p class="p-schedule__cal-note${projDates.size > 0 ? ' is-set' : ''}">
+        ${projDates.size > 0 ? `開催日 ${projDates.size}件` : '開催日未設定'}
+      </p>
+      ${state.canManageCurrentEvent() ? `
+        <button id="mb-dates-edit" class="p-schedule__cal-edit" data-log="event_dates_edit_open">
+          <img src="/images/icon/icon-Calender.svg" alt="" class="p-schedule__cal-edit-icon">
+          ${projDates.size > 0 ? '開催日を編集' : '開催日を設定'}
+        </button>` : ''}
+    `}`;
 }
 
 function _bindCalendarEvents(overlay, ctx) {
@@ -212,24 +235,107 @@ function _bindCalendarEvents(overlay, ctx) {
     ctx.calDate = new Date(ctx.calDate.getFullYear(), ctx.calDate.getMonth() + 1, 1);
     _renderCalendarOnly(overlay, ctx);
   });
+  // ── 開催日の編集モード ────────────────────────────────
+  // ★誤タップで開催日が変わると全メンバーの予定が動くので、通常は閲覧専用。
+  //   明示的に編集モードへ入り、「保存」を押したときだけ確定する。
+  overlay.querySelector('#mb-dates-edit')?.addEventListener('click', () => {
+    if (!state.canManageCurrentEvent()) return;
+    ctx.editDates = [...(ctx.p.dates || [])].sort();   // ★作業コピー。p.dates は触らない
+    _renderCalendarOnly(overlay, ctx);
+  });
+  overlay.querySelector('#mb-dates-cancel')?.addEventListener('click', () => {
+    ctx.editDates = null;                              // 破棄するだけ
+    _renderCalendarOnly(overlay, ctx);
+  });
+  overlay.querySelector('#mb-dates-save')?.addEventListener('click', () => {
+    if (!state.canManageCurrentEvent()) { ctx.editDates = null; return; }
+    ctx.p.dates = [...(ctx.editDates || [])];
+    ctx.editDates = null;
+    // ★確定処理は state 側に集約されている（ソート・daysLeft・dateTimes の後始末・保存）。
+    //   イベント設定やアーカイブのペンからの変更と同じ経路を通すこと。
+    //   ここに同じ処理を書き写すと、片方だけ直したときに挙動がずれる。
+    state.commitEventDatesEdit();
+    _renderCalendarContent(overlay, ctx);
+    state.render();                                    // ヘッダーの「残り◯日」も更新する
+  });
+
+  if (Array.isArray(ctx.editDates)) {
+    _bindDateEditDrag(overlay, ctx);
+    return;                                            // ★編集中は閲覧用のタップを配線しない
+  }
+
   overlay.querySelectorAll('[data-mb-day]').forEach(el => {
     el.addEventListener('click', () => {
       const dateStr = el.dataset.mbDay;
       ctx.selectedDate = dateStr;
-
-      if ((ctx.p.dates || []).length === 0 && state.canManageCurrentEvent()) {
-        // 未設定かつ管理限あり：単一日付を設定（前の選択は自動的にクリア）
-        ctx.p.dates    = [dateStr];
-        ctx.p.daysLeft = calculateDaysLeft(dateStr);
-        state.save();
-        _renderCalendarContent(overlay, ctx);
-      } else {
-        // 設定済み or 一般ユーザー：日付は変更せずセクションスクロールのみ
-        _renderCalendarOnly(overlay, ctx);
-      }
+      // 閲覧中は日付を変えない。セクションへのスクロールだけ行う
+      _renderCalendarOnly(overlay, ctx);
       _scrollToSection(overlay, dateStr, true);
     });
   });
+}
+
+/**
+ * 編集モードの日付選択（タップ＋スワイプ）。
+ *
+ * ★Pointer Events だけで受ける（createEvent.js / modals/calendar.js と同じ方式）。
+ *   mouse 系と touch 系を2系統張ると、1回のタップで onDown が2回走り
+ *   「タップしても何も起きない／すぐ戻る」ように見える（過去に踏んだ不具合）。
+ * ★document にリスナーを張らないこと。この関数は再描画のたびに走るので、
+ *   document へ足すと消されないまま溜まり続ける。
+ *   setPointerCapture を使えば、グリッドの外へ指が出ても move/up は届く。
+ */
+function _bindDateEditDrag(overlay, ctx) {
+  const grid = overlay.querySelector('#mb-cal-days');
+  if (!grid) return;
+
+  let active = false, mode = null, visited = null;
+
+  const cellAt = (x, y) => document.elementFromPoint(x, y)?.closest('[data-mb-day]') || null;
+
+  const setCell = (dateStr, on) => {
+    const i = ctx.editDates.indexOf(dateStr);
+    if (on && i === -1) ctx.editDates.push(dateStr);
+    else if (!on && i !== -1) ctx.editDates.splice(i, 1);
+  };
+
+  // ★塗りだけ切り替える。再描画するとドラッグ中に要素が入れ替わって追跡が切れる
+  const paint = () => {
+    grid.querySelectorAll('[data-mb-day]').forEach(cell => {
+      cell.classList.toggle('is-project', ctx.editDates.includes(cell.dataset.mbDay));
+    });
+    // ★カレンダー領域に限定して引く。overlay 全体から引くと、
+    //   下のミッション一覧に同じクラスが出たときに別物を書き換えてしまう。
+    const note = overlay.querySelector('#mb-cal-fixed .p-schedule__cal-note');
+    if (note) note.textContent = `タップまたはスワイプで開催日を選択（${ctx.editDates.length}件）`;
+  };
+
+  grid.addEventListener('pointerdown', (e) => {
+    if (!e.isPrimary) return;                 // 2本目以降の指は無視する
+    const cell = cellAt(e.clientX, e.clientY);
+    if (!cell) return;
+    e.preventDefault();
+    const dateStr = cell.dataset.mbDay;
+    active = true;
+    mode = ctx.editDates.includes(dateStr) ? 'remove' : 'add';
+    visited = new Set([dateStr]);
+    setCell(dateStr, mode === 'add');
+    paint();
+    try { grid.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  grid.addEventListener('pointermove', (e) => {
+    if (!active || !e.isPrimary) return;
+    const cell = cellAt(e.clientX, e.clientY);
+    if (!cell) return;
+    const dateStr = cell.dataset.mbDay;
+    if (visited.has(dateStr)) return;
+    visited.add(dateStr);
+    setCell(dateStr, mode === 'add');
+    paint();
+  });
+  const onUp = () => { active = false; mode = null; visited = null; };
+  grid.addEventListener('pointerup', onUp);
+  grid.addEventListener('pointercancel', onUp);
 }
 
 function _renderCalendarOnly(overlay, ctx) {

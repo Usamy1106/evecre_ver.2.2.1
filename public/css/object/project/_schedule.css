@@ -19,6 +19,15 @@
   flex-direction: column;
 }
 
+/* ガントは中身が少なくても高さいっぱいに開く。
+   ★max-height だけだとミッションが2〜3件のときシートが極端に低くなり、
+     日付の列がほとんど見えずガントとして読めない。カレンダーは
+     中身の量だけ開くほうが自然なので、こちらだけ固定にする。
+   ★82vh は上の max-height と同じ値。片方だけ変えないこと。 */
+.p-schedule--full {
+  height: 82vh;
+}
+
 /* --- 上部のビュー切り替え ------------------------------------------------- */
 
 .p-schedule__bar {
@@ -181,6 +190,52 @@
 /* 開催日が1件でもあるとき */
 .p-schedule__cal-note.is-set {
   color: var(--color-primary);
+}
+
+/* --- 開催日の編集 --------------------------------------------------------
+   ★通常は閲覧専用。明示的に編集モードへ入り、「保存」で確定する。
+     誤タップで開催日が変わると全メンバーの予定が動くため。
+   使用箇所: public/js/modals/eventCalendarSheet.js */
+
+.p-schedule__cal-edit {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding-block: var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-schedule__cal-edit:active {
+  background-color: var(--color-primary-tint2);
+}
+
+.p-schedule__cal-edit-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.p-schedule__cal-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.p-schedule__cal-action {
+  flex: 1;
+}
+
+/* 編集中の日付グリッド。★スワイプ選択のあいだブラウザにスクロールさせない
+   （touch-action が無いと、指を動かした瞬間にシートが縦スクロールして
+   ドラッグ選択が途切れる）。 */
+.p-schedule__days.is-editing {
+  touch-action: none;
 }
 
 /* --- 日付別のミッション一覧 ----------------------------------------------- */

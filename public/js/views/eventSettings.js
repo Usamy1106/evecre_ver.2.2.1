@@ -401,6 +401,19 @@ function _userManagementSection(p, sec) {
             <span class="p-event-settings__member-name">管理者権限</span>
             <span class="p-event-settings__check-note">${isOwnerRole ? '(オーナーは常にON)' : 'イベント管理・ミッション編集ができる'}</span>
           </label>
+          <!-- ★閲覧のみは組み込みロールには付けない（オーナー／管理者／メンバーの意味を変えない）。
+               管理者権限と同時に付いた場合は管理者権限が勝つ。その旨を必ず画面に出す。 -->
+          ${r.builtIn ? '' : `
+            <label class="p-event-settings__check p-event-settings__check--spaced">
+              <input type="checkbox" data-ps-role-viewonly-input
+                ${(sec.roleEditDraft?.viewOnly ?? r.viewOnly) ? 'checked' : ''}
+                ${(sec.roleEditDraft?.canManage ?? r.canManage) ? 'disabled' : ''}>
+              <span class="p-event-settings__member-name">閲覧のみ</span>
+              <span class="p-event-settings__check-note">見るだけ。ミッションの完了・応募・チャットができなくなる</span>
+            </label>
+            ${(sec.roleEditDraft?.canManage ?? r.canManage)
+              ? `<p class="p-event-settings__role-note">管理者権限がオンのため、閲覧のみは適用されません（管理者権限が優先されます）</p>`
+              : ''}`}
           <div class="c-settings-card__actions">
             <button data-ps-role-cancel class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
             <button data-ps-role-save="${r.id}" class="c-settings-card__action c-settings-card__action--save">保存</button>
@@ -411,8 +424,8 @@ function _userManagementSection(p, sec) {
       <div class="p-event-settings__member">
         <div class="p-event-settings__member-main">
           <span class="p-event-settings__member-name c-settings-list__value--truncate">${_esc(r.name)}</span>
-          <span class="p-event-settings__role-chip${r.canManage ? ' p-event-settings__role-chip--manager' : ''}">
-            ${r.canManage ? '管理者権限' : '一般ユーザー'}
+          <span class="p-event-settings__role-chip${r.canManage ? ' p-event-settings__role-chip--manager' : (r.viewOnly ? ' p-event-settings__role-chip--view' : '')}">
+            ${r.canManage ? '管理者権限' : (r.viewOnly ? '閲覧のみ' : '一般ユーザー')}
           </span>
           ${r.builtIn ? '<span class="p-event-settings__member-sub">組込</span>' : ''}
         </div>
@@ -444,7 +457,7 @@ function _userManagementSection(p, sec) {
         <div class="p-event-settings__sub-head">
           <div>
             <p class="p-event-settings__member-name">ロール</p>
-            <p class="p-event-settings__member-sub">「管理者権限」がONのロールはイベント・ミッションを編集できます</p>
+            <p class="p-event-settings__member-sub">「管理者権限」がONのロールはミッションの作成・編集などができます。</p>
           </div>
           ${canMgr ? `
             <button id="ps-role-add" class="c-settings-list__edit">+ 追加</button>
@@ -476,6 +489,15 @@ function _renderRoleAddForm(sec) {
         <span class="p-event-settings__member-name">管理者権限</span>
         <span class="p-event-settings__check-note">イベント管理・ミッション編集</span>
       </label>
+      <label class="p-event-settings__check p-event-settings__check--spaced">
+        <input id="ps-role-new-viewonly" type="checkbox"
+          ${sec.roleAdding.viewOnly ? 'checked' : ''} ${sec.roleAdding.canManage ? 'disabled' : ''}>
+        <span class="p-event-settings__member-name">閲覧のみ</span>
+        <span class="p-event-settings__check-note">見るだけ。完了・応募・チャットができなくなる</span>
+      </label>
+      ${sec.roleAdding.canManage
+        ? `<p class="p-event-settings__role-note">管理者権限がオンのため、閲覧のみは適用されません（管理者権限が優先されます）</p>`
+        : ''}
       <div class="c-settings-card__actions">
         <button id="ps-role-add-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
         <button id="ps-role-add-save" class="c-settings-card__action c-settings-card__action--save">追加</button>
@@ -689,7 +711,7 @@ function _bindEvents(p, sec) {
 
   // ロール 追加
   document.getElementById('ps-role-add')?.addEventListener('click', () => {
-    sec.roleAdding = { name: '', canManage: false };
+    sec.roleAdding = { name: '', canManage: false, viewOnly: false };
     state.render();
   });
   document.getElementById('ps-role-add-cancel')?.addEventListener('click', () => {
@@ -700,13 +722,20 @@ function _bindEvents(p, sec) {
     if (sec.roleAdding) sec.roleAdding.name = e.target.value;
   });
   document.getElementById('ps-role-new-canmanage')?.addEventListener('change', e => {
-    if (sec.roleAdding) sec.roleAdding.canManage = e.target.checked;
+    if (!sec.roleAdding) return;
+    sec.roleAdding.canManage = e.target.checked;
+    // ★管理者権限を入れたら閲覧のみは落とす（優先順位を画面でも即座に見せる）
+    if (e.target.checked) sec.roleAdding.viewOnly = false;
+    state.render();
+  });
+  document.getElementById('ps-role-new-viewonly')?.addEventListener('change', e => {
+    if (sec.roleAdding) sec.roleAdding.viewOnly = e.target.checked;
   });
   document.getElementById('ps-role-add-save')?.addEventListener('click', async () => {
     const name = String(sec.roleAdding?.name || '').trim();
     if (!name) { window._app?.showToast('ロール名を入力してください', 'error'); return; }
     const eventId = p.id;
-    const r = await api.createRole(eventId, name, !!sec.roleAdding?.canManage);
+    const r = await api.createRole(eventId, name, !!sec.roleAdding?.canManage, !!sec.roleAdding?.viewOnly);
     if (r.ok) {
       sec.roles = sec.roles.concat([r.role]);
       sec.roleAdding = null;
@@ -726,7 +755,7 @@ function _bindEvents(p, sec) {
       const r  = sec.roles.find(x => x.id === id);
       if (!r) return;
       sec.roleEditing = id;
-      sec.roleEditDraft = { name: r.name, canManage: r.canManage };
+      sec.roleEditDraft = { name: r.name, canManage: r.canManage, viewOnly: !!r.viewOnly };
       state.render();
     });
   });
@@ -739,14 +768,24 @@ function _bindEvents(p, sec) {
     if (sec.roleEditDraft) sec.roleEditDraft.name = e.target.value;
   });
   document.querySelector('[data-ps-role-canmanage-input]')?.addEventListener('change', e => {
-    if (sec.roleEditDraft) sec.roleEditDraft.canManage = e.target.checked;
+    if (!sec.roleEditDraft) return;
+    sec.roleEditDraft.canManage = e.target.checked;
+    if (e.target.checked) sec.roleEditDraft.viewOnly = false;   // ★管理者権限が優先
+    state.render();
+  });
+  document.querySelector('[data-ps-role-viewonly-input]')?.addEventListener('change', e => {
+    if (sec.roleEditDraft) sec.roleEditDraft.viewOnly = e.target.checked;
   });
   document.querySelectorAll('[data-ps-role-save]').forEach(el => {
     el.addEventListener('click', async () => {
       const id = el.dataset.psRoleSave;
       const draft = sec.roleEditDraft || {};
       const eventId = p.id;
-      const r = await api.updateRole(eventId, id, { name: draft.name, canManage: draft.canManage });
+      // ★組み込みロールには viewOnly を送らない（サーバーが 400 を返す）
+      const target0 = sec.roles.find(x => x.id === id);
+      const patch = { name: draft.name, canManage: draft.canManage };
+      if (!target0?.builtIn) patch.viewOnly = !!draft.viewOnly;
+      const r = await api.updateRole(eventId, id, patch);
       if (r.ok) {
         const target = sec.roles.find(x => x.id === id);
         if (target) Object.assign(target, r.role);

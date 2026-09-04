@@ -40,7 +40,20 @@
 
 .p-date-picker__nav {
   display: flex;
+  align-items: center;
   gap: var(--space-2);
+}
+
+/* 矢印の間に出す月。★ボトムシート形式（ミッションの期間・応募期限）では
+   見出しが「スケジュールを設定」なので、月はここにしか出ない。消さないこと。
+   ★幅を固定して、月をまたいでも矢印の位置がずれないようにする
+   （「2026年9月」と「2026年12月」で字数が変わる）。 */
+.p-date-picker__month {
+  min-width: 7.5em;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
 }
 
 .p-date-picker__arrow {
@@ -226,7 +239,9 @@
   border: 1px solid var(--bg-textbox);
   border-radius: var(--radius-sm);
   background-color: var(--color-bg);
-  font-size: 13px;
+  /* ★16px 未満にしないこと。iOS Safari がタップ時に自動ズームし、
+     戻す手段が無いのでユーザビリティが落ちる（実際に指摘を受けた）。 */
+  font-size: var(--font-size-lg);
 }
 
 .p-date-picker__time-input:focus {

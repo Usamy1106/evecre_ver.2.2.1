@@ -5,7 +5,8 @@ import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr } from '../utils.js';
-import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync } from '../mountainPath.js';
+import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
+  syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
 // モジュールロード時に一度だけ登録。document 全体にデリゲート。
@@ -112,6 +113,15 @@ export function renderMainBoard(container) {
   // 初回は null → 最上部＝道の先端のまま）
   const _mountainScrollTop = document.getElementById('mountain-path-scroll')?.scrollTop ?? null;
 
+  // ★イベントが変わったら、パネルとアナウンスの開閉をリセットする。
+  //   どちらもモジュール変数で保持しており、イベントを跨いで残ってしまう。
+  if (_panelStateEventId !== state.selectedEventId) {
+    _panelStateEventId = state.selectedEventId;
+    _missionPanelExpanded = false;
+    _announceExpanded = false;
+    _panelReturnFrom = null;
+  }
+
   // ★ミッション完了の演出（1回きり）。submitMissionClear が status:'cleared' の
   //   ときだけ立てる。ここでは読むだけで、消費（フラグ倒し）は配線の最後に行う
   //   （HTML 構築で renderMountainBg に渡す必要があるため）。
@@ -125,6 +135,10 @@ export function renderMainBoard(container) {
   // ARCHIVE / NOTIFICATIONS は従来どおり <main> のページスクロール。
   const mainLayout = isMain ? _renderMainTab(p) : null;
 
+  // ★背景は <img> が 200 個近くある。innerHTML の差し替えで作り直すと毎回すべて
+  //   再デコードされ、SSE のたびに一瞬白くなる。中身が同じなら DOM ごと使い回す。
+  captureBgLayer();
+
   container.innerHTML = `
     <div class="p-main-board ${isMain ? 'p-main-board--fixed' : 'p-main-board--scroll'}">
       <!-- standalone（ホーム画面から起動）ではステータスバー領域にコンテンツが潜るため、
@@ -136,8 +150,11 @@ export function renderMainBoard(container) {
         ${Components.Header(p)}
         ${Components.Tabs(state.mainBoardTab)}
       </div>
-      <!-- 山ビジュアルの背景レイヤー（ヘッダー下〜画面全体。コンテンツ(z-10)の裏側） -->
-      ${isMain ? renderMountainBg(p, { celebrate }) : ''}
+      <!-- 山ビジュアルの背景レイヤー（ヘッダー下〜画面全体。コンテンツ(z-10)の裏側）
+           ★アーカイブ・通知タブでも山は出したままにする（タブを移っても同じ場所に
+             居る感じを保つため）。ただし backdrop モードで、白いベールを重ねて
+             マス（道）は出さない。 -->
+      ${renderMountainBg(p, { celebrate, backdrop: !isMain })}
       ${Components.VerifyBanner() ? `<div class="p-main-board__layer">${Components.VerifyBanner()}</div>` : ''}
       ${isMain ? `
         <!-- 上部固定：日付チップ・お知らせ・各バナー（スクロールしない） -->
@@ -167,7 +184,7 @@ export function renderMainBoard(container) {
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>` : ''}
-      ${state.mainBoardTab === 'MAIN' && !state.canManageCurrentEvent() && state.currentUser ? `
+      ${state.mainBoardTab === 'MAIN' && !state.canManageCurrentEvent() && !state.isViewOnlyCurrentEvent() && state.currentUser ? `
         <button type="button" onclick="window._app.openMemberProposalSheet()"
           class="l-fab l-fab--member" aria-label="ミッションを提案">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -175,6 +192,19 @@ export function renderMainBoard(container) {
           </svg>
         </button>` : ''}
     </div>`;
+
+  // ★配線より先に戻す。実測する対象を入れ替えないため。
+  //   タブをまたいでも、他のページから戻ってきても、背景の DOM は使い回す
+  //   （署名が同じなら）。これが無いと戻るたびに背景が遅れて現れる。
+  restoreBgLayer();
+  // ★今 DOM に居る背景を改めて退避しておく。次にこの画面を離れたあとも
+  //   参照が生き残り、戻ってきたときに読み込み済みの絵をそのまま出せる。
+  captureBgLayer();
+
+  if (state.mainBoardTab !== 'MAIN') {
+    // 背景として見せるだけ。スクロール窓もマスも無いので軽い配線で足りる
+    syncMountainBackdrop();
+  }
 
   if (state.mainBoardTab === 'MAIN') {
     // ★パネルの配線を先に行う。パネルの top はこの中で確定するので、
@@ -200,6 +230,13 @@ export function renderMainBoard(container) {
 
 // 下部パネル（提案＋ミッション一覧）の開閉状態。再レンダリングをまたいで保持する。
 let _missionPanelExpanded = false;
+
+// ★どのイベントの開閉状態かを覚えておく。
+//   _missionPanelExpanded はモジュール変数なので、イベントを跨いでも残る。
+//   前のイベントでパネルを上げたまま新しいイベントを作ると、初めて開いた
+//   ボードがいきなり展開済みで出てくる（山が見えない）。イベントが変わったら
+//   必ず閉じた状態から始める。
+let _panelStateEventId = null;
 
 // アナウンスが2件以上あるときの「他N件」を開いているか。
 // ★モジュール変数で保つ（_missionPanelExpanded と同じ方式）。ローカル変数や
@@ -431,6 +468,8 @@ function _renderMainTab(p) {
   // 'all'  : cleared・pending_leader_check 以外を全件表示
   // 'mine' : 自分が担当 / 未割当 /応募受付中のミッションのみ
   const viewMode = state.missionViewMode || 'all';
+  // ★閲覧のみのロールは書き込み操作の UI を出さない（担保はサーバー側）
+  const viewOnly = state.isViewOnlyCurrentEvent();
 
   const _isMyOrOpen = (m) => {
     if (m.selfClaim) {
@@ -542,7 +581,10 @@ function _renderMainTab(p) {
 
           if (!assigned) {
             const deadlineTxt = m.claimDeadline ? `期限 ${_fmtDeadline(m.claimDeadline)}` : '期限なし';
-            if (iApplied) {
+            // ★閲覧のみは応募できない（サーバーも 403 で弾く）。募集中であることは見せる
+            if (viewOnly) {
+              actionsBlock = `<span class="p-main-board__claim-note">担当を募集中</span>`;
+            } else if (iApplied) {
               actionsBlock = `
                 <span class="p-main-board__chip p-main-board__chip--applied">応募中</span>
                 <button type="button" onclick="event.stopPropagation(); window._app.unclaimMissionAsSelf('${m.id}')"
@@ -914,8 +956,15 @@ function _renderAnnounceCards(p, meId) {
 }
 
 // ── アーカイブ：概要カードスロット識別 ───────────────────────────
-// clearedData のキーがこれらのミッションIDに一致するものは Layer 1（概要カード）専用
-const _OVERVIEW_IDS     = new Set(['def-2', 'def-3']);
+// Layer 1（概要カード）が読むスロット。ここに一致するものは Layer 2（記録）から外す。
+//
+// ★def-2（タイトル）/ def-3（概要）は**外さない**（2026-09-02 に変更）。
+//   自動生成されるミッションとして本人が完了させるものなので、完了しても
+//   記録に出てこないと「やったのに残らない」と受け取られる。概要カードにも
+//   同じ内容が出るが、あちらは要約、こちらは作業の記録で役割が違う。
+// ★p1 / p2 / p3 は提案から作られたミッション（会場・広報リンク・メインビジュアル）。
+//   こちらは概要カードのスロットを埋めるためだけのものなので外したままにする。
+const _OVERVIEW_IDS     = new Set();
 const _OVERVIEW_ORIGINS = new Set(['p1', 'p2', 'p3']);
 const _ARCHIVE_TAG_ORDER = ['企画', '運営', '制作', '広報'];
 
@@ -1089,6 +1138,33 @@ function _renderArchiveTab(p) {
           <div class="p-archive__modes">${archiveTabBtns}</div>` : ''}
         ${missionsRecordHtml || `<p class="p-archive__empty">完了したミッションが記録されます</p>`}
       </div>
+
+      <!-- 振り返り用のサブページ。★メンバー全員が見られる（アーカイブと同じ）。
+           イベント設定の行（c-settings-list__link）と同じ見た目で揃えてある。 -->
+      <div class="p-archive__links">
+        <button type="button" onclick="window._app.openArchiveAnswers()" data-log="archive_answers_open"
+          class="p-archive__link">
+          <div>
+            <p class="p-archive__link-title">メンバーの回答を見る</p>
+            <p class="p-archive__link-sub">参加するときに答えてもらった内容</p>
+          </div>
+          <svg class="p-archive__link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+        <button type="button" onclick="window._app.openArchiveStats()" data-log="archive_stats_open"
+          class="p-archive__link">
+          <div>
+            <p class="p-archive__link-title">みんなの活躍を見る</p>
+            <p class="p-archive__link-sub">完了数・作成数・ラベル別のグラフ</p>
+          </div>
+          <svg class="p-archive__link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
     </div>`;
 }
 
@@ -1171,6 +1247,31 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
       </svg>
     </button>`;
 
+  // ── 振り返り（困ったこと／どう乗り越えたか）───────────────────
+  // ★編集できるのは提出した本人と管理者だけ（サーバー側でも同じ判定をしている）。
+  //   ここでボタンを出す／出さないは見た目の話で、権限の担保はサーバーが行う。
+  // ★個別完了は提出物が人数ぶんあり、ここで見えているのは代表の1件。
+  //   誰のぶんを直すかの選択は作らず、本人が自分のぶんを直す形にしてある。
+  const struggle = String(cd?.struggle || '').trim();
+  const solution = String(cd?.solution || '').trim();
+  const canEditReflection = cd && (canMgr || cd.submittedBy === state.currentUser?.id);
+  const reflectRow = (label, text) => text
+    ? `<div class="p-archive__reflect-row">
+         <p class="p-archive__reflect-label">${label}</p>
+         <p class="p-archive__reflect-text">${_esc(text)}</p>
+       </div>`
+    : '';
+  const reflectHtml = (!struggle && !solution && !canEditReflection) ? '' : `
+    <div class="p-archive__reflect">
+      ${(struggle || solution) ? `
+        ${reflectRow('困ったこと', struggle)}
+        ${reflectRow('どう乗り越えた？', solution)}
+      ` : `<p class="p-archive__reflect-empty">振り返りは未記入です</p>`}
+      ${canEditReflection ? `
+        <button type="button" onclick="event.stopPropagation(); window._app.openReflectionEdit('${m.id}')"
+          class="p-archive__reflect-edit">${(struggle || solution) ? '編集' : '書く'}</button>` : ''}
+    </div>`;
+
   return `
     <div ${archiveClick} class="p-archive__block">
       <div class="p-archive__block-head">
@@ -1182,6 +1283,7 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
       </div>
       <h3 class="p-archive__block-title">${_esc(m.title)}</h3>
       ${contentHtml}
+      ${reflectHtml}
       ${meatballBtn}
     </div>`;
 }

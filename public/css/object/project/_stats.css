@@ -1,0 +1,126 @@
+/* ==========================================================================
+   Object / Project / stats — アーカイブ：みんなの活躍（グラフ）
+   使用箇所: public/js/views/archiveStats.js
+
+   横棒グラフ3種（メンバー別の完了数・作成数、ラベル別の完了数）。
+   ★描画ライブラリは入れない。棒の長さは width の % で足りるし、0.5CPU /
+     モバイル前提の端末に chart ライブラリを載せる価値がない。
+   ★棒の長さは「最大値に対する割合」。合計に対する割合にすると、1人が
+     突出したときに他の全員がほぼ0幅になって差が読めなくなる。
+   ========================================================================== */
+
+.p-stats__main {
+  padding: var(--space-4) var(--space-6) 96px;
+}
+
+/* --- 要約（完了 / ミッション / メンバー）------------------------------------ */
+
+.p-stats__summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.p-stats__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-4) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+}
+
+.p-stats__stat-value {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  color: var(--color-text);
+}
+
+.p-stats__stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- 各グラフ -------------------------------------------------------------- */
+
+.p-stats__section {
+  margin-bottom: var(--space-6);
+}
+
+.p-stats__title {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.p-stats__note {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- 横棒 ------------------------------------------------------------------
+   ★名前の欄は固定幅にして、棒の始まりを揃える。揃っていないと長さを
+     見比べられず、グラフとして意味をなさない。 */
+
+.p-stats__bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.p-stats__bar-label {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
+  width: 34%;
+  min-width: 0;
+}
+
+.p-stats__bar-name {
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-stats__bar-track {
+  flex: 1;
+  min-width: 0;
+  height: 14px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg);
+}
+
+/* ★0件の人も行を出すので、幅0でも「そこに居る」ことが分かるよう最小幅を持たせる */
+.p-stats__bar-fill {
+  min-width: 3px;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background-color: var(--bar-color, var(--color-primary));
+  transition: width var(--duration-slow) var(--ease);
+}
+
+.p-stats__bar-value {
+  flex-shrink: 0;
+  width: 2.5em;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: right;
+}
+
+.p-stats__empty {
+  padding-block: var(--space-6);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+}

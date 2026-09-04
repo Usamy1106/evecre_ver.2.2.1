@@ -109,7 +109,8 @@ export function renderMissionDetail(appEl) {
         ${_renderChatSection(p, m, canMgr)}
       </div>
 
-      <!-- チャット入力バー（下部固定） -->
+      <!-- チャット入力バー（下部固定）。★閲覧のみのロールでは出さない -->
+      ${state.isViewOnlyCurrentEvent() ? '' : `
       <div class="p-mission-detail__composer">
         ${_replyTarget ? `
         <div class="p-mission-detail__reply">
@@ -136,7 +137,7 @@ export function renderMissionDetail(appEl) {
             </svg>
           </button>
         </div>
-      </div>
+      </div>`}
     </div>`;
 
   // ===== 入力値の復元 =====
@@ -235,6 +236,16 @@ function _renderClearSection(p, m, canMgr) {
 
   // 個別完了は専用表示（完了状況リスト + 自分の入力欄）
   if (m.individualClear) return _renderIndividualSection(p, m, canMgr, meId);
+
+  // ★閲覧のみのロールは完了できない。完了済みの内容は読めるので、
+  //   未完了のときだけ入力欄の代わりに理由を出す（担保はサーバー側）。
+  if (state.isViewOnlyCurrentEvent() && m.status !== 'cleared' && m.status !== 'pending_leader_check') {
+    return `
+      <div class="p-mission-detail__status">
+        <p class="p-mission-detail__status-label">閲覧のみのロールです</p>
+        <p class="p-mission-detail__status-note">このミッションを完了する操作はできません</p>
+      </div>`;
+  }
 
   if (m.status === 'cleared') {
     const cd = p.clearedData?.[m.id];

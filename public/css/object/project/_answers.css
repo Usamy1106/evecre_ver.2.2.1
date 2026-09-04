@@ -1,0 +1,215 @@
+/* ==========================================================================
+   Object / Project / answers — アーカイブ：参加時の回答一覧
+   使用箇所: public/js/views/archiveAnswers.js
+
+   参加申請フォームの回答を「ユーザー別」「質問別」の2つの見方で並べる。
+   ★得意（青）とやってみたい（緑）の色分けは参加申請フォーム・ユーザー紹介
+     モーダルと揃えること。同じ回答が画面ごとに違う色だと本人が混乱する。
+   ========================================================================== */
+
+.p-answers__main {
+  padding: var(--space-4) var(--space-6) 96px;
+}
+
+.p-answers__lead {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- 表示の切り替え -------------------------------------------------------- */
+
+.p-answers__tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background-color: var(--button-secondary);
+}
+
+.p-answers__tab {
+  flex: 1;
+  padding-block: 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-answers__tab.is-active {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- ユーザー別 ------------------------------------------------------------ */
+
+.p-answers__card {
+  margin-bottom: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+}
+
+.p-answers__card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.p-answers__card-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.p-answers__name {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.p-answers__owner {
+  flex-shrink: 0;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-tint2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-answers__row + .p-answers__row {
+  margin-top: var(--space-3);
+}
+
+.p-answers__q {
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-answers__a {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.p-answers__message {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* --- チップ（得意 / やってみたい）------------------------------------------ */
+
+.p-answers__chip {
+  padding: 3px var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-answers__chip--good {
+  border-color: var(--color-primary-half);
+  background-color: var(--color-primary-tint2);
+  color: var(--color-primary);
+}
+
+.p-answers__chip--want {
+  border-color: var(--color-success-half);
+  background-color: var(--color-success-tint3);
+  color: var(--color-success-dark2);
+}
+
+/* --- 質問別 ---------------------------------------------------------------- */
+
+.p-answers__section {
+  margin-bottom: var(--space-6);
+}
+
+.p-answers__section-title {
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.p-answers__qrow {
+  margin-bottom: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+/* ★0人の行も出す（誰もできる人がいないことが分かるのが価値）。
+   ただし薄くして、埋まっている行が先に目に入るようにする。 */
+.p-answers__qrow.is-empty {
+  opacity: .5;
+}
+
+.p-answers__qrow-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.p-answers__count {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-answers__people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.p-answers__person {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.p-answers__person-name {
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.p-answers__voice {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+/* --- 空状態 ---------------------------------------------------------------- */
+
+.p-answers__none {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-answers__empty {
+  padding-block: var(--space-8);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: center;
+}

@@ -232,6 +232,10 @@ function _renderCalendarInner(target) {
                    : target === 'mission'        ? 'スケジュールを設定'
                    : `${year}年 ${month + 1}月`;
 
+  // ★ボトムシート形式では見出しが「スケジュールを設定」なので、月がどこにも出ない。
+  //   矢印で月を送っても今どこを見ているか分からなくなるため、矢印の間に必ず出す。
+  const monthLabel = `${year}年 ${month + 1}月`;
+
   if (target === 'mission' || target === 'claimDeadline') {
     // ボトムシート形式（高さを 85vh まで）
     const clearBtnHtml = (target === 'claimDeadline' && state.draftMission.claimDeadline)
@@ -246,11 +250,14 @@ function _renderCalendarInner(target) {
           <h3 class="heading-r p-date-picker__title">${sheetTitle}</h3>
           <div class="p-date-picker__nav">
             <button onclick="window._app.moveCalendarMonth(-1, '${target}')"
-              class="p-date-picker__arrow">
+              class="p-date-picker__arrow" aria-label="前の月">
               <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon">
             </button>
+            <!-- ★見出しが「スケジュールを設定」なので、月はここに出す。
+                 これが無いと、矢印で送ったあと今どの月を見ているか分からない。 -->
+            <span class="p-date-picker__month" aria-live="polite">${monthLabel}</span>
             <button onclick="window._app.moveCalendarMonth(1, '${target}')"
-              class="p-date-picker__arrow">
+              class="p-date-picker__arrow" aria-label="次の月">
               <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon p-date-picker__arrow-icon--next">
             </button>
           </div>

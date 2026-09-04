@@ -27,6 +27,8 @@ import {
   sendChatMessage, deleteChatMessage, toggleChatReaction, openChatEmojiPicker,
   cancelChatReply,
 } from './views/missionDetail.js';
+import { renderArchiveAnswers } from './views/archiveAnswers.js';
+import { renderArchiveStats } from './views/archiveStats.js';
 
 // モーダル
 import { openCalendarModal, moveCalendarMonth } from './modals/calendar.js';
@@ -57,6 +59,7 @@ import { SKILL_TAGS } from './constants.js';
 import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
+import { openReflectionEditModal } from './modals/reflectionEditModal.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 // ★暫定：既存メンバーのスキル回収。回収が済んだらこの import ごと削除する
@@ -98,6 +101,8 @@ registerRenderer('MAIN_BOARD',            renderMainBoard);
 registerRenderer('EVENT_SETTINGS',      renderEventSettings);
 registerRenderer('PROJECT_DETAIL',      renderProjectDetail);
 registerRenderer('MISSION_DETAIL',      renderMissionDetail);
+registerRenderer('ARCHIVE_ANSWERS',     renderArchiveAnswers);
+registerRenderer('ARCHIVE_STATS',       renderArchiveStats);
 
 // ===== 参加承認ロール設定モーダル（共通ヘルパー）=====
 // uid: 承認対象userId, username: 表示名, roles: イベントのロール配列（破壊的に追加される）
@@ -1148,6 +1153,16 @@ window._app = {
   // 初期オンボーディング（イベント作成直後のチュートリアル）
   checkIntro: () => checkIntro(),
   openUserProfileModal: (userId) => openUserProfileModal(userId),
+  openReflectionEdit: (missionId) => openReflectionEditModal(missionId),
+  // アーカイブのサブページ（参加時の回答／みんなの活躍）
+  // ★戻り先は必ずアーカイブタブ。setView('MAIN_BOARD') だけだと直前に見ていた
+  //   タブ（メイン等）に戻ってしまい、どこから来たのか分からなくなる。
+  openArchiveAnswers: () => { state.setView('ARCHIVE_ANSWERS', state.selectedEventId); },
+  openArchiveStats:   () => { state.setView('ARCHIVE_STATS',   state.selectedEventId); },
+  backToArchive: () => {
+    state.mainBoardTab = 'ARCHIVE';
+    state.setView('MAIN_BOARD', state.selectedEventId);
+  },
   // ★イベントページを離れるとき state.setView から呼ばれる。表示だけ畳み、
   //   進行状態は残すので、戻ってきたら同じ段階から再開する。
   abortIntroVisuals: () => abortIntroVisuals(),
@@ -1799,6 +1814,9 @@ const _LOG_LABELS = {
   view_changed:           '画面を移動',
   chat_message_sent:      'チャットを送信した',
   mission_link_copied:    'ミッションリンクをコピー',
+  reflection_edited:       '振り返りを編集した',
+  archive_answers_open:    'アーカイブから参加時の回答を開いた',
+  archive_stats_open:      'アーカイブからみんなの活躍を開いた',
   // Web Push（iOS はホーム画面追加が必須なので、どこで脱落するかを追う）
   push_prompt_shown:      '通知の案内を表示',
   push_ios_guide_shown:   'iOSのホーム画面追加案内を表示',

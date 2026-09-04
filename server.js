@@ -175,6 +175,13 @@ app.use(require('express').static(require('path').join(__dirname, 'public'), {
       } else {
         res.setHeader('Cache-Control', 'no-cache');
       }
+    } else if (/[\\/]images[\\/]bg[\\/]/.test(filePath)) {
+      // 山の背景素材。パーツから風景を組み立てるので、1画面で数十枚を読む。
+      // ★既定（max-age=0 + ETag）のままだと、表示のたびに枚数ぶんの 304 往復が起きる。
+      //   素材は内容が変わらない前提なので、長期キャッシュで往復ごと無くす。
+      // ★代償：**素材を差し替えるときは必ずファイル名を変えること**。
+      //   同じ名前で中身だけ差し替えても、immutable なので古い絵が出続ける。
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     } else if (/\.avif$/.test(filePath)) {
       // この express/mime のバージョンは avif を知らず application/octet-stream になる。
       // <picture> の type 属性で表示はできるが、正しい MIME を明示しておく。
@@ -613,6 +620,17 @@ function _setMissionField(p, mid, field, value, ts) {
   if (!p.missions[mid].fields) p.missions[mid].fields = {};
   p.missions[mid].fields[field] = { v: value, t: ts || Date.now() };
   return true;
+}
+
+/**
+ * イベント本体の CRDT セルを書く。
+ * ★形は { v, t }。{ val, ts } と書き間違えると静かに壊れる（過去に複数回あった）。
+ * ★対象は lib/crdt.js の FLAT_EVENT_FIELDS に載っているフィールドだけ。
+ *   載っていないキーを書いても保存されない。
+ */
+function _setEventField(p, field, value, ts) {
+  if (!p.fields) p.fields = {};
+  p.fields[field] = { v: value, t: ts || Date.now() };
 }
 
 // ===== 提出物画像のバリデーション =====
@@ -2398,12 +2416,16 @@ app.post('/api/events/:id/roles', requireAuth, async (req, res) => {
 
     const name      = String(req.body?.name || '').trim();
     const canManage = !!req.body?.canManage;
+    // ★管理者権限が付いていたら閲覧のみは無視する（両立させない）。
+    //   判定側（eventStore.isViewOnly）でも管理者権限を優先しているが、
+    //   保存する時点で落としておけば、後からロール一覧を見た人が混乱しない。
+    const viewOnly  = !canManage && !!req.body?.viewOnly;
     if (!name || name.length > 20) return res.status(400).json({ ok: false, error: 'ロール名は1〜20文字で入力してください' });
 
     const roles = eventStore.getRoles(p);
     if (roles.some(r => r.name === name)) return res.status(409).json({ ok: false, error: '同じ名前のロールが既に存在します' });
 
-    const newRole = { id: eventStore.newRoleId(), name, canManage, builtIn: false };
+    const newRole = { id: eventStore.newRoleId(), name, canManage, viewOnly, builtIn: false };
     roles.push(newRole);
     eventStore.setRoles(p, roles);
     await eventStore.saveEvent(p);
@@ -2441,6 +2463,16 @@ app.put('/api/events/:id/roles/:roleId', requireAuth, async (req, res) => {
         target.canManage = req.body.canManage;
       }
     }
+    if (typeof req.body?.viewOnly === 'boolean') {
+      // ★組み込みロールには付けない（オーナー／管理者／メンバーの意味を変えない）
+      if (target.builtIn) {
+        return res.status(400).json({ ok: false, error: '組み込みロールには閲覧のみを設定できません' });
+      }
+      target.viewOnly = req.body.viewOnly;
+    }
+    // ★管理者権限が付いたら閲覧のみは落とす。両方立っている状態を保存しない
+    //   （判定側でも管理者権限を優先するが、データ上も残さないほうが読みやすい）。
+    if (target.canManage) target.viewOnly = false;
 
     eventStore.setRoles(p, roles);
     await eventStore.saveEvent(p);
@@ -2485,6 +2517,9 @@ app.post('/api/events/:id/missions/:mid/claim', requireAuth, async (req, res) =>
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
     if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    // ★閲覧のみのロールは書き込めない（管理者権限があればそちらが優先される）
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
 
     const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
     if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
@@ -2529,6 +2564,9 @@ app.delete('/api/events/:id/missions/:mid/claim', requireAuth, async (req, res) 
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
     if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    // ★閲覧のみのロールは書き込めない（管理者権限があればそちらが優先される）
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
 
     const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
     if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
@@ -2666,11 +2704,72 @@ app.post('/api/events/:id/missions/:mid/reject', requireAuth, async (req, res) =
 // PUT /api/data は canManage 必須のため、一般メンバーが完了しても永続化されず
 // 再読み込みで未完了に戻る不具合があった。完了はメンバーの正当な操作なので専用化する。
 // load→mutate→saveEvent パターン（CLAUDE.md「ミッション操作系」）。
+// 振り返り（困ったこと／どう乗り越えたか／公開可否）だけを後から編集する。
+//
+// ★/complete を流用しないこと。あちらは呼ぶたびに山のオブジェクトを引き直し
+//   （_rollMissionObject）、完了通知と Web Push も再送する。振り返りの
+//   書き直しでオブジェクトが変わると「完了時に1回だけ引いて以後は読むだけ」
+//   という決まりが壊れ、リロードのたびに山の風景が変わる。
+// ★編集できるのは「提出した本人」と「管理者権限を持つ人」。
+//   本人＝自分の言葉を直せる。管理者＝アーカイブを整えられる
+//   （概要・開催場所の編集と同じ権限）。
+// ★個別完了は提出物が人数ぶんある。どれを編集するかはサーバー側で
+//   自分の複合キー（<mid>_u_<userId>）から決める。クライアントに
+//   キーを送らせると他人の提出物を書き換えられてしまう。
+app.patch('/api/events/:id/missions/:mid/reflection', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    // ★閲覧のみのロールは書き込めない（管理者権限があればそちらが優先される）
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
+
+    const mid = req.params.mid;
+    const m = _missionToFlat(p.missions?.[mid], mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+
+    const canMgr = eventStore.canManage(p, req.user.id);
+    // 対象の提出物を決める。
+    //   個別完了 … 管理者は body.targetUserId で他人ぶんも直せる。指定が無ければ自分ぶん
+    //   通常完了 … ミッションIDそのもの
+    let key = mid;
+    if (m.individualClear) {
+      const target = (canMgr && typeof req.body?.targetUserId === 'string')
+        ? req.body.targetUserId : req.user.id;
+      key = `${mid}_u_${target}`;
+    }
+
+    const sub = await submissionStore.getSubmission(p.id, key);
+    if (!sub) return res.status(404).json({ ok: false, error: '提出物が見つかりません' });
+    if (!canMgr && sub.submittedBy !== req.user.id) {
+      return res.status(403).json({ ok: false, error: '編集できるのは提出した本人と管理者だけです' });
+    }
+
+    // ★検証は完了時と同じ関数を通す（200字で切る／shareable は本文があるときだけ true）
+    const reflection = _sanitizeReflection(req.body);
+    const ok = await submissionStore.updateReflection(p.id, key, reflection);
+    if (!ok) return res.status(404).json({ ok: false, error: '提出物が見つかりません' });
+
+    logServerEvent(p.id, req.user.id, 'reflection_edited', { missionId: mid });
+
+    // ★イベント本体（CRDT）は触っていないので eventUpdated は流さない。
+    //   提出物は /api/data の合成でしか配られないため、他の端末は次の取得で反映される。
+    res.json({ ok: true, reflection });
+  } catch (e) {
+    console.error('PATCH reflection error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
 app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res) => {
   try {
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
     if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    // ★閲覧のみのロールは書き込めない（管理者権限があればそちらが優先される）
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
 
     const mid = req.params.mid;
     const m = _missionToFlat(p.missions?.[mid], mid);
@@ -2735,6 +2834,17 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         content, format, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
+      // ★初期ミッション「イベントの概要を定めよう」(def-3) を完了したら、
+      //   イベントの description にも同じ内容を入れる。
+      //   イベント設定・アーカイブのペンから書いたときは utils.js の
+      //   setArchiveSummary が両方に書くのに、ミッションを完了した経路だけ
+      //   clearedData にしか入らず、description が空のままだった。
+      //   description は proposalEngine の detectCategory と AI プロンプトが
+      //   読むので、空だと提案の精度が落ちる（イベントの内容が伝わらない）。
+      if (mid === 'def-3' && format === 'text') {
+        const summary = String(content || '').trim();
+        if (summary) _setEventField(p, 'description', summary, now);
+      }
       becameCleared      = next === 'cleared';
       becamePendingCheck = next === 'pending_leader_check';
     }
@@ -2823,6 +2933,9 @@ app.post('/api/events/:id/missions/:mid/chat', requireAuth, async (req, res) => 
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
     if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    // ★閲覧のみのロールは書き込めない（管理者権限があればそちらが優先される）
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
 
     const mid = req.params.mid;
     const m = _missionToFlat(p.missions?.[mid], mid);
@@ -2905,6 +3018,9 @@ app.delete('/api/events/:id/missions/:mid/chat/:msgId', requireAuth, async (req,
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
     if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    // ★閲覧のみのロールは書き込めない（管理者権限があればそちらが優先される）
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
 
     const msg = await chatStore.getMessage(req.params.msgId);
     if (!msg || msg.eventId !== p.id || msg.missionId !== req.params.mid) {
@@ -2932,6 +3048,9 @@ app.post('/api/events/:id/missions/:mid/chat/:msgId/reactions', requireAuth, asy
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
     if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    // ★閲覧のみのロールは書き込めない（管理者権限があればそちらが優先される）
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
 
     const emoji = String(req.body?.emoji ?? '').trim();
     if (!emoji || emoji.length > 16) return res.status(400).json({ ok: false, error: '絵文字が不正です' });
@@ -3412,6 +3531,9 @@ app.post('/api/events/:id/member-proposals', requireAuth, async (req, res) => {
       return res.status(403).json({ ok: false, error: 'forbidden' });
     if (eventStore.canManage(p, req.user.id))
       return res.status(403).json({ ok: false, error: '管理者はミッション提案を送信できません' });
+    // ★閲覧のみのロールは書き込めない（管理者権限があればそちらが優先される）
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
 
     const text = String(req.body?.text || '').trim().slice(0, 200);
     if (!text) return res.status(400).json({ ok: false, error: 'text required' });

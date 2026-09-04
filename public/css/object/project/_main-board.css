@@ -106,21 +106,23 @@
 .p-main-board__filter-row {
   position: relative;
   display: flex;
-  align-items: center;
+  /* ★ラベルが折り返して2行以上になっても、並び替えは1行目の右端に留める。
+     center だと行が増えるにつれてボタンが下へ流れていく。 */
+  align-items: flex-start;
   gap: var(--space-2);
-  margin-inline-start: calc(var(--space-6) * -1);
   margin-bottom: var(--space-3);
 }
 
+/* ★横スクロールではなく折り返す。ラベルは自由に作れるので、数が増えると
+   スクロールでは「まだ右にある」ことに気づけず、選べないタグが生まれる。
+   ★折り返すので、パネル端まで抜けさせる負マージンは付けない
+     （抜けたまま折り返すと2行目が画面外から始まる）。 */
 .p-main-board__tag-filter {
   display: flex;
   flex: 1;
+  flex-wrap: wrap;
   gap: var(--space-2);
-  overflow-x: auto;
   min-width: 0;
-  padding: 0 0 var(--space-2) var(--space-6);
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
 }
 
 .p-main-board__tag-filter::-webkit-scrollbar {
@@ -129,6 +131,9 @@
 
 .p-main-board__tag {
   flex-shrink: 0;
+  /* ★極端に長いカスタムタグでも行を突き破らないようにする */
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 6px var(--space-3);
   border: 1px solid transparent;
   border-radius: var(--radius-full);
