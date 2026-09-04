@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 397.67 914.78">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+      }
+
+      .cls-2 {
+        fill: #d2872b;
+      }
+
+      .cls-3 {
+        fill: #475763;
+      }
+
+      .cls-4 {
+        fill: #d2a62b;
+      }
+
+      .cls-5 {
+        fill: #d26400;
+      }
+
+      .cls-6 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <clipPath id="clippath">
+      <path class="cls-1" d="M312.65,538.65h47.04l-85.02-206.73h47.04l-83.8-203.78c-14.36-34.91-63.8-34.91-78.15,0l-83.8,203.78h47.04l-85.02,206.73h47.04L0,745.38h397.67l-85.02-206.73Z"/>
+    </clipPath>
+  </defs>
+  <g id="_レイヤー_1-2" data-name="レイヤー 1">
+    <g>
+      <g class="cls-6">
+        <rect class="cls-4" y="0" width="132.56" height="745.38"/>
+        <rect class="cls-2" x="132.56" y="0" width="132.56" height="745.38"/>
+        <rect class="cls-5" x="265.11" y="0" width="132.56" height="745.38"/>
+      </g>
+      <polygon class="cls-3" points="224.54 914.78 173.13 914.78 187.01 186.12 210.66 186.12 224.54 914.78"/>
+    </g>
+  </g>
+</svg>

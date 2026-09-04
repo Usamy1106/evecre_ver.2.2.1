@@ -40,16 +40,57 @@
   will-change: transform;
 }
 
-/* --- 背景セグメント ------------------------------------------------------
+/* 背景としてだけ見せるとき（アーカイブ・通知タブ）。
+   山を残したまま白いベールを重ね、手前のカードと文字の可読性を確保する。
+   ★濃さの調整は --backdrop-veil の1つだけ。薄くしすぎると、稜線の濃い部分に
+     重なった文字が読めなくなる。
+   ★マス（道）はそもそも描画していない（mountainPath.js の backdrop）。
+     遠近を毎フレーム書く paint() が動かないタブなので、出すと等倍・不透明で並ぶ。 */
+.p-mountain--backdrop {
+  --backdrop-veil: .8;
+}
+
+.p-mountain--backdrop::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  /* ★色はトークンではなく直値。α だけを変数で差し替えたいので
+     rgb(… / α) で書く必要がある（--white は #FFFFFF なので α を差せない）。 */
+  background-color: rgb(255 255 255 / var(--backdrop-veil));
+  /* ★裏の操作を奪わないこと */
+  pointer-events: none;
+}
+
+/* --- 背景（積み上げた地形）------------------------------------------------
    使用箇所: public/js/mountainPath.js（_renderBgLayer）
 
    ★キャンバスの内側・最背面に置く。別レイヤーにして別々に translate すると、
      サブピクセルの丸めや rAF のタイミング差で必ずマスとずれる。
      キャンバスの transform 1つで背景もマスも同時に動くのでずれようがない。
-   ★素材は縦シームレスなので repeat-y でタイルする。継ぎ目はセグメント境界と
-     一致しなくてよいが、**テーマが切り替わる位置は必ずマスと一致させる**
-     （高さは JS が SEGMENT_MASSES × NODE_GAP で計算して入れる）。
-   ★will-change はここに付けない。動くのは #mountain-canvas だけ。 */
+   ★背景は完成した1枚絵ではなく、地形のパーツを下から積み上げて作る。
+     素材（幅 2049・高さ 1481/1781/2241）の下 800px が塗り潰しの余白で、
+     次の1枚をその範囲内に重ねると、高さがバラバラでも隙間が出ない。
+   ★位置と大きさは素材px × --art-unit。JS が渡すのは素材px の数値だけ。
+   ★will-change はここに付けない。動くのは #mountain-canvas だけ。
+     数だけ合成レイヤーが増えてメモリを食う。 */
+
+/* 素材1px が画面で何px になるか。**これ1つで素材px → 画面px を換算する。**
+   ★ここの初期値は JS が動く前の1フレーム目のためのもの。実測値は
+     mountainPath.js の measure()（メインタブ）または syncMountainBackdrop()
+     （アーカイブ・通知タブ）が上書きする。
+   ★分母の 2049 は landform の原寸幅（mountainPath.js の ART_W）。
+   ★下の 640px / 448px は --layout-max-width（foundation/_variables.css）の
+     切り替えと同じ値。**アプリ幅を変えるときは一緒に直すこと。**
+     長さ同士は割れないので var() では書けず、ここだけ値が重複する。 */
+.p-mountain__canvas {
+  --art-unit: calc(100vw / 2049);
+}
+
+@media (min-width: 640px) {
+  .p-mountain__canvas {
+    --art-unit: calc(448px / 2049);
+  }
+}
 
 .p-mountain__bg-layer {
   position: absolute;
@@ -63,35 +104,160 @@
   pointer-events: none;
 }
 
-.p-mountain__bg-seg {
+/* 地形1枚の入れ物。JS が --lf-y（下端）と --lf-h（高さ）を素材px で渡す。
+   ★中に地形の絵と植物が入る。<img> は子を持てないので、植物を地形の子に
+     するにはこの入れ物が要る。入れ物ごと動くので、植物が稜線からずれない。
+   ★はみ出しを切らないこと。植物は稜線より上へ伸びる。
+   ★z-index は JS が振る（下＝手前ほど大きい）。ここで指定しないこと。 */
+.p-mountain__lf {
   position: absolute;
   right: 0;
   left: 0;
-  background-image: var(--seg-image);
-  /* 横幅に合わせ、縦は素材の比率のまま繰り返す */
+  width: 100%;
+  height: calc(var(--lf-h) * var(--art-unit));
+  bottom: calc(var(--lf-y) * var(--art-unit));
+}
+
+/* 地形の絵。★<img> なのは loading="lazy" を効かせるため
+   （background-image では効かない）。2049×1481 は RGBA で約12MB あり、
+   画面外のぶんをブラウザに捨てさせないと 512MB 環境で落ちる。 */
+.p-mountain__lf-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 読み込めたものだけ、下からふわっと持ち上げて出す。
+   初回表示と、lazy でスクロール中に現れるときの「急に湧く」感じを和らげる。
+   ★既定は不透明・移動なしのまま。opacity:0 を既定にすると、onload が
+     来なかったときに背景が丸ごと消える。**必ずフェールセーフの向きにすること。**
+   ★動かすのは `.p-mountain__lf-img`（絵そのもの）だけ。位置を持つ入れ物
+     `.p-mountain__lf` は動かさない。マス（道）は入れ物の兄弟なので、
+     絵だけが動いてもマスの座標には影響しない。
+   ★他のページから戻ってきたときは背景の DOM を使い回すので、
+     この演出は再生されない（既に data-loaded が付いている）＝一瞬で出る。 */
+.p-mountain__lf-img[data-loaded="1"] {
+  animation: mtnLandformRise var(--duration-slow) var(--ease);
+}
+
+@keyframes mtnLandformRise {
+  from {
+    opacity: 0;
+    transform: translateY(6%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 植物。地形の子で、座標は地形の中（左下が原点・素材px）。
+   ★横は個数ぶんのスロットに等分して1個ずつ置くので、重なりは構成上起きない
+     （mountainPath.js の _plantPlan）。
+   ★大きさ・個数・根元の深さはテーマごとの設定（mountainThemes.js）。 */
+.p-mountain__plant {
+  position: absolute;
+  width: calc(var(--pl-w) * var(--art-unit));
+  height: calc(var(--pl-h) * var(--art-unit));
+  bottom: calc(var(--pl-y) * var(--art-unit));
+  left: calc(var(--pl-x) * var(--art-unit));
+}
+
+/* 雲。地形と同じ入れ物に、地形の**間**の z で差し込む（JS が振る）。
+   ★地形の子にしないこと。親の高さで切られ、親ごと transform されるため
+     「山と一緒にスクロールしつつ、横に流れる」が両立しない。
+   ★向きは --cl-x0 → --cl-x1（素材px）で決まる。keyframes を向きごとに
+     分けないこと（1つで両方向を賄える）。
+   ★will-change は付けない。transform のアニメーション中は自動で昇格する。
+     数だけ合成レイヤーが増えてメモリを食う。総数の上限は JS の MAX_DRIFT。 */
+.p-mountain__cloud {
+  /* 影の調整はこの3つだけ。★box-shadow ではなく drop-shadow を使うこと。
+     雲は透過 SVG なので、box-shadow だと四角い箱の影が出る。
+     ★ぼかしは素材px ではなく画面px で指定する。素材px にすると端末幅で
+       ぼけ具合が変わってしまう（影は「光の効果」なので見た目が基準）。
+     ★filter を重ねすぎないこと。アニメーション中の雲に掛かるので、
+       数（MAX_DRIFT）とぼかし半径がそのまま合成コストになる。 */
+  --cloud-shadow-y: 3px;
+  --cloud-shadow-blur: 6px;
+  --cloud-shadow-alpha: .18;
+
+  position: absolute;
+  left: 0;
+  width: calc(var(--cl-w) * var(--art-unit));
+  height: calc(var(--cl-h) * var(--art-unit));
+  bottom: calc(var(--cl-y) * var(--art-unit));
+  /* ★色はトークンではなく直値。α だけを変数で差し替えたいので
+     rgb(… / α) で書く必要がある（--color-text は α を差せない）。 */
+  filter: drop-shadow(0 var(--cloud-shadow-y) var(--cloud-shadow-blur)
+    rgb(70 90 110 / var(--cloud-shadow-alpha)));
+  /* ★負の delay で開始位相をずらす（JS が渡す）。これが無いと全部の雲が
+     同じタイミングで画面を横切り、作り物に見える。 */
+  animation: mtnDrift var(--cl-dur) linear infinite;
+  animation-delay: var(--cl-delay);
+}
+
+@keyframes mtnDrift {
+  from { transform: translateX(calc(var(--cl-x0) * var(--art-unit))); }
+  to   { transform: translateX(calc(var(--cl-x1) * var(--art-unit))); }
+}
+
+/* ★動きを減らす設定では止める。消さずに止めるのは、負の delay のおかげで
+   雲が1つずつ違う位置で固まり、静止画としてちゃんと成立するため。 */
+@media (prefers-reduced-motion: reduce) {
+  .p-mountain__cloud {
+    animation-play-state: paused;
+  }
+}
+
+/* 山頂。開催の最終日以降だけ出す（mountainPath.js の _isSummit）。
+   ★★暫定：これだけ旧方式の1枚絵。--mtn-bg-summit と対で、素材を差し替えるときは
+     aspect-ratio も必ず一緒に直すこと（片方だけだと裾が浮く）。
+   ★z-index は JS が 0 を入れる（通常のパーツに手前を譲る）。逆にすると
+     山頂の裾がパーツの上に出て、そこだけ継ぎ目が見える。
+   ★ここまでスクロールで登れるよう、initMountainPathSync が上端の余白
+     （headroom）を広げている。片方だけ直すと絵が永久に画面へ入らない。 */
+.p-mountain__summit {
+  position: absolute;
+  right: 0;
+  left: 0;
+  aspect-ratio: 1180 / 2557;
+  bottom: calc(var(--lf-y) * var(--art-unit));
+  background-image: var(--mtn-bg-summit);
   background-position: top center;
-  background-repeat: repeat-y;
-  background-size: 100% auto;
-  /* ★テーマの境目にハードな線を出さない。上下 SEGMENT_OVERLAP ぶんを
-     グラデーションで抜き、隣のセグメントとクロスフェードさせる。
-     上下ぶんはみ出させてあるので、境界の位置自体はずれない。 */
-  /* 抜き幅（--seg-overlap）は JS が書き出す。CSS に数値を持たない */
-  mask-image: linear-gradient(to bottom,
-    transparent 0, #000 var(--seg-overlap), #000 calc(100% - var(--seg-overlap)), transparent 100%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
-/* いちばん下（キャンバスの底まで）と いちばん上 は、外側を抜かない */
-.p-mountain__bg-seg--first {
-  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--seg-overlap), #000 100%);
-}
+/* --- かすみ（お試し）-------------------------------------------------------
+   画面の上ほど白くかすませて、遠くが霞んで見えるようにする。
 
-.p-mountain__bg-seg--last {
-  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--seg-overlap)), transparent 100%);
-}
+   ★#mountain-canvas の**外**（兄弟）に置いてある。中に入れるとキャンバスの
+     translateY で一緒に動き、「画面の上ほど」ではなく「道の上ほど」になる
+     （スクロールすると霞そのものが流れて見える）。
+     .p-mountain は position:fixed なので、ここに置けば画面に貼り付く。
+   ★キャンバスより後ろに書いてあるので、背景だけでなくマスもまとめて霞む。
+     マスは元々 --node-opacity で奥ほど薄くなっており、方向が揃っている。
+   ★調整は --haze-top（上端の白さ 0〜1）と --haze-end（透明になる位置）の2つだけ。
+   ★お試しの層。やめるときはこのブロックと mountainPath.js の
+     .p-mountain__haze の1行を消せば元に戻る。 */
+.p-mountain__haze {
+  --haze-top: .15;
+  --haze-end: 90%;
 
-/* 1つしかないとき（完了が少ないイベント）は抜かない */
-.p-mountain__bg-seg--first.p-mountain__bg-seg--last {
-  mask-image: none;
+  position: absolute;
+  inset: 0;
+  /* ★色はトークンではなく直値。白の不透明度だけを段階的に変えるため、
+     rgb(… / α) で書く必要がある（--white は #FFFFFF なので α を差せない）。 */
+  background-image: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / var(--haze-top)) 0%,
+    rgb(255 255 255 / calc(var(--haze-top) * .5)) 26%,
+    rgb(255 255 255 / calc(var(--haze-top) * .18)) 55%,
+    rgb(255 255 255 / 0) var(--haze-end)
+  );
+  /* ★裏のスクロール窓の操作を奪わないこと */
+  pointer-events: none;
 }
 
 /* マス・山頂・スタートなど、座標を JS が決めるもの

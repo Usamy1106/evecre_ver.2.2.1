@@ -83,6 +83,8 @@
 | プロジェクト（フォルダ）詳細 | `object/project/_project-detail.css` |
 | 提案キャラクター（mizu / mori / iwa）と目・登場のアニメーション | `object/project/_character.css` |
 | ユーザー紹介モーダル（アイコンタップで開く自己紹介） | `object/project/_user-profile.css` |
+| アーカイブ：参加時の回答一覧（ユーザー別／質問別） | `object/project/_answers.css` |
+| アーカイブ：みんなの活躍（横棒グラフ3種） | `object/project/_stats.css` |
 | ホーム（イベント一覧・プロジェクト一覧・承認待ちカード） | `object/project/_home.css` |
 | ログイン・アカウント作成・パスワードリセット | `object/project/_auth.css` |
 | アカウント設定（プロフィール・通知・退会） | `object/project/_account.css` |
@@ -99,7 +101,8 @@
 | 通知タブ（応募待ち・確認待ち・通知一覧） | `object/project/_notification.css` |
 | 入口画面（新規登録 / ログイン） | `object/project/_welcome.css` |
 | アカウント作成フロー（STEP 0〜8） | `object/project/_signup.css` |
-| 山登りパスビジュアル（背景・マス・スクロール窓） | `object/project/_mountain.css` |
+| 山登りパスビジュアル（背景の地形・植物・雲・マス・スクロール窓） | `object/project/_mountain.css` |
+| 背景の景色の作り方（地形の間隔・植物の数と大きさ・雲の速さと向き） | `public/js/mountainThemes.js`（CSS ではない）|
 | 参加・招待まわりのモーダル（🔥・招待リンク） | `object/project/_invite.css` |
 | 開発者からのお知らせ | `object/project/_announcement.css` |
 | スケジュールのシート（カレンダー・ガント） | `object/project/_schedule.css` |
@@ -278,6 +281,8 @@ public/css/
 │  ├─ _project-detail.css       ✅ プロジェクト詳細
 │  ├─ _character.css           ✅ 提案キャラクター（体・目・状態ごとのアニメーション）
 │  ├─ _user-profile.css        ✅ ユーザー紹介モーダル
+│  ├─ _answers.css             ✅ アーカイブ：参加時の回答一覧
+│  ├─ _stats.css               ✅ アーカイブ：みんなの活躍（グラフ）
 │  ├─ _home.css                 ✅ ホーム
 │  ├─ _auth.css                 ✅ ログイン前の画面（auth / passwordReset）
 │  ├─ _account.css              ✅ アカウント設定

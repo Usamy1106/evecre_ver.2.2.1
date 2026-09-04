@@ -52,28 +52,76 @@ const FADE_IN_BAND = 120;    // 上端からこの高さ(px)でフェードイ�
 const CULL_MARGIN = 1;     // 画面高の何倍まで面倒を見るか
 
 import { findObject } from './mountainObjects.js';
+// ★素材の一覧は自動生成。ファイル名・拡張子・パスをこのファイルに書かないこと
+//   （素材を足すたびに手で直すことになる）。URL の組み立ても bgUrl に任せる。
+import { BG_ASSETS, BG_SHARED, bgUrl } from './mountainAssets.generated.js';
+import { BG_THEMES } from './mountainThemes.js';
 
 // ── 背景セグメント ────────────────────────────────────────
-// 一定マスごとに背景のテーマが変わる。
+// 背景は「1枚の絵を、手前（下）の1枚の裏へ 22.2% 潜り込ませて重ねる」ことで
+// 継ぎ目なく上へ繋がっていく。素材側がその重なりを前提に描かれている。
 //
-// ★セグメントの高さは必ず「マス数 × NODE_GAP」で決める。画像の元の高さを
-//   使うと、マス間隔と割り切れずに重ねるたび誤差が積もり、背景とマスがずれる。
-// ★SEGMENT_MASSES を変えるだけで、高さ・境界位置・テーマの区切りが全部追従する。
-//   704 や 8 をコード中に直書きしないこと。
-// ★これを変えると既存イベントの背景の並びも変わる（区切りが動くため）。
-const SEGMENT_MASSES = 8;
-
-// テーマと素材。★variants に文字列を足すだけでバリエーションが増える。
-//   文字列は CSS 変数の接尾辞（'01' → var(--mtn-bg-01)）。
-//   ファイル名・拡張子は CSS 側（foundation/_variables.css）にしか無い。
-const BG_THEMES = [
-  { id: 1, variants: ['01'] },
-  { id: 2, variants: ['02'] },
-  { id: 3, variants: ['03'] },
-  { id: 4, variants: ['04'] },
-  { id: 5, variants: ['05'] },
-  { id: 6, variants: ['06'] },
-];
+//   素材 2048 × 3600
+//     └ 下 800px（22.2%）＝ 重ねしろ。次の1枚がこのぶん裏に隠れる
+//     └ 送り 2800px（77.8%）＝ 1枚ぶん進む量
+//
+// ★手前（画面下）のセグメントが**上に重なる**こと。逆にすると重ねしろが
+//   表に出て継ぎ目が見える。z-index で下のセグメントほど手前にしている。
+// ★セグメントの高さと位置は CSS が幅から算出する（aspect-ratio と
+//   translateY の %）。JS で px を計算すると、端末幅ごとに実描画の高さが
+//   変わるため必ずずれる。JS が決めるのは「何枚出すか」と「どの絵か」だけ。
+// ★かつては「マス数 × NODE_GAP」でセグメント高を決め、境界をマスと一致させて
+//   いた。境界にクロスフェードの線が見えるためだったが、重ねて繋ぐ今は
+//   境界そのものが無いので、その制約は外した（SEGMENT_MASSES は廃止）。
+//   ★戻さないこと。固定すると画像を縦へ 12〜34% 歪めることになる
+//     （端末幅ごとに実描画の高さが変わるため）。
+// ── パーツから組み立てる背景 ──────────────────────────────
+// 背景は完成した1枚絵ではなく、**地形（landform）のパーツを下から積み上げて**作る。
+// 素材の一覧は `mountainAssets.generated.js`（自動生成）、テーマごとの積み方は
+// `mountainThemes.js`（手書きの調整ファイル）が持つ。ここは物理法則だけを持つ。
+//
+//   素材 2049 × (1481 / 1781 / 2241)
+//     └ 下 800px ＝ 塗り潰しの余白。次の1枚をこの範囲内に重ねるかぎり
+//                   高さがバラバラでも隙間が出ない
+//
+// ★座標系は「素材px」ひとつ。画面pxへの変換は CSS の `--art-unit` が一手に担う。
+//   JS で端末pxを計算すると、320px 端末と 430px 端末で景色が変わり
+//   「全メンバーが同じ景色を見る」が壊れる。JS が決めるのは
+//   「どの絵を・素材px でどこに置くか」だけ。
+// ★手前（画面下）のパーツが**上に重なる**こと。逆にすると重ねしろが表に出て
+//   継ぎ目が見える（1枚絵だった頃と同じ原則）。
+const ART_W = 2049;        // landform の原寸幅。座標系の基準
+// 地形素材は下 LF_OVERLAP px が塗り潰しの余白になっている。次の地形を
+// この範囲内で重ねるかぎり、素材の高さ（1481/1781/2241）に関わらず隙間が出ない。
+// ★テーマ設定の advanceMax がこの値を超えないこと（超えると地形の間が抜ける）。
+const LF_OVERLAP = 800;
+// ★何枚ごとにテーマを替えるか。小さくすると景色がころころ変わって落ち着かず、
+//   大きくすると登っても代わり映えしない。隣り合う帯には必ず違うテーマが入る。
+const THEME_RUN = 14;
+// ★1イベントで積むパーツ数の上限。素材1枚が平均 247KB なので、
+//   ここを上げると通信量とメモリが素直に増える。実際に必要な枚数は
+//   キャンバスの高さから決まり、たいていこの上限には届かない。
+const MAX_PARTS = 60;
+// ★最初から読み込む枚数（画面下＝最初に見える側）。残りは loading="lazy" に任せ、
+//   画面外のぶんはブラウザにデコード済みビットマップを捨てさせる。
+//   2049×1481 は RGBA で約12MB。40枚抱えると 512MB 環境が落ちる。
+const EAGER_COUNT = 3;
+// ★植物を植えるのは「実際に見えている地形」だけ。手前の地形に隠れて
+//   ほとんど出ていない地形に植えても、正しく隠れて見えないまま DOM だけ増える。
+const PLANT_MIN_STRIP = 200;   // 見えている帯がこれ未満（素材px）の地形には植えない
+// ★植物の総数の上限。1本ずつは軽い SVG だが、要素数が増えるとスクロールの
+//   合成コストが効いてくる。0.5CPU 環境が基準。
+const MAX_PLANTS = 120;
+// ★植物の横位置を引き直す回数。等分スロットに1本ずつ置く方式は「左・中・右」に
+//   きれいに並んで横一列に見えたので、幅いっぱいから引いて重なりだけ避ける方式にした。
+//   上げすぎると、狭い場所へ無理に押し込んで結局くっついて見える。
+const PLANT_TRIES = 8;
+// 植物どうしの最低すき間（素材px）。0 にすると葉が触れて1本の茂みに見える
+const PLANT_GAP = 60;
+// ★横に流れる要素（雲）の総数の上限。**ここを上げないこと。**
+//   transform のアニメーション中は合成レイヤーに昇格するので、数がそのまま
+//   メモリと合成コストになる。0.5CPU / 512MB 環境が基準。
+const MAX_DRIFT = 6;
 
 // ★マス間の縦間隔。狭めるほど手前に多くのマスが並ぶ。
 //   マスの見た目の高さ（--node-size × --node-squash ＝ 約64px）より
@@ -142,12 +190,41 @@ function _layout(p) {
   return { missionCount: missions.length, cleared, clearedCount, n, canvasH, xFor, yFor };
 }
 
-// 1セグメントの高さ。★必ずこの計算値を使う（画像の元サイズを使わない）
-const SEGMENT_HEIGHT = SEGMENT_MASSES * NODE_GAP;
-// セグメント間のクロスフェード幅。マス1つぶん。境界を中心に上下へ広げる。
-// ★この値は CSS にも要る（マスクの抜き幅）。JS を唯一の出どころにするため、
-//   --seg-overlap として背景レイヤーに書き出し、CSS はそれを参照する。
-const SEGMENT_OVERLAP = NODE_GAP;
+/**
+ * 山頂に着いているか。
+ *
+ * ★「開催の最終日を迎えたら、進み具合に関わらず必ず山頂を出す」。
+ *   完了数で決めないのは、片付けの段階に入ったチームに「まだ着いていない」と
+ *   言っても仕方がないため（フェーズの自動遷移と同じ考え方）。
+ * ★最終日「当日」から出す（過ぎてからではない）。その日が登り切る日なので。
+ * ★開催日が未設定なら出さない（基準が無い）。
+ * @param {object} p flat 形式のイベント
+ */
+function _isSummit(p) {
+  const dates = Array.isArray(p?.dates) ? [...p.dates].filter(Boolean).sort() : [];
+  const last = dates.at(-1);
+  if (!last) return false;
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return today >= last;
+}
+
+/**
+ * 背景で覆いきる必要のある高さ（素材px）。
+ *
+ * ★実際の配置は CSS（--art-unit）なので、ここは「どこまで積めば足りるか」だけを出す。
+ *   足りないと上端に背景の無い帯ができるが、余っても切られるだけで害はない。
+ * ★幅を 448px（アプリ幅の上限 --layout-max-width）で頭打ちにする。
+ *   実際の幅がこれより狭ければ1枚あたりの見かけの送りが小さくなり、
+ *   必要な高さは増える＝必ず足りる側に倒れる。
+ */
+function _needTopArt(canvasH) {
+  const w = Math.min((typeof window !== 'undefined' ? window.innerWidth : 400) || 400, 448);
+  const viewH = (typeof window !== 'undefined' ? window.innerHeight : 640) || 640;
+  const unit = w / ART_W;              // 素材1px が画面で何px になるか
+  // キャンバスぶん＋1画面ぶん（headroom で下へずらす量の逃げ）
+  return (canvasH + viewH) / unit;
+}
 
 /**
  * 文字列 → 32bit の非負整数（FNV-1a）。
@@ -163,75 +240,397 @@ function _hash(str) {
 }
 
 /**
- * セグメントごとの背景を決める。
- *
- * ★保存しない。イベントIDとセグメント番号から決定的に導出する。
- *   - DB に持たせないので CRDT の管理対象が増えず、同時完了の競合も起きない
- *   - 既存イベントにも遡って適用されるので移行処理が要らない
- *   - 全メンバー・全デバイスで必ず同じ結果になる
- * ★Math.random() / Date.now() / ユーザーID / 完了時刻を混ぜないこと。
- *   同じイベントの同じセグメントなら、いつ誰が見ても同じでなければならない。
- * ★直前と同じテーマは避ける。8マス（＝8ミッション完了）進んだのに景色が
- *   変わらないと、進んだ手応えが消えるため。避けても導出は決定的なまま。
- *
- * @param {string} eventId
- * @param {number} count 生成するセグメント数
- * @returns {Array<{ theme:number, variant:string }>}
+ * 決定的な整数の抽選（[min, max] の両端を含む）。
+ * ★Math.random() を使わないこと。同じ seed なら誰がいつ見ても同じ値になる。
  */
-function _backgroundPlan(eventId, count) {
-  const plan = [];
-  let prev = null;
-  for (let k = 0; k < count; k++) {
-    const pool = (prev === null || BG_THEMES.length <= 1)
-      ? BG_THEMES
-      : BG_THEMES.filter(t => t.id !== prev);
-    const theme = pool[_hash(`${eventId}:${k}:theme`) % pool.length];
-    const variant = theme.variants[_hash(`${eventId}:${k}:variant`) % theme.variants.length];
-    plan.push({ theme: theme.id, variant });
-    prev = theme.id;
-  }
-  return plan;
+function _rndInt(seed, min, max) {
+  if (!(max > min)) return min;
+  return min + (_hash(seed) % (max - min + 1));
 }
 
 /**
- * 背景セグメントのマークアップ。
+ * 山札から count 枚を配る。**同じキーが2回続かない**ように取る。
+ *
+ * ★保存しない。seedBase（イベントIDなど）から決定的に導出する。
+ *   - DB に持たせないので CRDT の管理対象が増えず、同時完了の競合も起きない
+ *   - 既存イベントにも遡って適用されるので移行処理が要らない
+ *   - 全メンバー・全デバイスで必ず同じ結果になる
+ * ★Math.random() / Date.now() / ユーザーID / 完了時刻 / **完了数**を混ぜないこと。
+ *   完了数を混ぜると、1つ完了しただけで山全体が作り直される。
+ * ★独立ハッシュ（_hash(id:k) % 残り枚数）で毎回引く方式に戻さないこと。
+ *   1枚も出ない素材や、同じ絵が3回出るイベントが実際にできた（実測）。
+ *
+ * @param {Array} cards   配る対象
+ * @param {string} seedBase
+ * @param {number} count
+ * @param {(c:any)=>string} keyOf 「同じ」とみなす基準（テーマIDや色）
+ * @param {string|null} prevKey 直前に出たキー（帯をまたいで続けるときに渡す）
+ */
+function _dealDeck(cards, seedBase, count, keyOf, prevKey = null) {
+  const out = [];
+  if (!Array.isArray(cards) || cards.length === 0) return out;
+  let deck = [];
+  let cycle = 0;
+  const draw = () => _shuffleDeck(cards, `${seedBase}:${cycle++}`);
+
+  for (let k = 0; k < count; k++) {
+    // ★山札が尽きたら切り直す。1巡で全部が必ず1回ずつ出るので出番が偏らない。
+    if (deck.length === 0) deck = draw();
+
+    let idx = deck.findIndex(c => keyOf(c) !== prevKey);
+    if (idx < 0) {
+      // ★山札の残りが全部「直前と同じキー」だった場合。ここを手当てしないと、
+      //   1巡の切れ目でだけ同じものが2回続く（実測で発生した）。
+      deck = deck.concat(draw());
+      idx = deck.findIndex(c => keyOf(c) !== prevKey);
+      if (idx < 0) idx = 0;   // 候補が1種類しか無いときだけ
+    }
+    const pick = deck.splice(idx, 1)[0];
+    out.push(pick);
+    prevKey = keyOf(pick);
+  }
+  return out;
+}
+
+/** 設定と素材が両方そろっているテーマだけを使う（片方だけのものは黙って飛ばす） */
+function _usableThemes() {
+  return BG_THEMES.filter(t => (BG_ASSETS[t.id]?.landform || []).length > 0);
+}
+
+/**
+ * 地形を下から積む計画を立てる。
+ *
+ * 座標 y は**キャンバス下端からの素材px**。パーツ k の下端が y_k、上端が y_k + h_k。
+ * 次のパーツは「前の下端から advance px 上」に置く。advance ≤ LF_OVERLAP なので、
+ * 各パーツの下 LF_OVERLAP px（塗り潰しの余白）が途切れずに繋がり、
+ * 素材の高さがバラバラでも隙間が出ない。
+ *
+ * ★needTopArt はパーツの**枚数**にしか影響しない。k 番目の中身は eventId と k だけで
+ *   決まるので、ミッションが完了してキャンバスが伸びても既存のパーツは動かない
+ *   （上に足されるだけ）。ここを崩すと1つ完了するたびに山全体が変わる。
+ * ★テーマは THEME_RUN 枚ごとの帯で交代し、隣り合う帯は必ず違うテーマになる。
+ */
+function _landformPlan(eventId, needTopArt) {
+  const themes = _usableThemes();
+  if (themes.length === 0) return [];
+
+  // 帯の並び。★MAX_PARTS ぶんを賄えるだけ用意する（needTopArt に依存させない）
+  const bands = _dealDeck(themes, `${eventId}:band`, Math.ceil(MAX_PARTS / THEME_RUN) + 1, t => t.id);
+
+  const parts = [];
+  let y = 0;
+  let prevKey = null;   // ★色の連続を帯をまたいで避ける（色が無いテーマは通し番号で代用）
+
+  for (let b = 0; b < bands.length; b++) {
+    const theme = bands[b];
+    const list = BG_ASSETS[theme.id].landform;
+    // ★seed に帯の番号 b を必ず入れる。テーマIDだけだと、同じテーマが再登場した
+    //   帯で**まったく同じ並び**が繰り返される（bands.indexOf で書いて踏んだ）。
+    // ★「同じ色」はテーマの中でだけ意味を持つ。色サフィックスは全テーマ共通の
+    //   a / b / c なので、テーマ名で修飾しないと「MorningMeadow の b」と
+    //   「WindyMeadow の b」が同じ色とみなされ、帯の境目で無関係に候補が弾かれる。
+    const colorKey = (a) => `${theme.id}:${a.c || a.n}`;
+    const picks = _dealDeck(list, `${eventId}:lf:${b}`, THEME_RUN, colorKey, prevKey);
+
+    for (const a of picks) {
+      // ★手前の地形の上端より上にはみ出したぶんが、この地形の見える帯。
+      //   高さがバラバラなので、送りが小さいと丸ごと隠れる地形も出る（想定内）。
+      const prev = parts.at(-1);
+      const strip = prev ? (y + a.h) - (prev.y + prev.h) : a.h;
+      parts.push({ theme: theme.id, file: a.f, y, h: a.h, strip });
+      prevKey = colorKey(a);
+      // ★覆いきったら止める。塗り潰しの余白の上端まで届いていれば隙間は出ない
+      if (y + LF_OVERLAP >= needTopArt) return parts;
+      if (parts.length >= MAX_PARTS) return parts;
+      y += _rndInt(`${eventId}:adv:${parts.length}`,
+        theme.landform.advanceMin, Math.min(theme.landform.advanceMax, LF_OVERLAP));
+    }
+  }
+  return parts;
+}
+
+/**
+ * 決定的にシャッフルした山札を作る（Fisher-Yates）。
+ * ★Math.random() を使わないこと。イベントIDと巡目だけから決まるので、
+ *   全メンバーで必ず同じ並びになり、リロードでも変わらない。
+ */
+function _shuffleDeck(cards, seed) {
+  const d = cards.slice();
+  for (let i = d.length - 1; i > 0; i--) {
+    const j = _hash(`${seed}:${i}`) % (i + 1);
+    [d[i], d[j]] = [d[j], d[i]];
+  }
+  return d;
+}
+
+/**
+ * どの地形に何を植えるかを決める。
+ *
+ * ★「地形1枚ごとに植える」のは**やめた**（1イベントで100本を超え、密林になった）。
+ *   まず「実際に見えている地形」を候補として洗い出し、そこから `every` 枚おきに選ぶ。
+ *   ★`every` で間引くのは候補の側。生の通し番号 k で間引くと、選ばれた地形が
+ *     たまたま隠れていたときに長い区間まるごと植物が消える。
+ *
+ * ★横位置は**自由に散らす**。等分したスロットに1本ずつ置く方式は、重なりこそ
+ *   起きないが「左・中・右」にきれいに並んで**横一列に見える**（実際にそうなって
+ *   作り直した）。ここでは幅いっぱいから候補を引き、既に置いたものと重なったら
+ *   別の候補を引き直す。決定的なハッシュから引くので結果は毎回同じ。
+ * ★縦位置も1本ごとに散らす。同じ地形の2本が同じ高さに並ぶと、それだけで
+ *   「横並び」に見えてしまう。
+ * ★座標は地形の要素の中（左下が原点）。親と一緒に動くので、
+ *   稜線から浮くことが原理的に起きない。
+ *
+ * @returns {Map<number, Array>} 地形の添字 → その地形に植える植物
+ */
+function _plantingPlan(eventId, parts) {
+  const out = new Map();
+
+  // 候補＝「素材があるテーマ」かつ「実際に見えている」地形
+  const cands = [];
+  for (let k = 0; k < parts.length; k++) {
+    const theme = BG_THEMES.find(t => t.id === parts[k].theme);
+    const cfg = theme?.plant;
+    if (!cfg || !(cfg.every > 0)) continue;
+    if ((BG_ASSETS[parts[k].theme]?.plant || []).length === 0) continue;
+    // ★ほとんど隠れている地形に植えても、正しく隠れて見えないまま DOM が増える
+    if (parts[k].strip < PLANT_MIN_STRIP) continue;
+    cands.push({ k, cfg });
+  }
+
+  let budget = MAX_PLANTS;
+  for (let i = 0; i < cands.length; i++) {
+    const { k, cfg } = cands[i];
+    if (i % cfg.every !== 0) continue;      // ★候補の並びで間引く
+    if (budget <= 0) break;
+
+    const part = parts[k];
+    const list = BG_ASSETS[part.theme].plant;
+    const count = Math.min(_rndInt(`${eventId}:pc:${k}`, cfg.countMin, cfg.countMax), budget);
+    if (count <= 0) continue;
+
+    const picks = _dealDeck(list, `${eventId}:pl:${k}`, count, x => x.n);
+    const placed = [];
+
+    for (let j = 0; j < picks.length; j++) {
+      const x0 = picks[j];
+      const w = _rndInt(`${eventId}:pw:${k}:${j}`, cfg.sizeMin, cfg.sizeMax);
+      const h = Math.max(1, Math.round(w * x0.h / x0.w));
+      const sink = _rndInt(`${eventId}:ps:${k}:${j}`, cfg.sinkMin, cfg.sinkMax);
+      const y = Math.max(0, part.h - sink);
+
+      // ★重ならない位置が見つかるまで引き直す。見つからなければその1本は諦める
+      //   （無理に詰めると等分スロットと同じ「並んだ」見た目に戻る）。
+      let x = -1;
+      for (let t = 0; t < PLANT_TRIES; t++) {
+        const cand = _rndInt(`${eventId}:px:${k}:${j}:${t}`, 0, Math.max(0, ART_W - w));
+        const hit = placed.some(q => cand < q.x + q.w + PLANT_GAP && q.x < cand + w + PLANT_GAP);
+        if (!hit) { x = cand; break; }
+      }
+      if (x < 0) continue;
+
+      placed.push({ file: x0.f, x, y, w, h });
+    }
+
+    if (placed.length === 0) continue;
+    out.set(k, placed);
+    budget -= placed.length;
+  }
+  return out;
+}
+
+/**
+ * 横に流れる要素（雲）を決める。
+ *
+ * ★地形の**裏**を流れる（z を地形の間に差し込む）。手前に出すと道とマスに被る。
+ * ★総数は MAX_DRIFT まで。候補が多いときは間引くが、下から順ではなく
+ *   山全体に散らす（下だけ賑やかで上が空になるのを避ける）。
+ * ★開始位相を負の animation-delay でずらす。これが無いと全部の雲が
+ *   同じタイミングで画面を横切り、作り物に見える。
+ * ★動きの向きは JS が --cl-x0 / --cl-x1（素材px）で渡し、CSS は1つの
+ *   @keyframes で両方向を賄う。向きごとに keyframes を分けないこと。
+ */
+function _driftPlan(eventId, parts) {
+  const list = BG_SHARED.cloud || [];
+  if (list.length === 0) return [];
+
+  // どの地形に添えるかの候補を先に洗い出す
+  const cands = [];
+  for (let k = 0; k < parts.length; k++) {
+    const cfg = BG_THEMES.find(t => t.id === parts[k].theme)?.cloud;
+    if (!cfg || !cfg.dir || !(cfg.every > 0)) continue;
+    if (k % cfg.every !== 0) continue;
+    cands.push({ k, cfg });
+  }
+  if (cands.length === 0) return [];
+
+  // ★上限を超えるときは等間隔で間引く（山全体に散らす）
+  const step = Math.max(1, Math.ceil(cands.length / MAX_DRIFT));
+  const chosen = cands.filter((_, i) => i % step === 0).slice(0, MAX_DRIFT);
+
+  const picks = _dealDeck(list, `${eventId}:cl`, chosen.length, a => a.n);
+
+  return chosen.map(({ k, cfg }, i) => {
+    const a = picks[i];
+    const part = parts[k];
+    const w = _rndInt(`${eventId}:cw:${k}`, cfg.sizeMin, cfg.sizeMax);
+    const h = Math.max(1, Math.round(w * a.h / a.w));
+    // 地形の上端から上へ。素材px なので端末幅によらず同じ高さに浮かぶ
+    const y = part.y + part.h + _rndInt(`${eventId}:cy:${k}`, cfg.skyMin, cfg.skyMax);
+
+    const rtl = cfg.dir === 'rtl' || (cfg.dir === 'both' && _rndInt(`${eventId}:cd:${k}`, 0, 1) === 1);
+    // 画面の外から外へ抜けきる。ART_W が入れ物の幅（素材px）
+    const x0 = rtl ? ART_W : -w;
+    const x1 = rtl ? -w : ART_W;
+
+    const dur = _rndInt(`${eventId}:cs:${k}`, cfg.speed[0], cfg.speed[1]);
+    // ★負の delay で開始位相をずらす。0〜1周ぶんの範囲で散らす
+    const delay = -_rndInt(`${eventId}:cp:${k}`, 0, Math.max(1, dur - 1));
+
+    return { k, file: a.f, y, w, h, x0, x1, dur, delay, z: 2 * (parts.length - k) - 1 };
+  });
+}
+
+// ── 先読み ────────────────────────────────────────────────
+// ★loading="lazy" が主役。ここはその保険で、1画面ぶんスクロールしたときだけ
+//   「この先に要る絵」を数枚だけ取りに行く。
+//   キャンバスは transform で動かしているので、lazy の判定が期待どおりに
+//   効かない端末があったときに白い帯が出るのを防ぐ。
+// ★スクロール中に DOM を読まないこと。位置は描画時に控えた配列から引く。
+let _lfUrls = [];
+let _lfYs = [];
+const _prefetched = new Set();   // ★同じ絵を二度取りに行かない
+
+const PREFETCH_AHEAD = 4;        // 先読みする枚数
+
+/**
+ * 画面の少し先にある地形を取りに行く。
+ * @param {number} artTop 画面上端がキャンバス下端から何 素材px の高さにあるか
+ */
+function _prefetchAround(artTop) {
+  let sent = 0;
+  for (let i = 0; i < _lfYs.length && sent < PREFETCH_AHEAD; i++) {
+    if (_lfYs[i] < artTop) continue;            // もう通り過ぎた
+    const url = _lfUrls[i];
+    if (_prefetched.has(url)) continue;
+    _prefetched.add(url);
+    new Image().src = url;                       // ★ブラウザのキャッシュに入れるだけ
+    sent++;
+  }
+}
+
+// ── 背景 DOM の使い回し ───────────────────────────────────
+// ★mainBoard.js は再描画のたび container.innerHTML を丸ごと差し替える。背景は
+//   <img> が 100 個以上あるので、素直に作り直すと毎回すべて再取得・再デコードされ、
+//   一瞬白くなる（0.5CPU 環境では体感できるほど遅い）。
+//   中身が変わっていなければ、DOM ごと元の要素に差し戻す。
+// ★効くのは2つの場面：
+//   1. SSE の再描画（同じ画面のまま作り直される）
+//   2. **ミッション詳細など他のページから戻ってきたとき**。退避を持ち続けるので、
+//      戻った瞬間に既に読み込み済みの絵がそのまま出る（＝背景が遅れて現れない）
+// ★流れている雲のアニメーションも途切れずに済む（作り直すと毎回先頭に戻る）。
+let _bgKeep = null;
+
+/**
+ * 今の背景を退避する。innerHTML を差し替える**前**と、描画し終えた**後**に呼ぶ。
+ * ★背景が見つからないときは、前の退避をそのまま持ち続ける。
+ *   他のページを開いている間は #mountain-bg が DOM に無いので、ここで捨てると
+ *   「戻ってきたときに使い回す」が成立しない。
+ */
+export function captureBgLayer() {
+  const el = document.querySelector('#mountain-bg .p-mountain__bg-layer');
+  if (el && el.dataset.bgSig) _bgKeep = { sig: el.dataset.bgSig, el };
+}
+
+/** 差し替えた**後**に呼ぶ。署名が同じなら退避した背景に戻す */
+export function restoreBgLayer() {
+  const keep = _bgKeep;
+  if (!keep) return;
+  const fresh = document.querySelector('#mountain-bg .p-mountain__bg-layer');
+  if (!fresh) return;
+  if (fresh.dataset.bgSig !== keep.sig) {
+    _bgKeep = null;               // ★中身が変わった。抱え込まずに手放す
+    return;
+  }
+  fresh.replaceWith(keep.el);
+}
+
+/**
+ * 背景（積み上げた地形）のマークアップ。
  *
  * ★#mountain-canvas の内側・最背面に置く。別レイヤーにして別々に translate
  *   すると、サブピクセルの丸めや rAF のタイミング差で必ずマスとずれる。
  *   キャンバスの transform 1つで背景もマスも同時に動くので、ずれが原理的に起きない。
- * ★セグメント k の下端は「マス i = k × SEGMENT_MASSES」の y と厳密に一致する。
- *   起点をキャンバス上端（y=0）にすると TOP_PAD のぶんずれるので、
- *   必ず canvasH - BOTTOM_PAD（＝マス i=0 の y）から数える。
+ * ★位置と大きさは CSS が --art-unit（素材1px の画面px）を掛けて決める。
+ *   JS が渡すのは素材px の数値だけ。ここで画面px を計算しないこと。
+ * ★下（手前）ほど z-index を大きくする。DOM 順のままだと後に描かれる上のパーツが
+ *   手前に来て、重ねしろが表に出て継ぎ目が見える。
+ *   ★z を 2 刻みにしてあるのは、雲や気象をパーツの**間**に差し込めるようにするため。
+ * ★<img> で出す（background-image では loading="lazy" が効かない）。
+ *   画面外のぶんはブラウザがデコード済みビットマップを捨てられる。
  */
-function _renderBgLayer(p, canvasH) {
-  const base = canvasH - BOTTOM_PAD;                       // マス i=0 の y
-  // ★キャンバス上端より上にも敷いておく。initMountainPathSync が canvas を
-  //   headroom ぶん下へずらすので、そのままだと上端に背景の無い帯ができる。
-  //   headroom は描画時にはまだ分からないので、1画面ぶん余分に作って被せる
-  //   （余った枚数は #mountain-bg の overflow:hidden で切られる）。
-  const viewH = (typeof window !== 'undefined' ? window.innerHeight : 640);
-  const extra = Math.ceil(viewH / SEGMENT_HEIGHT) + 1;
-  const count = Math.max(1, Math.ceil(base / SEGMENT_HEIGHT)) + extra;
-  const plan = _backgroundPlan(String(p?.id || ''), count);
-  const half = SEGMENT_OVERLAP / 2;
+function _renderBgLayer(p, canvasH, isSummit) {
+  const parts = _landformPlan(String(p?.id || ''), _needTopArt(canvasH));
+  const n = parts.length;
 
-  const segs = plan.map((seg, k) => {
-    const isFirst = k === 0;
-    const isLast  = k === count - 1;
-    // 素の範囲（境界はマスと厳密に一致する）
-    const rawTop = base - (k + 1) * SEGMENT_HEIGHT;
-    // クロスフェードのぶん上下へはみ出させる。★境界の位置自体はずらさない
-    const top    = rawTop - (isLast ? 0 : half);
-    const bottom = base - k * SEGMENT_HEIGHT + (isFirst ? BOTTOM_PAD : half);
+  const eventId = String(p?.id || '');
+  const planting = _plantingPlan(eventId, parts);
+
+  const lf = parts.map((pt, k) => {
+    // ★最初に見える下の数枚だけ先に読む。残りは lazy に任せる。
+    const eager = k < EAGER_COUNT;
+
+    // ★植物は地形の**子**にする。親と一緒に動くので稜線から浮かない。
+    //   座標は地形の中（左下が原点）なので、地形の位置計算とは独立している。
+    //   ★どの地形に植えるかは _plantingPlan がまとめて決める（地形1枚ごとではない）。
+    const plantHtml = (planting.get(k) || []).map(pl => `
+        <img class="p-mountain__plant" src="${bgUrl(pt.theme, 'plant', pl.file)}" alt=""
+          loading="lazy" decoding="async" fetchpriority="low"
+          style="--pl-x:${pl.x};--pl-y:${pl.y};--pl-w:${pl.w};--pl-h:${pl.h}">`).join('');
+
+    // ★入れ物の <div> が位置と大きさを持ち、地形の <img> と植物はその中に入る。
+    //   <img> は子を持てないので、植物を地形の子にするにはこの入れ物が要る。
+    //   入れ物ごと動くので、植物が稜線からずれることが原理的に起きない。
     return `
-      <div class="p-mountain__bg-seg${isFirst ? ' p-mountain__bg-seg--first' : ''}${isLast ? ' p-mountain__bg-seg--last' : ''}"
-        style="--seg-image:var(--mtn-bg-${seg.variant});top:${Math.round(top)}px;height:${Math.round(bottom - top)}px"></div>`;
+      <div class="p-mountain__lf" style="--lf-y:${pt.y};--lf-h:${pt.h};z-index:${2 * (n - k)}">
+        <img class="p-mountain__lf-img" src="${bgUrl(pt.theme, 'landform', pt.file)}" alt=""
+          loading="${eager ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${eager ? 'high' : 'low'}"
+          onload="this.dataset.loaded=1">${plantHtml}
+      </div>`;
   }).join('');
 
-  // ★山頂の背景（--mtn-bg-summit）は敷かない。素材の上4分の1が空だったため、
-  //   空を撤去した今、道の先端にだけ水色が残ってしまう。
-  //   道の先端より上は .p-mountain の地色のままにする。
-  return `<div class="p-mountain__bg-layer" style="--seg-overlap:${SEGMENT_OVERLAP}px">${segs}</div>`;
+  // ★山頂。開催の最終日以降だけ、積み上げた地形のいちばん上に載せる。
+  //   下端を「最上段パーツの上端 - 重ねしろ」に置いて、裾を重ねて繋ぐ。
+  //   ★z-index は 0（通常パーツに手前を譲る）。逆にすると裾が上に出て継ぎ目が見える。
+  //   ★ここまでスクロールで登れるよう、initMountainPathSync が上端の余白（headroom）
+  //     を広げている。片方だけ直すと絵が永久に画面へ入らない。
+  //   ★素材はまだパーツ方式に作り直されていないので、1枚絵を CSS 変数で参照している
+  //     （ファイル名を JS に書かないため）。パーツ版の山頂ができたらここも作り直す。
+  const top = parts.length ? parts[n - 1].y + parts[n - 1].h : 0;
+  const summitY = Math.max(0, top - LF_OVERLAP);
+  const summit = isSummit ? `
+      <div class="p-mountain__summit" style="--lf-y:${summitY};z-index:0"></div>` : '';
+
+  // ★雲は地形と同じ入れ物（bg-layer）に、地形の**間**の z で差し込む。
+  //   地形の子にすると、親の高さで切られたり親ごと transform されたりして
+  //   「山と一緒にスクロールしつつ、横に流れる」が両立しない。
+  const clouds = _driftPlan(eventId, parts).map(c => `
+      <img class="p-mountain__cloud" src="${bgUrl(null, 'cloud', c.file)}" alt=""
+        loading="lazy" decoding="async" fetchpriority="low"
+        style="--cl-y:${c.y};--cl-w:${c.w};--cl-h:${c.h};--cl-x0:${c.x0};--cl-x1:${c.x1};--cl-dur:${c.dur}s;--cl-delay:${c.delay}s;z-index:${c.z}">`).join('');
+
+  // ★先読み用に、地形の URL と位置（素材px）だけ控える。
+  //   スクロール中に DOM を読まずに「次に要る絵」を出すため。
+  _lfUrls = parts.map(pt => bgUrl(pt.theme, 'landform', pt.file));
+  _lfYs = parts.map(pt => pt.y);
+
+  // ★署名。SSE の再描画で「中身が同じなら DOM ごと使い回す」判定に使う
+  //   （captureBgLayer / restoreBgLayer）。背景の中身を決める入力を全部含めること。
+  const sig = `${eventId}:${n}:${isSummit ? 1 : 0}`;
+
+  return {
+    html: `<div class="p-mountain__bg-layer" data-bg-sig="${sig}">${lf}${clouds}${summit}</div>`,
+    summitY,
+  };
 }
 
 /**
@@ -260,6 +659,8 @@ function _objectFor(p, mission) {
  */
 export function renderMountainBg(p, opts = {}) {
   const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
+  const isSummit = _isSummit(p);
+  const bg = _renderBgLayer(p, canvasH, isSummit);
 
   // ★ミッション完了の演出。完了すると clearedCount が 1 増えるので、
   //   「今しがた色がついたマス」＝ clearedCount - 1、「新しく現れた灰色のマス」＝ n - 1。
@@ -270,7 +671,12 @@ export function renderMountainBg(p, opts = {}) {
 
   // マス（★装飾のみ。タップ不可・タイトル無し）
   // 下から順に「完了したぶん」を塗り、いちばん上の1つだけ灰色（＝次の1マス）にする。
-  const nodes = Array.from({ length: n }, (_, i) => {
+  // ★背景としてだけ見せるモード（アーカイブ・通知タブ）。景色だけを出し、
+  //   マス（道）は出さない。マスの遠近は paint() が毎フレーム書くもので、
+  //   スクロール窓の無いタブでは配線されず、等倍・不透明のまま並んでしまう。
+  const backdrop = !!opts.backdrop;
+
+  const nodes = backdrop ? '' : Array.from({ length: n }, (_, i) => {
     const x = xFor(i);
     const y = yFor(i);
     const isDone = i < clearedCount;
@@ -313,18 +719,27 @@ export function renderMountainBg(p, opts = {}) {
   //   山頂のイラストとイベント名、下端の「スタート」はいずれも撤去した。
   //   背景イラストの上に載ると読みづらく、地図としても情報が増えすぎるため。
 
-  const emptyHint = missionCount === 0
+  const emptyHint = (!backdrop && missionCount === 0)
     ? `<p class="p-mountain__pin p-mountain__pin--center p-mountain__empty" style="top:220px">ミッションを作ると<br>山頂への道が伸びていきます</p>`
     : '';
 
   return `
     <!-- ★top はヘッダー＋タブの実測高に合わせて initMountainPathSync が設定する -->
-    <div id="mountain-bg" class="p-mountain" style="top:110px">
+    <!-- ★data-summit は initMountainPathSync が読む（山頂までスクロールできるよう
+         上端の余白を広げるため）。JS から再判定せず、描画時の結果を渡す。 -->
+    <div id="mountain-bg" class="p-mountain${backdrop ? ' p-mountain--backdrop' : ''}" style="top:110px"
+      data-summit="${isSummit ? '1' : '0'}" data-summit-y="${bg.summitY}">
       <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
-        ${_renderBgLayer(p, canvasH)}
+        ${bg.html}
         ${nodes}
         ${emptyHint}
       </div>
+      <!-- ★お試し：画面上ほど白くかすませて奥行きを出すレイヤー。
+           キャンバスの**外**に置くこと。中に入れるとスクロールで一緒に動いてしまい、
+           「画面の上ほど」ではなく「道の上ほど」になる（＝スクロールすると霞が流れる）。
+           キャンバスより後に置いてあるので、背景もマスもまとめて霞ませる。
+           不要になったらこの1行と _mountain.css の .p-mountain__haze を消すだけ。 -->
+      <div class="p-mountain__haze" aria-hidden="true"></div>
     </div>`;
 }
 
@@ -348,6 +763,31 @@ export function renderMountainScrollWindow(p) {
  * - スクロール窓の scroll → 背景キャンバスの translateY 同期
  * @param {number|null} restoreTop 再レンダリング前のスクロール位置（null なら最上部＝道の先端）
  */
+/**
+ * 背景としてだけ見せるときの配線（アーカイブ・通知タブ）。
+ *
+ * スクロール窓が無いので initMountainPathSync は使えない（先頭で return する）。
+ * ここでやるのは2つだけ：
+ *   - ヘッダー＋タブの実測下端に合わせて top を置く
+ *   - 素材px → 画面px の換算（--art-unit）を実測で書く
+ * ★スクロールもマスも無いので、paint() もリスナーも要らない。
+ *   ここに毎フレームの処理を足さないこと（背景は動かない）。
+ */
+export function syncMountainBackdrop() {
+  const bg = document.getElementById('mountain-bg');
+  const canvas = document.getElementById('mountain-canvas');
+  if (!bg || !canvas) return;
+
+  const sticky = document.querySelector('#app .js-mountain-sticky')
+              || document.querySelector('.js-mountain-sticky');
+  if (sticky) bg.style.top = `${Math.round(sticky.getBoundingClientRect().bottom)}px`;
+
+  // ★CSS にも初期値はあるが、448〜640px の幅では実際の幅と食い違う
+  //   （--layout-max-width が 100% から 448px に切り替わる境目）。実測で上書きする。
+  const w = bg.getBoundingClientRect().width || canvas.clientWidth || 0;
+  if (w > 0) canvas.style.setProperty('--art-unit', `${w / ART_W}px`);
+}
+
 export function initMountainPathSync(restoreTop = null) {
   // ★前回の配線を必ず外す。この関数は再描画のたびに呼ばれるので、
   //   window に張ったリスナーが積み上がる（scroll は要素と一緒に消えるが
@@ -408,6 +848,27 @@ export function initMountainPathSync(restoreTop = null) {
     //   ここは初回と resize のときだけ書く（スクロール中には書かない）。
     const targetY = _lastClearedY(pins);
     headroom = Math.max(0, Math.round((depthBottom - NEAR_MARGIN) - bgTop - targetY));
+
+    // ★山頂が出ているときは、そこまでスクロールで登れるように上端の余白を広げる。
+    //   山頂の絵はキャンバス上端より「送り（画像高の77.8%）」ぶん上に立っている。
+    //   この余白が足りないと、絵は敷かれているのに永久に画面へ入らない。
+    //   ★幅は実測（canvasW）を使う。素材は幅いっぱいに伸縮されるので、
+    //     端末ごとに必要な余白が変わる。
+    // ★山頂の絵はキャンバス上端より上へはみ出す。その分だけ余白を足さないと、
+    //   絵は敷かれているのに永久に画面へ入らない。
+    //   高さは実測する（素材の縦横比を JS に書かないため）。背景画像＋aspect-ratio
+    //   なので、画像の読み込みを待たずにレイアウトは確定している。
+    const summitEl = bg.querySelector('.p-mountain__summit');
+    if (summitEl && canvasW > 0) {
+      const unit = canvasW / ART_W;
+      const summitTop = (+bg.dataset.summitY || 0) * unit + summitEl.getBoundingClientRect().height;
+      headroom += Math.max(0, Math.round(summitTop - canvasH));
+    }
+
+    // ★素材px → 画面px の換算はこの1変数に集約する。**ここ（初回と resize）でだけ書く。**
+    //   paint() に足すと毎フレーム全パーツのレイアウトが起きて確実に落ちる。
+    canvas.style.setProperty('--art-unit', `${canvasW / ART_W}px`);
+
     canvas.style.marginTop = `${headroom}px`;
     if (spacer && canvasH) spacer.style.height = `${canvasH + headroom}px`;
   };
@@ -459,7 +920,16 @@ export function initMountainPathSync(restoreTop = null) {
       pins[i].el.style.setProperty('--node-dx', `${dx.toFixed(1)}px`);
     }
   };
+  // ★1画面ぶん進むごとに、この先の絵を数枚だけ取りに行く。
+  //   ここは scroll のたびに走るので、DOM を読まない O(1) の算術だけにすること。
+  let lastPrefetchTop = -Infinity;
   const request = () => {
+    const top = win.scrollTop;
+    if (Math.abs(top - lastPrefetchTop) > viewH && canvasW > 0) {
+      lastPrefetchTop = top;
+      // 画面上端の高さ（キャンバス下端から）を素材px に直す
+      _prefetchAround((canvasH - top - viewH) / (canvasW / ART_W));
+    }
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(paint);
