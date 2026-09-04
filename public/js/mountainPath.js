@@ -102,10 +102,6 @@ const THEME_RUN = 14;
 //   ここを上げると通信量とメモリが素直に増える。実際に必要な枚数は
 //   キャンバスの高さから決まり、たいていこの上限には届かない。
 const MAX_PARTS = 60;
-// ★最初から読み込む枚数（画面下＝最初に見える側）。残りは loading="lazy" に任せ、
-//   画面外のぶんはブラウザにデコード済みビットマップを捨てさせる。
-//   2049×1481 は RGBA で約12MB。40枚抱えると 512MB 環境が落ちる。
-const EAGER_COUNT = 3;
 // ★植物を植えるのは「実際に見えている地形」だけ。手前の地形に隠れて
 //   ほとんど出ていない地形に植えても、正しく隠れて見えないまま DOM だけ増える。
 const PLANT_MIN_STRIP = 200;   // 見えている帯がこれ未満（素材px）の地形には植えない
@@ -490,33 +486,26 @@ function _driftPlan(eventId, parts) {
   });
 }
 
-// ── 先読み ────────────────────────────────────────────────
-// ★loading="lazy" が主役。ここはその保険で、1画面ぶんスクロールしたときだけ
-//   「この先に要る絵」を数枚だけ取りに行く。
-//   キャンバスは transform で動かしているので、lazy の判定が期待どおりに
-//   効かない端末があったときに白い帯が出るのを防ぐ。
-// ★スクロール中に DOM を読まないこと。位置は描画時に控えた配列から引く。
-let _lfUrls = [];
-let _lfYs = [];
-const _prefetched = new Set();   // ★同じ絵を二度取りに行かない
-
-const PREFETCH_AHEAD = 4;        // 先読みする枚数
-
-/**
- * 画面の少し先にある地形を取りに行く。
- * @param {number} artTop 画面上端がキャンバス下端から何 素材px の高さにあるか
- */
-function _prefetchAround(artTop) {
-  let sent = 0;
-  for (let i = 0; i < _lfYs.length && sent < PREFETCH_AHEAD; i++) {
-    if (_lfYs[i] < artTop) continue;            // もう通り過ぎた
-    const url = _lfUrls[i];
-    if (_prefetched.has(url)) continue;
-    _prefetched.add(url);
-    new Image().src = url;                       // ★ブラウザのキャッシュに入れるだけ
-    sent++;
-  }
-}
+// ── 読み込み ──────────────────────────────────────────────
+// ★地形は <img> ではなく **background-image** で敷く。ここは何度も失敗して
+//   戻ってきた設計なので、変えるときは経緯を読むこと：
+//
+//   1. `<img loading="lazy">` … キャンバスは position:fixed のコンテナの中で
+//      transform で動かしているため、端末によっては lazy が発火せず
+//      **マスだけ出て絵が1枚も出ない**。
+//   2. JS で「見えているぶんだけ eager にする」… 解放しないとデコード済み
+//      ビットマップが積み上がり（1枚 約12.8MB）、**スクロール中にタブごと落ちる**。
+//   3. 枚数に上限を付けて範囲外を解放 … 今度は**解放したところが白く抜ける**。
+//
+//   → background-image なら、ブラウザが「描画するときだけラスタライズし、
+//     画面外のデコード結果は自分で捨てる」。上限管理も lazy の発火判定も要らない。
+//     1枚絵だった頃はこの方式で問題が出ていなかった。
+//
+// ★代償：全パーツの画像を取りに行く（1イベントあたり最大 10MB 前後）。
+//   `immutable` 配信なので2回目以降はネットワークに出ないが、初回は重い。
+//   **減らす正しい手当ては素材の解像度を下げること**（表示幅は最大 448px なのに
+//   素材は 2049px ＝ 約4.6倍の過剰解像度。900px 幅にすれば通信もデコードも約1/5）。
+// ★<img> に戻さないこと。上の1〜3をもう一度踏むことになる。
 
 // ── 背景 DOM の使い回し ───────────────────────────────────
 // ★mainBoard.js は再描画のたび container.innerHTML を丸ごと差し替える。背景は
@@ -576,8 +565,6 @@ function _renderBgLayer(p, canvasH, isSummit) {
   const planting = _plantingPlan(eventId, parts);
 
   const lf = parts.map((pt, k) => {
-    // ★最初に見える下の数枚だけ先に読む。残りは lazy に任せる。
-    const eager = k < EAGER_COUNT;
 
     // ★植物は地形の**子**にする。親と一緒に動くので稜線から浮かない。
     //   座標は地形の中（左下が原点）なので、地形の位置計算とは独立している。
@@ -587,14 +574,13 @@ function _renderBgLayer(p, canvasH, isSummit) {
           loading="lazy" decoding="async" fetchpriority="low"
           style="--pl-x:${pl.x};--pl-y:${pl.y};--pl-w:${pl.w};--pl-h:${pl.h}">`).join('');
 
-    // ★入れ物の <div> が位置と大きさを持ち、地形の <img> と植物はその中に入る。
-    //   <img> は子を持てないので、植物を地形の子にするにはこの入れ物が要る。
-    //   入れ物ごと動くので、植物が稜線からずれることが原理的に起きない。
+    // ★地形の絵はこの <div> の background-image。<img> にしないこと（上の経緯を参照）。
+    //   位置と大きさを持つこの入れ物が、そのまま植物の親にもなる
+    //   （入れ物ごと動くので、植物が稜線からずれることが原理的に起きない）。
     return `
-      <div class="p-mountain__lf" style="--lf-y:${pt.y};--lf-h:${pt.h};z-index:${2 * (n - k)}">
-        <img class="p-mountain__lf-img" src="${bgUrl(pt.theme, 'landform', pt.file)}" alt=""
-          loading="${eager ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${eager ? 'high' : 'low'}"
-          onload="this.dataset.loaded=1">${plantHtml}
+      <div class="p-mountain__lf"
+        style="--lf-y:${pt.y};--lf-h:${pt.h};--lf-img:url('${bgUrl(pt.theme, 'landform', pt.file)}');z-index:${2 * (n - k)}">
+        ${plantHtml}
       </div>`;
   }).join('');
 
@@ -617,11 +603,6 @@ function _renderBgLayer(p, canvasH, isSummit) {
       <img class="p-mountain__cloud" src="${bgUrl(null, 'cloud', c.file)}" alt=""
         loading="lazy" decoding="async" fetchpriority="low"
         style="--cl-y:${c.y};--cl-w:${c.w};--cl-h:${c.h};--cl-x0:${c.x0};--cl-x1:${c.x1};--cl-dur:${c.dur}s;--cl-delay:${c.delay}s;z-index:${c.z}">`).join('');
-
-  // ★先読み用に、地形の URL と位置（素材px）だけ控える。
-  //   スクロール中に DOM を読まずに「次に要る絵」を出すため。
-  _lfUrls = parts.map(pt => bgUrl(pt.theme, 'landform', pt.file));
-  _lfYs = parts.map(pt => pt.y);
 
   // ★署名。SSE の再描画で「中身が同じなら DOM ごと使い回す」判定に使う
   //   （captureBgLayer / restoreBgLayer）。背景の中身を決める入力を全部含めること。
@@ -867,7 +848,11 @@ export function initMountainPathSync(restoreTop = null) {
 
     // ★素材px → 画面px の換算はこの1変数に集約する。**ここ（初回と resize）でだけ書く。**
     //   paint() に足すと毎フレーム全パーツのレイアウトが起きて確実に落ちる。
-    canvas.style.setProperty('--art-unit', `${canvasW / ART_W}px`);
+    // ★幅が測れなかったときは**書かない**。0 を入れると全ての地形が
+    //   height:0 / bottom:0 になり、マスだけ残して**背景が丸ごと消える**。
+    //   CSS 側に初期値（画面幅から算出）があるので、書かなければそちらが効く。
+    //   必ずフェールセーフの向きにすること。
+    if (canvasW > 0) canvas.style.setProperty('--art-unit', `${canvasW / ART_W}px`);
 
     canvas.style.marginTop = `${headroom}px`;
     if (spacer && canvasH) spacer.style.height = `${canvasH + headroom}px`;
@@ -920,16 +905,7 @@ export function initMountainPathSync(restoreTop = null) {
       pins[i].el.style.setProperty('--node-dx', `${dx.toFixed(1)}px`);
     }
   };
-  // ★1画面ぶん進むごとに、この先の絵を数枚だけ取りに行く。
-  //   ここは scroll のたびに走るので、DOM を読まない O(1) の算術だけにすること。
-  let lastPrefetchTop = -Infinity;
   const request = () => {
-    const top = win.scrollTop;
-    if (Math.abs(top - lastPrefetchTop) > viewH && canvasW > 0) {
-      lastPrefetchTop = top;
-      // 画面上端の高さ（キャンバス下端から）を素材px に直す
-      _prefetchAround((canvasH - top - viewH) / (canvasW / ART_W));
-    }
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(paint);
@@ -948,6 +924,7 @@ export function initMountainPathSync(restoreTop = null) {
 
   if (restoreTop !== null) win.scrollTop = restoreTop;
   else win.scrollTop = _initialScrollTop(win, pins, bgTop + headroom, viewH);
+
   // 初回は rAF を待たずに描く（1フレーム分マスが素の大きさで見えるのを防ぐ）
   paint();
 }

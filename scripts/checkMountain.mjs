@@ -53,7 +53,7 @@ const NEAR_MARGIN = K('NEAR_MARGIN');
 const SCALE_MAX = K('SCALE_MAX'), SCALE_MIN = K('SCALE_MIN');
 const OPACITY_MIN = K('OPACITY_MIN'), OPACITY_RANGE = K('OPACITY_RANGE');
 const ART_W = K('ART_W'), LF_OVERLAP = K('LF_OVERLAP');
-const THEME_RUN = K('THEME_RUN'), MAX_PARTS = K('MAX_PARTS'), EAGER_COUNT = K('EAGER_COUNT');
+const THEME_RUN = K('THEME_RUN'), MAX_PARTS = K('MAX_PARTS');
 const PLANT_MIN_STRIP = K('PLANT_MIN_STRIP'), MAX_PLANTS = K('MAX_PLANTS');
 const PLANT_GAP = K('PLANT_GAP');
 const MAX_DRIFT = K('MAX_DRIFT');
@@ -116,11 +116,10 @@ function build(done, eventId = 'ev1', dates = [], opts = {}) {
     // 地形パーツ。★JS が渡すのは素材px の数値だけ（位置と大きさの計算は CSS）
     // 地形の入れ物 <div> ごとに切り出し、その中の地形の絵と植物を読む
     parts: html.split('<div class="p-mountain__lf"').slice(1).map(chunk => {
-      const box = /style="--lf-y:(\d+);--lf-h:(\d+);z-index:(\d+)"/.exec(chunk);
-      const img = /class="p-mountain__lf-img" src="\/images\/bg\/([^/]+)\/landform\/([^"]+)"[\s\S]*?loading="(\w+)"[\s\S]*?fetchpriority="(\w+)"/.exec(chunk);
+      const box = /--lf-y:(\d+);--lf-h:(\d+);--lf-img:url\('\/images\/bg\/([^/]+)\/landform\/([^']+)'\);z-index:(\d+)/.exec(chunk);
       const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/plant\/([^"]+)"[\s\S]*?loading="(\w+)"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
         .map(m => ({ theme: m[1], file: m[2], loading: m[3], x: +m[4], y: +m[5], w: +m[6], h: +m[7] }));
-      return { y: +box[1], h: +box[2], z: +box[3], theme: img[1], file: img[2], loading: img[3], prio: img[4], plants };
+      return { y: +box[1], h: +box[2], theme: box[3], file: box[4], z: +box[5], plants };
     }),
     clouds: [...html.matchAll(/class="p-mountain__cloud" src="\/images\/bg\/cloud\/([^"]+)"[\s\S]*?style="--cl-y:(-?\d+);--cl-w:(\d+);--cl-h:(\d+);--cl-x0:(-?\d+);--cl-x1:(-?\d+);--cl-dur:(\d+)s;--cl-delay:(-?\d+)s;z-index:(\d+)"/g)]
       .map(m => ({ file: m[1], y: +m[2], w: +m[3], h: +m[4], x0: +m[5], x1: +m[6], dur: +m[7], delay: +m[8], z: +m[9] })),
@@ -201,13 +200,6 @@ for (const done of [0, 7, 8, 16, 48]) {
   // ★z を2刻みにしてあるのは、雲・気象をパーツの「間」に差し込む余地を残すため
   ok('z-index が2刻み（雲・気象を間に挟める）', parts.every(pt => pt.z % 2 === 0));
 
-  // ★全部を先に読むとメモリが持たない（2049×1481 は RGBA で約12MB）
-  const eager = parts.filter(pt => pt.loading === 'eager');
-  ok(`先読みは下から ${EAGER_COUNT} 枚だけ（残りは lazy）`,
-    eager.length === Math.min(EAGER_COUNT, parts.length) &&
-    parts.slice(0, eager.length).every(pt => pt.loading === 'eager' && pt.prio === 'high') &&
-    parts.slice(eager.length).every(pt => pt.loading === 'lazy' && pt.prio === 'low'),
-    `eager ${eager.length}`);
 
   // 覆いきれているか：塗り潰しの余白の上端が、必要な高さに届いていること
   const last = parts.at(-1);
@@ -355,6 +347,13 @@ section('[E] 退行していないこと');
   const backdropBody = src.slice(src.indexOf('export function syncMountainBackdrop'),
     src.indexOf('export function initMountainPathSync'));
   const artWrites = [...srcCode.matchAll(/--art-unit/g)].length;
+  // ★0 を書くと全ての地形が height:0 / bottom:0 になり、マスだけ残して背景が
+  //   丸ごと消える。CSS 側に初期値があるので、測れないときは書かないのが正解。
+  ok('★幅が測れないときは --art-unit を書かない（背景が丸ごと消えるのを防ぐ）',
+    /if \(canvasW > 0\) canvas\.style\.setProperty\('--art-unit'/.test(srcCode));
+  ok('★syncMountainBackdrop 側にも同じガードがある',
+    /if \(w > 0\) canvas\.style\.setProperty\('--art-unit'/.test(srcCode));
+
   ok('★--art-unit を paint() で書いていない（毎フレームのレイアウトを起こさない）',
     !/--art-unit/.test(paintBody));
   ok('★--art-unit の書き込みは measure() と syncMountainBackdrop() の2箇所だけ',
@@ -649,43 +648,42 @@ section('[K] 背景の使い回しの署名が、中身の変化を取りこぼ�
     /_bgKeep = null;/.test(srcCode.slice(srcCode.indexOf('export function restoreBgLayer'))));
 }
 
-// ── [J] 先読み ────────────────────────────────────────────
-// ★loading="lazy" が主役で、ここはその保険。キャンバスを transform で動かしている
-//   ので、lazy の判定が効かない端末があったときに白い帯が出るのを防ぐ。
-section('[J] スクロールすると、この先の地形を先読みする');
+// ── [J] 読み込み ──────────────────────────────────────────
+// ★ここは3回作り直した箇所。設計を変えるときは mountainPath.js の「読み込み」節を読むこと。
+//   1. <img loading="lazy">        … transform で動くキャンバスの中では発火しない端末があり、
+//                                     マスだけ出て絵が1枚も出ない
+//   2. JS で見えているぶんを eager … 解放しないとデコード済みが積み上がり、
+//                                     スクロール中にタブごと落ちる（1枚 約12.8MB）
+//   3. 枚数に上限を付けて解放      … 解放したところが白く抜ける
+//   → background-image に戻した。ブラウザが描画時にだけラスタライズし、
+//     画面外のデコード結果は自分で捨てる。JS 側の管理は持たない。
+section('[J] 地形は background-image（読み込み管理を JS に持たない）');
 {
-  prefetched.length = 0;
-  const w = wire(48, 0);
-  const fire = (top) => {
-    w.win.scrollTop = top;
-    (w.win.listeners.scroll || []).forEach(fn => fn());
-    flush();
-  };
+  const html = build(48).html;
 
-  fire(0);
-  const first = prefetched.length;
-  ok('スクロールで先読みが走る', first > 0, `${first}件`);
+  ok('★地形を <img> で出していない（上の1〜3を踏み直さないため）',
+    !/class="p-mountain__lf-img"/.test(html));
+  ok('地形の絵を --lf-img（background-image）で渡している',
+    /--lf-img:url\('\/images\/bg\/[^']+'\)/.test(html));
 
-  // ★同じ絵を二度取りに行かない（重複排除）
-  fire(0);
-  ok('★同じ位置で何度スクロールしても取り直さない', prefetched.length === first);
+  // ★JS 側に読み込み管理を持たないこと。持つと必ず上の2か3に落ちる
+  const banned = ['MAX_LOADED', 'EAGER_COUNT', '_lfEls', 'loadVisible', '_loadAround', '_loadRange'];
+  const alive = banned.filter(w => new RegExp(`\\b${w}\\b`).test(srcCode));
+  ok('★JS に読み込み管理の残骸が無い', alive.length === 0, alive.join(', '));
 
-  // 1画面ぶん以上進んだら、その先を取りに行く
-  const before = prefetched.length;
-  fire(3000);
-  ok('1画面ぶん進むと続きを先読みする', prefetched.length > before,
-    `${before} → ${prefetched.length}`);
+  ok("★loading 属性で地形を出し分けていない", !/loading="\$\{eager/.test(src));
 
-  const uniq = new Set(prefetched);
-  ok('★重複して取りに行っていない', uniq.size === prefetched.length,
-    `${prefetched.length}件中 ${uniq.size}種`);
-  ok('先読みするのは地形の絵だけ（植物・雲は取りに行かない）',
-    [...uniq].every(u => u.includes('/landform/')), [...uniq].find(u => !u.includes('/landform/')) || '');
+  // 植物と雲は軽い SVG なので lazy のままでよい
+  ok('植物・雲は lazy のまま（軽い SVG なのでブラウザ任せでよい）',
+    /class="p-mountain__plant"[\s\S]*?loading="lazy"/.test(html) &&
+    /class="p-mountain__cloud"[\s\S]*?loading="lazy"/.test(html));
 
-  // ★scroll のたびに DOM を読まないこと（0.5CPU 環境で確実に落ちる）
-  const reqBody = src.slice(src.indexOf('const request = () =>'), src.indexOf('const onResize = () =>'));
-  ok('★先読みの判定が DOM を読んでいない（算術だけ）',
-    !/getBoundingClientRect|querySelector|\.children|offsetHeight|clientWidth/.test(reqBody));
+  // ★通信量の目安。素材の解像度が過剰だとここが膨らむ
+  const lfAll = Object.values(BG_ASSETS).flatMap(t => t.landform);
+  const avgPx = lfAll.reduce((acc, a) => acc + a.w * a.h, 0) / lfAll.length;
+  const parts = build(48).parts.length;
+  console.log(`     （完了48：地形 ${parts} 枚。1枚のデコード量 ${(avgPx * 4 / 1024 / 1024).toFixed(1)}MB`
+    + ` … 表示幅は最大 448px なので素材 ${Math.round(Math.sqrt(avgPx * 2049 / 1481))}px 幅は過剰）`);
 }
 
 // ── 生成マニフェスト ──────────────────────────────────────

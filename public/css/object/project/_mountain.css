@@ -102,6 +102,12 @@
      背景の無い帯ができる。外側の .p-mountain が overflow:hidden で切る。 */
   overflow: visible;
   pointer-events: none;
+  /* 現れるときの演出。★1枚ずつではなくレイヤーごと持ち上げる。
+     background-image には load イベントが無いので、1枚ずつは出せない。
+     ★他のページから戻ってきたときは DOM を使い回すので再生されない
+       （captureBgLayer / restoreBgLayer）＝一瞬で出る。
+     ★マス（道）はこのレイヤーの兄弟なので、座標には影響しない。 */
+  animation: mtnLandformRise var(--duration-slow) var(--ease);
 }
 
 /* 地形1枚の入れ物。JS が --lf-y（下端）と --lf-h（高さ）を素材px で渡す。
@@ -116,34 +122,24 @@
   width: 100%;
   height: calc(var(--lf-h) * var(--art-unit));
   bottom: calc(var(--lf-y) * var(--art-unit));
-}
-
-/* 地形の絵。★<img> なのは loading="lazy" を効かせるため
-   （background-image では効かない）。2049×1481 は RGBA で約12MB あり、
-   画面外のぶんをブラウザに捨てさせないと 512MB 環境で落ちる。 */
-.p-mountain__lf-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-/* 読み込めたものだけ、下からふわっと持ち上げて出す。
-   初回表示と、lazy でスクロール中に現れるときの「急に湧く」感じを和らげる。
-   ★既定は不透明・移動なしのまま。opacity:0 を既定にすると、onload が
-     来なかったときに背景が丸ごと消える。**必ずフェールセーフの向きにすること。**
-   ★動かすのは `.p-mountain__lf-img`（絵そのもの）だけ。位置を持つ入れ物
-     `.p-mountain__lf` は動かさない。マス（道）は入れ物の兄弟なので、
-     絵だけが動いてもマスの座標には影響しない。
-   ★他のページから戻ってきたときは背景の DOM を使い回すので、
-     この演出は再生されない（既に data-loaded が付いている）＝一瞬で出る。 */
-.p-mountain__lf-img[data-loaded="1"] {
-  animation: mtnLandformRise var(--duration-slow) var(--ease);
+  /* ★絵は background-image。<img> にしないこと。
+     <img loading="lazy"> は transform で動くこのキャンバスの中では発火しない
+     端末があり（絵が1枚も出ない）、かといって JS で読み込ませると
+     デコード済みビットマップ（1枚 約12.8MB）が積み上がってタブごと落ちる。
+     background-image ならブラウザが「描画するときだけラスタライズし、画面外の
+     デコード結果は自分で捨てる」ので、こちらで管理する必要が無い。
+     詳しい経緯は mountainPath.js の「読み込み」節。 */
+  background-image: var(--lf-img);
+  background-position: top center;
+  background-repeat: no-repeat;
+  /* --lf-h に素材の高さが入っているので 100% 100% で歪まない */
+  background-size: 100% 100%;
 }
 
 @keyframes mtnLandformRise {
   from {
     opacity: 0;
-    transform: translateY(6%);
+    transform: translateY(2%);
   }
 
   to {
