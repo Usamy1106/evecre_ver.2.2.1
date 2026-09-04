@@ -29,6 +29,14 @@ const ok = (name, cond, detail = '') => {
 };
 const section = (t) => console.log(`\n${t}`);
 
+/** コメントを除いたコードだけを返す。
+ *  ★「ソースに X が現れないこと」の判定は必ずこれを通す。生のソースで判定すると、
+ *    「X をしないこと」という**注意書きそのものがテストを落とす**
+ *    （checkMountain.mjs でも同じ手当てをしている）。 */
+const codeOnly = (text) => text
+  .replace(/\/\*[\s\S]*?\*\//g, ' ')
+  .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
 const entry = R('public/css/style.css');
 const readme = R('public/css/README.md');
 
@@ -167,6 +175,24 @@ section('[B] 実機で見つかった不具合');
     //   出したいなら作成フローの STEP 6 を書いてもらう側で手当てすること。
     ok('🔥は意気込みがあるときだけ出す（空の箱を見せない）',
       /if \(!_hasMotivation\(p\)\) return;/.test(lm));
+  }
+
+  // ★意気込みカードのトグルは、保存の往復を待たずにその場で見た目を切り替えること。
+  //   以前は `await state.saveNow()` してから state.render() していたため、通信が
+  //   終わるまでタップしても何も起きず、毎回ページ全体を描き直してスクロールも
+  //   飛んでいた（「選べない・解除できない」という報告の原因）。
+  {
+    const es = R('public/js/views/eventSettings.js');
+    const h = codeOnly(es.slice(es.indexOf('// 意気込みカードのトグル'),
+                               es.indexOf('// 意気込みのひとこと')));
+    ok('★意気込みのトグルが保存の往復を待たない', !/await state\.saveNow\(\)/.test(h));
+    ok('★意気込みのトグルがその場で見た目を切り替える', /classList\.toggle\('is-on'/.test(h));
+    ok('意気込みのトグルでページ全体を描き直さない', !/state\.render\(\)/.test(h));
+    ok('意気込みのトグルが保存している', /state\.save\(\)/.test(h));
+    // ★色だけに頼らない（選択中はチェックマークも出す）
+    const css = R('public/css/object/project/_event-settings.css');
+    ok('★選択中は色だけでなく印でも分かる',
+      /\.p-event-settings__motivation-pick\.is-on::before/.test(css));
   }
 
   // ★ズームを殺して逃げていないこと

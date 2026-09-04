@@ -111,10 +111,20 @@
   transform: scale(.95);
 }
 
+/* 選択中。★塗りつぶして白抜きにする。以前は淡い塗り（10%）＋赤文字だったが、
+   小さいチップだと未選択と見分けがつかず「選べているのか分からない」という
+   報告を受けた。チェックマークも足して、色だけに頼らないようにしている
+   （色覚特性のある人にも伝わるようにするため）。 */
 .p-event-settings__motivation-pick.is-on {
   border-color: var(--color-danger);
-  background-color: var(--color-danger-tint);
-  color: var(--color-danger);
+  background-color: var(--color-danger);
+  color: var(--white);
+}
+
+.p-event-settings__motivation-pick.is-on::before {
+  margin-right: 4px;
+  content: "✓";
+  font-weight: var(--font-weight-heavy);
 }
 
 /* --- メンバー・ロールの一覧 ---------------------------------------------- */

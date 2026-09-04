@@ -214,7 +214,7 @@ function _eventManagementSection(p, sec) {
               ${MOTIVATION_CARDS.map(c => {
                 const on = (p.motivationTags || []).includes(c.id);
                 return `
-                  <button data-ps-motiv="${c.id}"
+                  <button type="button" data-ps-motiv="${c.id}" aria-pressed="${on}"
                     class="p-event-settings__motivation-pick${on ? ' is-on' : ''}">
                     ${_esc(c.label)}
                   </button>`;
@@ -590,16 +590,24 @@ function _bindEvents(p, sec) {
     state.render();
   });
 
-  // 意気込みカードのトグル（押した時点で即保存）
+  // 意気込みカードのトグル
+  // ★見た目はその場で切り替え、保存は裏で行う（デバウンス）。
+  //   以前は `await state.saveNow()` してから state.render() していたため、
+  //   通信が終わるまで**タップしても何も起きない**うえ、毎回ページ全体を
+  //   描き直してスクロール位置が飛んでいた。選べない・解除できないという
+  //   報告の原因だったので、往復を待たせないこと。
   document.querySelectorAll('[data-ps-motiv]').forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', () => {
       const ev = state.events.find(x => x.id === p.id);
       if (!ev) return;
       const id  = btn.dataset.psMotiv;
       const cur = Array.isArray(ev.motivationTags) ? ev.motivationTags : [];
-      ev.motivationTags = cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id];
-      await state.saveNow();
-      state.render();
+      const on  = cur.includes(id);
+      ev.motivationTags = on ? cur.filter(x => x !== id) : [...cur, id];
+      // ★DOM を直接切り替える。再描画しないので入力中の欄やスクロール位置を壊さない
+      btn.classList.toggle('is-on', !on);
+      btn.setAttribute('aria-pressed', String(!on));
+      state.save();
     });
   });
 
