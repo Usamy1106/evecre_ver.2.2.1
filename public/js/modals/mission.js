@@ -927,7 +927,8 @@ function _assigneeSuggestHtml(members, multiIds) {
   });
   if (recs.length === 0) return '';
 
-  const nameOf = (uid) => members.find(m => m.userId === uid)?.username || '';
+  const memberOf = (uid) => members.find(m => m.userId === uid) || { userId: uid };
+  const nameOf   = (uid) => memberOf(uid).username || '';
 
   return `
     <div class="p-assignee__suggest">
@@ -938,7 +939,11 @@ function _assigneeSuggestHtml(members, multiIds) {
           return `
             <button type="button" data-assignee-pick="user:${_escAttr(r.userId)}"
               class="p-assignee__suggest-item${checked ? ' is-checked' : ''}">
-              <div>
+              <!-- ★アバターは Components.UserAvatar に userId を渡す。中で
+                   stopPropagation しているので、タップしても担当者の選択にはならず
+                   プロフィールだけが開く（この行自体は選択ボタン）。 -->
+              ${Components.UserAvatar(memberOf(r.userId), { size: 32, userId: r.userId })}
+              <div class="p-assignee__suggest-body">
                 <p class="p-assignee__name">${_esc(nameOf(r.userId))}</p>
                 <p class="p-assignee__reason">${_esc(r.reason)}</p>
               </div>

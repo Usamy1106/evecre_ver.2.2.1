@@ -141,13 +141,22 @@
   display: flex;
   width: 100%;
   align-items: center;
-  justify-content: space-between;
+  /* ★アバター → 名前と理由 → チェック、の3段。名前のブロックだけを伸ばすので
+     space-between ではなく gap ＋ flex:1 で組む。 */
+  gap: var(--space-3);
+  justify-content: flex-start;
   padding: 10px var(--space-3);
   border: 1px solid var(--bg-textbox);
   border-radius: var(--radius-md);
   background-color: var(--white);
   text-align: left;
   transition: transform var(--duration-fast) var(--ease);
+}
+
+/* 名前と理由。★ここだけ伸ばして、チェックを右端へ押しやる */
+.p-assignee__suggest-body {
+  min-width: 0;
+  flex: 1;
 }
 
 .p-assignee__suggest-item:active {
