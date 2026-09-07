@@ -678,6 +678,43 @@ section('[K] 背景の使い回しの署名が、中身の変化を取りこぼ�
     /_bgKeep = null;/.test(srcCode.slice(srcCode.indexOf('export function restoreBgLayer'))));
 }
 
+// ── [M] 書き出し解像度からの独立 ──────────────────────────
+// ★素材を何px 幅で書き出しても同じ景色になること。これがあるから、通信量と
+//   デコード量を減らすために解像度を下げられる（1枚のデコード量は幅の2乗に効く）。
+//   配置は ART_W に正規化した高さ（_artHeight）だけで決めること。
+//   マニフェストの実ピクセル値をそのまま使うと、解像度を下げた瞬間に山が縮む。
+section('[M] 素材の書き出し解像度を変えても景色が変わらない');
+{
+  const sig = (html) => [...html.matchAll(/--lf-y:(\d+);--lf-h:(\d+)/g)].map(m => [+m[1], +m[2]]);
+  const before = sig(build(48).html);
+
+  // 900px 幅で書き出し直した想定でマニフェストを差し替える
+  const saved = [];
+  for (const t of Object.values(BG_ASSETS)) {
+    for (const a of t.landform) { saved.push([a, a.w, a.h]); }
+  }
+  try {
+    for (const [a] of saved) { const k = 900 / a.w; a.h = Math.round(a.h * k); a.w = 900; }
+    const after = sig(build(48).html);
+
+    ok('枚数が変わらない', before.length === after.length, `${before.length} vs ${after.length}`);
+    // ★位置は完全一致でなければならない（ここがずれると地形の間に隙間が出る）
+    const posBad = before.filter((b, i) => b[0] !== after[i]?.[0]).length;
+    ok('★地形の位置が完全に一致する', posBad === 0, `${posBad}枚ずれた`);
+    // 高さは二重の丸めで ±2 art px 動きうる（画面上 0.2px 未満）。実害は無い
+    const hBad = before.filter((b, i) => Math.abs(b[1] - (after[i]?.[1] ?? 0)) > 2);
+    ok('高さの差が丸め誤差（±2 素材px）に収まる', hBad.length === 0,
+      hBad.slice(0, 3).map((b, i) => `${b[1]}→${after[i]?.[1]}`).join(' '));
+  } finally {
+    for (const [a, w, h] of saved) { a.w = w; a.h = h; }   // ★必ず戻す
+  }
+  ok('（後始末）マニフェストを元に戻せている',
+    sig(build(48).html).every((v, i) => v[0] === before[i][0] && v[1] === before[i][1]));
+
+  // ★実装が実ピクセルを直に使っていないこと
+  ok('★配置に _artHeight（正規化）を通している', /h: a\.h[,}]/.test(srcCode) === false);
+}
+
 // ── [J] 読み込み ──────────────────────────────────────────
 // ★ここは3回作り直した箇所。設計を変えるときは mountainPath.js の「読み込み」節を読むこと。
 //   1. <img loading="lazy">        … transform で動くキャンバスの中では発火しない端末があり、

@@ -90,7 +90,12 @@ import { BG_THEMES } from './mountainThemes.js';
 //   「どの絵を・素材px でどこに置くか」だけ。
 // ★手前（画面下）のパーツが**上に重なる**こと。逆にすると重ねしろが表に出て
 //   継ぎ目が見える（1枚絵だった頃と同じ原則）。
-const ART_W = 2049;        // landform の原寸幅。座標系の基準
+// ★これは「設計上の幅」であって、素材の書き出し解像度ではない。
+//   素材が何px 幅で書き出されていても、この幅に正規化してから配置する
+//   （_artHeight）。だから解像度を下げても景色は1ミリも変わらない。
+//   ★逆に、この値を変えると advance / sink / 雲の大きさなど art px で書いた
+//     設定がすべてずれる。**触らないこと。**
+const ART_W = 2049;        // 座標系の基準幅
 // 地形素材は下 LF_OVERLAP px が塗り潰しの余白になっている。次の地形を
 // この範囲内で重ねるかぎり、素材の高さ（1481/1781/2241）に関わらず隙間が出ない。
 // ★テーマ設定の advanceMax がこの値を超えないこと（超えると地形の間が抜ける）。
@@ -308,6 +313,21 @@ function _dealDeck(cards, seedBase, count, keyOf, prevKey = null) {
   return out;
 }
 
+/**
+ * 素材の高さを ART_W（設計上の幅）に正規化する。
+ *
+ * ★これがあるおかげで、**書き出し解像度を自由に変えられる**。
+ *   2049px 幅で書き出しても 900px 幅で書き出しても、縦横比が同じなら
+ *   まったく同じ景色になる（配置の計算は正規化後の値だけを使う）。
+ * ★解像度を下げるのは通信量とデコード量を減らすため。1枚のデコード量は
+ *   幅の2乗に効くので、900px にすると約1/5になる。
+ * ★植物と雲は「描画後の幅」を設定で決め、高さは w:h の比から出しているので、
+ *   もともと解像度に依存しない（ここを通す必要は無い）。
+ */
+function _artHeight(a) {
+  return a.w > 0 ? Math.round(a.h * ART_W / a.w) : a.h;
+}
+
 /** 設定と素材が両方そろっているテーマだけを使う（片方だけのものは黙って飛ばす） */
 function _usableThemes() {
   return BG_THEMES.filter(t => (BG_ASSETS[t.id]?.landform || []).length > 0);
@@ -352,8 +372,10 @@ function _landformPlan(eventId, needTopArt) {
       // ★手前の地形の上端より上にはみ出したぶんが、この地形の見える帯。
       //   高さがバラバラなので、送りが小さいと丸ごと隠れる地形も出る（想定内）。
       const prev = parts.at(-1);
-      const strip = prev ? (y + a.h) - (prev.y + prev.h) : a.h;
-      parts.push({ theme: theme.id, file: a.f, y, h: a.h, strip });
+      // ★素材の実ピクセルではなく、ART_W に正規化した高さで配置する
+      const h = _artHeight(a);
+      const strip = prev ? (y + h) - (prev.y + prev.h) : h;
+      parts.push({ theme: theme.id, file: a.f, y, h, strip });
       prevKey = colorKey(a);
       // ★覆いきったら止める。塗り潰しの余白の上端まで届いていれば隙間は出ない
       if (y + LF_OVERLAP >= needTopArt) return parts;
