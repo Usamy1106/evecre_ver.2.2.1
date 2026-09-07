@@ -66,35 +66,45 @@
   background-color: var(--color-warning);
 }
 
-/* --- HOME：右側（イベントを作成）----------------------------------------
-   ★Phase 2 で c-button に寄せるか判断する。現状はヘッダー専用の見た目。 */
-
-.l-header__create {
+/* HOME の右側に並ぶ入口（参加／作成）。★どちらもアイコンだけ。
+   ラベルを戻すと2つ並べたときにヘッダーが窮屈になる。 */
+.l-header__actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-5);
-  border: 1px solid var(--color-primary);
+}
+
+.l-header__action {
+  display: flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
   border-radius: var(--radius-md);
-  background-color: var(--white);
-  box-shadow: var(--shadow-sm);
   color: var(--color-primary);
   transition: transform var(--duration-fast) var(--ease);
 }
 
-/* メール未認証：押せるが、押すと認証を促される。見た目で「まだ」と分かるようにする */
-.l-header__create--locked {
-  border-color: var(--color-text-muted);
-  color: var(--color-text-muted);
+/* 作成は「四角で囲ったプラス」。参加アイコンと形で区別できるようにする */
+.l-header__action--create {
+  border: 1px solid var(--color-primary);
+  background-color: var(--white);
+  box-shadow: var(--shadow-sm);
 }
 
-.l-header__create:active {
+.l-header__action-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.l-header__action:active {
   transform: scale(.95);
 }
 
-.l-header__create-label {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-heavy);
+/* メール未認証：押せるが、押すと認証を促される。見た目で「まだ」と分かるようにする */
+.l-header__action--locked {
+  border-color: var(--color-text-muted);
+  color: var(--color-text-muted);
 }
 
 /* --- イベント：左側（戻る＋タイトル）------------------------------------ */
