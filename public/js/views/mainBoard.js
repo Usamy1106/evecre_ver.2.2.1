@@ -1133,6 +1133,13 @@ function _renderArchiveTab(p) {
           ${clearedMissions.length > 0
             ? `<span class="p-archive__record-count">${clearedMissions.length}件</span>`
             : ''}
+          <!-- ★コピーされるのは「未完了・締め切りあり」全件（記録の中身ではない）。
+               振り返りながら次の予定をチャットへ貼る流れを想定している。 -->
+          <button type="button" onclick="window._app.copySchedule('archive')"
+            data-log="schedule_copy" class="p-archive__copy" aria-label="予定をコピー">
+            <img src="/images/icon/icon-Link.svg" alt="" class="p-archive__copy-icon">
+            予定をコピー
+          </button>
         </div>
         ${clearedMissions.length > 0 ? `
           <div class="p-archive__modes">${archiveTabBtns}</div>` : ''}

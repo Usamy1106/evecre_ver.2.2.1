@@ -93,6 +93,14 @@ function _render(overlay, ctx) {
       <!-- ビュー切り替えトグル -->
       <div class="p-schedule__bar">
         <h2 class="p-schedule__title">スケジュール</h2>
+        <!-- ★予定をテキストで書き出す。チャットに貼る使い方が多いため。
+             カレンダー／ガントのどちらでも同じものが取れる（見えている範囲ではなく
+             未完了・締め切りあり全件）。 -->
+        <button type="button" onclick="window._app.copySchedule('schedule')"
+          data-log="schedule_copy" class="p-schedule__copy" aria-label="予定をコピー">
+          <img src="/images/icon/icon-Link.svg" alt="" class="p-schedule__copy-icon">
+          予定をコピー
+        </button>
         <div class="p-schedule__switch">
           <button id="btn-view-calendar"
             class="p-schedule__switch-button${isCalendar ? ' is-active' : ''}">

@@ -59,6 +59,7 @@ import { SKILL_TAGS } from './constants.js';
 import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
+import { copySchedule } from './scheduleCopy.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
@@ -1153,6 +1154,7 @@ window._app = {
   // 初期オンボーディング（イベント作成直後のチュートリアル）
   checkIntro: () => checkIntro(),
   openUserProfileModal: (userId) => openUserProfileModal(userId),
+  copySchedule: (source) => copySchedule(source),
   openReflectionEdit: (missionId) => openReflectionEditModal(missionId),
   // アーカイブのサブページ（参加時の回答／みんなの活躍）
   // ★戻り先は必ずアーカイブタブ。setView('MAIN_BOARD') だけだと直前に見ていた
@@ -1728,6 +1730,7 @@ function _openProjectRenameDialog(folderId) {
 // ===== 操作履歴シート（管理者のみ）=====
 // イベントの event_logs を「誰が・いつ・何を」の時系列で表示する。
 const _LOG_LABELS = {
+  schedule_copied:  '予定をコピー',
   session_started:        'アプリを開いた',
   session_ended:          'アプリを閉じた',
   login_completed:        'ログインした',

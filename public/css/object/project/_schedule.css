@@ -40,6 +40,30 @@
   padding-left: var(--space-5);
 }
 
+/* 予定のコピー。★見出しとビュー切り替えの間に置く（右端は切り替えが使っている） */
+.p-schedule__copy {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+  margin-left: var(--space-3);
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-schedule__copy:active {
+  background-color: var(--color-primary-tint2);
+}
+
+.p-schedule__copy-icon {
+  width: 13px;
+  height: 13px;
+}
+
 .p-schedule__title {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-heavy);

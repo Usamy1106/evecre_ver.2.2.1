@@ -248,6 +248,30 @@
   margin-bottom: var(--space-3);
 }
 
+/* 予定のコピー。★スケジュールシートの同名ボタンと見た目を揃えること
+   （同じことをする2つのボタンが違って見えると迷う）。 */
+.p-archive__copy {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-archive__copy:active {
+  background-color: var(--color-primary-tint2);
+}
+
+.p-archive__copy-icon {
+  width: 13px;
+  height: 13px;
+}
+
 .p-archive__record-title {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
