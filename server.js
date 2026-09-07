@@ -513,6 +513,17 @@ async function _notifyAssignmentDecided(p, mid, m, decidedUserIds, actor) {
     actorId:   actor?.id   || null,
     actorName: actor?.username || null,
   });
+
+  // ★push は**選ばれた人だけ**に鳴らす（アプリ内通知は全メンバー宛だが、
+  //   端末を鳴らすのは自分の担当が決まった人だけでよい）。
+  //   これも「割り当てられた」ことに変わりはないので、
+  //   PUT /api/data 側の mission_assigned と同じ文面に揃える。
+  _sendMissionPush(
+    decidedUserIds.filter(uid => uid !== actor?.id),
+    p.id, mid,
+    'ミッションが割り当てられました',
+    `「${m.title}」が割り当てられました！`,
+  );
 }
 
 // ===== 提案生成に渡すラベル =====
@@ -2045,6 +2056,28 @@ app.put('/api/data', requireAuth, async (req, res) => {
           }
         }
 
+        // ── push：**既存ミッションに後から担当が付いた**とき ──
+        // ★新規作成時の push は下の (D) が出す。こちらは「あとで割り当てられた」ぶん。
+        //   割り当てはアプリを閉じている間に起きるので、push が無いと本人は
+        //   次に開くまで気づけない（アプリ内通知だけでは届かない）。
+        // ★単数 assignee だけでなく assignees（複数担当）も見る。実データは配列側で、
+        //   単数は後方互換で書かれうるので _resolveAssigneeIds に揃える。
+        // ★申告制（selfClaim）は自分で手を挙げた結果なので送らない。
+        //   選定で決まったぶんは /select-claims が別途 push する。
+        if (prev && !m.selfClaim) {
+          const prevIds = new Set(_resolveAssigneeIds(prev));
+          const added = _resolveAssigneeIds(m)
+            .filter(uid => !prevIds.has(uid) && uid !== req.user.id);
+          if (added.length > 0) {
+            pushJobs.push({
+              userIds: added,
+              missionId: m.id,
+              title: 'ミッションが割り当てられました',
+              body:  `「${m.title}」が割り当てられました！`,
+            });
+          }
+        }
+
         // (B) ミッション完了
         const prevStatus = prev?.status || 'yet';
         const newStatus  = m.status     || 'yet';
@@ -2644,22 +2677,42 @@ app.post('/api/events/:id/missions/:mid/approve', requireAuth, async (req, res) 
     eventBus.broadcast(p.id, 'missionApproved', { eventId: p.id, missionId: req.params.mid });
     logServerEvent(p.id, req.user.id, 'leader_approved', { missionId: req.params.mid, title: m.title });
 
-    const submitterId = m.assignee?.type === 'user' ? m.assignee.userId : null;
-    if (submitterId && submitterId !== req.user.id) {
-      await notifStore.addNotification(submitterId, {
+    // ★担当者は単数 assignee と複数 assignees の両方を見る（_resolveAssigneeIds）。
+    //   実データは配列側なので、単数だけ見ていると複数担当のミッションで
+    //   提出した本人に何も届かなかった。
+    const submitterIds = _resolveAssigneeIds(m).filter(uid => uid !== req.user.id);
+    if (submitterIds.length > 0) {
+      await notifStore.notifyAll(submitterIds, {
         type:      'leader_approved',
         message:   `${req.user.username} さんが「${m.title}」を承認しました`,
         eventId: p.id, missionId: req.params.mid,
         actorId:   req.user.id, actorName: req.user.username,
       });
     }
-    // 承認＝完了確定なので、他の完了経路と同じく管理者へ push（承認した本人は除く）
-    _sendMissionPush(
-      _getManagerIds(p).filter(uid => uid !== req.user.id),
-      p.id, req.params.mid,
-      'ミッションが完了しました',
-      `「${m.title}」が完了しました！`,
-    );
+
+    // ── push（宛先で文面を分ける。同じ人に2通は送らない）──
+    // ★提出した本人にとっては「自分の提出が通った」ことが要件なので、
+    //   管理者向けの「〜が完了しました」ではなく承認された旨を送る。
+    //   担当者が管理者を兼ねている場合は、こちらの個人宛だけを送る。
+    if (submitterIds.length > 0) {
+      _sendMissionPush(
+        submitterIds,
+        p.id, req.params.mid,
+        '提出が承認されました',
+        `「${m.title}」が承認されました！`,
+      );
+    }
+    // 承認＝完了確定なので、他の完了経路と同じく管理者へも push（承認した本人は除く）
+    const doneTargets = _getManagerIds(p)
+      .filter(uid => uid !== req.user.id && !submitterIds.includes(uid));
+    if (doneTargets.length > 0) {
+      _sendMissionPush(
+        doneTargets,
+        p.id, req.params.mid,
+        'ミッションが完了しました',
+        `「${m.title}」が完了しました！`,
+      );
+    }
     res.json({ ok: true });
   } catch (e) {
     console.error('approve error:', e);
@@ -2684,14 +2737,28 @@ app.post('/api/events/:id/missions/:mid/reject', requireAuth, async (req, res) =
     eventBus.broadcast(p.id, 'missionRejected', { eventId: p.id, missionId: req.params.mid });
     logServerEvent(p.id, req.user.id, 'leader_rejected', { missionId: req.params.mid, title: m.title });
 
-    const submitterId = m.assignee?.type === 'user' ? m.assignee.userId : null;
-    if (submitterId && submitterId !== req.user.id) {
-      await notifStore.addNotification(submitterId, {
+    // ★担当者は単数 assignee と複数 assignees の両方を見る（_resolveAssigneeIds）。
+    //   実データは配列側なので、単数だけ見ていると複数担当のミッションで
+    //   提出した本人に何も届かなかった（承認側と同じ取りこぼし）。
+    const submitterIds = _resolveAssigneeIds(m).filter(uid => uid !== req.user.id);
+    if (submitterIds.length > 0) {
+      await notifStore.notifyAll(submitterIds, {
         type:      'leader_rejected',
         message:   `${req.user.username} さんが「${m.title}」を差し戻しました。再度提出してください`,
         eventId: p.id, missionId: req.params.mid,
         actorId:   req.user.id, actorName: req.user.username,
       });
+
+      // ★差し戻しは**提出した本人にだけ**送る。承認と違って管理者には送らない
+      //   （差し戻したのは管理者自身で、他の管理者の端末を鳴らす必要が無い）。
+      //   ★提出物はこの時点で削除済み。本人が気づかないと作業が止まるので、
+      //     承認だけ push があって差し戻しに無い状態にはしないこと。
+      _sendMissionPush(
+        submitterIds,
+        p.id, req.params.mid,
+        '提出が差し戻されました',
+        `「${m.title}」を修正して、もう一度提出してください`,
+      );
     }
     res.json({ ok: true });
   } catch (e) {
