@@ -375,7 +375,7 @@ function _landformPlan(eventId, needTopArt) {
       // ★素材の実ピクセルではなく、ART_W に正規化した高さで配置する
       const h = _artHeight(a);
       const strip = prev ? (y + h) - (prev.y + prev.h) : h;
-      parts.push({ theme: theme.id, file: a.f, y, h, strip });
+      parts.push({ theme: theme.id, file: a.f, v: a.v, y, h, strip });
       prevKey = colorKey(a);
       // ★覆いきったら止める。塗り潰しの余白の上端まで届いていれば隙間は出ない
       if (y + LF_OVERLAP >= needTopArt) return parts;
@@ -466,7 +466,7 @@ function _plantingPlan(eventId, parts) {
       }
       if (x < 0) continue;
 
-      placed.push({ file: x0.f, x, y, w, h });
+      placed.push({ file: x0.f, v: x0.v, x, y, w, h });
     }
 
     if (placed.length === 0) continue;
@@ -524,7 +524,7 @@ function _driftPlan(eventId, parts) {
     // ★負の delay で開始位相をずらす。0〜1周ぶんの範囲で散らす
     const delay = -_rndInt(`${eventId}:cp:${k}`, 0, Math.max(1, dur - 1));
 
-    return { k, file: a.f, y, w, h, x0, x1, dur, delay, z: 2 * (parts.length - k) - 1 };
+    return { k, file: a.f, v: a.v, y, w, h, x0, x1, dur, delay, z: 2 * (parts.length - k) - 1 };
   });
 }
 
@@ -612,7 +612,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
     //   座標は地形の中（左下が原点）なので、地形の位置計算とは独立している。
     //   ★どの地形に植えるかは _plantingPlan がまとめて決める（地形1枚ごとではない）。
     const plantHtml = (planting.get(k) || []).map(pl => `
-        <img class="p-mountain__plant" src="${bgUrl(pt.theme, 'WorldSpawnedObjects', pl.file)}" alt=""
+        <img class="p-mountain__plant" src="${bgUrl(pt.theme, 'WorldSpawnedObjects', pl.file, pl.v)}" alt=""
           loading="lazy" decoding="async" fetchpriority="low"
           style="--pl-x:${pl.x};--pl-y:${pl.y};--pl-w:${pl.w};--pl-h:${pl.h}">`).join('');
 
@@ -621,7 +621,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
     //   （入れ物ごと動くので、植物が稜線からずれることが原理的に起きない）。
     return `
       <div class="p-mountain__lf"
-        style="--lf-y:${pt.y};--lf-h:${pt.h};--lf-img:url('${bgUrl(pt.theme, 'landform', pt.file)}');z-index:${2 * (n - k)}">
+        style="--lf-y:${pt.y};--lf-h:${pt.h};--lf-img:url('${bgUrl(pt.theme, 'landform', pt.file, pt.v)}');z-index:${2 * (n - k)}">
         ${plantHtml}
       </div>`;
   }).join('');
@@ -653,7 +653,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   //   地形の子にすると、親の高さで切られたり親ごと transform されたりして
   //   「山と一緒にスクロールしつつ、横に流れる」が両立しない。
   const clouds = _driftPlan(eventId, parts).map(c => `
-      <img class="p-mountain__cloud" src="${bgUrl(null, 'cloud', c.file)}" alt=""
+      <img class="p-mountain__cloud" src="${bgUrl(null, 'cloud', c.file, c.v)}" alt=""
         loading="lazy" decoding="async" fetchpriority="low"
         style="--cl-y:${c.y};--cl-w:${c.w};--cl-h:${c.h};--cl-x0:${c.x0};--cl-x1:${c.x1};--cl-dur:${c.dur}s;--cl-delay:${c.delay}s;z-index:${c.z}">`).join('');
 

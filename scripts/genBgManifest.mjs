@@ -16,6 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const ROOT   = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -94,13 +95,26 @@ function listDir(dir) {
     .sort((a, b) => a.localeCompare(b, 'en'));   // ★並びを固定して冪等にする
 }
 
+/**
+ * 中身から短いハッシュを作る。★キャッシュ更新用。
+ *
+ * /images/bg/ は `immutable` で1年キャッシュしているので、**同じ名前で中身だけ
+ * 差し替えると古い絵が出続ける**。以前は「差し替えるときは必ずファイル名を変える」
+ * という運用で凌いでいたが、実際に踏んだ（900px 化のとき同名で書き出された）。
+ * URL に ?v=<ハッシュ> を付けて、**中身が変わったファイルだけ**自動で更新させる。
+ */
+function contentHash(file) {
+  return crypto.createHash('sha1').update(fs.readFileSync(file)).digest('hex').slice(0, 8);
+}
+
 function collect(dir) {
   const out = [];
   for (const f of listDir(dir)) {
-    const size = sizeOf(path.join(dir, f));
+    const full = path.join(dir, f);
+    const size = sizeOf(full);
     if (!size) { console.warn(`  ⚠ 寸法が読めない: ${f}`); continue; }
     const { n, c } = parseName(f);
-    out.push({ n, ...(c ? { c } : {}), w: size.w, h: size.h, f });
+    out.push({ n, ...(c ? { c } : {}), w: size.w, h: size.h, f, v: contentHash(full) });
   }
   return out;
 }
@@ -134,7 +148,8 @@ let body = `// ===== 山の背景素材のマニフェスト（自動生成）==
 //   素材を足す・差し替えるときは public/images/bg/ に置いてから
 //   \`npm run bg:manifest\` を流し直す。
 //
-// 1エントリ = { n: 通し番号, c: 色（a / b / c … の1文字）, w: 幅, h: 高さ, f: ファイル名 }
+// 1エントリ = { n: 通し番号, c: 色（a / b / c … の1文字）, w: 幅, h: 高さ,
+//              f: ファイル名, v: 中身のハッシュ（キャッシュ更新用） }
 //   ★w / h は**素材のピクセル**。画面px ではない。配置の計算はこの単位で行い、
 //     実寸への変換は CSS の --art-unit が担う（端末幅で景色を変えないため）。
 //   ★層が空配列のテーマは「その層を使わない」という意味。
@@ -165,11 +180,15 @@ for (const [name, list] of Object.entries(shared)) {
 }
 body += `};
 
-/** 素材の URL。★パスの組み立てはここ1箇所に集約する（呼び出し側で連結しないこと） */
-export function bgUrl(theme, layer, file) {
-  return theme
+/** 素材の URL。★パスの組み立てはここ1箇所に集約する（呼び出し側で連結しないこと）
+ *  ★?v=<中身のハッシュ> を必ず付ける。/images/bg/ は immutable で1年キャッシュ
+ *    しているので、これが無いと**同じ名前で中身を差し替えても古い絵が出続ける**。
+ *    ハッシュなので、変わったファイルだけが更新される。 */
+export function bgUrl(theme, layer, file, v) {
+  const base = theme
     ? \`/images/bg/\${theme}/\${layer}/\${file}\`
     : \`/images/bg/\${layer}/\${file}\`;
+  return v ? \`\${base}?v=\${v}\` : base;
 }
 `;
 

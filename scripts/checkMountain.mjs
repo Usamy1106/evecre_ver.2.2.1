@@ -116,12 +116,12 @@ function build(done, eventId = 'ev1', dates = [], opts = {}) {
     // 地形パーツ。★JS が渡すのは素材px の数値だけ（位置と大きさの計算は CSS）
     // 地形の入れ物 <div> ごとに切り出し、その中の地形の絵と植物を読む
     parts: html.split('<div class="p-mountain__lf"').slice(1).map(chunk => {
-      const box = /--lf-y:(\d+);--lf-h:(\d+);--lf-img:url\('\/images\/bg\/([^/]+)\/landform\/([^']+)'\);z-index:(\d+)/.exec(chunk);
-      const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/WorldSpawnedObjects\/([^"]+)"[\s\S]*?loading="(\w+)"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
+      const box = /--lf-y:(\d+);--lf-h:(\d+);--lf-img:url\('\/images\/bg\/([^/]+)\/landform\/([^'?]+)(?:\?v=[0-9a-f]+)?'\);z-index:(\d+)/.exec(chunk);
+      const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/WorldSpawnedObjects\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?loading="(\w+)"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
         .map(m => ({ theme: m[1], file: m[2], loading: m[3], x: +m[4], y: +m[5], w: +m[6], h: +m[7] }));
       return { y: +box[1], h: +box[2], theme: box[3], file: box[4], z: +box[5], plants };
     }),
-    clouds: [...html.matchAll(/class="p-mountain__cloud" src="\/images\/bg\/cloud\/([^"]+)"[\s\S]*?style="--cl-y:(-?\d+);--cl-w:(\d+);--cl-h:(\d+);--cl-x0:(-?\d+);--cl-x1:(-?\d+);--cl-dur:(\d+)s;--cl-delay:(-?\d+)s;z-index:(\d+)"/g)]
+    clouds: [...html.matchAll(/class="p-mountain__cloud" src="\/images\/bg\/cloud\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?style="--cl-y:(-?\d+);--cl-w:(\d+);--cl-h:(\d+);--cl-x0:(-?\d+);--cl-x1:(-?\d+);--cl-dur:(\d+)s;--cl-delay:(-?\d+)s;z-index:(\d+)"/g)]
       .map(m => ({ file: m[1], y: +m[2], w: +m[3], h: +m[4], x0: +m[5], x1: +m[6], dur: +m[7], delay: +m[8], z: +m[9] })),
     // 山頂の看板。★専用の1枚絵は廃止し、最後の地形の上に看板を立てる方式
     summit: (/class="p-mountain__summit" style="--lf-y:(\d+);--summit-img:(var\(--summit-board-\d+\));z-index:(\d+)"/.exec(html) || null),
@@ -732,6 +732,11 @@ section('[J] 地形は background-image（読み込み管理を JS に持たな�
     !/class="p-mountain__lf-img"/.test(html));
   ok('地形の絵を --lf-img（background-image）で渡している',
     /--lf-img:url\('\/images\/bg\/[^']+'\)/.test(html));
+  // ★immutable 配信なので、これが無いと差し替えても古い絵が出続ける
+  ok('★素材の URL にキャッシュ更新用のハッシュが付く',
+    /--lf-img:url\('[^']+\?v=[0-9a-f]{8}'\)/.test(html) &&
+    /class="p-mountain__plant" src="[^"]+\?v=[0-9a-f]{8}"/.test(html) &&
+    /class="p-mountain__cloud" src="[^"]+\?v=[0-9a-f]{8}"/.test(html));
 
   // ★JS 側に読み込み管理を持たないこと。持つと必ず上の2か3に落ちる
   const banned = ['MAX_LOADED', 'EAGER_COUNT', '_lfEls', 'loadVisible', '_loadAround', '_loadRange'];
@@ -793,6 +798,16 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   ok('全エントリが幅・高さを持つ',
     allEntries.every(a => a.w > 0 && a.h > 0));
 
+  // ★/images/bg/ は immutable で1年キャッシュしている。同じ名前で中身だけ
+  //   差し替えると古い絵が出続けるので、URL に ?v=<中身のハッシュ> を付けて
+  //   自動で更新させる。以前は「差し替えるときは必ず名前を変える」運用だったが、
+  //   900px 化のときに同名で書き出されて実際に踏んだ。
+  ok('★全エントリが中身のハッシュを持つ（キャッシュ更新用）',
+    allEntries.every(a => /^[0-9a-f]{8}$/.test(a.v || '')),
+    allEntries.filter(a => !/^[0-9a-f]{8}$/.test(a.v || '')).map(a => a.f).slice(0, 3).join(', '));
+  ok('★ハッシュが中身ごとに違う（同じ値を使い回していない）',
+    new Set(allEntries.map(a => a.v)).size === allEntries.length);
+
   // ★「JS にファイル名・拡張子を書かない」規約。趣旨は**人間が手保守しないこと**なので、
   //   生成物は対象外、手書きの2ファイルだけを見る。
   const handWritten = [SRC_PATH, themesSrc];
@@ -800,11 +815,15 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   ok('★手書きの JS に素材のファイル名・拡張子・パスが出てこない', dirty.length === 0,
     dirty.map(f => path.relative(ROOT, f)).join(', '));
 
-  // 素材の前提：下 LF_OVERLAP px が塗り潰しの余白。これより低い地形があると重ねられない
+  // 素材の前提：下 LF_OVERLAP px が塗り潰しの余白。これより低い地形があると重ねられない。
+  // ★実ピクセルではなく **ART_W に正規化した高さ**で比べること。書き出し解像度は
+  //   自由なので（900px 幅なら実高さ 650px）、生の値で比べると解像度を下げた
+  //   瞬間に全部落ちる。実装（_artHeight）と同じ換算を使う。
   const landforms = allEntries.filter(a => a.layer === 'landform');
-  const tooShort = landforms.filter(a => a.h <= LF_OVERLAP);
-  ok(`★全 landform の高さが重ねしろ(${LF_OVERLAP})を超える`, tooShort.length === 0,
-    tooShort.map(a => `${a.f} h=${a.h}`).join(', '));
+  const artH = (a) => (a.w > 0 ? Math.round(a.h * ART_W / a.w) : a.h);
+  const tooShort = landforms.filter(a => artH(a) <= LF_OVERLAP);
+  ok(`★全 landform の高さが重ねしろ(${LF_OVERLAP})を超える（正規化後）`, tooShort.length === 0,
+    tooShort.map(a => `${a.f} h=${artH(a)}`).join(', '));
 
   // テーマ設定と素材フォルダの対応。どちらかにしか無いと黙って使われない
   const cfgIds = BG_THEMES.map(t => t.id).sort();
@@ -828,9 +847,13 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   ok(`1枚あたり ${MAX_KB}KB 以下`, heavy.length === 0,
     heavy.map(a => `${a.f} ${(fs.statSync(path.join(a.dir, a.f)).size / 1024 | 0)}KB`).join(', '));
 
-  const wide = allEntries.filter(a => a.w > ART_W);
-  ok(`幅が ${ART_W}（座標系の基準）を超えない`, wide.length === 0,
-    wide.map(a => `${a.f} w=${a.w}`).join(', '));
+  // ★幅そのものは自由（書き出し解像度は問わない）。効くのは**縦横比**だけ。
+  //   正規化後の高さが設計上の3種（1481 / 1781 / 2241）から外れていたら、
+  //   縦横比を変えて書き出している＝重ねしろの前提が崩れる。
+  const DESIGN_H = [1481, 1781, 2241];
+  const odd = landforms.filter(a => !DESIGN_H.some(h => Math.abs(artH(a) - h) <= 2));
+  ok(`★landform の縦横比が設計どおり（${ART_W} : ${DESIGN_H.join(' / ')}）`, odd.length === 0,
+    odd.map(a => `${a.f} ${a.w}x${a.h} → 正規化 ${artH(a)}`).join(', '));
 
   // ★landform は「同じ色を続けない」ために色サフィックスが要る。1枚でも
   //   命名規則を外すと、その1枚だけが色の連続判定から外れて静かに抜ける。
