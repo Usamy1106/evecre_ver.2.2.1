@@ -877,6 +877,20 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   ok('★全 landform に色が読めている（色の連続判定から漏れない）',
     landforms.every(a => a.c), landforms.filter(a => !a.c).map(a => a.f).join(', '));
 
+  // ★WorldSpawnedObjects も landform と同じ **`<テーマ>-<番号>`** に揃える。
+  //   以前は全テーマ共通で `plant-01.svg` と名乗っていて、ファイル名だけ見ても
+  //   どのテーマの素材か分からなかった（テーマをまたいで取り違えても気づけない）。
+  //   ★色は付けない。連続を避ける必要があるのは地形だけで、草木は同じものが
+  //     並んでも不自然にならない（_plantingPlan が横位置を散らしている）。
+  //   ★landform と同じく**完全一致**で見る。部分一致だと層名やゼロ埋めの混在が
+  //     素通りして、テーマごとに命名が割れる。
+  const spawned = BG_THEMES.flatMap(t =>
+    (BG_ASSETS[t.id]?.WorldSpawnedObjects || []).map(a => ({ ...a, theme: t.id })));
+  const spNamed = spawned.filter(a => a.f !== `${a.theme}-${Number(a.n)}.svg`);
+  ok('★WorldSpawnedObjects の名前が <テーマ>-<番号>.svg になっている',
+    spNamed.length === 0,
+    spNamed.map(a => `${a.f} → ${a.theme}-${Number(a.n)}.svg`).slice(0, 3).join(', '));
+
   // 通し番号の重複（同じ番号が2枚あると、どちらかが意図せず二重に出る）
   const byTheme = {};
   for (const a of landforms) (byTheme[a.theme] ||= []).push(a.n);
