@@ -1,9 +1,16 @@
 // ===== 定数定義 =====
 
+// ★中身は id だけ。表示には一切使っていない。
+//   かつては種の絵（/images/plants/）を出す機能があり path / name / plantPrefix を
+//   持っていたが、山ビジュアルをパーツ組み立て方式に作り替えたときに絵ごと廃止した。
+//   フォルダも消えているので、それらは**存在しないファイルを指す死に参照**だった。
+//   ★配列そのものは消せない：`seedType` は作成時にここから1つ抽選して
+//     イベントに保存され、`FLAT_EVENT_FIELDS` で CRDT 同期される。既存イベントが
+//     値を持っているので、データ後方互換のために id は残す（state.js が使う）。
 export const SEED_TYPES = [
-  { id: 'jack',     path: '/images/plants/seed-jack.svg',     name: 'ジャック', plantPrefix: '/images/plants/plant-jack-' },
-  { id: 'baribari', path: '/images/plants/seed-baribari.svg', name: 'バリバリ', plantPrefix: '/images/plants/plant-baribari-' },
-  { id: 'lucky',    path: '/images/plants/seed-lucky.svg',    name: 'ラッキー', plantPrefix: '/images/plants/plant-lucky-' },
+  { id: 'jack' },
+  { id: 'baribari' },
+  { id: 'lucky' },
 ];
 
 export const MISSION_DESCRIPTIONS = {
