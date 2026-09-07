@@ -861,11 +861,15 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   //   一括改名から漏れた `<テーマ>-landform-38-MintGreen.webp`。
   //   ★色は**全テーマ共通の1文字**（a / b / c …）で分類する取り決め。
   //     `[A-Za-z]+` まで許すと旧来の色名が素通りするので、1文字だけを通す。
-  //   ★ゼロ埋めは任意（`-7-b` でも `-07-b` でもよい）。番号は識別子としてしか
-  //     使っておらず、並びは番号順に取っているので桁を揃える意味が無い。
-  const lfNamed = landforms.filter(a => !/-\d+-[a-z]\.webp$/.test(a.f));
-  ok('★landform の名前が <テーマ>-landform-<番号>-<a|b|c…>.webp になっている',
-    lfNamed.length === 0, lfNamed.map(a => a.f).join(', '));
+  //   ★命名は **`<テーマ>-<番号>-<色>.webp`**。層の名前（landform）は入れない
+  //     ―― フォルダが層を表しているので冗長。ゼロ埋めも不要（番号は識別子として
+  //     しか使わず、並びは番号順に取っている）。
+  //   ★組み立てた名前と完全一致で見る。部分一致だと `-landform-` が混ざっても
+  //     素通りし、テーマごとに命名が割れる（実際に1テーマだけ割れた）。
+  const lfNamed = landforms.filter(a => a.f !== `${a.theme}-${Number(a.n)}-${a.c}.webp`);
+  ok('★landform の名前が <テーマ>-<番号>-<a|b|c…>.webp になっている',
+    lfNamed.length === 0,
+    lfNamed.map(a => `${a.f} → ${a.theme}-${Number(a.n)}-${a.c}.webp`).slice(0, 3).join(', '));
   ok('★全 landform に色が読めている（色の連続判定から漏れない）',
     landforms.every(a => a.c), landforms.filter(a => !a.c).map(a => a.f).join(', '));
 
