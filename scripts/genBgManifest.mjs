@@ -80,19 +80,30 @@ function sizeOf(file) {
 }
 
 /** 通し番号と色をファイル名から取る。'<テーマ>-landform-07-b.webp' → { n:'07', c:'b' }
+ *  ★ゼロ埋めは任意（'-7-b' でも読める）。n は識別子としてしか使わないので、
+ *    数値としての桁揃えは要らない。並びは listDir が番号順にしている。
  *  ★色は全テーマ共通の1文字（a / b / c …）で分類する取り決め。
  *    ここは後方互換のため長い色名も読めるが、check:mountain が1文字を強制する。 */
 function parseName(name) {
   const base = name.replace(/\.(webp|svg)$/, '');
-  const m = /-(\d{2,})(?:-([A-Za-z]+))?$/.exec(base);
+  const m = /-(\d+)(?:-([A-Za-z]+))?$/.exec(base);
   return { n: m ? m[1] : base, c: m && m[2] ? m[2] : null };
 }
 
 function listDir(dir) {
   if (!fs.existsSync(dir)) return [];
+  // ★並びは「通し番号順」。ファイル名順にすると、ゼロ埋めが無いときに
+  //   1, 10, 11, ... 2, 20 と並んでマニフェストが読みづらくなる。
+  //   番号順にしておけば **ゼロ埋めしてもしなくても同じ並び**になるので、
+  //   書き出しツールの都合に合わせなくてよい。
+  // ★番号が読めないものは後ろへ回し、名前順にする（並びを必ず一意にして冪等に保つ）。
+  const num = (f) => {
+    const m = /-(\d+)(?:-[A-Za-z]+)?\.(webp|svg)$/.exec(f);
+    return m ? Number(m[1]) : Number.POSITIVE_INFINITY;
+  };
   return fs.readdirSync(dir)
     .filter(f => !f.startsWith('.') && /\.(webp|svg)$/.test(f))
-    .sort((a, b) => a.localeCompare(b, 'en'));   // ★並びを固定して冪等にする
+    .sort((a, b) => (num(a) - num(b)) || a.localeCompare(b, 'en'));
 }
 
 /**

@@ -861,8 +861,10 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   //   一括改名から漏れた `<テーマ>-landform-38-MintGreen.webp`。
   //   ★色は**全テーマ共通の1文字**（a / b / c …）で分類する取り決め。
   //     `[A-Za-z]+` まで許すと旧来の色名が素通りするので、1文字だけを通す。
-  const lfNamed = landforms.filter(a => !/-\d{2,}-[a-z]\.webp$/.test(a.f));
-  ok('★landform の名前が <テーマ>-landform-NN-<a|b|c…>.webp になっている',
+  //   ★ゼロ埋めは任意（`-7-b` でも `-07-b` でもよい）。番号は識別子としてしか
+  //     使っておらず、並びは番号順に取っているので桁を揃える意味が無い。
+  const lfNamed = landforms.filter(a => !/-\d+-[a-z]\.webp$/.test(a.f));
+  ok('★landform の名前が <テーマ>-landform-<番号>-<a|b|c…>.webp になっている',
     lfNamed.length === 0, lfNamed.map(a => a.f).join(', '));
   ok('★全 landform に色が読めている（色の連続判定から漏れない）',
     landforms.every(a => a.c), landforms.filter(a => !a.c).map(a => a.f).join(', '));
