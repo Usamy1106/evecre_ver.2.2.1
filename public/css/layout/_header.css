@@ -141,23 +141,29 @@
   font-weight: var(--font-weight-heavy);
 }
 
-/* --- イベント：右側（フィードバック・設定）------------------------------ */
+/* --- イベント：右側（フィードバック・設定）------------------------------
 
-.l-header__actions {
+   ★必ず .l-header--event でスコープすること。
+     ここは HOME 側（上の「HOME の右側に並ぶ入口」）と**同じクラス名**を使う。
+     スコープ無しで書くと後勝ちで HOME を上書きし、参加アイコンが
+     opacity:.4 で薄く出る／gap が詰まる、という壊れ方をする（実際に踏んだ）。
+     セレクタが1つ深くなるぶん詳細度も上がるので、記述順に依存しなくなる。 */
+
+.l-header--event .l-header__actions {
   display: flex;
   align-items: center;
   gap: var(--space-1);
 }
 
-.l-header__action {
+.l-header--event .l-header__action {
   padding: var(--space-1);
 }
 
-.l-header__action:active {
+.l-header--event .l-header__action:active {
   opacity: .5;
 }
 
-.l-header__action-icon {
+.l-header--event .l-header__action-icon {
   opacity: .4;
 }
 
