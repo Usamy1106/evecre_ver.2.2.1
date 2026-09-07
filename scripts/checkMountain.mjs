@@ -218,11 +218,15 @@ for (const done of [0, 7, 8, 16, 48]) {
   ok('★開催の最終日以降は山頂の看板を立てる', past.summit !== null);
   if (past.summit) {
     const sy = +past.summit[1];
-    const top = past.parts.at(-1);
-    // ★最上段の地形の上端から少し下げて立てる。下げないと空中に浮いて見える
+    // ★立てるのは「いちばん上」ではなく**上から2枚目**の地形。いちばん上に立てると
+    //   看板の背後に何も無く、宙に浮いて見える（そのために1枚下へ移した）。
+    const top = past.parts.at(-2);
+    // ★その地形の上端から少し下げて立てる。下げないと稜線の上に浮いて見える
     const SUMMIT_SINK = K('SUMMIT_SINK');
-    ok('看板が最上段の地形の稜線あたりに立つ',
+    ok('★看板は上から2枚目の地形の稜線に立つ（いちばん上ではない）',
       sy === Math.max(0, top.y + top.h - SUMMIT_SINK), `${sy} vs ${top.y + top.h - SUMMIT_SINK}`);
+    ok('★看板をいちばん上の地形に戻していない',
+      sy !== Math.max(0, past.parts.at(-1).y + past.parts.at(-1).h - SUMMIT_SINK));
     // ★看板は地形より手前。地形の裏に回ると読めない
     ok('★看板は地形より手前にある', +past.summit[3] > Math.max(...past.parts.map(pt => pt.z)));
     // ★絵は CSS 変数で参照する（ファイル名を手書きの JS に書かないため）
