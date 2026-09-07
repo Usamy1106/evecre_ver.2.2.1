@@ -117,13 +117,16 @@ function build(done, eventId = 'ev1', dates = [], opts = {}) {
     // 地形の入れ物 <div> ごとに切り出し、その中の地形の絵と植物を読む
     parts: html.split('<div class="p-mountain__lf"').slice(1).map(chunk => {
       const box = /--lf-y:(\d+);--lf-h:(\d+);--lf-img:url\('\/images\/bg\/([^/]+)\/landform\/([^']+)'\);z-index:(\d+)/.exec(chunk);
-      const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/plant\/([^"]+)"[\s\S]*?loading="(\w+)"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
+      const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/WorldSpawnedObjects\/([^"]+)"[\s\S]*?loading="(\w+)"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
         .map(m => ({ theme: m[1], file: m[2], loading: m[3], x: +m[4], y: +m[5], w: +m[6], h: +m[7] }));
       return { y: +box[1], h: +box[2], theme: box[3], file: box[4], z: +box[5], plants };
     }),
     clouds: [...html.matchAll(/class="p-mountain__cloud" src="\/images\/bg\/cloud\/([^"]+)"[\s\S]*?style="--cl-y:(-?\d+);--cl-w:(\d+);--cl-h:(\d+);--cl-x0:(-?\d+);--cl-x1:(-?\d+);--cl-dur:(\d+)s;--cl-delay:(-?\d+)s;z-index:(\d+)"/g)]
       .map(m => ({ file: m[1], y: +m[2], w: +m[3], h: +m[4], x0: +m[5], x1: +m[6], dur: +m[7], delay: +m[8], z: +m[9] })),
-    summit: (/class="p-mountain__summit" style="--lf-y:(\d+);z-index:(\d+)"/.exec(html) || null),
+    // 山頂の看板。★専用の1枚絵は廃止し、最後の地形の上に看板を立てる方式
+    summit: (/class="p-mountain__summit" style="--lf-y:(\d+);--summit-img:(var\(--summit-board-\d+\));z-index:(\d+)"/.exec(html) || null),
+    summitTitle: (/class="p-mountain__summit-title">([^<]*)</.exec(html) || [])[1],
+    summitAlt:   (/class="p-mountain__summit-alt">([^<]*)</.exec(html) || [])[1],
     sig: (/data-bg-sig="([^"]*)"/.exec(html) || [])[1],
   };
 }
@@ -212,14 +215,36 @@ for (const done of [0, 7, 8, 16, 48]) {
   ok('開催前のイベントでは山頂を出さない', build(8, 'ev1', ['2099-01-01']).summit === null);
 
   const past = build(8, 'ev1', ['2020-01-01', '2020-01-02']);
-  ok('★開催の最終日以降は山頂を出す', past.summit !== null);
+  ok('★開催の最終日以降は山頂の看板を立てる', past.summit !== null);
   if (past.summit) {
     const sy = +past.summit[1];
     const top = past.parts.at(-1);
-    // ★裾を重ねしろのぶん潜り込ませる。ここが合わないと山頂の裾が浮く
-    ok('山頂の下端が「最上段の上端 - 重ねしろ」にある',
-      sy === Math.max(0, top.y + top.h - LF_OVERLAP), `${sy} vs ${top.y + top.h - LF_OVERLAP}`);
-    ok('山頂の z-index は 0（通常の地形に手前を譲る）', +past.summit[2] === 0);
+    // ★最上段の地形の上端から少し下げて立てる。下げないと空中に浮いて見える
+    const SUMMIT_SINK = K('SUMMIT_SINK');
+    ok('看板が最上段の地形の稜線あたりに立つ',
+      sy === Math.max(0, top.y + top.h - SUMMIT_SINK), `${sy} vs ${top.y + top.h - SUMMIT_SINK}`);
+    // ★看板は地形より手前。地形の裏に回ると読めない
+    ok('★看板は地形より手前にある', +past.summit[3] > Math.max(...past.parts.map(pt => pt.z)));
+    // ★絵は CSS 変数で参照する（ファイル名を手書きの JS に書かないため）
+    ok('看板の絵を CSS 変数で参照している', /^var\(--summit-board-[12]\)$/.test(past.summit[2]),
+      past.summit[2]);
+    // ★「〇〇山頂」。ラベルは付けず、標高は数字と m だけ
+    ok('看板にイベント名＋「山頂」を出す', past.summitTitle === 't山頂', past.summitTitle);
+    ok('標高は数字と m だけ（ラベルを付けない）', /^\d+m$/.test(past.summitAlt || ''), past.summitAlt);
+    // 完了8件 × 100m
+    ok('標高＝完了数 × 100m', past.summitAlt === '800m', past.summitAlt);
+    // ★イベントIDから決定的に選ぶ（全メンバーが同じ看板を見る）
+    ok('★看板の絵は決定的（同じイベントなら必ず同じ）',
+      build(8, 'ev1', ['2020-01-01']).summit[2] === past.summit[2]);
+  }
+  {
+    // 2種類とも使われること（片方に固定されていない）
+    const used = new Set();
+    for (const ev of ['a','b','c','d','e','f','g','h']) {
+      const r = build(3, ev, ['2020-01-01']);
+      if (r.summit) used.add(r.summit[2]);
+    }
+    ok('看板は2種類とも出る（片方に固定されていない）', used.size === 2, [...used].join(', '));
   }
 }
 {
@@ -376,7 +401,7 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
     const parts = build(48, ev).parts;
     for (let k = 0; k < parts.length; k++) {
       const pt = parts[k];
-      const cfg = themeCfg(pt.theme).plant;
+      const cfg = themeCfg(pt.theme).WorldSpawnedObjects;   // ★使わないテーマは null
       total += pt.plants.length;
       if (pt.plants.length) planted++;
 
@@ -409,7 +434,7 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
   console.log(`     （${events.length}イベント × 完了48 で 地形に植えた ${planted} 枚 / 植物 ${total} 本）`);
 
   // 素材の無いテーマでは1本も出さない
-  const noPlant = BG_THEMES.filter(t => (BG_ASSETS[t.id]?.plant || []).length === 0).map(t => t.id);
+  const noPlant = BG_THEMES.filter(t => (BG_ASSETS[t.id]?.WorldSpawnedObjects || []).length === 0).map(t => t.id);
   const stray = build(48, 'e1').parts.filter(pt => noPlant.includes(pt.theme) && pt.plants.length);
   ok('素材の無いテーマには植えない', stray.length === 0,
     noPlant.length ? `対象: ${noPlant.join(',')}` : '（対象テーマなし）');
@@ -438,23 +463,28 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
 
   // ★間引きは「候補の並び」で行う。生の通し番号でやると、選ばれた地形が
   //   たまたま隠れていたときに長い区間まるごと植物が消える。
+  //   ★草木を使わないテーマ（WorldSpawnedObjects が空）の帯は、まるごと植物ゼロに
+  //     なるのが正しい（雪山に草は生えない）。帯の長さは THEME_RUN なので、
+  //     そのぶんは許容する。ここを短くすると、テーマを足すたびにテストが落ちる。
   const gaps = [];
   let run = 0;
   for (const pt of p48) { run = pt.plants.length ? 0 : run + 1; gaps.push(run); }
-  ok('植物の無い区間が長く続かない', Math.max(...gaps) <= 12, `最長 ${Math.max(...gaps)} 枚`);
+  const gapLimit = THEME_RUN + 4;
+  ok(`植物の無い区間が長く続かない（草木なしテーマの帯 ${THEME_RUN} 枚ぶんは許容）`,
+    Math.max(...gaps) <= gapLimit, `最長 ${Math.max(...gaps)} 枚 / 上限 ${gapLimit}`);
 
   // 設定で完全に止められること
   {
-    const saved = BG_THEMES.map(t => t.plant);
+    const saved = BG_THEMES.map(t => t.WorldSpawnedObjects);
     try {
-      BG_THEMES.forEach(t => { t.plant = null; });
-      ok('★plant: null のテーマには1本も植えない',
+      BG_THEMES.forEach(t => { t.WorldSpawnedObjects = null; });
+      ok('★WorldSpawnedObjects: null のテーマには1本も植えない',
         build(48, 'e1').parts.every(pt => pt.plants.length === 0));
-      BG_THEMES.forEach((t, i) => { t.plant = { ...saved[i], every: 0 }; });
+      BG_THEMES.forEach((t, i) => { t.WorldSpawnedObjects = saved[i] && { ...saved[i], every: 0 }; });
       ok('every: 0 でも止まる（0 除算・全枚数に植える事故を防ぐ）',
         build(48, 'e1').parts.every(pt => pt.plants.length === 0));
     } finally {
-      BG_THEMES.forEach((t, i) => { t.plant = saved[i]; });   // ★必ず戻す
+      BG_THEMES.forEach((t, i) => { t.WorldSpawnedObjects = saved[i]; });   // ★必ず戻す
     }
     ok('（後始末）設定を元に戻せている', build(48, 'e1').parts.some(pt => pt.plants.length));
   }

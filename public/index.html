@@ -20,6 +20,15 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <!-- ミッションチャットのリアクション用絵文字ピッカー（読めない場合は固定セットにフォールバック） -->
   <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
+  <!-- ===== Web フォント（山頂の看板でのみ使う）=====
+       ★用途を限っている。本文には使わないこと（読み込みが重く、日本語は特に大きい）。
+         Yuji Syuku … 看板のタイトル（筆文字）
+         Noto Serif Georgian … 標高の数字（欧文数字だけなので軽い）
+       ★display=swap。読めなくても代替フォントで表示だけは出る（看板が空にならない）。 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Noto+Serif+Georgian:wght@700&display=swap" rel="stylesheet">
+
   <!-- スタイルは FLOCSS で public/css/ に分割してある。詳細は public/css/README.md
        ★Tailwind の CDN は 2026-08-18 に撤去した。ブラウザ既定の打ち消し（Preflight
          相当）は public/css/foundation/_reset.css が担っている。戻さないこと。 -->

@@ -90,7 +90,16 @@
        素材を差し替えるときは必ず両方直すこと（片方だけだと裾が浮く）。
      ★★暫定：これだけ旧方式の1枚絵のまま。パーツ版の山頂素材ができたら、
        他と同じ landform の積み上げに寄せること。 */
-  --mtn-bg-summit: url("/images/bg/bg-summit.webp");
+  /* 山頂の看板の絵。★開催の最終日以降だけ、積み上げた地形のいちばん上に立てる。
+     どちらを使うかは mountainPath.js がイベントIDから決定的に選ぶ（`--summit-board-N`）。
+     ★種類を増やすときは、ここに足して mountainPath.js の SUMMIT_BOARD_COUNT も上げること。
+     ★素材は 601×601 の正方形。比率を変えるなら _mountain.css の aspect-ratio も直す。 */
+  --summit-board-1: url("/images/front/summit-board-01.webp");
+  --summit-board-2: url("/images/front/summit-board-02.webp");
+
+  /* 山頂の看板の文字色。★木の看板の上に載るので、黒よりも焦げ茶のほうが馴染む。
+     タイトル（筆文字）と標高で同じ色を使い、同色の text-stroke で太らせている。 */
+  --summit-ink: #3B2A1A;
 
   /* --- 山のマス ------------------------------------------------------------
      ★背景イラストの上に載るので、塗りは半透明にして下の風景を透かす。

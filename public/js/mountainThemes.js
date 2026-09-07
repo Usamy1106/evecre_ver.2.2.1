@@ -31,7 +31,7 @@ export const BG_THEMES = [
 
     // ── 植物 ────────────────────────────────────────────
     // every: 「見えている地形」N 枚につき1枚に植える（雲の every と同じ考え方）
-    //        ★これが本数を決める一番効く摘み。植物を使わないテーマは `plant: null`。
+    //        ★これが本数を決める一番効く摘み。使わないテーマは `WorldSpawnedObjects: null`。
     // count: 選ばれた1枚に植える本数（この範囲で毎回抽選）
     //
     // ★密度の目安：**地形1枚あたりの本数 ≒ (countMin + countMax) ÷ 2 ÷ every**
@@ -49,7 +49,7 @@ export const BG_THEMES = [
     //   際限なく詰まることはない（無理に詰めると結局くっついて見える）。
     // ★sink の幅を狭くすると、同じ地形の2本が同じ高さに並んで横一列に見える。
     //   ある程度は開けておくこと。
-    plant: { every: 3, countMin: 1, countMax: 2,
+    WorldSpawnedObjects: { every: 3, countMin: 1, countMax: 2,
              sizeMin: 280, sizeMax: 560, sinkMin: 150, sinkMax: 430 },
 
     // ── 気象 ────────────────────────────────────────────
@@ -78,11 +78,23 @@ export const BG_THEMES = [
     id: 'WindyMeadow',
     // ★「風」のテーマなので地形は間隔を広めに取り、雲を多く・速く流す。
     landform: { advanceMin: 460, advanceMax: 760 },
-    plant: { every: 3, countMin: 1, countMax: 2,
+    WorldSpawnedObjects: { every: 3, countMin: 1, countMax: 2,
              sizeMin: 240, sizeMax: 520, sinkMin: 160, sinkMax: 470 },
     phenomenon: null,
     cloud: { every: 3, speed: [55, 100], dir: 'both',
              sizeMin: 460, sizeMax: 820, skyMin: 150, skyMax: 1000 },
+  },
+
+  {
+    id: 'SnowyMountain',
+    // ★雪山。地形をやや詰めて険しく見せる。草木は生えないので
+    //   WorldSpawnedObjects フォルダを空にしてある（設定も null）。
+    landform: { advanceMin: 400, advanceMax: 700 },
+    WorldSpawnedObjects: null,
+    phenomenon: null,
+    // 空気が澄んでいる想定で、雲は少なめ・ゆっくり
+    cloud: { every: 6, speed: [110, 190], dir: 'rtl',
+             sizeMin: 500, sizeMax: 880, skyMin: 250, skyMax: 1100 },
   },
 ];
 

@@ -119,6 +119,26 @@ const PLANT_GAP = 60;
 //   メモリと合成コストになる。0.5CPU / 512MB 環境が基準。
 const MAX_DRIFT = 6;
 
+// ── 山頂の看板 ────────────────────────────────────────────
+// 開催の最終日以降だけ、積み上げた地形のいちばん上に立てる。
+// ★横位置は中央固定（抽選しない）。山頂は1つしかない目印なので、
+//   イベントごとに左右へ動くと「頂上に着いた」感じが薄れる。
+// ★絵そのものは CSS 変数（foundation/_variables.css の --summit-board-N）。
+//   ここに置くのは「何種類あるか」だけ。ファイル名を手書きの JS に書かないこと。
+const SUMMIT_BOARD_COUNT = 2;
+// 看板の幅（素材px）と、最上段の地形の上端からどれだけ下げて立てるか。
+// ★下げないと空中に浮いて見える。地形に少し刺さっているほうが自然。
+const SUMMIT_W = 1100;
+const SUMMIT_SINK = 420;
+// 標高＝完了ミッション数 × これ。マスの数と一致させてある
+const METERS_PER_CLEAR = 100;
+
+/** どちらの看板を立てるか。★イベントIDから決定的に決める（全メンバーが同じ絵を見る） */
+function _pickSummitBoard(eventId) {
+  const i = (_hash(`${eventId}:summit`) % SUMMIT_BOARD_COUNT) + 1;
+  return `var(--summit-board-${i})`;
+}
+
 // ★マス間の縦間隔。狭めるほど手前に多くのマスが並ぶ。
 //   マスの見た目の高さ（--node-size × --node-squash ＝ 約64px）より
 //   小さくすると重なるので、下げすぎないこと。
@@ -385,9 +405,9 @@ function _plantingPlan(eventId, parts) {
   const cands = [];
   for (let k = 0; k < parts.length; k++) {
     const theme = BG_THEMES.find(t => t.id === parts[k].theme);
-    const cfg = theme?.plant;
+    const cfg = theme?.WorldSpawnedObjects;
     if (!cfg || !(cfg.every > 0)) continue;
-    if ((BG_ASSETS[parts[k].theme]?.plant || []).length === 0) continue;
+    if ((BG_ASSETS[parts[k].theme]?.WorldSpawnedObjects || []).length === 0) continue;
     // ★ほとんど隠れている地形に植えても、正しく隠れて見えないまま DOM が増える
     if (parts[k].strip < PLANT_MIN_STRIP) continue;
     cands.push({ k, cfg });
@@ -400,7 +420,7 @@ function _plantingPlan(eventId, parts) {
     if (budget <= 0) break;
 
     const part = parts[k];
-    const list = BG_ASSETS[part.theme].plant;
+    const list = BG_ASSETS[part.theme].WorldSpawnedObjects;
     const count = Math.min(_rndInt(`${eventId}:pc:${k}`, cfg.countMin, cfg.countMax), budget);
     if (count <= 0) continue;
 
@@ -557,7 +577,7 @@ export function restoreBgLayer() {
  * ★<img> で出す（background-image では loading="lazy" が効かない）。
  *   画面外のぶんはブラウザがデコード済みビットマップを捨てられる。
  */
-function _renderBgLayer(p, canvasH, isSummit) {
+function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   const parts = _landformPlan(String(p?.id || ''), _needTopArt(canvasH));
   const n = parts.length;
 
@@ -570,7 +590,7 @@ function _renderBgLayer(p, canvasH, isSummit) {
     //   座標は地形の中（左下が原点）なので、地形の位置計算とは独立している。
     //   ★どの地形に植えるかは _plantingPlan がまとめて決める（地形1枚ごとではない）。
     const plantHtml = (planting.get(k) || []).map(pl => `
-        <img class="p-mountain__plant" src="${bgUrl(pt.theme, 'plant', pl.file)}" alt=""
+        <img class="p-mountain__plant" src="${bgUrl(pt.theme, 'WorldSpawnedObjects', pl.file)}" alt=""
           loading="lazy" decoding="async" fetchpriority="low"
           style="--pl-x:${pl.x};--pl-y:${pl.y};--pl-w:${pl.w};--pl-h:${pl.h}">`).join('');
 
@@ -584,17 +604,28 @@ function _renderBgLayer(p, canvasH, isSummit) {
       </div>`;
   }).join('');
 
-  // ★山頂。開催の最終日以降だけ、積み上げた地形のいちばん上に載せる。
-  //   下端を「最上段パーツの上端 - 重ねしろ」に置いて、裾を重ねて繋ぐ。
-  //   ★z-index は 0（通常パーツに手前を譲る）。逆にすると裾が上に出て継ぎ目が見える。
+  // ★山頂。開催の最終日以降だけ、積み上げた地形のいちばん上に**看板**を立てる。
+  //   ★地形はそのまま（専用の1枚絵は使わない）。最後の地形が山頂に見える。
+  //   ★横位置は中央固定。ここだけは抽選しない（山頂は1つしかない目印なので、
+  //     イベントごとに左右へ動くと「頂上に着いた」感じが薄れる）。
+  //   ★どちらの看板が出るかはイベントIDから決定的に決める。全メンバーが同じ絵を見る。
   //   ★ここまでスクロールで登れるよう、initMountainPathSync が上端の余白（headroom）
-  //     を広げている。片方だけ直すと絵が永久に画面へ入らない。
-  //   ★素材はまだパーツ方式に作り直されていないので、1枚絵を CSS 変数で参照している
-  //     （ファイル名を JS に書かないため）。パーツ版の山頂ができたらここも作り直す。
-  const top = parts.length ? parts[n - 1].y + parts[n - 1].h : 0;
-  const summitY = Math.max(0, top - LF_OVERLAP);
-  const summit = isSummit ? `
-      <div class="p-mountain__summit" style="--lf-y:${summitY};z-index:0"></div>` : '';
+  //     を広げている。片方だけ直すと看板が永久に画面へ入らない。
+  const topY = parts.length ? parts[n - 1].y + parts[n - 1].h : 0;
+  // 最上段の地形の稜線あたりに立てる。少し下げて、地形に刺さって見えるようにする
+  const summitY = Math.max(0, topY - SUMMIT_SINK);
+  let summitHtml = '';
+  if (isSummit) {
+    const board = _pickSummitBoard(eventId);
+    // 標高＝完了ミッション数 × 100m。マスの数と一致するので「ここまで登ってきた」が伝わる
+    const meters = clearedCount * METERS_PER_CLEAR;
+    summitHtml = `
+      <div class="p-mountain__summit" style="--lf-y:${summitY};--summit-img:${board};z-index:${2 * n + 1}">
+        <p class="p-mountain__summit-title">${_esc(p?.name || 'イベント')}山頂</p>
+        <p class="p-mountain__summit-alt">${meters}m</p>
+      </div>`;
+  }
+  const summit = summitHtml;
 
   // ★雲は地形と同じ入れ物（bg-layer）に、地形の**間**の z で差し込む。
   //   地形の子にすると、親の高さで切られたり親ごと transform されたりして
@@ -641,7 +672,7 @@ function _objectFor(p, mission) {
 export function renderMountainBg(p, opts = {}) {
   const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
   const isSummit = _isSummit(p);
-  const bg = _renderBgLayer(p, canvasH, isSummit);
+  const bg = _renderBgLayer(p, canvasH, isSummit, clearedCount);
 
   // ★ミッション完了の演出。完了すると clearedCount が 1 増えるので、
   //   「今しがた色がついたマス」＝ clearedCount - 1、「新しく現れた灰色のマス」＝ n - 1。

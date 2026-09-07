@@ -22,8 +22,12 @@ const ROOT   = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BG_DIR = path.join(ROOT, 'public/images/bg');
 const OUT    = path.join(ROOT, 'public/js/mountainAssets.generated.js');
 
-// テーマ配下に置く層。★増やすときはここに足す（無い層は空配列になる）
-const LAYERS = ['landform', 'plant', 'phenomenon'];
+// テーマ配下に置く層＝**フォルダ名そのまま**。★増やすときはここに足す。
+//   フォルダが無い／空のテーマは空配列になり、「その層を使わない」の意味になる。
+// ★WorldSpawnedObjects … 地形の上に生やすもの（草・木など）。旧 `plant`。
+//   `mountainObjects.js`（ミッション完了時に出るオブジェクト）とは**別物**なので
+//   混同しないこと。あちらは submissions に保存される記念碑で、こちらは景色の一部。
+const LAYERS = ['landform', 'WorldSpawnedObjects', 'phenomenon'];
 // テーマに属さない共通素材
 const SHARED = ['cloud'];
 

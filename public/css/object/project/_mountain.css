@@ -206,23 +206,62 @@
   }
 }
 
-/* 山頂。開催の最終日以降だけ出す（mountainPath.js の _isSummit）。
-   ★★暫定：これだけ旧方式の1枚絵。--mtn-bg-summit と対で、素材を差し替えるときは
-     aspect-ratio も必ず一緒に直すこと（片方だけだと裾が浮く）。
-   ★z-index は JS が 0 を入れる（通常のパーツに手前を譲る）。逆にすると
-     山頂の裾がパーツの上に出て、そこだけ継ぎ目が見える。
-   ★ここまでスクロールで登れるよう、initMountainPathSync が上端の余白
-     （headroom）を広げている。片方だけ直すと絵が永久に画面へ入らない。 */
+/* 山頂の看板。開催の最終日以降だけ出す（mountainPath.js の _isSummit）。
+   ★専用の山頂イラストは廃止した。最後に積んだ地形がそのまま山頂に見える。
+   ★横位置は中央固定（JS では抽選しない）。山頂は1つしかない目印なので、
+     イベントごとに左右へ動くと「頂上に着いた」感じが薄れる。
+   ★どちらの看板の絵かは JS が --summit-img で渡す（イベントIDから決定的に決まる）。
+   ★ここまでスクロールで登れるよう、initMountainPathSync が上端の余白（headroom）を
+     広げている。片方だけ直すと看板が永久に画面へ入らない。
+   ★素材は 601×601 の正方形。縦横比を変えるときは aspect-ratio も直すこと。 */
 .p-mountain__summit {
+  --summit-w: 1100;   /* 看板の幅（素材px）。mountainPath.js の SUMMIT_W と揃える */
+
   position: absolute;
-  right: 0;
-  left: 0;
-  aspect-ratio: 1180 / 2557;
+  left: 50%;
+  display: flex;
+  width: calc(var(--summit-w) * var(--art-unit));
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
   bottom: calc(var(--lf-y) * var(--art-unit));
-  background-image: var(--mtn-bg-summit);
-  background-position: top center;
+  background-image: var(--summit-img);
+  background-position: center;
   background-repeat: no-repeat;
   background-size: 100% 100%;
+  /* ★中央寄せ。left:50% と対で使う（translateX を消すと右へずれる） */
+  transform: translateX(-50%);
+}
+
+/* 看板のタイトル「〇〇山頂」。
+   ★筆文字は線が細く、木目の上だと沈んで読めない。同じ色で text-stroke を掛けて
+     太らせる（別の色で縁取ると輪郭が浮いて筆文字らしさが消える）。
+   ★-webkit-text-stroke は外側にも内側にも均等に太るので、値を上げすぎると
+     字が潰れる。0.02em 前後が上限。 */
+.p-mountain__summit-title {
+  max-width: 78%;
+  font-family: "Yuji Syuku", serif;
+  font-size: calc(var(--summit-w) * var(--art-unit) * .13);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--summit-ink);
+  text-align: center;
+  -webkit-text-stroke: .02em var(--summit-ink);
+  overflow-wrap: anywhere;
+}
+
+/* 標高。★「標高」などのラベルは付けない（数字と m だけ）。
+   タイトルの右下に添える。 */
+.p-mountain__summit-alt {
+  align-self: flex-end;
+  margin-right: 11%;
+  font-family: "Noto Serif Georgian", serif;
+  font-size: calc(var(--summit-w) * var(--art-unit) * .075);
+  font-weight: 700;
+  font-variation-settings: "wdth" 100;
+  color: var(--summit-ink);
+  -webkit-text-stroke: .02em var(--summit-ink);
 }
 
 /* --- かすみ（お試し）-------------------------------------------------------
