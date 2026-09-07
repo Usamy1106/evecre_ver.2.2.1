@@ -89,11 +89,15 @@ export const BG_THEMES = [
     id: 'SnowyMountain',
     // ★雪山。地形をやや詰めて険しく見せる。草木は生えないので
     //   WorldSpawnedObjects フォルダを空にしてある（設定も null）。
-    landform: { advanceMin: 400, advanceMax: 700 },
+    landform: { advanceMin: 400, advanceMax: 760 },
     WorldSpawnedObjects: null,
     phenomenon: null,
-    // 空気が澄んでいる想定で、雲は少なめ・ゆっくり
-    cloud: { every: 6, speed: [110, 190], dir: 'rtl',
+    // 稜線しか無いテーマなので、雲を最大まで出して空の情報量を補う。
+    // ★every:1 は「見えている地形すべてが候補」＝ mountainPath.js の
+    //   MAX_DRIFT(6) の上限まで出る。2〜3 にしても候補が6を超える限り
+    //   見た目はほぼ変わらない（間引かれて結局6つになる）。
+    //   速さは他テーマより遅くして、雪山の静けさを出している。
+    cloud: { every: 1, speed: [110, 190], dir: 'rtl',
              sizeMin: 500, sizeMax: 880, skyMin: 250, skyMax: 1100 },
   },
 ];
