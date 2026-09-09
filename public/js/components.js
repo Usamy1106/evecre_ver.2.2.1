@@ -65,24 +65,23 @@ export const Components = {
           </div>
           <!-- ★HOME の入口は2つ並べる。以前は「作成」しか無く、招待コードで参加する
                導線がユーザーメニューの奥にしか無かった。
-               ★どちらもラベルを出す。アイコンだけにしていた時期があるが、
-                 参加アイコン（人＋）が「メンバー追加」に見えて用が伝わらなかった。
+               ★どちらも「丸い背景＋アイコンだけ」。ラベルを出していた時期があるが、
+                 2つ並べると約240px を占めてユーザー名の居場所が無くなった。
                ★並びは「作成 → 参加」。作った人が繰り返し使うのは作成側なので左に置く。
-               ★ラベルが見えているので aria-label は付けない。付けると読み上げが
-                 ラベルではなく aria-label に差し替わり、二重管理になる。 -->
+               ★ラベルが無いので aria-label は必須。外すと読み上げで用が分からない。 -->
           <div class="l-header__actions">
             <button type="button" onclick="${verified ? `window._app.setView('CREATE_EVENT_INFO')` : `window._app.requireVerification()`}"
               data-log="home_create_event"
-              class="l-header__action l-header__action--create${verified ? '' : ' l-header__action--locked'}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+              class="l-header__action l-header__action--create${verified ? '' : ' l-header__action--locked'}"
+              aria-label="イベントを作成">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
-              <span class="l-header__action-label">イベントを作成</span>
             </button>
             <button type="button" onclick="window._app.openJoinByCodeModal()"
-              data-log="home_join_by_code" class="l-header__action">
+              data-log="home_join_by_code" class="l-header__action"
+              aria-label="イベントに参加">
               <img src="/images/icon/icon-join.svg" alt="" class="l-header__action-icon">
-              <span class="l-header__action-label">イベントに参加</span>
             </button>
           </div>
         </header>`;

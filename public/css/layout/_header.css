@@ -71,11 +71,10 @@
   background-color: var(--color-warning);
 }
 
-/* HOME の右側に並ぶ入口（作成／参加）。★どちらもラベル付き。
-   アイコンだけにしていた時期があるが、参加アイコン（人＋）が「メンバー追加」に
-   見えて用が伝わらなかった。
-   ★ラベルぶん横幅を食うので、ユーザー名側（.l-header__lead）は縮む前提。
-     flex-shrink を切らないこと（切ると狭い端末でボタンがはみ出す）。 */
+/* HOME の右側に並ぶ入口（作成／参加）。★どちらも「丸い背景＋アイコンだけ」。
+   ラベルを出していた時期があるが、2つ並べると約240px を占めて、
+   左のユーザー名がほとんど省略されてしまった。
+   ★アイコンだけなので、HTML 側の aria-label が唯一の説明になる。外さないこと。 */
 .l-header__actions {
   display: flex;
   flex-shrink: 0;
@@ -85,32 +84,26 @@
 
 .l-header__action {
   display: flex;
+  width: 38px;
+  height: 38px;
   align-items: center;
-  gap: 4px;
-  padding: 7px var(--space-2);
+  justify-content: center;
+  /* ★真円にする。--radius-md（角丸の四角）に戻さないこと */
   border-radius: var(--radius-full);
+  background-color: var(--white);
+  box-shadow: var(--shadow-sm);
   color: var(--color-primary);
   transition: transform var(--duration-fast) var(--ease);
 }
 
-/* 作成は枠で囲って主たる入口だと分かるようにする（参加は枠なし）*/
+/* 作成は枠を足して主たる入口だと分かるようにする（参加は枠なし）*/
 .l-header__action--create {
   border: 1px solid var(--color-primary);
-  background-color: var(--white);
-  box-shadow: var(--shadow-sm);
 }
 
 .l-header__action-icon {
-  width: 16px;
-  height: 16px;
-}
-
-/* ★12px。ヘッダーに2つ並ぶので、これ以上大きいと狭い端末で折り返す。
-   入力欄ではないので 16px 未満でよい（iOS の自動ズームは input のみ）。 */
-.l-header__action-label {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  white-space: nowrap;
+  width: 20px;
+  height: 20px;
 }
 
 .l-header__action:active {
