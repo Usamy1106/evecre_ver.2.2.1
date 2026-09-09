@@ -77,6 +77,9 @@
 /* --- 未読バッジ ----------------------------------------------------------
    表示中のイベントに紐づく未読だけを数える（件数の算出は components.js）。 */
 
+/* 未読通知の数。★1桁は真円、2桁以上は横に伸びるピルになる
+   （min-width と radius-full の組み合わせ）。上限は「99+」の3文字。
+   ★width を固定しないこと。固定すると 99+ が入らず切れる。 */
 .l-tabs__badge {
   position: absolute;
   top: var(--space-2);
@@ -92,4 +95,6 @@
   font-size: 9px;
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);
+  /* 3文字でも折り返させない（折り返すと高さ 16px からはみ出して形が崩れる）*/
+  white-space: nowrap;
 }

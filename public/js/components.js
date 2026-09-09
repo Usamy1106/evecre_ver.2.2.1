@@ -140,7 +140,10 @@ export const Components = {
             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
           </svg>
           <span class="l-tabs__label">通知</span>
-          ${unread > 0 ? `<span class="l-tabs__badge">${unread > 9 ? '9+' : unread}</span>` : ''}
+          <!-- ★上限は 99+。9+ で頭打ちにしていた頃は「10件も200件も同じ見た目」で、
+               溜まり具合が伝わらなかった。桁が増えても丸バッジは横に伸びる
+               （min-width + radius-full のピル）ので、そのまま入る。 -->
+          ${unread > 0 ? `<span class="l-tabs__badge">${unread > 99 ? '99+' : unread}</span>` : ''}
         </div>
         <div onclick="window._app.setTab('ARCHIVE')"
           class="l-tabs__item l-tabs__item--archive${on('ARCHIVE')}">
