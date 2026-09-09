@@ -629,9 +629,18 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
     // ★植物は地形の**子**にする。親と一緒に動くので稜線から浮かない。
     //   座標は地形の中（左下が原点）なので、地形の位置計算とは独立している。
     //   ★どの地形に植えるかは _plantingPlan がまとめて決める（地形1枚ごとではない）。
+    //
+    // ★loading="lazy" を付けないこと。**一部の植物が永久に出なくなる。**
+    //   キャンバスは position:fixed のコンテナの中で transform で動かしているため、
+    //   端末によっては交差判定が働かず lazy が発火しない（地形を <img> から
+    //   background-image へ移したのと同じ原因。実機で「表示されないものがある」
+    //   という報告を受けた）。
+    //   ★lazy をやめても通信は増えない。**素材はユニークで12個・合計 48KB しかなく**、
+    //     同じ src はブラウザが1回しか取りに行かない。何枚並べても取得は12回まで。
+    //     1枚 250KB の地形とは事情がまったく違う（デコード量の問題も起きない）。
     const plantHtml = (planting.get(k) || []).map(pl => `
         <img class="p-mountain__plant" src="${bgUrl(pt.theme, 'WorldSpawnedObjects', pl.file, pl.v)}" alt=""
-          loading="lazy" decoding="async" fetchpriority="low"
+          decoding="async" fetchpriority="low"
           style="--pl-x:${pl.x};--pl-y:${pl.y};--pl-w:${pl.w};--pl-h:${pl.h}">`).join('');
 
     // ★地形の絵はこの <div> の background-image。<img> にしないこと（上の経緯を参照）。
@@ -678,7 +687,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   //   「山と一緒にスクロールしつつ、横に流れる」が両立しない。
   const clouds = _driftPlan(eventId, parts).map(c => `
       <img class="p-mountain__cloud" src="${bgUrl(null, 'cloud', c.file, c.v)}" alt=""
-        loading="lazy" decoding="async" fetchpriority="low"
+        decoding="async" fetchpriority="low"
         style="--cl-y:${c.y};--cl-w:${c.w};--cl-h:${c.h};--cl-x0:${c.x0};--cl-x1:${c.x1};--cl-dur:${c.dur}s;--cl-delay:${c.delay}s;z-index:${c.z}">`).join('');
 
   // ★署名。SSE の再描画で「中身が同じなら DOM ごと使い回す」判定に使う

@@ -117,8 +117,8 @@ function build(done, eventId = 'ev1', dates = [], opts = {}) {
     // 地形の入れ物 <div> ごとに切り出し、その中の地形の絵と植物を読む
     parts: html.split('<div class="p-mountain__lf"').slice(1).map(chunk => {
       const box = /--lf-y:(\d+);--lf-h:(\d+);--lf-img:url\('\/images\/bg\/([^/]+)\/landform\/([^'?]+)(?:\?v=[0-9a-f]+)?'\);z-index:(\d+)/.exec(chunk);
-      const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/WorldSpawnedObjects\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?loading="(\w+)"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
-        .map(m => ({ theme: m[1], file: m[2], loading: m[3], x: +m[4], y: +m[5], w: +m[6], h: +m[7] }));
+      const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/WorldSpawnedObjects\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
+        .map(m => ({ theme: m[1], file: m[2], x: +m[3], y: +m[4], w: +m[5], h: +m[6] }));
       return { y: +box[1], h: +box[2], theme: box[3], file: box[4], z: +box[5], plants };
     }),
     clouds: [...html.matchAll(/class="p-mountain__cloud" src="\/images\/bg\/cloud\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?style="--cl-y:(-?\d+);--cl-w:(\d+);--cl-h:(\d+);--cl-x0:(-?\d+);--cl-x1:(-?\d+);--cl-dur:(\d+)s;--cl-delay:(-?\d+)s;z-index:(\d+)"/g)]
@@ -455,8 +455,8 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
   const sigP = (ev) => build(40, ev).parts.map(pt => pt.plants.map(pl => `${pl.file}@${pl.x},${pl.y},${pl.w}`).join('|')).join(';');
   ok('★植物も決定的（同じイベントなら必ず同じ）', sigP('evA') === sigP('evA'));
   ok('別イベントでは植わり方が変わる', sigP('evA') !== sigP('evB'));
-  ok('植物は先読みしない（全部 lazy）',
-    build(20).parts.every(pt => pt.plants.every(pl => pl.loading === 'lazy')));
+  ok('★植物に loading 属性を付けていない（lazy が発火せず出ない端末があった）',
+    !/class="p-mountain__plant"[\s\S]*?loading=/.test(build(20).html));
 
   // ★every で間引けていること。地形1枚ごとに植えると1イベント100本超の密林になる
   //   （実際にそうなって作り直した）。全部の地形に植わっていたら効いていない。
@@ -749,10 +749,27 @@ section('[J] 地形は background-image（読み込み管理を JS に持たな�
 
   ok("★loading 属性で地形を出し分けていない", !/loading="\$\{eager/.test(src));
 
-  // 植物と雲は軽い SVG なので lazy のままでよい
-  ok('植物・雲は lazy のまま（軽い SVG なのでブラウザ任せでよい）',
-    /class="p-mountain__plant"[\s\S]*?loading="lazy"/.test(html) &&
-    /class="p-mountain__cloud"[\s\S]*?loading="lazy"/.test(html));
+  // ★植物と雲に loading="lazy" を付けないこと。**一部が永久に出なくなる。**
+  //   キャンバスは position:fixed の中で transform で動かしているため、端末に
+  //   よっては交差判定が働かず lazy が発火しない（地形を <img> から
+  //   background-image へ移したのと同じ原因。実機で報告を受けた）。
+  //   ★やめても通信は増えない。素材はユニークで12個・合計 48KB しかなく、
+  //     同じ src はブラウザが1回しか取りに行かない。
+  ok('★植物・雲に lazy を付けていない（発火せず出ない端末があった）',
+    !/class="p-mountain__plant"[\s\S]*?loading=/.test(html) &&
+    !/class="p-mountain__cloud"[\s\S]*?loading=/.test(html));
+
+  // ユニーク素材が少ないという前提（＝lazy をやめてよい根拠）が崩れていないか
+  {
+    const light = [
+      ...Object.values(BG_ASSETS).flatMap(t => t.WorldSpawnedObjects),
+      ...BG_SHARED.cloud,
+    ];
+    const bytes = light.reduce((acc, a) => acc + fs.statSync(
+      path.join(ROOT, 'public/images/bg', a.f.includes('cloud') ? 'cloud' : a.f.split('-')[0] + '/WorldSpawnedObjects', a.f)).size, 0);
+    ok('★植物と雲のユニーク素材が軽い（lazy をやめてよい根拠）',
+      bytes <= 300 * 1024, `${light.length}件 / ${(bytes / 1024).toFixed(0)}KB`);
+  }
 
   // ★通信量の目安。素材の解像度が過剰だとここが膨らむ
   const lfAll = Object.values(BG_ASSETS).flatMap(t => t.landform);
