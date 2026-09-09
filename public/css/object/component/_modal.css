@@ -205,6 +205,40 @@
   color: var(--color-text-muted);
 }
 
+/* --- 段階を1枚ずつめくる（初期オンボーディングの「進め方」3枚）------------
+   使用箇所: public/js/onboardingIntro.js の showUsageModal
+   ★手順を全部並べる .c-modal__steps とは別物。1枚に1つだけ大きく出す。
+     5つ並べていた頃は文字量が多くて読み飛ばされていた。 */
+
+.c-modal__stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.c-modal__stage-num {
+  display: flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  font-size: 26px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}
+
+.c-modal__stage-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.5;
+  color: var(--color-text);
+  text-align: center;
+}
+
 /* --- 手順のリスト（オンボーディング）------------------------------------- */
 
 .c-modal__steps {

@@ -66,6 +66,44 @@
   text-align: center;
 }
 
+/* ★文字は吹き出しの中に入れる。暗幕の上へ直接置いていた頃は、白いカードや
+   画像の上に白文字が重なって**読めないことがあった**（実機で指摘を受けた）。
+   暗幕（62%）より濃い地を敷いて、背景に何があっても読めるようにする。 */
+.c-coach-mark__bubble {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background-color: rgba(0, 0, 0, .88);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 尻尾。★向きは JS が付ける修飾子で決める（穴の上に置いたら下向き）。
+   x 位置は --tail-x（穴の中心）を JS が実測して入れる。 */
+.c-coach-mark__bubble::after {
+  position: absolute;
+  left: var(--tail-x, 50%);
+  width: 0;
+  height: 0;
+  border-right: 9px solid transparent;
+  border-left: 9px solid transparent;
+  margin-left: -9px;
+  content: "";
+}
+
+/* 吹き出しが穴の**上**にある → 尻尾は**下**向き */
+.c-coach-mark__copy--above .c-coach-mark__bubble::after {
+  top: 100%;
+  border-top: 10px solid rgba(0, 0, 0, .88);
+}
+
+/* 吹き出しが穴の**下**にある → 尻尾は**上**向き */
+.c-coach-mark__copy--below .c-coach-mark__bubble::after {
+  bottom: 100%;
+  border-bottom: 10px solid rgba(0, 0, 0, .88);
+}
+
 .c-coach-mark__counter {
   margin-bottom: var(--space-2);
   font-size: var(--font-size-xs);

@@ -11,7 +11,11 @@
 .p-create-event {
   display: flex;
   flex-direction: column;
+  /* ★svh。100vh だとアドレスバーぶん縦に長くなり、footer の「次へ」「戻る」が
+     画面外に落ちてスクロールしないと押せなかった（指摘を受けた）。
+     vh の行はフォールバックなので消さないこと。 */
   min-height: 100vh;
+  min-height: 100svh;
   background-color: var(--color-bg);
 }
 

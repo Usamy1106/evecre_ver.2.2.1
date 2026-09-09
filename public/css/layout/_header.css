@@ -30,12 +30,17 @@
 
 /* --- HOME：左側（ユーザーメニュー）-------------------------------------- */
 
+/* ★min-width:0 が要る。flex アイテムの既定は min-width:auto なので、これが無いと
+   中身（アバター＋ユーザー名）より小さくなれず、右のボタン2つを画面外へ押し出す。
+   入口にラベルを戻したぶん横幅がぎりぎりなので、ここが縮みしろになる。 */
 .l-header__lead {
+  min-width: 0;
   flex: 1;
 }
 
 .l-header__user {
   display: flex;
+  max-width: 100%;
   align-items: center;
   gap: 6px;
   margin-left: calc(var(--space-2) * -1);
@@ -66,26 +71,29 @@
   background-color: var(--color-warning);
 }
 
-/* HOME の右側に並ぶ入口（参加／作成）。★どちらもアイコンだけ。
-   ラベルを戻すと2つ並べたときにヘッダーが窮屈になる。 */
+/* HOME の右側に並ぶ入口（作成／参加）。★どちらもラベル付き。
+   アイコンだけにしていた時期があるが、参加アイコン（人＋）が「メンバー追加」に
+   見えて用が伝わらなかった。
+   ★ラベルぶん横幅を食うので、ユーザー名側（.l-header__lead）は縮む前提。
+     flex-shrink を切らないこと（切ると狭い端末でボタンがはみ出す）。 */
 .l-header__actions {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: var(--space-2);
 }
 
 .l-header__action {
   display: flex;
-  width: 38px;
-  height: 38px;
   align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
+  gap: 4px;
+  padding: 7px var(--space-2);
+  border-radius: var(--radius-full);
   color: var(--color-primary);
   transition: transform var(--duration-fast) var(--ease);
 }
 
-/* 作成は「四角で囲ったプラス」。参加アイコンと形で区別できるようにする */
+/* 作成は枠で囲って主たる入口だと分かるようにする（参加は枠なし）*/
 .l-header__action--create {
   border: 1px solid var(--color-primary);
   background-color: var(--white);
@@ -93,8 +101,16 @@
 }
 
 .l-header__action-icon {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
+}
+
+/* ★12px。ヘッダーに2つ並ぶので、これ以上大きいと狭い端末で折り返す。
+   入力欄ではないので 16px 未満でよい（iOS の自動ズームは input のみ）。 */
+.l-header__action-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  white-space: nowrap;
 }
 
 .l-header__action:active {

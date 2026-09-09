@@ -14,6 +14,10 @@
   display: flex;
   flex-direction: column;
   max-width: var(--layout-max-width);
+  /* ★svh。100vh はモバイルでアドレスバーぶん高くなり、中身が収まっていても
+     スクロールが生まれる（作成フローの「次へ」が画面外に出ていた）。
+     vh の行はフォールバックなので消さないこと。 */
   min-height: 100vh;
+  min-height: 100svh;
   margin-inline: auto;
 }

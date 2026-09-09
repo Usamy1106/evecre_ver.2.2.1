@@ -14,7 +14,10 @@
 .p-signup {
   display: flex;
   flex-direction: column;
+  /* ★svh。理由は _create-event.css と同じ（「次へ」「戻る」が画面外に落ちる）。
+     vh の行はフォールバックなので消さないこと。 */
   min-height: 100vh;
+  min-height: 100svh;
   background-color: var(--color-bg);
 }
 

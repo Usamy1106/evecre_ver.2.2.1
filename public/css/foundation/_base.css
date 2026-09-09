@@ -6,8 +6,13 @@
 body {
   margin: 0;
   padding: 0;
-  /* Tailwind の min-h-screen 相当。背景色を画面下まで敷くために要る */
+  /* 背景色を画面下まで敷くために要る（旧 Tailwind の min-h-screen 相当）。
+     ★svh を使う。100vh はモバイルで「アドレスバーが隠れた状態の高さ」なので、
+       中身が収まっていても画面より縦に長くなり、スクロールが生まれる。
+       svh は「アドレスバーが出ている状態の高さ」＝常に見えている範囲。
+     ★vh の行を消さないこと。svh を解さない古い端末へのフォールバック。 */
   min-height: 100vh;
+  min-height: 100svh;
   font-family: var(--font-family-base);
   background-color: var(--color-bg);
   color: var(--color-text);

@@ -152,15 +152,50 @@ section('[B] 実機で見つかった不具合');
   //   表示した時点で進めていた頃は、読んでいる途中でリロードやホーム移動をすると
   //   ①を飛ばして②から再開し、進め方を読まないまま先へ行っていた（指摘を受けた）。
   //   途中で閉じた人には、次にイベントページへ入ったときまた同じ段階から出す。
+  //   ★①は3枚めくる形になった。**ページをめくった時点でも進めないこと**
+  //     （最後の「わかった」だけ）。中途半端に進むと、2枚目まで読んで閉じた人が
+  //     次に②から再開して、進め方を読み切れないまま先へ行ってしまう。
   {
-    const intro = R('public/js/onboardingIntro.js');
-    // 「わかった」のハンドラを取り除いても advanceIntro が残る＝表示時に進めている
+    const intro = codeOnly(R('public/js/onboardingIntro.js'));
     const usage = intro.slice(intro.indexOf('export function showUsageModal'),
-                              intro.indexOf('export function showFeatureTour'));
-    const outsideHandler = usage.replace(/onclick = \(\) => \{[\s\S]*?\n  \};/, '');
-    ok('★①は「わかった」を押したときだけ段階を進める（表示時に進めない）',
-      !/advanceIntro\(/.test(outsideHandler));
-    ok('①のハンドラで段階を進めている', /onclick = \(\) => \{[\s\S]*?advanceIntro\(/.test(usage));
+                              intro.indexOf('function isCoachOpen'));
+    // 段階を進めるのは1箇所だけ。増えていたら「めくるたびに進めている」疑い
+    const advances = (usage.match(/advanceIntro\(/g) || []).length;
+    ok('★①で段階を進めるのは1箇所だけ（めくるたびに進めない）', advances === 1, `${advances}箇所`);
+    // その1箇所は「最後のページの了承」経路にある（直前に ack のログが出ている）
+    ok('★①は最後の「わかった」を押したときだけ段階を進める',
+      /logEvent\('intro_usage_ack'\);\s*\n\s*advanceIntro\(INTRO\.USAGE\)/.test(usage));
+    // 了承は最終ページ限定。isLast のガードを外すと途中でも完了扱いになる
+    ok('★①の了承は最終ページだけ（isLast で分岐している）',
+      /if \(!isLast\) \{[\s\S]*?return;\s*\n\s*\}/.test(usage));
+    // 表示した時点では進めない（appendChild 〜 最初の paint までに advanceIntro が無い）
+    ok('★①は表示した時点では段階を進めない',
+      !/logEvent\('intro_usage_shown'\);[\s\S]*?advanceIntro\([\s\S]*?const paint/.test(usage));
+  }
+
+  // ★②の最後に CTA（「はじめる」）を置かないこと。②の直後に③「目的を定めよう」が
+  //   続くので、ボタンを挟むとひと続きの案内が途切れる（そう直した経緯がある）。
+  {
+    const intro = codeOnly(R('public/js/onboardingIntro.js'));
+    const tour = intro.slice(intro.indexOf('export function showFeatureTour'),
+                             intro.indexOf('function _finishFeatureTour'));
+    ok('★②の最後に CTA ボタンを置いていない（③へひと続きで繋ぐ）', !/cta:/.test(tour));
+  }
+
+  // ★コーチマークの文字は吹き出しの中に入れること。暗幕の上へ直接置くと、
+  //   白いカードや画像と重なったときに読めない（実機で指摘を受けた）。
+  //   尻尾の向きは置いた側と必ず揃える（上に置いたら下向き）。
+  {
+    const cm = R('public/js/modals/coachMark.js');
+    const css = R('public/css/object/component/_coach-mark.css');
+    ok('★コーチマークの文字が吹き出しの中にある', cm.includes('data-coach-bubble'));
+    ok('★吹き出しの尻尾の向きを配置に合わせている',
+      /copy\.classList\.add\('c-coach-mark__copy--above'\)/.test(cm) &&
+      /copy\.classList\.add\('c-coach-mark__copy--below'\)/.test(cm));
+    ok('★上に置いたら尻尾は下向き',
+      /--above \.c-coach-mark__bubble::after \{[^}]*border-top/.test(css));
+    ok('★下に置いたら尻尾は上向き',
+      /--below \.c-coach-mark__bubble::after \{[^}]*border-bottom/.test(css));
   }
 
   // ★歓迎の🔥を閉じたら、次の案内（メンバー向けの進め方 M1）を評価させること。
@@ -193,6 +228,24 @@ section('[B] 実機で見つかった不具合');
     const css = R('public/css/object/project/_event-settings.css');
     ok('★選択中は色だけでなく印でも分かる',
       /\.p-event-settings__motivation-pick\.is-on::before/.test(css));
+  }
+
+  // ★画面いっぱいの高さは svh で取ること。100vh は「アドレスバーが隠れた状態」の
+  //   高さなので、中身が収まっていても画面より縦に長くなり、下端に置いた
+  //   「次へ」「戻る」がスクロールしないと押せなくなる（実機で指摘を受けた）。
+  //   ★vh の行はフォールバックとして残す（svh を解さない古い端末向け）。
+  {
+    const FULL_HEIGHT = [
+      'public/css/foundation/_base.css',
+      'public/css/layout/_app.css',
+      'public/css/object/project/_create-event.css',
+      'public/css/object/project/_signup.css',
+    ];
+    const missing = FULL_HEIGHT.filter(f => !/min-height:\s*100svh/.test(R(f)));
+    ok('★画面高は svh も指定している（下端のボタンが画面外に落ちる不具合）',
+      missing.length === 0, missing.join(' '));
+    const noFallback = FULL_HEIGHT.filter(f => !/min-height:\s*100vh/.test(R(f)));
+    ok('vh のフォールバックを残している', noFallback.length === 0, noFallback.join(' '));
   }
 
   // ★ズームを殺して逃げていないこと

@@ -16,6 +16,8 @@
 
 const OVERLAY_ID = 'coach-mark-overlay';
 const HOLE_PAD   = 10;     // くり抜きを対象より少し大きくする余白(px)
+// 尻尾を吹き出しの端に寄せすぎないための余白(px)。角丸から飛び出すのを防ぐ
+const TAIL_INSET = 22;
 
 function _esc(s) {
   return String(s ?? '')
@@ -75,12 +77,16 @@ export function showCoachMark(o) {
     <div data-coach-hole class="c-coach-mark__hole"></div>
     <div data-coach-pulse class="c-coach-mark__pulse c-coach-pulse"></div>
     <button type="button" data-coach-hit class="c-coach-mark__hit"></button>
+    <!-- ★文字は必ず吹き出しの中に入れる。暗幕の上に直接置いていた頃は、
+         穴の中身（明るいカードや画像）と重なると読めなかった。 -->
     <div data-coach-copy class="c-coach-mark__copy">
-      ${o.counter ? `<p class="c-coach-mark__counter">${_esc(o.counter)}</p>` : ''}
-      <p class="c-coach-mark__title">${_esc(o.title)}</p>
-      ${o.body ? `<p class="c-coach-mark__text">${_esc(o.body)}</p>` : ''}
-      ${(!o.finger && o.hint) ? `<p class="c-coach-mark__hint">${_esc(o.hint)}</p>` : ''}
-      ${o.cta ? `<button type="button" data-coach-cta class="c-coach-mark__cta">${_esc(o.cta)}</button>` : ''}
+      <div data-coach-bubble class="c-coach-mark__bubble">
+        ${o.counter ? `<p class="c-coach-mark__counter">${_esc(o.counter)}</p>` : ''}
+        <p class="c-coach-mark__title">${_esc(o.title)}</p>
+        ${o.body ? `<p class="c-coach-mark__text">${_esc(o.body)}</p>` : ''}
+        ${(!o.finger && o.hint) ? `<p class="c-coach-mark__hint">${_esc(o.hint)}</p>` : ''}
+        ${o.cta ? `<button type="button" data-coach-cta class="c-coach-mark__cta">${_esc(o.cta)}</button>` : ''}
+      </div>
     </div>
     ${o.finger ? `
       <!-- ★指は穴に隣接させる。コピー文の中に置くと穴から離れて「どこを指しているか」が伝わらない -->
@@ -140,14 +146,31 @@ export function showCoachMark(o) {
     }
 
     // 文言は穴の広い方の側に置く（画面下部の FAB なら上、上部の要素なら下）
+    // ★吹き出しの尻尾の向きは、置いた側と必ず揃える。
+    //   穴の**上**に置いたら尻尾は**下**向き（＝穴を指す）、下に置いたら上向き。
+    //   ここを固定にすると、片方の配置で尻尾が穴と反対を向いて意味が壊れる。
     const spaceAbove = r.top;
     const spaceBelow = window.innerHeight - r.bottom;
     if (spaceAbove >= spaceBelow) {
       copy.style.top = '';
       copy.style.bottom = `${Math.max(24, window.innerHeight - r.top + 28)}px`;
+      copy.classList.add('c-coach-mark__copy--above');
+      copy.classList.remove('c-coach-mark__copy--below');
     } else {
       copy.style.bottom = '';
       copy.style.top = `${r.bottom + 28}px`;
+      copy.classList.add('c-coach-mark__copy--below');
+      copy.classList.remove('c-coach-mark__copy--above');
+    }
+    // 尻尾は穴の**中心の真下／真上**に置く。吹き出し自体は画面幅いっぱいなので、
+    // 尻尾だけを穴のx座標へ寄せる（左右端の要素でも指し先がずれない）。
+    // ★clamp で吹き出しの内側に収める。角丸から尻尾がはみ出すと形が崩れる。
+    const bub = copy.querySelector('[data-coach-bubble]');
+    if (bub) {
+      const br = bub.getBoundingClientRect();
+      const min = br.left + TAIL_INSET;
+      const max = br.right - TAIL_INSET;
+      bub.style.setProperty('--tail-x', `${Math.min(Math.max(cx, min), max) - br.left}px`);
     }
   };
   place();

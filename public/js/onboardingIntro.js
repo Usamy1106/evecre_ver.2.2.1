@@ -20,6 +20,7 @@
 //   ②は FAB のタップ以外に出口が無いため、他モーダルが前面に出ると本当に操作不能になる。
 
 import { state } from './state.js';
+import { Components } from './components.js';
 import { logEvent } from './logger.js';
 import { setIntroRunningProbe } from './modalGuard.js';
 import { showCoachMark, closeCoachMark } from './modals/coachMark.js';
@@ -183,9 +184,17 @@ export function checkIntro() {
   if (step === 'purpose') { showPurposeCoach(); return; }
 }
 
-// ── ① 「イベクリの使い方」モーダル ──────────────────────────
-// ★出口は「わかった」だけ。閉じるボタンも背景タップも置かない
+// ── ① 「イベントづくりの進め方」モーダル（3枚）──────────────
+// ★1枚に全部を詰め込まず、**1段階につき1枚**めくる形にする。
+//   以前は5つの手順を1枚に並べていたが、文字量が多くて読み飛ばされていた。
+// ★出口は最後の「わかった」だけ。閉じるボタンも背景タップも置かない
 //   （置くと②へ進まないまま放置され、状態が宙ぶらりんになる）。
+const USAGE_PAGES = [
+  '目的や目標、概要を決めよう',
+  'いつ、誰が、何をするかスケジュールを作ろう',
+  '実行・提出して、振り返ろう',
+];
+
 export function showUsageModal() {
   if (document.getElementById(USAGE_ID)) return;
   setIntroRunning(true);
@@ -193,46 +202,47 @@ export function showUsageModal() {
   const overlay = document.createElement('div');
   overlay.id = USAGE_ID;
   overlay.className = 'c-overlay c-overlay--intro c-overlay--blur';
-  overlay.innerHTML = `
-    <div class="c-modal u-animate-fade">
-      <p class="c-modal__eyebrow">進め方</p>
-      <!-- ★<br> を含むので esc しないこと（ユーザー入力は入らない） -->
-      <h3 class="c-modal__title">イベントづくりは<br>5つのステップで進みます</h3>
-      <div class="c-modal__steps c-modal__steps--roomy">
-        ${[
-          ['決める', '何をやるかを決める'],
-          ['積む',   'やることを洗い出して日付を入れる'],
-          ['配る',   '誰がやるかを決める'],
-          ['こなす', '実行して提出する'],
-          ['残す',   '振り返って次に引き継ぐ'],
-        ].map(([label, desc], i) => `
-          <div class="c-modal__step">
-            <span class="c-modal__step-num">${i + 1}</span>
-            <div class="c-modal__step-body">
-              <p class="c-modal__step-title">${label}</p>
-              <p class="c-modal__step-text">${desc}</p>
-            </div>
-          </div>`).join('')}
-      </div>
-      <button data-intro="ack" class="c-button c-button--primary c-modal__button c-modal__button--roomy">わかった</button>
-    </div>`;
   document.body.appendChild(overlay);
   logEvent('intro_usage_shown');
 
-  // ★状態を進めるのは「わかった」を押したときだけ。**出した時点では進めないこと。**
+  // ★状態を進めるのは**最後の「わかった」**を押したときだけ。
+  //   出した時点でも、途中のページをめくった時点でも進めないこと。
   //   出した時点で進めていた頃は、読んでいる途中でリロードしたりホームへ移ったり
   //   すると①を飛ばして②から再開し、進め方を読まないまま先へ行ってしまっていた。
-  //   ★読み終える前に閉じた人には、次にイベントページへ入ったときまた①から出す。
+  //   ★読み終える前に閉じた人には、次にイベントページへ入ったとき**1枚目**から出す
+  //     （ページ番号も localStorage に持たない。中途半端な再開をさせない）。
   //     ②③も同じ考え方（②は最後のコーチマーク、③は目的をタップしたときだけ進む）。
-  //   ★出口は「わかった」だけ（背景タップでは閉じない）。押せば必ず先へ進むので、
-  //     出しっぱなしで詰まることはない。
-  overlay.querySelector('[data-intro="ack"]').onclick = () => {
-    logEvent('intro_usage_ack');
-    advanceIntro(INTRO.USAGE);   // ①済み・②待ち
-    overlay.remove();
-    // ★閉じるアニメーションと重ならないよう1フレーム置いてから②へ
-    requestAnimationFrame(() => showFeatureTour());
+  let page = 0;
+
+  const paint = () => {
+    const isLast = page === USAGE_PAGES.length - 1;
+    overlay.innerHTML = `
+      <div class="c-modal u-animate-fade">
+        <p class="c-modal__eyebrow">イベントづくりの進め方</p>
+        <div class="c-modal__stage">
+          <span class="c-modal__stage-num">${page + 1}</span>
+          <p class="c-modal__stage-title">${USAGE_PAGES[page]}</p>
+        </div>
+        ${Components.StepIndicator(page + 1, USAGE_PAGES.length)}
+        <button data-intro="next" class="c-button c-button--primary c-modal__button c-modal__button--roomy">${
+          isLast ? 'わかった' : '次へ'}</button>
+      </div>`;
+
+    overlay.querySelector('[data-intro="next"]').onclick = () => {
+      if (!isLast) {
+        page++;
+        logEvent('intro_usage_page', { page: page + 1 });
+        paint();
+        return;
+      }
+      logEvent('intro_usage_ack');
+      advanceIntro(INTRO.USAGE);   // ①済み・②待ち
+      overlay.remove();
+      // ★閉じるアニメーションと重ならないよう1フレーム置いてから②へ
+      requestAnimationFrame(() => showFeatureTour());
+    };
   };
+  paint();
 }
 
 /** コーチマークが開いているか（多重表示の防止） */
@@ -326,32 +336,38 @@ export function onMissionFormClosed() {
 //
 // ★対象が無いステップは出さず、番号は残った数で詰める
 //   （3枚しか出ないのに 1/4 と表示されるのは不自然）。
-// ★並びは画面の上から下へ。最後に「作成ボタン」を置いて、次の行動へ繋げる。
+// ★順番は「スケジュール → 提案 → 作成ボタン → ミッション一覧」。
+//   作成ボタンを先に見せてから一覧を指すことで「作る → ここに並ぶ」と繋がる。
+//   ★並びを画面の上から下へ戻さないこと（説明の因果が逆になる）。
+//
+// ★最後に CTA（「はじめる」）を置かないこと。②の直後に③「目的を定めよう」が
+//   続くので、ここでボタンを挟むと体験がいったん途切れる。②と③はひと続きの
+//   案内として見せる（カウンターも通し番号にしてある）。
 const FEATURE_STEPS = [
   {
     selector: '[data-coach="days-left"]',
-    title: 'ここで開催日までの残りを確認できるよ',
+    title: 'ここをタップすると、スケジュールを確認できるよ。',
     // 開催日が未設定だとチップが「開催日時が設定されていません」になるので出さない
     available: (p) => Array.isArray(p.dates) && p.dates.length > 0,
   },
   {
     selector: '[data-coach="proposals"]',
-    title: 'AIからの提案があるよ',
-    body:  '使えそうならタップしてミッションにできる',
+    title: 'イベクリからの提案だよ。',
+    body:  '使えそうならタップして採用しよう！',
     // 生成前・0件のときは枠だけ（ローディング／待ち時間表示）なので出さない
     available: (p) => (p.proposals || []).length > 0,
-  },
-  {
-    selector: '[data-coach="mission-list"]',
-    title: '作成したミッションはここに並ぶよ',
-    available: () => true,
   },
   {
     // ★FAB は MAIN タブ・管理者のときだけ描画される。
     //   isIntroEligible が管理者に限っているので、MAIN タブなら必ずある。
     selector: '[data-coach="fab"]',
-    title: 'ミッションはここから作れるよ',
-    body:  'やることを書き出して、担当と期間を決めよう',
+    title: 'ミッションはここから作れるよ。',
+    body:  'やることを決めて、担当者と期間を決めよう！',
+    available: () => true,
+  },
+  {
+    selector: '[data-coach="mission-list"]',
+    title: '作ったミッションは、ここに並ぶよ。',
     available: () => true,
   },
 ];
@@ -388,8 +404,14 @@ export function showFeatureTour() {
     return;
   }
 
+  // ★カウンターは③「目的を定めよう」まで通しで数える。②と③をひと続きの案内に
+  //   見せるため（②の最後に CTA を置かないのと同じ理由）。
+  //   ③が出ない人（後から参加した管理者／目的ミッションが一覧に無い）では
+  //   分母から外す ―― 出ないものを数に入れると最後が 4/5 で終わってしまう。
+  _tourTotal = steps.length + (_willShowPurpose(p) ? 1 : 0);
+
   setIntroRunning(true);
-  logEvent('intro_feature_tour_shown', { total: steps.length });
+  logEvent('intro_feature_tour_shown', { total: _tourTotal });
 
   const show = (i) => {
     const s = steps[i];
@@ -398,10 +420,9 @@ export function showFeatureTour() {
       selector: s.selector,
       title:    s.title,
       body:     s.body,
-      counter:  `${i + 1}/${steps.length}`,
-      hint:     isLast ? '' : 'タップで次へ',
+      counter:  `${i + 1}/${_tourTotal}`,
+      hint:     'タップで次へ',
       advanceOn: 'anywhere',
-      cta:      isLast ? 'はじめる' : '',
       onAdvance: () => {
         logEvent('intro_feature_tour_step', { step: i + 1 });
         if (isLast) _finishFeatureTour();
@@ -412,6 +433,17 @@ export function showFeatureTour() {
     if (!ok) { if (isLast) _finishFeatureTour(); else show(i + 1); }
   };
   show(0);
+}
+
+// ②〜③を通しで数えるためのカウンター。★localStorage には持たない
+//   （②を中断したら②の頭からやり直すので、跨いで覚える必要が無い）。
+let _tourTotal = 0;
+
+/** ③「目的を定めよう」がこのあと出る見込みか（カウンターの分母に入れるか）*/
+function _willShowPurpose(p) {
+  if (!state.currentUser) return false;
+  if (isJoinedManager(state.currentUser.id, p)) return false;   // 後から参加した管理者には出さない
+  return !!document.querySelector(`[data-mission-id="${PURPOSE_MISSION_ID}"]`);
 }
 
 function _finishFeatureTour() {
@@ -464,9 +496,13 @@ export function showPurposeCoach() {
 
   const shown = showCoachMark({
     selector: `[data-mission-id="${PURPOSE_MISSION_ID}"]`,
-    title:   'まずは目的を定めよう',
-    body:    'ここが決まると、迷ったときに立ち帰る軸になる',
+    title:   'まずは目的を決めよう。',
+    body:    '迷ったときに、立ち返れる軸になるよ。',
     hint:    'タップして書いてみよう',
+    // ★②から続けて出たときだけ通し番号を出す（②の最後の1つとして数える）。
+    //   リロード後などに③だけ単独で出たときは _tourTotal が 0 なので番号を出さない。
+    //   出ない番号を「1/1」と出すより、無いほうが自然。
+    counter: _tourTotal > 0 ? `${_tourTotal}/${_tourTotal}` : '',
     finger:  true,
     advanceOn: 'target',
     onAdvance: () => {
