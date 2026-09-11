@@ -207,9 +207,50 @@ section('[B] 実機で見つかった不具合');
       /const close = \(\) => \{ overlay\.remove\(\); state\.render\(\); \};/.test(lm));
     // ★意気込みが無いイベントには出さない（空の箱を見せない）という設計。
     //   代償として、意気込みが未入力のイベントでは🔥が一度も出ない。
-    //   出したいなら作成フローの STEP 6 を書いてもらう側で手当てすること。
+    //   ★2026-09-11、これは**このままでよい**と判断済み。モーダル側の条件を
+    //     緩めて出そうとしないこと（一度やって戻した経緯がある）。出したいなら
+    //     作成フローの STEP 6 を書いてもらう側で手当てする。
     ok('🔥は意気込みがあるときだけ出す（空の箱を見せない）',
       /if \(!_hasMotivation\(p\)\) return;/.test(lm));
+  }
+
+  // ★オンボーディングには性質の違うものが同居している。混ぜると実務が止まる。
+  //   - アプリの使い方の説明（L1/M1/M2/M3）… ユーザー生涯で1回（oncePerUser）
+  //   - イベントの状態に紐づく催促（L3/L4/L5/L8/L9/L10）… **イベントごとに出す**
+  //   - お祝い（L6/M4）… イベントごと
+  //   とくに L4 は「承認しないとメンバーが1人も入れない」現状いちばんのボトルネックで、
+  //   L9 は引き継ぎ日 → 自動完了の導線。1回限りにすると2つ目以降のイベントで止まる。
+  {
+    const ob = R('public/js/onboarding.js');
+    // ★切り出しは STEPS 配列の中だけに閉じること。配列の外まで見ると、
+    //   最後のステップ（M4）の本文に checkOnboarding の `step.oncePerUser` が
+    //   紛れ込んで誤検知する（実際に踏んだ）。
+    const stepsSrc = ob.slice(ob.indexOf('const STEPS = ['), ob.indexOf('\n];'));
+    /** そのステップ定義の本文（次の `id:` まで）を取り出す */
+    const stepBody = (id) => {
+      const i = stepsSrc.indexOf(`id: '${id}',`);
+      if (i < 0) return '';
+      const next = stepsSrc.indexOf("    id: '", i + 10);
+      return stepsSrc.slice(i, next < 0 ? stepsSrc.length : next);
+    };
+    const ONCE = ['L1', 'M1', 'M2', 'M3'];
+    const PER_EVENT = ['L3', 'L4', 'L5', 'L6', 'L8', 'L9', 'L10', 'M4'];
+
+    const missing = ONCE.filter(id => !/oncePerUser:\s*true/.test(stepBody(id)));
+    ok('★使い方の説明（L1/M1/M2/M3）は oncePerUser（2つ目以降のイベントで出さない）',
+      missing.length === 0, missing.join(', '));
+
+    const leaked = PER_EVENT.filter(id => /oncePerUser/.test(stepBody(id)));
+    ok('★催促とお祝いに oncePerUser を付けていない（2つ目以降で実務が止まる）',
+      leaked.length === 0, leaked.join(', '));
+
+    ok('checkOnboarding が isSeenElsewhere を見ている',
+      /step\.oncePerUser && isSeenElsewhere\(/.test(codeOnly(ob)));
+
+    // ★末尾一致に `:` を付けること。付けないと `L1` の既読が `L10` のキーにも当たり、
+    //   どちらも実在するステップIDなので L1 が二度と出なくなる。
+    ok('★他イベント判定の末尾一致がコロン付き（L1 が L10 に誤爆しない）',
+      /const suffix = `:\$\{stepId\}`/.test(ob));
   }
 
   // ★意気込みカードのトグルは、保存の往復を待たずにその場で見た目を切り替えること。

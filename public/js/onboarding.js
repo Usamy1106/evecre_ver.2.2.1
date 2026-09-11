@@ -58,6 +58,32 @@ export function lastSeenAt(userId, eventId, stepId) {
   try { return Number(localStorage.getItem(_key(userId, eventId, stepId))) || 0; } catch (_) { return 0; }
 }
 
+/**
+ * そのステップを**他のイベントで**見たことがあるか。
+ *
+ * ★`oncePerUser: true` のステップ（アプリの使い方の説明）で使う。イベントを作る／
+ *   参加するたびに同じ説明を読まされるのを止めるため。初期オンボーディングの
+ *   `hasCompletedElsewhere()` と同じ考え方。
+ * ★保存形式は変えない。`markSeen` が書くイベント別のキーをそのまま走査する。
+ * ★末尾一致は必ず `:` を付ける。付けないと `L1` が `L10` のキーにも当たる
+ *   （どちらも実在するステップIDなので、ここを省くと L1 が二度と出なくなる）。
+ * ★接頭辞 `evecre:onboarding:v1:` は初期オンボーディングの
+ *   `evecre:onboardingIntro:v1:` とは別物（`onboarding` の直後が `:` か `Intro` かで分かれる）。
+ */
+export function isSeenElsewhere(userId, eventId, stepId) {
+  try {
+    const prefix = `evecre:onboarding:v1:${userId}:`;
+    const suffix = `:${stepId}`;
+    const here = _key(userId, eventId, stepId);
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || k === here) continue;
+      if (k.startsWith(prefix) && k.endsWith(suffix)) return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
 // ★ここより上でも使うので、いちばん先に置く（const は巻き上がらない）
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -92,8 +118,25 @@ export function isNewcomer(p, userId) {
 // match(ctx): 表示条件。ctx = { p, userId, canManage, density }
 // build(ctx): openOnboardingModal に渡す内容
 // repeatEveryMs: 指定すると既読でもこの間隔で再表示する（L4 のみ。承認されるまで催促する）
+// oncePerUser: true にすると**ユーザー生涯で1回**だけ（2つ目以降のイベントでは出ない）
 //
 // ★優先度は配列の並び。放置されると被害が大きいものを先に置く。
+//
+// ★このファイルには**性質の違う2種類**が同居している。混ぜないこと。
+//
+//   1. アプリの使い方の説明（L1 / M1 / M2 / M3）… `oncePerUser: true`
+//      イベントが変わっても中身は同じなので、作る／参加するたびに読まされると
+//      鬱陶しい。**最初に条件を満たしたイベントで1回だけ**出す。
+//
+//   2. そのイベントの状態に紐づく催促（L3 / L4 / L5 / L8 / L9 / L10）… イベントごと
+//      ★これらに `oncePerUser` を付けないこと。2つ目以降のイベントで実務が
+//        止まる。とくに L4（承認待ちの放置）は「参加は承認制の1本道」ゆえに
+//        **承認しないとメンバーが1人も入れない**現状いちばんのボトルネックで、
+//        L9 は引き継ぎ日 → 自動で「完了」へ進む導線そのもの。
+//
+//   3. お祝い（L6 / M4「はじめての完了」）… イベントごと
+//      説明ではなく、そのイベントで最初の完了を祝うもの。毎回味わってほしいので
+//      1回限りにはしない（文言の「はじめての」はイベント内での初回という意味）。
 
 /** スキルIDを日本語ラベルに直す（表示用。保存は英数キーのまま） */
 function _skillLabels(ids) {
@@ -335,6 +378,7 @@ const STEPS = [
     id: 'L1',
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    oncePerUser: true,   // ★アプリの使い方の説明。イベントが変わっても中身は同じ
     // イベントを作った直後（＝管理者として初めてこのイベントを開いたとき）
     // ★初期オンボーディング（onboardingIntro.js）の①が**同じ3ステップ**を出すので、
     //   そちらが動くイベントでは出さない。リリース日時より前に作られた既存イベントや、
@@ -464,6 +508,7 @@ const STEPS = [
     id: 'M1',
     role: 'member',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    oncePerUser: true,   // ★アプリの使い方の説明。イベントが変わっても中身は同じ
     match: () => true,
     build: () => ({
       eyebrow: 'ようこそ',
@@ -487,6 +532,7 @@ const STEPS = [
     id: 'M3',
     role: 'any',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    oncePerUser: true,   // ★アプリの使い方の説明。イベントが変わっても中身は同じ
     match: (ctx) => _assignedByOthers(ctx.p, ctx.userId).length > 0,
     build: (ctx) => {
       const mine  = _assignedByOthers(ctx.p, ctx.userId);
@@ -510,6 +556,7 @@ const STEPS = [
     id: 'M2',
     role: 'member',
     densities: [DENSITY.FIRST, DENSITY.FEW],
+    oncePerUser: true,   // ★アプリの使い方の説明。イベントが変わっても中身は同じ
     match: (ctx) => {
       if (_myMissions(ctx.p, ctx.userId).length > 0) return false;
       const me = (ctx.p.members || []).find(m => m.userId === ctx.userId);
@@ -596,12 +643,16 @@ export function checkOnboarding() {
   for (const step of STEPS) {
     if (step.role !== 'any' && step.role !== role) continue;
     if (!step.densities.includes(density)) continue;
-    // 通常は一度きり。repeatEveryMs があるステップは、その間隔を空けて再表示する
+    // 通常はイベントごとに一度きり。repeatEveryMs があるステップは、その間隔を空けて再表示する
     if (step.repeatEveryMs) {
       if (Date.now() - lastSeenAt(userId, p.id, step.id) < step.repeatEveryMs) continue;
     } else if (isSeen(userId, p.id, step.id)) {
       continue;
     }
+    // ★アプリの使い方の説明は**ユーザー生涯で1回**。他のイベントで見ていたら出さない。
+    //   ここは既読判定の**後**に置く（前に置いても結果は同じだが、走査は
+    //   localStorage 全件なので、安いイベント別の判定で先に落としたほうがよい）。
+    if (step.oncePerUser && isSeenElsewhere(userId, p.id, step.id)) continue;
     let hit = false;
     try { hit = !!step.match(ctx); } catch (_) { hit = false; }
     if (!hit) continue;
