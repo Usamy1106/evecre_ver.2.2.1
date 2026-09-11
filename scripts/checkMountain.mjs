@@ -204,6 +204,26 @@ for (const done of [0, 7, 8, 16, 48]) {
   ok('z-index が2刻み（雲・気象を間に挟める）', parts.every(pt => pt.z % 2 === 0));
 
 
+  // ★道の上に積む「逃げ」は1画面まるごとではないこと。
+  //   以前は _needTopArt が canvasH + viewH だったため、完了0件（道はマス1個）でも
+  //   地形が12枚積まれ、そのてっぺんに立つ山頂まで 1300px 以上スクロールさせられていた。
+  //   逃げが要る量は headroom（measure() が実測）で、画面の2〜3割に収まる。
+  {
+    const A = +/const TOP_ALLOWANCE\s*=\s*([\d.]+)/.exec(src)[1];
+    ok('★道の上の逃げが1画面まるごとではない（山頂が遠くなる）', A < 1, `TOP_ALLOWANCE=${A}`);
+    ok('逃げを削りすぎていない（上端に空の帯が出る）', A >= 0.25, `TOP_ALLOWANCE=${A}`);
+  }
+
+  // ★山頂は**すでに積んだ地形のてっぺん**に立てる。山頂のために地形を足さないこと
+  //   （足すと、完了が少ないイベントほど山頂が遠のく）。
+  {
+    const before = build(4, 'ev1', ['2099-01-01']);   // 開催前＝山頂なし
+    const after  = build(4, 'ev1', ['2020-01-01']);   // 開催後＝山頂あり
+    ok('★山頂を出すために地形を増やしていない',
+      before.parts.length === after.parts.length && after.summit !== null,
+      `${before.parts.length} vs ${after.parts.length}`);
+  }
+
   // 覆いきれているか：塗り潰しの余白の上端が、必要な高さに届いていること
   const last = parts.at(-1);
   ok('いちばん上の地形が必要な高さまで届いている（上端に隙間ができない）',

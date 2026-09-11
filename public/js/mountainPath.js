@@ -257,12 +257,21 @@ function _isSummit(p) {
  *   実際の幅がこれより狭ければ1枚あたりの見かけの送りが小さくなり、
  *   必要な高さは増える＝必ず足りる側に倒れる。
  */
+// 道の上端より上に、どれだけ余分に地形を積むか（画面の高さに対する割合）。
+// ★これは「スクロールで上へ送ったときに空が見えないための逃げ」でしかない。
+//   逃げが要る量は headroom（measure() が実測する）で、実測すると画面の
+//   2〜3割に収まる。以前はここが **1画面まるごと**だったため、
+//   完了0件（道はマス1個＝1画面ぶん）でも地形が12枚積まれ、その**てっぺんに立つ
+//   山頂まで 1300px 以上スクロールさせられていた**（実際にその報告を受けた）。
+// ★下げすぎると上端に空の帯が出る。0.3 未満にするときは実機で上まで送って確かめること。
+const TOP_ALLOWANCE = 0.35;
+
 function _needTopArt(canvasH) {
   const w = Math.min((typeof window !== 'undefined' ? window.innerWidth : 400) || 400, 448);
   const viewH = (typeof window !== 'undefined' ? window.innerHeight : 640) || 640;
   const unit = w / ART_W;              // 素材1px が画面で何px になるか
-  // キャンバスぶん＋1画面ぶん（headroom で下へずらす量の逃げ）
-  return (canvasH + viewH) / unit;
+  // キャンバスぶん＋逃げ（headroom で下へずらす量ぶん）
+  return (canvasH + viewH * TOP_ALLOWANCE) / unit;
 }
 
 /**
