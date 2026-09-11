@@ -437,6 +437,42 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
   ok('植物が実際に生えている', total > 0, `${total}本`);
   console.log(`     （${events.length}イベント × 完了48 で 地形に植えた ${planted} 枚 / 植物 ${total} 本）`);
 
+  // ★草木の**先端**が山のシルエットを超えないこと。草木は地形の上端付近を足元に
+  //   して上へ伸びるので、途中の地形では先端がその地形の上端を超えてよい
+  //   （はみ出した分は一段上の地形が隠す）。隠す相手がいないのは最高点だけで、
+  //   そこを超えると**空に浮いて見える**（実際にその報告を受けた）。
+  {
+    const sky = [];
+    // 完了数を散らす。山の高さ＝地形の枚数が変わり、てっぺん付近の条件も変わる
+    for (const ev of ['e1', 'e2', 'e3', 'e4', 'e5', 'e6']) {
+      for (const done of [3, 8, 16, 32, 48]) {
+        const parts = build(done, ev, ['2020-01-01']).parts;
+        const ceiling = Math.max(...parts.map(pt => pt.y + pt.h));
+        for (const pt of parts) {
+          for (const pl of pt.plants) {
+            const top = pt.y + pl.y + pl.h;
+            if (top > ceiling) sky.push(`${ev}/${done} ${pl.file} ${top} > ${ceiling}`);
+          }
+        }
+      }
+    }
+    ok('★草木の先端が山のシルエットを超えない（空に浮かない）',
+      sky.length === 0, sky.slice(0, 3).join(' / '));
+  }
+
+  // ★天井は「全パーツの最高点」＝シルエット。parts.at(-1) で代用しないこと。
+  //   地形の高さは3種あってバラバラなので、いちばん上の地形が低いと**1つ下のほうが
+  //   高く突き出す**（実測で 5.7% のイベント／差は最大 281 素材px）。
+  //   ★誤解しないこと：at(-1) は必ず最高点**以下**なので、使っても草木が空に
+  //     浮くことはない（むしろ厳しくなる）。つまり**挙動では検知できない**ので、
+  //     ここは定義そのものをソースで押さえる。現在の素材では両者の差で消える
+  //     草木は0本だが、送り幅や素材の高さを変えるとこの帯に草木が入りうる。
+  {
+    const plan = srcCode.slice(srcCode.indexOf('function _plantingPlan'));
+    ok('★天井を全パーツの最高点から取っている（at(-1) で代用していない）',
+      /const ceiling\s*=[^;]*Math\.max\(\.\.\.parts\.map/.test(plan));
+  }
+
   // 素材の無いテーマでは1本も出さない
   const noPlant = BG_THEMES.filter(t => (BG_ASSETS[t.id]?.WorldSpawnedObjects || []).length === 0).map(t => t.id);
   const stray = build(48, 'e1').parts.filter(pt => noPlant.includes(pt.theme) && pt.plants.length);
