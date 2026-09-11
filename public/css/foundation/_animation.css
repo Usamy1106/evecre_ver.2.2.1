@@ -54,3 +54,35 @@
 @keyframes pulse {
   50% { opacity: .5; }
 }
+
+/* 使用: object/project/_invite.css（.p-invite__fire.is-launching）
+   リーダーの意気込み🔥：押した瞬間に一度大きくなってから縮んで消える。
+   ★イージングは swipeCard.js と同じ「弾む」カーブを踏襲する（_invite.css 側で指定）。 */
+@keyframes fireLaunch {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.15); }
+  100% { transform: scale(0); }
+}
+
+/* 使用: object/project/_invite.css（.p-invite__spark）
+   🔥の火の粉。translate と opacity だけで四方へ飛び散って消える。
+   ★飛ぶ向き（--spark-tx / --spark-ty）は1粒ごとに _invite.css の nth-child で渡す。
+     ここに方向を書かないこと（keyframes は共有なので、粒ごとに変えられない）。 */
+@keyframes fireSpark {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--spark-tx, 0), var(--spark-ty, 0)) scale(.4); opacity: 0; }
+}
+
+/* 使用: object/utility/_transition.css（.u-animate-fade-up-out）
+   汎用：フェードしながら少し上へ抜けて消える。u-animate-fade の逆方向版。 */
+@keyframes fadeUpOut {
+  from { transform: translateY(0);     opacity: 1; }
+  to   { transform: translateY(-28px); opacity: 0; }
+}
+
+/* 使用: object/component/_overlay.css（.c-overlay.is-leaving）
+   汎用：暗幕のフェードアウト（fadeIn の逆）。 */
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}

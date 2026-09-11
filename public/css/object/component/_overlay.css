@@ -15,6 +15,12 @@
   background-color: rgba(0, 0, 0, .5);
 }
 
+/* 退場（暗幕のフェードアウト）。★詳細度 (0,2,0) なので、出現時に付く
+   .u-page-transition / .u-animate-fade（(0,1,0) の fadeIn）に記述順によらず勝つ。 */
+.c-overlay.is-leaving {
+  animation: fadeOut var(--duration-normal) ease-in forwards;
+}
+
 /* 中身の寄せ方 */
 .c-overlay--center {
   align-items: center;

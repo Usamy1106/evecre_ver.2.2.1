@@ -65,6 +65,84 @@
   transform: scale(.9);
 }
 
+/* --- 🔥ボタンの中身（Lottie ＋ 火の粉）----------------------------------
+   円のオレンジ背景と box-shadow は上の .p-invite__fire がそのまま持つ。
+   Lottie はその円の**中に重ねる**（背景を Lottie に置き換えない）。
+   ★アニメーションの実体は public/animations/fire-idle.json / fire-pressed.json。
+     JS は modals/leaderMotivationModal.js。 */
+
+.p-invite__fire {
+  position: relative;   /* 火の粉と Lottie を絶対配置する基準 */
+  overflow: visible;    /* 火の粉が円の外まで飛ぶので切らない */
+}
+
+/* Lottie が読めなかったときに見せる絵文字。
+   ★消さないこと。json が未配置でも壊れず動く唯一の逃げ道。 */
+.p-invite__fire-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Lottie の描画先。円いっぱいに広げる */
+.p-invite__fire-lottie {
+  position: absolute;
+  inset: 0;
+}
+
+/* 押した瞬間：円が一度膨らんでから縮んで消える。
+   ★イージングは swipeCard.js と同じ「弾む」カーブ（トークン化されていないので直値）。
+   ★長さは JS が --fire-launch-dur に fire-pressed.json の**実尺**を入れる。
+     ここに固定値を書き戻さないこと。炎が消えるより先にボタンが scale(0) になり、
+     せっかくのアニメーションが大半見えないまま閉じる（実際に 0.5s 対 1.33s で
+     そうなっていた）。既定の .5s は Lottie が無いとき（絵文字）の値。 */
+.p-invite__fire.is-launching {
+  animation: fireLaunch var(--fire-launch-dur, .5s) cubic-bezier(.2, .8, .3, 1) forwards;
+}
+
+/* --- 火の粉 --------------------------------------------------------------
+   ★疑似要素ではなく実要素。::before/::after は1要素に2個までで、
+     「数粒が四方へ独立に飛ぶ」を transform で表すには数が足りない。
+   ★専用のラッパーに入れて nth-child を火の粉だけに閉じる。ボタン直下に
+     並べると、Lottie やフォールバックを足し引きするたび番号がずれる。 */
+.p-invite__sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.p-invite__spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: var(--radius-full);
+  background-color: var(--create-yellow);
+  opacity: 0;
+}
+
+/* 6方向（60度おき）へ。中心から 48〜56px 飛ばす */
+.p-invite__spark:nth-child(1) { --spark-tx: 0;      --spark-ty: -56px; }
+.p-invite__spark:nth-child(2) { --spark-tx: 48px;   --spark-ty: -28px; background-color: var(--create-red); }
+.p-invite__spark:nth-child(3) { --spark-tx: 48px;   --spark-ty: 28px; }
+.p-invite__spark:nth-child(4) { --spark-tx: 0;      --spark-ty: 56px;  background-color: var(--create-red); }
+.p-invite__spark:nth-child(5) { --spark-tx: -48px;  --spark-ty: 28px; }
+.p-invite__spark:nth-child(6) { --spark-tx: -48px;  --spark-ty: -28px; background-color: var(--create-red); }
+
+.p-invite__fire.is-launching .p-invite__spark {
+  animation: fireSpark .5s ease-out forwards;
+}
+
+/* 少しだけ時間差を付けて散らばりを自然にする */
+.p-invite__fire.is-launching .p-invite__spark:nth-child(2),
+.p-invite__fire.is-launching .p-invite__spark:nth-child(5) { animation-delay: .03s; }
+.p-invite__fire.is-launching .p-invite__spark:nth-child(3),
+.p-invite__fire.is-launching .p-invite__spark:nth-child(6) { animation-delay: .06s; }
+
 /* --- 招待コード入力の確認画面 --------------------------------------------
    使用箇所: public/js/modals/joinByCodeModal.js
 

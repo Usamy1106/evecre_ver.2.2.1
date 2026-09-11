@@ -203,8 +203,56 @@ section('[B] 実機で見つかった不具合');
   //   「🔥は出たのに進め方が出ない」で止まる（実際にその報告を受けた）。
   {
     const lm = R('public/js/modals/leaderMotivationModal.js');
+    const lmCode = codeOnly(lm);
+    // ★閉じる経路は close() 1本に集約されていること。overlay.remove() を
+    //   他所にも書くと、そこだけ state.render() を呼び忘れて止まる。
     ok('★🔥を閉じたら state.render() を呼ぶ（次の案内が続くため）',
-      /const close = \(\) => \{ overlay\.remove\(\); state\.render\(\); \};/.test(lm));
+      /overlay\.remove\(\);\s*\n\s*state\.render\(\);/.test(lmCode));
+    ok('★閉じる処理は1箇所だけ（remove を散らさない）',
+      (lmCode.match(/overlay\.remove\(\)/g) || []).length === 1);
+
+    // ★Lottie は DOM を消しても requestAnimationFrame が止まらない。destroy を
+    //   忘れると閉じたあともループが回り続け、山のスクロール（60fps）を削る。
+    ok('★閉じるときに Lottie を destroy している（rAF ループを残さない）',
+      /idleAnim\?\.destroy\(\)/.test(lmCode) && /pressedAnim\?\.destroy\(\)/.test(lmCode));
+
+    // ★animationend はバブリングする。火の粉やボタンのバウンドは子要素で
+    //   0.5秒動いているので、target を見ないと退場前に閉じてしまう。
+    //   ★窓を広く取らないこと。すぐ下に overlay.onclick の同じ式があり、
+    //     ゆるい正規表現だとそちらを拾って素通りする（実際に踏んだ）。
+    //     コールバックの開き括弧から直接続いていることまで見る。
+    ok('★退場の animationend を overlay 自身に限定している',
+      /addEventListener\('animationend',\s*\(e\)\s*=>\s*\{\s*if \(e\.target === overlay\)/.test(lmCode));
+    // ★animation が走らない環境（prefers-reduced-motion 等）では animationend が
+    //   来ない。保険が無いとモーダルが永久に閉じなくなる。
+    ok('★退場に時間切れの保険がある（animationend が来なくても閉じる）',
+      /setTimeout\(close,/.test(lmCode));
+
+    // ★アセットもライブラリも自ドメイン。外部CDN・LottieFiles を参照しないこと
+    ok('★Lottie を自ドメインから読んでいる（CDN を参照しない）',
+      /path: '\/animations\//.test(lmCode) &&
+      !/lottiefiles|lottie\.host|cdn\.jsdelivr|unpkg/.test(lmCode));
+    ok('★json が無くても絵文字に落ちる（フォールバックを消していない）',
+      /data_failed/.test(lmCode) && /p-invite__fire-fallback/.test(lm));
+
+    // ★ボタンが縮む長さは fire-pressed.json の実尺に合わせる。CSS に固定値を
+    //   書き戻すと、AE 側で尺を変えたときに炎が見えないまま閉じる
+    //   （実際に 0.5s 対 1.33s でそうなっていた）。
+    const inv = strip(R('public/css/object/project/_invite.css'));
+    ok('★ボタンが縮む長さを Lottie の実尺から取っている',
+      /animation: fireLaunch var\(--fire-launch-dur/.test(inv) &&
+      /setProperty\('--fire-launch-dur'/.test(lmCode));
+
+    // ★ライブラリもアセットも自ドメイン。index.html から CDN を読まないこと。
+    //   ★判定は**実際の src 属性だけ**を見る。生のHTMLに正規表現を当てると、
+    //     「CDN を使わないこと」という注意書きのコメント自体が引っかかる
+    //     （落とし穴 0-8。checkMountain の codeOnly と同じ趣旨で、実際に踏んだ）。
+    const html = R('public/index.html');
+    const srcs = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m => m[1]);
+    const lottieSrcs = srcs.filter(s => /lottie/i.test(s));
+    ok('★lottie-web を自ドメインから読んでいる（CDN を参照しない）',
+      lottieSrcs.length === 1 && lottieSrcs[0] === '/js/vendor/lottie-web/lottie_light.min.js',
+      lottieSrcs.join(', '));
     // ★意気込みが無いイベントには出さない（空の箱を見せない）という設計。
     //   代償として、意気込みが未入力のイベントでは🔥が一度も出ない。
     //   ★2026-09-11、これは**このままでよい**と判断済み。モーダル側の条件を

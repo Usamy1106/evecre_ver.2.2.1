@@ -46,6 +46,12 @@
 
   <div id="app" class="l-app"></div>
 
+  <!-- Lottie 再生ライブラリ。★自ドメインから配信する（CDN を使わないこと）。
+       LottieFiles や jsDelivr のホスティング枠・無料プランにアプリの動作を
+       左右されないようにするため。実体は public/js/vendor/lottie-web/。
+       ★UMD ビルドなので type="module" は付けない（window.lottie に入る）。
+       ★main.js より前に置くこと。モーダルが window.lottie を同期的に見る。 -->
+  <script src="/js/vendor/lottie-web/lottie_light.min.js"></script>
   <script type="module" src="/js/main.js"></script>
 </body>
 </html>

@@ -14,3 +14,15 @@
 .u-animate-fade {
   animation: fadeIn var(--duration-slow) ease-out forwards;
 }
+
+/* 退場。フェードしながら少し上へ抜ける（u-animate-fade の逆方向）。
+   ★必ず .u-animate-fade より**後**に書くこと。どちらも詳細度 (0,1,0) で
+     animation という同じプロパティを奪い合うので、勝敗は記述順で決まる。
+     先に書くと、出現時に付いた u-animate-fade に負けて退場しなくなる。
+   ★使う側は「アニメーション終了で DOM を消す」設計にしないこと。
+     prefers-reduced-motion などで animation が走らないと animationend が
+     永久に来ず、要素が消えなくなる。必ず時間切れの保険を持たせる
+     （modals/leaderMotivationModal.js の closeWithExit を参照）。 */
+.u-animate-fade-up-out {
+  animation: fadeUpOut var(--duration-normal) ease-in forwards;
+}

@@ -99,12 +99,46 @@ function _openModal(p) {
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--welcome u-page-transition';
+  // Lottie のインスタンス。★閉じるときに必ず destroy する（下記 closeWithExit）
+  let idleAnim = null;
+  let pressedAnim = null;
+
   // ★閉じたら必ず state.render() を呼ぶこと。これは歓迎の1枚目で、閉じたあとに
   //   メンバー向けの案内（進め方）が続く。render() を呼ばないと次の判定が走らず、
   //   「🔥は出たのに進め方が出ない」状態になる（実際にその報告を受けた）。
-  const close = () => { overlay.remove(); state.render(); };
+  // ★Lottie は DOM を消しても requestAnimationFrame のループが止まらない。
+  //   destroy() を忘れると、閉じたあともバックグラウンドで回り続ける
+  //   （0.5CPU の環境で山のスクロール 60fps を削る）。
+  let closed = false;
+  const close = () => {
+    if (closed) return;              // 退場アニメと時間切れの二重発火を防ぐ
+    closed = true;
+    try { idleAnim?.destroy(); } catch (_) {}
+    try { pressedAnim?.destroy(); } catch (_) {}
+    overlay.remove();
+    state.render();
+  };
 
-  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  /**
+   * 退場アニメーション（暗幕フェード＋白い箱が上へ抜ける）を見せてから閉じる。
+   *
+   * ★animationend は**バブリングする**。火の粉やボタンのバウンドは子要素で
+   *   0.5秒動いているので、target を見ずに拾うと退場が始まる前に閉じてしまう。
+   *   必ず overlay 自身のアニメーションだけを見ること。
+   * ★時間切れの保険を必ず持つこと。prefers-reduced-motion などで animation が
+   *   走らないと animationend は永久に来ず、モーダルが閉じなくなる。
+   */
+  const closeWithExit = () => {
+    if (closed) return;
+    overlay.classList.add('is-leaving');
+    overlay.querySelector('.c-modal')?.classList.add('u-animate-fade-up-out');
+    overlay.addEventListener('animationend', (e) => {
+      if (e.target === overlay) close();
+    });
+    setTimeout(close, 600);          // --duration-normal(.25s) に対する充分な余裕
+  };
+
+  overlay.onclick = (e) => { if (e.target === overlay) closeWithExit(); };
   document.body.appendChild(overlay);
 
   // 操作は🔥の円形ボタン1つだけ（「閉じる」は置かない）。押すと応援を送って閉じる。
@@ -128,33 +162,120 @@ function _openModal(p) {
         ${text ? `<p class="p-invite__text">「${_esc(text)}」</p>` : ''}
       </div>
 
-      <!-- ★押すとモーダルが閉じる。「閉じる」は置かない（🔥が出口を兼ねる）-->
+      <!-- ★押すとモーダルが閉じる。「閉じる」は置かない（🔥が出口を兼ねる）
+           ★fallback の絵文字を必ず残すこと。json が未配置・読み込み失敗でも
+             ここに落ちれば従来どおり動く（Lottie が読めたら JS が hidden にする）。
+           ★火の粉は専用ラッパーの中に入れる。ボタン直下に並べると、Lottie や
+             fallback を足し引きするたび CSS の nth-child がずれる。 -->
       <div class="p-invite__fire-wrap">
-        <button type="button" id="lm-fire" class="p-invite__fire">🔥</button>
+        <button type="button" id="lm-fire" class="p-invite__fire" aria-label="🔥で応援する">
+          <span class="p-invite__fire-fallback" id="lm-fire-fallback">🔥</span>
+          <span class="p-invite__fire-lottie" id="lm-fire-idle" aria-hidden="true"></span>
+          <span class="p-invite__fire-lottie" id="lm-fire-pressed" aria-hidden="true" hidden></span>
+          <span class="p-invite__sparks" aria-hidden="true">
+            <span class="p-invite__spark"></span>
+            <span class="p-invite__spark"></span>
+            <span class="p-invite__spark"></span>
+            <span class="p-invite__spark"></span>
+            <span class="p-invite__spark"></span>
+            <span class="p-invite__spark"></span>
+          </span>
+        </button>
       </div>
     </div>`;
 
-  document.getElementById('lm-fire').onclick = async () => {
+  // ── Lottie の読み込み ────────────────────────────────────
+  // ★読み込み元はすべて自ドメイン。CDN や LottieFiles を参照しないこと（§セルフホスト）。
+  // ★json が無い／壊れている／ライブラリが読めない、のどれでも絵文字に落ちる。
+  //   落ちた先でも応援の送信とモーダルの開閉は従来どおり動くこと。
+  const fallbackEl = document.getElementById('lm-fire-fallback');
+  const idleEl     = document.getElementById('lm-fire-idle');
+  const pressedEl  = document.getElementById('lm-fire-pressed');
+
+  /** Lottie を諦めて絵文字に戻す */
+  const useFallback = () => {
+    if (idleEl) idleEl.hidden = true;
+    if (pressedEl) pressedEl.hidden = true;
+    if (fallbackEl) fallbackEl.hidden = false;
+  };
+
+  if (window.lottie) {
+    try {
+      idleAnim = window.lottie.loadAnimation({
+        container: idleEl, renderer: 'svg', loop: true, autoplay: true,
+        path: '/animations/fire-idle.json',
+      });
+      // ★絵文字を消すのは**読み込めたと分かってから**。先に消すと、
+      //   json が無いときに何も出ていないボタンになる。
+      idleAnim.addEventListener('DOMLoaded', () => { if (fallbackEl) fallbackEl.hidden = true; });
+      idleAnim.addEventListener('data_failed', useFallback);
+
+      pressedAnim = window.lottie.loadAnimation({
+        container: pressedEl, renderer: 'svg', loop: false, autoplay: false,
+        path: '/animations/fire-pressed.json',
+      });
+      // pressed が読めなかったときは、再生完了を待たず時間で閉じる（下の分岐で見る）
+      pressedAnim.addEventListener('data_failed', () => { pressedAnim = null; });
+      // ★ボタンが縮む長さを、この json の**実尺**に合わせる。
+      //   CSS に固定値を書くと、AE 側で尺を変えたときに噛み合わなくなる
+      //   （0.5s 対 1.33s で、炎の6割が見えないまま閉じていた）。
+      pressedAnim.addEventListener('DOMLoaded', () => {
+        const sec = pressedAnim?.getDuration?.(false);
+        if (sec > 0) {
+          document.getElementById('lm-fire')
+            ?.style.setProperty('--fire-launch-dur', `${sec}s`);
+        }
+      });
+    } catch (_) {
+      idleAnim = null;
+      pressedAnim = null;
+      useFallback();
+    }
+  } else {
+    useFallback();     // ライブラリ自体が読めなかった（配置ミス等）
+  }
+
+  document.getElementById('lm-fire').onclick = () => {
     const btn = document.getElementById('lm-fire');
     btn.disabled = true;
+
     // ★押したら必ず閉じる。この画面にトグル解除はない（「閉じる」ボタンを置かない代わりに
     //   🔥が唯一の出口なので、既に押している人がうっかり取り消してしまわないようにする）。
-    if (alreadyReacted) { close(); return; }
-    try {
-      const r = await api.toggleMotivationReaction(p.id, '🔥');
-      if (r?.ok && r.mine) {
-        logEvent('motivation_reaction_added', { emoji: '🔥' });
-        // 手元のイベントにも反映しておく（再表示時に二重送信しないように）
-        p.motivationReactions = [
-          ...(p.motivationReactions || []).filter(x => x.userId !== state.currentUser.id),
-          { userId: state.currentUser.id, emoji: '🔥', at: Date.now() },
-        ];
-      } else if (!r?.ok) {
-        window._app?.showToast(r?.error || '送信に失敗しました', 'error');
-      }
-    } catch (_) {
-      window._app?.showToast('通信エラーが発生しました', 'error');
+    // ★既に押している人へは API を再送しないが、**演出は毎回見せる**。
+    //   炎のアニメーションは見せ場なので、2回目だけ素通りさせない。
+    if (!alreadyReacted) {
+      // ★通信は投げっぱなしにする。演出を通信待ちで止めると、回線が遅いときに
+      //   押しても何も起きない時間が生まれる。失敗はトーストだけで知らせる。
+      api.toggleMotivationReaction(p.id, '🔥').then((r) => {
+        if (r?.ok && r.mine) {
+          logEvent('motivation_reaction_added', { emoji: '🔥' });
+          // 手元のイベントにも反映しておく（再表示時に二重送信しないように）
+          p.motivationReactions = [
+            ...(p.motivationReactions || []).filter(x => x.userId !== state.currentUser.id),
+            { userId: state.currentUser.id, emoji: '🔥', at: Date.now() },
+          ];
+        } else if (!r?.ok) {
+          window._app?.showToast(r?.error || '送信に失敗しました', 'error');
+        }
+      }).catch(() => {
+        window._app?.showToast('通信エラーが発生しました', 'error');
+      });
     }
-    close();   // 送信の成否にかかわらず閉じる（歓迎の場で足止めしない）
+
+    // 演出：ボタンのバウンド＋火の粉、Lottie を idle → pressed へ
+    btn.classList.add('is-launching');
+    if (idleEl) idleEl.hidden = true;
+    idleAnim?.pause();
+
+    if (pressedAnim && pressedEl) {
+      pressedEl.hidden = false;
+      // 炎が消えきったところから退場を始める
+      pressedAnim.addEventListener('complete', closeWithExit);
+      pressedAnim.goToAndPlay(0, true);
+    } else {
+      // pressed が無い（json 未配置・絵文字フォールバック）。
+      // ボタンのバウンド（.5s）が終わる頃合いで閉じる
+      setTimeout(closeWithExit, 500);
+    }
   };
 }
