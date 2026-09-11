@@ -14,7 +14,7 @@
 
 import { state } from './state.js';
 import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
-import { getArchiveSummary, getArchiveVenue, todayStr } from './utils.js';
+import { getArchiveSummary, getArchiveVenue, todayStr, isAfterEventDates } from './utils.js';
 import { isIntroEligible, getIntroState } from './onboardingIntro.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
@@ -119,6 +119,7 @@ export function isNewcomer(p, userId) {
 // build(ctx): openOnboardingModal に渡す内容
 // repeatEveryMs: 指定すると既読でもこの間隔で再表示する（L4 のみ。承認されるまで催促する）
 // oncePerUser: true にすると**ユーザー生涯で1回**だけ（2つ目以降のイベントでは出ない）
+// hideAfterEvent: true にすると**開催日を過ぎたら出さない**（終わったイベントで催促しない）
 //
 // ★優先度は配列の並び。放置されると被害が大きいものを先に置く。
 //
@@ -137,6 +138,16 @@ export function isNewcomer(p, userId) {
 //   3. お祝い（L6 / M4「はじめての完了」）… イベントごと
 //      説明ではなく、そのイベントで最初の完了を祝うもの。毎回味わってほしいので
 //      1回限りにはしない（文言の「はじめての」はイベント内での初回という意味）。
+//
+// ★**開催日を過ぎたら出さないもの**（`hideAfterEvent: true`）：
+//   L1 / L3 / L4 / L5 / M2 / M3。終わったイベントで「仲間を誘おう」「担当を決めよう」
+//   「空いているミッションがあります」と言っても、もうやることが無い。
+//   ★とくに L4 は `repeatEveryMs` で24時間ごとに繰り返すので、止めないと
+//     終わったイベントの承認待ちを**永久に催促し続ける**（実際にそうなっていた）。
+//   ★L6 / M4（お祝い）と M1（メンバー向けの進め方）は**止めない**。
+//     開催後の片付けや報告で完了することはあるし、祝って困る場面が無い。
+//   ★L8 は構造上 after で発火しない（late が条件）。L9 / L10 は**開催後が本番**なので
+//     絶対に付けないこと。付けると引き継ぎ日 → 自動完了の導線が丸ごと止まる。
 
 /** スキルIDを日本語ラベルに直す（表示用。保存は英数キーのまま） */
 function _skillLabels(ids) {
@@ -258,7 +269,8 @@ function _detectPhase(p) {
   const sorted = [...(p.dates || [])].filter(Boolean).sort();
   const today = todayStr();
   if (sorted.length === 0) return null;              // 日程未設定は中立
-  if (today > sorted[sorted.length - 1]) return 'after';
+  // ★'after' の判定は utils に集約してある（他のモーダルも同じ基準で止めるため）
+  if (isAfterEventDates(p)) return 'after';
   if (today >= sorted[0]) return 'during';
   const days = Math.ceil((new Date(sorted[0]) - new Date(today)) / DAY_MS);
   return days > 21 ? 'early' : days > 7 ? 'mid' : 'late';
@@ -297,6 +309,7 @@ const STEPS = [
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
     repeatEveryMs: DAY_MS,          // ★これがあるステップは「既読でも」再表示される
+    hideAfterEvent: true,   // ★開催日を過ぎたら出さない（終わったイベントで催促しない）
     match: (ctx) => _stalePending(ctx.p).length > 0,
     build: (ctx) => {
       const stale = _stalePending(ctx.p);
@@ -320,6 +333,7 @@ const STEPS = [
     id: 'L5',
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    hideAfterEvent: true,   // ★開催日を過ぎたら出さない（終わったイベントで催促しない）
     match: (ctx) => {
       const un = _unassigned(ctx.p);
       // 未完了が4件以上あり、かつ**どれも担当が決まっていない**とき
@@ -379,6 +393,7 @@ const STEPS = [
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
     oncePerUser: true,   // ★アプリの使い方の説明。イベントが変わっても中身は同じ
+    hideAfterEvent: true,   // ★開催日を過ぎたら出さない（終わったイベントで催促しない）
     // イベントを作った直後（＝管理者として初めてこのイベントを開いたとき）
     // ★初期オンボーディング（onboardingIntro.js）の①が**同じ3ステップ**を出すので、
     //   そちらが動くイベントでは出さない。リリース日時より前に作られた既存イベントや、
@@ -413,6 +428,7 @@ const STEPS = [
     id: 'L3',
     role: 'leader',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
+    hideAfterEvent: true,   // ★開催日を過ぎたら出さない（終わったイベントで催促しない）
     match: (ctx) => _daysSinceCreated(ctx.p) >= 3
       && (ctx.p.members || []).length <= 1
       && (ctx.p.pendingMembers || []).length === 0,
@@ -533,6 +549,7 @@ const STEPS = [
     role: 'any',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
     oncePerUser: true,   // ★アプリの使い方の説明。イベントが変わっても中身は同じ
+    hideAfterEvent: true,   // ★開催日を過ぎたら出さない（終わったイベントで催促しない）
     match: (ctx) => _assignedByOthers(ctx.p, ctx.userId).length > 0,
     build: (ctx) => {
       const mine  = _assignedByOthers(ctx.p, ctx.userId);
@@ -557,6 +574,7 @@ const STEPS = [
     role: 'member',
     densities: [DENSITY.FIRST, DENSITY.FEW],
     oncePerUser: true,   // ★アプリの使い方の説明。イベントが変わっても中身は同じ
+    hideAfterEvent: true,   // ★開催日を過ぎたら出さない（終わったイベントで催促しない）
     match: (ctx) => {
       if (_myMissions(ctx.p, ctx.userId).length > 0) return false;
       const me = (ctx.p.members || []).find(m => m.userId === ctx.userId);
@@ -653,6 +671,9 @@ export function checkOnboarding() {
     //   ここは既読判定の**後**に置く（前に置いても結果は同じだが、走査は
     //   localStorage 全件なので、安いイベント別の判定で先に落としたほうがよい）。
     if (step.oncePerUser && isSeenElsewhere(userId, p.id, step.id)) continue;
+    // ★開催日を過ぎたイベントでは、やることが残っていない案内を出さない。
+    //   ここで弾くと markSeen も走らないので、日程を後ろへ延ばせばまた出る。
+    if (step.hideAfterEvent && isAfterEventDates(p)) continue;
     let hit = false;
     try { hit = !!step.match(ctx); } catch (_) { hit = false; }
     if (!hit) continue;

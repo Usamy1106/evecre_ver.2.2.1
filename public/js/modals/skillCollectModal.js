@@ -23,6 +23,7 @@ import { api } from '../api.js';
 import { SKILL_TAGS } from '../constants.js';
 import { logEvent } from '../logger.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
+import { isAfterEventDates } from '../utils.js';
 
 const OVERLAY_ID = 'skill-collect-overlay';
 
@@ -68,6 +69,10 @@ export function checkSkillCollectModal() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p || !state.currentUser) return;
   if (!needsSkillCollect(p, state.currentUser.id)) return;
+  // ★開催日を過ぎたイベントでは聞かない。回収したスキルは「担当者のおすすめ」に
+  //   使うものなので、もう割り当てるミッションが無いイベントで聞いても使い道が無い。
+  //   ★スヌーズも記録せずに戻る（この人は他のイベントで聞かれる）。
+  if (isAfterEventDates(p)) return;
   // ★重なったら表示しない。スヌーズも記録しないので次の render() で再判定される
   if (isAnyAutoModalOpen(OVERLAY_ID)) return;
 

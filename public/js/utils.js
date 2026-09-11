@@ -100,6 +100,23 @@ export function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/**
+ * 開催日をすべて過ぎているか（＝もう終わったイベントか）。
+ *
+ * ★自動表示モーダルの「もう出さない」判定はここ1本に集約する。各ファイルで
+ *   日付を比べ直さないこと（`onboarding.js` の `_detectPhase` もこれを使う）。
+ * ★基準は**開催日の超過**であって `isCompleted` ではない。イベントを「完了」に
+ *   するのは任意の操作で、済ませない人が多い。日付なら必ず進む。
+ * ★日程未設定は false（＝終わっていない扱い）。いつ終わるか分からないものを
+ *   勝手に終わったことにすると、案内が丸ごと止まる。
+ * ★文字列のまま辞書順で比較する（todayStr と同じ理由。Date に戻さないこと）。
+ */
+export function isAfterEventDates(p) {
+  const sorted = [...(p?.dates || [])].filter(Boolean).sort();
+  if (sorted.length === 0) return false;
+  return todayStr() > sorted[sorted.length - 1];
+}
+
 // ===== アーカイブの「概要」「開催場所」=====
 // ★イベント設定（eventSettings.js）とアーカイブのペン（modals/helpers.js）の
 //   両方から編集される。どちらから直しても同じ場所を読み書きするよう、

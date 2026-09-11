@@ -67,6 +67,7 @@ import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.j
 import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
+import { isAfterEventDates } from './utils.js';
 import {
   registerServiceWorker, initPushNavigation,
   enablePush, disablePush, getPushState, hasSubscription,
@@ -1071,7 +1072,11 @@ window._app = {
       !(Array.isArray(m.assignees) && m.assignees.length > 0)
     );
     const leaderMissions = (p.missions || []).filter(m => m.status === 'pending_leader_check');
-    const proposals      = p.memberProposals || [];
+    // ★開催日を過ぎたら提案は出さない。メンバーからの「こういうミッションを作ろう」は
+    //   これから動かすための提案なので、終わったイベントで勧める意味が無い。
+    //   ★承認待ち・担当申請・リーダーチェックは**止めないこと**。開催後でも
+    //     処理しないと相手が待たされたままになる（提案だけが対象）。
+    const proposals      = isAfterEventDates(p) ? [] : (p.memberProposals || []);
 
     let config = null;
     if (pendingMembers.length > 0) {

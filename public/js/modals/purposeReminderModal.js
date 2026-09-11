@@ -11,6 +11,7 @@
 import { state } from '../state.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
 import { isNewcomer } from '../onboarding.js';
+import { isAfterEventDates } from '../utils.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_TARGET_DAYS = 30; // 開催日未設定時の基準日数
@@ -78,6 +79,16 @@ export function checkPurposeReminderModal() {
   //   実際に「参加直後にこれが出て、🔥と進め方が出なかった」という報告を受けた。
   //   ★フラグは立てずに戻る。参加から日が経てば通常どおり出る。
   if (isNewcomer(p, uid)) return;
+
+  // ★開催日を過ぎたイベントでは出さない。
+  //   とくに条件B（無活発）は、開催後にミッションの動きが止まるのが当然なので
+  //   `_inactivityCycle` が増え続け、**7日ごとに永久に再表示**されていた。
+  //   終わったイベントに向かって「困ったら目的に立ち返ろう」と言い続けることになる。
+  //   ★条件A（1/4経過）も併せて止める。開催が終わっていれば必ず経過済みなので、
+  //     残すと「終わったイベントで一度だけ出る」という同じく無意味な案内になる。
+  //   ★フラグは立てずに戻る（日程を後ろへ延ばせば通常どおり出る）。
+  if (isAfterEventDates(p)) return;
+
   const quarterKey = _storageKey(uid, p.id, 'quarter');
   const cycleKey   = _storageKey(uid, p.id, 'inactivityCycle');
 

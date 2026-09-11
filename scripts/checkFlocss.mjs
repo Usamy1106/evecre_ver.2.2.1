@@ -295,10 +295,58 @@ section('[B] 実機で見つかった不具合');
     ok('checkOnboarding が isSeenElsewhere を見ている',
       /step\.oncePerUser && isSeenElsewhere\(/.test(codeOnly(ob)));
 
+    // ★開催日を過ぎたら出さないもの。終わったイベントで「仲間を誘おう」
+    //   「担当を決めよう」と催促しても、もうやることが無い。
+    //   とくに L4 は repeatEveryMs で24時間ごとに繰り返すので、止めないと
+    //   終わったイベントの承認待ちを永久に催促し続ける。
+    const HIDE_AFTER = ['L1', 'L3', 'L4', 'L5', 'M2', 'M3'];
+    const notHidden = HIDE_AFTER.filter(id => !/hideAfterEvent:\s*true/.test(stepBody(id)));
+    ok('★開催後に意味が無い案内は hideAfterEvent（L1/L3/L4/L5/M2/M3）',
+      notHidden.length === 0, notHidden.join(', '));
+
+    // ★L9 / L10 は**開催後が本番**。付けると引き継ぎ日 → 自動完了の導線が丸ごと止まる。
+    //   L6 / M4（お祝い）と M1（進め方）も止めない方針。
+    const KEEP_AFTER = ['L6', 'L8', 'L9', 'L10', 'M1', 'M4'];
+    const wrongly = KEEP_AFTER.filter(id => /hideAfterEvent/.test(stepBody(id)));
+    ok('★開催後が本番のもの（L9/L10）と祝い（L6/M4）に hideAfterEvent を付けていない',
+      wrongly.length === 0, wrongly.join(', '));
+
+    ok('checkOnboarding が hideAfterEvent を見ている',
+      /step\.hideAfterEvent && isAfterEventDates\(/.test(codeOnly(ob)));
+
+    // ★「開催後か」の判定は utils の1本に集約する。各ファイルで日付を比べ直すと、
+    //   当日を含める／含めないのような差が静かに生まれる。
+    ok('★_detectPhase の after 判定も utils に寄せている',
+      /if \(isAfterEventDates\(p\)\) return 'after';/.test(ob));
+
     // ★末尾一致に `:` を付けること。付けないと `L1` の既読が `L10` のキーにも当たり、
     //   どちらも実在するステップIDなので L1 が二度と出なくなる。
     ok('★他イベント判定の末尾一致がコロン付き（L1 が L10 に誤爆しない）',
       /const suffix = `:\$\{stepId\}`/.test(ob));
+  }
+
+  // ★開催日を過ぎたイベントで鳴り続けていたもの。
+  //   目的リマインドの条件B（無活発）は、開催後に活動が止まるのが当然なので
+  //   7日ごとに永久再表示されていた。スキル回収は「担当者のおすすめ」に使う
+  //   データなので、割り当てるミッションが無いイベントで聞く意味が無い。
+  {
+    const pr = codeOnly(R('public/js/modals/purposeReminderModal.js'));
+    ok('★目的リマインドは開催日を過ぎたら出さない（7日ごとの無限再表示を止める）',
+      /if \(isAfterEventDates\(p\)\) return;/.test(pr));
+
+    const sc = codeOnly(R('public/js/modals/skillCollectModal.js'));
+    ok('★スキル回収は開催日を過ぎたら聞かない',
+      /if \(isAfterEventDates\(p\)\) return;/.test(sc));
+
+    // ★インフォメーションは「提案」だけ止める。承認待ち・担当申請・リーダー
+    //   チェックは開催後でも処理しないと相手が待たされたままになる。
+    const mn = codeOnly(R('public/js/main.js'));
+    ok('★インフォメーションの「提案」は開催日を過ぎたら出さない',
+      /const proposals\s*=\s*isAfterEventDates\(p\) \? \[\] :/.test(mn));
+    ok('★承認待ち・リーダーチェックは開催後も止めていない',
+      /const pendingMembers = p\.pendingMembers \|\| \[\];/.test(mn) &&
+      /const leaderMissions = \(p\.missions \|\| \[\]\)\.filter\(m => m\.status === 'pending_leader_check'\);/.test(mn));
+
   }
 
   // ★意気込みカードのトグルは、保存の往復を待たずにその場で見た目を切り替えること。
