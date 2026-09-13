@@ -385,6 +385,30 @@ section('[B] 実機で見つかった不具合');
     ok('vh のフォールバックを残している', noFallback.length === 0, noFallback.join(' '));
   }
 
+  // ★完了済みのユーザーをアカウント作成へ戻さないこと。
+  //   本番で、完了済みの人がアプリを開くたび STEP 6（どこで知ったか）に落ちて
+  //   0〜4秒で離脱する事象が5回記録された（2026-08-29〜09-01）。
+  //   users.onboarding は完了しており、resumeOnboardingIfNeeded のガードも
+  //   当時から同じだったため**経路は未特定**。経路が分からなくても
+  //   「完了済みなら入らない」は常に正しいので、入口そのものを塞いである。
+  {
+    const su = codeOnly(R('public/js/views/signup.js'));
+    const body = su.slice(su.indexOf('async function _enterProfilePhase'));
+    ok('★完了済みならプロフィール作成に入らない（アカウント作成へ戻さない）',
+      /if \(ob\?\.completedAt \|\| ob\?\.currentStep === 'complete'\)/.test(body));
+    ok('★戻さなかったときは HOME へ送る（画面が空にならない）',
+      /currentStep === 'complete'\)[\s\S]{0,220}currentView = 'HOME'/.test(body));
+    // 原因が未特定なので、次に起きたら経路が分かるようにしておく
+    ok('どの経路で入ったか記録している（原因の特定用）',
+      /logEvent\('signup_profile_phase_entered'/.test(body) &&
+      /_enterProfilePhase\('resume'\)/.test(su) &&
+      /_enterProfilePhase\('otp_skip'\)/.test(su) &&
+      /_enterProfilePhase\('otp_verified'\)/.test(su));
+    ok('診断ログに日本語ラベルが付いている',
+      /signup_profile_phase_entered:/.test(R('public/js/main.js')) &&
+      /signup_resume_blocked:/.test(R('public/js/main.js')));
+  }
+
   // ★ズームを殺して逃げていないこと
   const html = R('public/index.html');
   ok('★viewport でピンチズームを禁止していない（maximum-scale / user-scalable）',

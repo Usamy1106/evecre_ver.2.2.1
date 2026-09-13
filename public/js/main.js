@@ -1754,6 +1754,11 @@ const _LOG_LABELS = {
   signup_step_completed:  'アカウント作成の項目を入力',
   signup_step_skipped:    'アカウント作成の項目をスキップ',
   signup_email_changed:   'アカウント作成中にメールを変更',
+  // ★診断用。「完了済みなのにアカウント作成へ戻された」事象の原因が未特定なので、
+  //   どの経路でプロフィール作成に入ったかを記録している（signup.js の _enterProfilePhase）。
+  //   原因が確定して直ったら、この2つとログ送出ごと消してよい。
+  signup_profile_phase_entered: 'プロフィール作成に入った',
+  signup_resume_blocked:        '★完了済みなのでアカウント作成へ戻さなかった',
   otp_sent:               '確認コードを送信',
   otp_verified:           '確認コードを認証',
   otp_failed:             '確認コードの入力に失敗',

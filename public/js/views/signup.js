@@ -151,7 +151,7 @@ export function resumeOnboardingIfNeeded() {
 
   state.signup = null;                    // 前の下書きは捨てる
   state.currentView = 'CREATE_ACCOUNT_INFO';
-  _enterProfilePhase();
+  _enterProfilePhase('resume');
   return true;
 }
 
@@ -606,7 +606,7 @@ function _renderOtp(container, d) {
     logEvent('otp_deferred');
     logEvent('signup_step_skipped', { step: 'step3' });
     // 認証をスキップしてもプロフィール作成へは進める（アカウントは確定済み）
-    await _enterProfilePhase();
+    await _enterProfilePhase('otp_skip');
   };
 
   _startCooldown(d);
@@ -706,7 +706,7 @@ async function _verify(d) {
       logEvent('signup_step_completed', { step: 'step3' });
       // 招待の着地情報は最後まで持ち越す（プロフィール完了後に使う）
       d.pendingLanding = r;
-      await _enterProfilePhase();
+      await _enterProfilePhase('otp_verified');
       return;
     }
     // 期限切れと不一致で文言を出し分ける（サーバーが code を返す）
@@ -801,9 +801,40 @@ function _profileDots(d, step) {
 }
 
 /** プロフィールフェーズに入る（認証パート完了後、および再開時の入口） */
-async function _enterProfilePhase() {
+/**
+ * プロフィール作成（STEP 4〜8）に入る。
+ *
+ * @param {string} reason 呼び出し元（'resume' | 'otp_skip' | 'otp_verified'）。
+ *                        ★診断ログに出す。どの経路から入ったかが分からないと、
+ *                          下の「完了済みなのに入ってきた」を追えない。
+ *
+ * ★**オンボーディングが完了済みなら絶対に入らないこと。**
+ *   本番で、完了済みのユーザーがアプリを開くたび STEP 6（どこで知ったか）に
+ *   落ちて 0〜4秒で離脱する、という事象が5回記録された（2026-08-29〜09-01）。
+ *   users.onboarding は completedAt も currentStep:'complete' も入っており、
+ *   resumeOnboardingIfNeeded のガードも当時から同じだったため、**どの経路で
+ *   ここへ来たのかはログからは特定できていない**。
+ *   経路が分からなくても「完了済みなら入らない」は常に正しいので、
+ *   入口そのものを塞ぐ。★このガードを消さないこと。
+ */
+async function _enterProfilePhase(reason = 'unknown') {
   const d = _draft();
   const ob = state.currentUser?.onboarding;
+
+  // 何が起きているかを次回で確定させるための診断。★消さないこと（原因未特定のため）
+  logEvent('signup_profile_phase_entered', {
+    reason,
+    currentStep:  ob?.currentStep || null,
+    hasCompleted: !!ob?.completedAt,
+    doneCount:    (ob?.completedSteps || []).length,
+  });
+
+  if (ob?.completedAt || ob?.currentStep === 'complete') {
+    logEvent('signup_resume_blocked', { reason, currentStep: ob?.currentStep || null });
+    state.currentView = 'HOME';
+    state.render();
+    return;
+  }
   d.googleRoute = ob?.currentStep === 'step6' && !(ob?.completedSteps || []).includes('step4');
   // ★参加確認を予約済み（招待リンク経由でアカウントを作った直後）も招待経路とみなす。
   //   loadAfterAuth が pendingInviteToken を消費した後にここへ来るため、
