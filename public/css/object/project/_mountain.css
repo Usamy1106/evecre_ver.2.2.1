@@ -304,7 +304,12 @@
    ★マスの大きさはここ（--node-size）で決める。中の円盤・チェック・
      オブジェクトは全部これを基準に置いてある。 */
 .p-mountain__pin {
-  --node-size: 100px;
+  /* ★84px。タイルは横長（420.46:324.19）なので、高さは 84 ÷ 1.297 ＝ 約65px になる。
+     以前の「100px を scaleY(.64) で潰した 64px」と同じ見え方に揃えてある。
+     ★上げすぎないこと。手前は SCALE_MAX(1.20) 倍になるので、
+       高さ × 1.20 が NODE_GAP(86px) を超えるとマスが縦に重なる
+       （100px にすると 92.5px となり重なる）。 */
+  --node-size: 84px;
   position: absolute;
   width: var(--node-size);
   height: var(--node-size);
@@ -326,39 +331,45 @@
   transform: translateX(-50%);
 }
 
-/* --- マス（楕円の足場）----------------------------------------------------
-   ★横長の楕円。真円だと正面を向いたコインに見えるが、潰すと地面に置かれた
-     足場として読める。遠近（--node-scale / --node-opacity）と合わせて奥行きを出す。
-   ★背景イラストの上に載るので塗りは半透明。不透明にすると、せっかくの風景が
-     丸く抜けたように見える。
-   ★完了にはチェックのアイコンを入れる。塗りの濃さだけで分けると色覚に頼ることになる。
+/* --- マス（足場のタイル）--------------------------------------------------
+   ★イラスト（--mtn-tile）を敷く。以前は CSS で描いた楕円だったが、
+     地面に置かれた足場として読ませたいので素材に差し替えた。
+   ★scaleY で潰す「寝かせ」はしない。素材そのものが寝た形をしている。
+     **--node-squash を復活させないこと**（素材が二重に潰れる）。
+   ★完了／未完了はチェックの有無と**彩度**で分ける。色だけに頼らない。
    ★will-change はここに付けないこと。マスの数だけ合成レイヤーが増え、
      512MB 環境ではメモリを食う。動かすのは #mountain-canvas（そちらに指定済み）。 */
 
-/* ★円盤を寝かせたもの。傾け（rotate）はしない。
-   scaleY だけで潰すので、常に水平な楕円になる。 */
 .p-mountain__node {
-  /* 寝かせ具合。1 で真円、小さいほど深く寝る。
-     ★手前でマスが縦に重ならない範囲にすること。
-       目安：--node-size × これ × SCALE_MAX < NODE_GAP(72px) */
-  --node-squash: .64;
-  position: absolute;
-  inset: 0;
-  border: 4px solid var(--mtn-node-border);
-  border-radius: 50%;
-  background-color: var(--mtn-node-fill);
-  /* 枠が半透明の塗りに侵食されないようにする */
-  background-clip: padding-box;
-  transform: scaleY(var(--node-squash));
-}
+  /* 素材の比率と、黄色い天板の中心の高さ（viewBox 420.46×324.19 / cy=139.5）。
+     ★素材を差し替えたらここも直すこと。チェックの位置がこの2つで決まる。 */
+  --tile-ratio: 420.46 / 324.19;
+  --tile-top-cy: 43.03%;
 
-/* 完了の印。★円盤とは別要素にして傾けない。一緒に傾けると潰れて読めなくなる */
-.p-mountain__check {
   position: absolute;
   top: 50%;
+  right: 0;
+  left: 0;
+  aspect-ratio: var(--tile-ratio);
+  transform: translateY(-50%);
+  background-image: var(--mtn-tile);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  /* 未完了は灰色に落とす。★完了で filter:none に戻して色が戻る */
+  filter: grayscale(1) opacity(.75);
+}
+
+/* 完了の印。★マスの**子**にして、黄色い天板の中心に置く。
+   タイルの上半分が天板なので、単純な 50% では下の側面側にずれる。 */
+.p-mountain__check {
+  position: absolute;
+  top: var(--tile-top-cy);
   left: 50%;
   transform: translate(-50%, -50%);
   color: var(--color-text-inverse);
+  /* 黄色の上の白抜きなので、輪郭を少し落として沈まないようにする */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
 }
 
 .p-mountain__node--cleared,
@@ -367,7 +378,7 @@
 }
 
 .p-mountain__node--cleared {
-  background-color: var(--mtn-node-fill-done);
+  filter: none;
 }
 
 /* ★現在この状態は使っていない。マスは「完了数 + 先の1マス」で構成され、
@@ -424,12 +435,15 @@
      renderMainBoard が1回で消費する。 */
 
 /* 灰色 → 色つき。弾んでから収まる（楽しげに見せるのは「行き過ぎて戻る」形）*/
+/* ★translateY(-50%) を必ず残すこと。マスは top:50% で縦中央に置いているので、
+   transform を上書きすると下へずれる。
+   ★色は「灰色 → 色が戻る」で表す（塗りではなく filter）。 */
 @keyframes mtnNodePop {
-  0%   { background-color: var(--mtn-node-fill); transform: scaleY(var(--node-squash)) scale(1); }
-  30%  { background-color: var(--mtn-node-fill-done); transform: scaleY(var(--node-squash)) scale(1.32); }
-  55%  { transform: scaleY(var(--node-squash)) scale(.92); }
-  75%  { transform: scaleY(var(--node-squash)) scale(1.06); }
-  100% { background-color: var(--mtn-node-fill-done); transform: scaleY(var(--node-squash)) scale(1); }
+  0%   { filter: grayscale(1) opacity(.75); transform: translateY(-50%) scale(1); }
+  30%  { filter: none; transform: translateY(-50%) scale(1.32); }
+  55%  { transform: translateY(-50%) scale(.92); }
+  75%  { transform: translateY(-50%) scale(1.06); }
+  100% { filter: none; transform: translateY(-50%) scale(1); }
 }
 
 /* 完了のチェックが少し遅れて描かれる */
@@ -454,9 +468,9 @@
 
 /* 次にやる1マスが、色がついた後に下からふわりと現れる */
 @keyframes mtnNodeAppear {
-  0%   { opacity: 0; transform: scaleY(var(--node-squash)) scale(.4); }
-  70%  { opacity: 1; transform: scaleY(var(--node-squash)) scale(1.12); }
-  100% { opacity: 1; transform: scaleY(var(--node-squash)) scale(1); }
+  0%   { opacity: 0; transform: translateY(-50%) scale(.4); }
+  70%  { opacity: 1; transform: translateY(-50%) scale(1.12); }
+  100% { opacity: 1; transform: translateY(-50%) scale(1); }
 }
 
 .p-mountain__node--pop {

@@ -845,11 +845,14 @@ export function renderMountainBg(p, opts = {}) {
     //   ここで transform を持つアニメーションを付けると遠近と喧嘩して跳ねる。
     const pop    = i === popIdx    ? ' p-mountain__node--pop'    : '';
     const appear = i === appearIdx ? ' p-mountain__node--appear' : '';
-    const disc = `<div class="p-mountain__node${isDone ? ' p-mountain__node--cleared' : ''}${pop}${appear}"></div>`;
+    // ★チェックはマスの**子**にする。マスは足場のイラストで、黄色い天板は
+    //   上半分にしかない。兄弟にしてピンの中央へ置くと、天板ではなく側面の
+    //   あたりに乗ってしまう。位置は CSS の --tile-top-cy（素材の cy）が持つ。
     const check = isDone
       ? `<svg class="p-mountain__check${i === popIdx ? ' p-mountain__check--pop' : ''}" width="32" height="32" viewBox="0 0 24 24" fill="none"
            stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
       : '';
+    const disc = `<div class="p-mountain__node${isDone ? ' p-mountain__node--cleared' : ''}${pop}${appear}">${check}</div>`;
 
     // ★data-node-y はスクロール時の遠近計算が読む。毎フレーム DOM から
     //   位置を読み直さずに済むよう、描画時に確定した値を持たせておく
@@ -860,7 +863,7 @@ export function renderMountainBg(p, opts = {}) {
     return `
       <div class="p-mountain__pin" data-node-y="${y}" data-node-dx="${(x - X_CENTER).toFixed(2)}"
         style="left:${x}%;top:${y}px">
-        ${disc}${check}${objHtml}
+        ${disc}${objHtml}
       </div>`;
   }).join('');
 

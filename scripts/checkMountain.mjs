@@ -1027,5 +1027,65 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   console.log(`     （素材 ${allEntries.length} 件 / 合計 ${totalMB.toFixed(1)}MB）`);
 }
 
+// ── [K] マス（足場のタイル）──────────────────────────────
+// ★以前は CSS で描いた楕円だった。素材のイラストに差し替えたので、
+//   「チェックが黄色い天板の中心に乗る」「未完了が灰色」「手前で重ならない」を見る。
+section('[K] マスがタイルの素材で正しく組めている');
+{
+  const mtn = fs.readFileSync(path.join(ROOT, 'public/css/object/project/_mountain.css'), 'utf8');
+  const vars = fs.readFileSync(path.join(ROOT, 'public/css/foundation/_variables.css'), 'utf8');
+  const tileSvg = fs.readFileSync(path.join(ROOT, 'public/images/front/tile-image.svg'), 'utf8');
+
+  ok('マスにタイルの素材を使っている',
+    /--mtn-tile:\s*url\("\/images\/front\/tile-image\.svg"\)/.test(vars) &&
+    /background-image:\s*var\(--mtn-tile\)/.test(mtn));
+
+  // ★寝かせ（scaleY）は素材が持っている。CSS で二重に潰さないこと
+  ok('★--node-squash を復活させていない（素材が二重に潰れる）',
+    !/--node-squash/.test(codeOnly(mtn)));
+
+  // 未完了は灰色、完了で色が戻る（色だけに頼らずチェックの有無でも分ける）
+  // ★.p-mountain__node のルール本体だけを見ること。ファイル全体に当てると
+  //   mtnNodePop の keyframes（0% が灰色）に当たって素通りする（実際に踏んだ）。
+  const nodeRule = (/\.p-mountain__node\s*\{([^}]*)\}/.exec(mtn) || [])[1] || '';
+  ok('★未完了のマスが灰色になっている', /filter:\s*grayscale\(1\)/.test(nodeRule),
+    nodeRule ? '(ルール本体に無い)' : '(ルールが見つからない)');
+  ok('★完了のマスで色が戻る',
+    /\.p-mountain__node--cleared\s*\{[^}]*filter:\s*none/.test(mtn));
+
+  // ★比率と天板の中心は**素材から読む**。テスト側に数値を複製しない（落とし穴 0-8）
+  const vb = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(tileSvg);
+  const cy = /<ellipse[^>]*\scy="([\d.]+)"/.exec(tileSvg);
+  ok('タイルの viewBox と天板の楕円が読める', !!vb && !!cy);
+  if (vb && cy) {
+    const [, vw, vh] = vb.map(Number);
+    const ratio = /--tile-ratio:\s*([\d.]+)\s*\/\s*([\d.]+)/.exec(mtn);
+    ok('★--tile-ratio が素材の viewBox と一致している',
+      ratio && +ratio[1] === vw && +ratio[2] === vh,
+      ratio ? `${ratio[1]}/${ratio[2]} vs ${vw}/${vh}` : '(未設定)');
+
+    const want = +cy[1] / vh * 100;
+    const got = /--tile-top-cy:\s*([\d.]+)%/.exec(mtn);
+    ok('★--tile-top-cy が天板の楕円の中心と一致している（チェックがずれる）',
+      got && Math.abs(+got[1] - want) < 0.1,
+      got ? `${got[1]}% vs ${want.toFixed(2)}%` : '(未設定)');
+
+    // ★手前でマスが縦に重ならないこと。タイルは横長なので、幅ではなく高さで見る
+    const size = +/--node-size:\s*(\d+)px/.exec(mtn)[1];
+    const frontH = size / (vw / vh) * SCALE_MAX;
+    ok(`★手前でマスが縦に重ならない（高さ×${SCALE_MAX} < NODE_GAP ${NODE_GAP}）`,
+      frontH < NODE_GAP, `${frontH.toFixed(1)}px`);
+  }
+
+  // ★チェックはマスの**子**。兄弟にすると天板ではなく側面のあたりに乗る
+  const done = build(3, 'ev1', ['2099-01-01']).html;
+  ok('★チェックがマスの子になっている',
+    /<div class="p-mountain__node[^"]*">\s*<svg class="p-mountain__check/.test(done));
+  ok('チェックがマスの外に残っていない',
+    !/<\/div>\s*<svg class="p-mountain__check/.test(done));
+  ok('未完了のマスにはチェックを置かない',
+    !/<div class="p-mountain__node(?![^"]*--cleared)[^"]*">\s*<svg/.test(done));
+}
+
 console.log(`\n結果: ${pass} passed / ${fail} failed`);
 process.exit(fail ? 1 : 0);
