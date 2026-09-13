@@ -1006,10 +1006,13 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   //     素通りして、テーマごとに命名が割れる。
   const spawned = BG_THEMES.flatMap(t =>
     (BG_ASSETS[t.id]?.WorldSpawnedObjects || []).map(a => ({ ...a, theme: t.id })));
-  const spNamed = spawned.filter(a => a.f !== `${a.theme}-${Number(a.n)}.svg`);
-  ok('★WorldSpawnedObjects の名前が <テーマ>-<番号>.svg になっている',
+  //   ★見るのは **<テーマ>-<番号>** の部分だけ。拡張子は問わない
+  //     （svg → webp のように、絵の作り方が変わっても命名規則は同じであるべき）。
+  const spNamed = spawned.filter(a =>
+    !new RegExp(`^${a.theme}-${Number(a.n)}\\.(svg|webp)$`).test(a.f));
+  ok('★WorldSpawnedObjects の名前が <テーマ>-<番号>.(svg|webp) になっている',
     spNamed.length === 0,
-    spNamed.map(a => `${a.f} → ${a.theme}-${Number(a.n)}.svg`).slice(0, 3).join(', '));
+    spNamed.map(a => `${a.f} → ${a.theme}-${Number(a.n)}`).slice(0, 3).join(', '));
 
   // 通し番号の重複（同じ番号が2枚あると、どちらかが意図せず二重に出る）
   const byTheme = {};
