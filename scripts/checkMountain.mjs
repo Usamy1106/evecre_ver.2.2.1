@@ -243,10 +243,26 @@ for (const done of [0, 7, 8, 16, 48]) {
     const top = past.parts.at(-2);
     // ★その地形の上端から少し下げて立てる。下げないと稜線の上に浮いて見える
     const SUMMIT_SINK = K('SUMMIT_SINK');
-    ok('★看板は上から2枚目の地形の稜線に立つ（いちばん上ではない）',
-      sy === Math.max(0, top.y + top.h - SUMMIT_SINK), `${sy} vs ${top.y + top.h - SUMMIT_SINK}`);
+    const SUMMIT_W = K('SUMMIT_W'), SUMMIT_REACH = K('SUMMIT_REACH');
+    // ★ただし上げすぎない。看板の上端が「道の天井＋SUMMIT_REACH」を超えないところまで
+    //   下げる（measure() がそのぶん headroom を足すので、抑えないと山頂が遠のく）。
+    //   検査側で px→art を組み直さないよう、実装と同じ式をここでも定数から作る。
+    const pxToArt = (px) => px * K('ART_W') / 400;   // スタブの window.innerWidth 相当
+    const ceil = Math.max(0, Math.round(pxToArt(past.canvasH + SUMMIT_REACH)) - SUMMIT_W);
+    const anchorBased = Math.max(0, top.y + top.h - SUMMIT_SINK);
+    ok('★看板は上から2枚目の地形の稜線（ただし手が届く高さまで下げる）',
+      sy === Math.min(anchorBased, ceil), `${sy} vs min(${anchorBased}, ${ceil})`);
     ok('★看板をいちばん上の地形に戻していない',
-      sy !== Math.max(0, past.parts.at(-1).y + past.parts.at(-1).h - SUMMIT_SINK));
+      sy <= Math.max(0, past.parts.at(-1).y + past.parts.at(-1).h - SUMMIT_SINK));
+
+    // ★「少し送ればすぐ看板が出る」こと。完了が少ないイベントほど遠のいていた
+    //   （完了0件で 477px 送らないと見えなかった。報告を受けて上限を入れた）。
+    for (const done of [0, 1, 3, 10, 40]) {
+      const r = build(done, 'ev1', ['2020-01-01']);
+      const extra = Math.round((+r.summit[1] + SUMMIT_W) * 400 / K('ART_W')) - r.canvasH;
+      ok(`★完了${done}件でも看板まで送る距離が ${SUMMIT_REACH}px 以内`,
+        extra <= SUMMIT_REACH, `${extra}px`);
+    }
     // ★看板は地形より手前。地形の裏に回ると読めない
     ok('★看板は地形より手前にある', +past.summit[3] > Math.max(...past.parts.map(pt => pt.z)));
     // ★絵は CSS 変数で参照する（ファイル名を手書きの JS に書かないため）
@@ -478,6 +494,37 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
     }
     ok('★草木の先端が山のシルエットを超えない（空に浮かない）',
       sky.length === 0, sky.slice(0, 3).join(' / '));
+  }
+
+  // ★山頂の看板の上に草木を生やさないこと。看板には文字が乗るので、前に生えると
+  //   読めない（実機で指摘を受けた）。看板の横位置は中央固定（CSS が
+  //   left:50% + translateX(-50%)）なので、矩形は ART_W と SUMMIT_W から出せる。
+  //   ★看板の有無（isSummit）で切り替えていないこと。開催が終わった瞬間に草木が
+  //     消えると「全メンバーがいつでも同じ景色を見る」が崩れる。ここでは看板を
+  //     出していない**開催前**のイベントでも、同じ場所が空いていることを見る。
+  {
+    const SUMMIT_W = K('SUMMIT_W');
+    const hit = [];
+    for (const ev of ['e1', 'e2', 'e3', 'e4', 'e5', 'e6']) {
+      for (const done of [0, 3, 8, 16, 32]) {
+        for (const dates of [['2020-01-01'], ['2099-01-01']]) {   // 開催後／開催前
+          const r = build(done, ev, dates);
+          // 看板を出していないイベントでも、位置は同じ式で決まっている
+          const sy = r.summit ? +r.summit[1]
+            : Math.max(0, Math.round(r.canvasH * ART_W / 400 + K('SUMMIT_REACH') * ART_W / 400) - SUMMIT_W);
+          const b = { x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2, y0: sy, y1: sy + SUMMIT_W };
+          for (const pt of r.parts) {
+            for (const pl of pt.plants) {
+              const x0 = pl.x, x1 = pl.x + pl.w;
+              const y0 = pt.y + pl.y, y1 = pt.y + pl.y + pl.h;
+              if (x0 < b.x1 && b.x0 < x1 && y0 < b.y1 && b.y0 < y1) hit.push(`${ev}/${done} ${pl.file}`);
+            }
+          }
+        }
+      }
+    }
+    ok('★山頂の看板に草木が重ならない（文字が読めなくなる）',
+      hit.length === 0, hit.slice(0, 3).join(' / '));
   }
 
   // ★天井は「全パーツの最高点」＝シルエット。parts.at(-1) で代用しないこと。

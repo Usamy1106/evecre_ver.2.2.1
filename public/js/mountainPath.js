@@ -119,6 +119,9 @@ const MAX_PLANTS = 120;
 const PLANT_TRIES = 8;
 // 植物どうしの最低すき間（素材px）。0 にすると葉が触れて1本の茂みに見える
 const PLANT_GAP = 60;
+// 山頂の看板のまわりに空ける余白(素材px)。★看板には文字が乗るので、
+// 草木が前に生えると読めない。ぎりぎりだと葉先が掛かるので少し広めに取る。
+const BOARD_CLEAR = 60;
 // ★横に流れる要素（雲）の総数の上限。**ここを上げないこと。**
 //   transform のアニメーション中は合成レイヤーに昇格するので、数がそのまま
 //   メモリと合成コストになる。0.5CPU / 512MB 環境が基準。
@@ -153,6 +156,12 @@ const SUMMIT_BOARD_COUNT = 2;
 //
 const SUMMIT_W = 1100;
 const SUMMIT_SINK = 700;
+// 看板の上端を「道の天井」から上へどれだけまで許すか（画面px）。
+// ★measure() はこのぶんだけ headroom を足してスクロールを伸ばす。つまり
+//   **「山頂を見るために余分に送る距離」そのもの**。小さいほどすぐ看板に着く。
+// ★0 にしないこと。看板が道の天井にぴったり張り付き、下部パネルの裏に
+//   潜り込んで読めなくなる。
+const SUMMIT_REACH = 120;
 // 標高＝完了ミッション数 × これ。マスの数と一致させてある
 const METERS_PER_CLEAR = 100;
 
@@ -266,12 +275,20 @@ function _isSummit(p) {
 // ★下げすぎると上端に空の帯が出る。0.3 未満にするときは実機で上まで送って確かめること。
 const TOP_ALLOWANCE = 0.35;
 
-function _needTopArt(canvasH) {
+/**
+ * 画面px → 素材px。
+ * ★使ってよいのは「どこまで積むか」を決める**組み立ての段階だけ**。
+ *   描画の座標に使わないこと（端末幅で景色が変わる。換算は CSS の --art-unit）。
+ */
+function _pxToArt(px) {
   const w = Math.min((typeof window !== 'undefined' ? window.innerWidth : 400) || 400, 448);
+  return px * ART_W / w;
+}
+
+function _needTopArt(canvasH) {
   const viewH = (typeof window !== 'undefined' ? window.innerHeight : 640) || 640;
-  const unit = w / ART_W;              // 素材1px が画面で何px になるか
   // キャンバスぶん＋逃げ（headroom で下へずらす量ぶん）
-  return (canvasH + viewH * TOP_ALLOWANCE) / unit;
+  return _pxToArt(canvasH + viewH * TOP_ALLOWANCE);
 }
 
 /**
@@ -447,8 +464,25 @@ function _shuffleDeck(cards, seed) {
  *
  * @returns {Map<number, Array>} 地形の添字 → その地形に植える植物
  */
-function _plantingPlan(eventId, parts) {
+function _plantingPlan(eventId, parts, board) {
   const out = new Map();
+
+  /**
+   * その位置に置くと**山頂の看板と重なる**か（素材px の矩形どうし）。
+   *
+   * ★看板は文字が乗るので、草木が前に生えると読めない。少し余白も取る。
+   * ★看板の有無（isSummit）で切り替えないこと。開催が終わった瞬間に草木が
+   *   消えると「全メンバーがいつでも同じ景色を見る」が崩れる。看板を出していない
+   *   間も、その場所には最初から生やさない。
+   * ★x が空いていれば諦めずに引き直す（下の PLANT_TRIES のループの中で見る）。
+   *   先に諦めると、看板の高さ帯の草木がまるごと消えて一段だけ禿げて見える。
+   */
+  const hitsBoard = (partY, x, y, w, h) => {
+    if (!board) return false;
+    const x0 = x - BOARD_CLEAR, x1 = x + w + BOARD_CLEAR;
+    const y0 = partY + y - BOARD_CLEAR, y1 = partY + y + h + BOARD_CLEAR;
+    return x0 < board.x1 && board.x0 < x1 && y0 < board.y1 && board.y0 < y1;
+  };
 
   // ★草木の**先端**がここを超えてはいけない（山のシルエットの最高点）。
   //   草木は地形の上端付近を足元にして上へ伸びるので、先端はその地形の上端を
@@ -509,7 +543,7 @@ function _plantingPlan(eventId, parts) {
       for (let t = 0; t < PLANT_TRIES; t++) {
         const cand = _rndInt(`${eventId}:px:${k}:${j}:${t}`, 0, Math.max(0, ART_W - w));
         const hit = placed.some(q => cand < q.x + q.w + PLANT_GAP && q.x < cand + w + PLANT_GAP);
-        if (!hit) { x = cand; break; }
+        if (!hit && !hitsBoard(part.y, cand, y, w, h)) { x = cand; break; }
       }
       if (x < 0) continue;
 
@@ -651,7 +685,22 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   const n = parts.length;
 
   const eventId = String(p?.id || '');
-  const planting = _plantingPlan(eventId, parts);
+
+  // ★看板の位置は**草木を植える前**に決める。看板と重なる場所には生やさないため
+  //   （文字の前に草木が生えると読めない）。計算の中身は下の「山頂」の節を参照。
+  const anchor = parts[n - 2] || parts[n - 1] || null;
+  const anchorTop = anchor ? anchor.y + anchor.h : 0;
+  // ★整数に丸める。_pxToArt は小数を返すので、そのまま CSS 変数に出すと
+  //   --lf-y:3566.5975 のような値になる（他のパーツはすべて整数）。
+  const summitCeil = Math.max(0, Math.round(_pxToArt(canvasH + SUMMIT_REACH)) - SUMMIT_W);
+  const summitY = Math.min(Math.max(0, anchorTop - SUMMIT_SINK), summitCeil);
+  // 看板の矩形（素材px）。横は中央固定（CSS が left:50% + translateX(-50%)）
+  const board = {
+    x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2,
+    y0: summitY,                y1: summitY + SUMMIT_W,
+  };
+
+  const planting = _plantingPlan(eventId, parts, board);
 
   const lf = parts.map((pt, k) => {
 
@@ -694,17 +743,21 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   //     を広げている。片方だけ直すと看板が永久に画面へ入らない。
   // ★上から2枚目の地形に立てる。1枚しか無いときだけ、その1枚にフォールバックする
   //   （地形0枚は素材が読めていないときだけ起きる）。
-  const anchor = parts[n - 2] || parts[n - 1] || null;
-  const topY = anchor ? anchor.y + anchor.h : 0;
-  // その地形の稜線あたりに立てる。少し下げて、地形に刺さって見えるようにする
-  const summitY = Math.max(0, topY - SUMMIT_SINK);
+  // ★位置（summitY）と矩形（board）は**この関数の先頭で先に決めてある**。
+  //   草木を植える前に知っている必要があるため（看板と重なる場所には生やさない）。
+  // ★上げすぎない。看板の**上端**が「道の天井＋SUMMIT_REACH」を超えないところまで下げる。
+  //   measure() は (看板の上端 − canvasH) ぶん headroom を足してスクロールを伸ばすので、
+  //   ここを抑えないと完了が少ないイベントほど山頂が遠のく
+  //   （完了0件で 477px 送らないと見えなかった。報告を受けて追加）。
+  //   ★地形の稜線より下がることもあるが、それでよい。山の中腹に立つ看板は
+  //     不自然ではなく、遠くて永久に見えないほうが害が大きい。
   let summitHtml = '';
   if (isSummit) {
-    const board = _pickSummitBoard(eventId);
+    const boardImg = _pickSummitBoard(eventId);
     // 標高＝完了ミッション数 × 100m。マスの数と一致するので「ここまで登ってきた」が伝わる
     const meters = clearedCount * METERS_PER_CLEAR;
     summitHtml = `
-      <div class="p-mountain__summit" style="--lf-y:${summitY};--summit-img:${board};z-index:${2 * n + 1}">
+      <div class="p-mountain__summit" style="--lf-y:${summitY};--summit-img:${boardImg};z-index:${2 * n + 1}">
         <p class="p-mountain__summit-title">${_esc(p?.name || 'イベント')}山頂</p>
         <p class="p-mountain__summit-alt">${meters}m</p>
       </div>`;
