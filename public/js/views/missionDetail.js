@@ -15,7 +15,10 @@
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { Components } from '../components.js';
-import { MISSION_DESCRIPTIONS } from '../constants.js';
+import {
+  MISSION_DESCRIPTIONS,
+  SUBMISSION_PLACEHOLDERS, REFLECT_STRUGGLE_PLACEHOLDERS, REFLECT_SOLUTION_PLACEHOLDERS,
+} from '../constants.js';
 import { initClearDraft } from '../modals/helpers.js';
 import { showConfirmDialog } from '../dialog.js';
 import { logEvent } from '../logger.js';
@@ -67,7 +70,10 @@ export function renderMissionDetail(appEl) {
     struggle:  document.getElementById('reflect-struggle')?.value ?? null,
     solution:  document.getElementById('reflect-solution')?.value ?? null,
     shareable: document.getElementById('reflect-shareable')?.checked ?? false,
-    open:      document.querySelector('.p-mission-detail__reflect')?.open ?? false,
+    // ★null は「前の描画が無い（＝初回表示）」の意味。false（閉じていた）と区別する。
+    //   既定が open になったので、ここを ?? false にすると**閉じた人が再描画で
+    //   開き直される**（開閉を区別できないため）。
+    open:      document.querySelector('.p-mission-detail__reflect')?.open ?? null,
   };
   const prevScrollY    = window.scrollY;
   const prevChatScroll = document.getElementById('chat-messages')?.scrollTop ?? 0;
@@ -165,9 +171,12 @@ export function renderMissionDetail(appEl) {
     if (prevChecked[idx]) cb.checked = true;
   });
 
-  // 振り返り（開閉状態も戻す。開いて書いていた人を畳まない）
+  // 振り返り（開閉状態も戻す。開いて書いていた人を畳まず、閉じた人を開き直さない）
+  // ★初回表示（null）のときは触らない。マークアップの既定（open）に任せる。
+  //   ★「開いていたら開く」だけにしないこと。既定が open なので、それだと
+  //     閉じた人が再描画のたびに開き直される。
   const reflectEl = document.querySelector('.p-mission-detail__reflect');
-  if (reflectEl && prevReflect.open) reflectEl.open = true;
+  if (reflectEl && prevReflect.open !== null) reflectEl.open = prevReflect.open;
   const rs = document.getElementById('reflect-struggle');
   const rl = document.getElementById('reflect-solution');
   const rc = document.getElementById('reflect-shareable');
@@ -287,6 +296,20 @@ function _renderClearSection(p, m, canMgr) {
 
 // 完了入力欄（テキスト + 画像 + チェックリスト + 完了ボタン）。
 // DOM id は旧完了モーダルと同一（submitMissionClear / handleImageSelect / initClearDraft が参照）。
+/**
+ * ミッションのタグからプレースホルダーを引く。
+ *
+ * ★**DEFAULT へのフォールバックを外さないこと。** カスタムタグ（ユーザーが自由に作る）
+ *   とタグ未設定はここに落ちる。本番では全ミッションの約1/4がカスタムタグ。
+ * ★tag（単数）と tags（配列）は**両方実在する**。実データでは tag が主軸で
+ *   （123/125件）、tags は後から入った複数対応（61件・値は tag と一致）。
+ *   単数を先に見ること。
+ */
+function _placeholderFor(table, mission) {
+  const tag = mission?.tag || (Array.isArray(mission?.tags) ? mission.tags[0] : null);
+  return table[tag] || table.DEFAULT;
+}
+
 function _renderClearInput(m) {
   const checklist = Array.isArray(m.checklist) ? m.checklist : [];
   const checklistHtml = checklist.length === 0 ? '' : `
@@ -328,7 +351,7 @@ function _renderClearInput(m) {
       <!-- 統合テキスト入力 + 画像ボタン -->
       <div class="p-mission-detail__input-wrap">
         <textarea id="clear-input" class="p-mission-detail__textarea"
-          placeholder="内容を入力"></textarea>
+          placeholder="${_esc(_placeholderFor(SUBMISSION_PLACEHOLDERS, m))}"></textarea>
         <label for="file-input" class="p-mission-detail__image-pick">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -342,7 +365,7 @@ function _renderClearInput(m) {
       </div>
 
       ${checklistHtml}
-      ${_renderReflectionInput()}
+      ${_renderReflectionInput(m)}
       <button type="button" onclick="window._app.submitMissionClear('${m.id}')"
         class="c-button c-button--primary p-mission-detail__submit p-mission-detail__submit--spaced">完了する</button>
     </div>`;
@@ -356,9 +379,9 @@ function _renderClearInput(m) {
  * ★入力欄の id は submitMissionClear（modals/helpers.js）が読む。
  *   通常完了・個別完了の両方から同じ id を使うので、同時に2つ描画しないこと。
  */
-function _renderReflectionInput() {
+function _renderReflectionInput(m) {
   return `
-    <details class="p-mission-detail__reflect">
+    <details class="p-mission-detail__reflect" open>
       <summary class="p-mission-detail__reflect-summary">
         振り返りを残す（任意）
         <span class="p-mission-detail__reflect-note">あとで引き継ぎに使えます</span>
@@ -367,12 +390,12 @@ function _renderReflectionInput() {
       <label class="p-mission-detail__reflect-label" for="reflect-struggle">困ったこと</label>
       <textarea id="reflect-struggle" maxlength="200" rows="2"
         class="c-input p-mission-detail__reflect-input"
-        placeholder="例：会場担当者が不在で確認に3日かかった"></textarea>
+        placeholder="${_esc(_placeholderFor(REFLECT_STRUGGLE_PLACEHOLDERS, m))}"></textarea>
 
       <label class="p-mission-detail__reflect-label" for="reflect-solution">どう乗り越えた？</label>
       <textarea id="reflect-solution" maxlength="200" rows="2"
         class="c-input p-mission-detail__reflect-input"
-        placeholder="例：事前に担当者名と直通番号を聞いておくべきだった"></textarea>
+        placeholder="${_esc(_placeholderFor(REFLECT_SOLUTION_PLACEHOLDERS, m))}"></textarea>
 
       <label class="p-mission-detail__reflect-share">
         <input type="checkbox" id="reflect-shareable" class="p-mission-detail__reflect-check">

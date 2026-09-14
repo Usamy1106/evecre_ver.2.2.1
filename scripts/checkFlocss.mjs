@@ -409,6 +409,50 @@ section('[B] 実機で見つかった不具合');
       /signup_resume_blocked:/.test(R('public/js/main.js')));
   }
 
+  // ★完了時の入力欄はタグごとに例文を出す。中身の無い提出（本番の text 提出 48件中
+  //   35件が8文字以下で "OK" / "あ" / 氏名だけ）への対策で、**示すだけ**にしてある。
+  //   必須化やバリデーションで弾くと完了率が落ちる。
+  {
+    const co = R('public/js/constants.js');
+    const md = R('public/js/views/missionDetail.js');
+    const TABLES = ['SUBMISSION_PLACEHOLDERS', 'REFLECT_STRUGGLE_PLACEHOLDERS', 'REFLECT_SOLUTION_PLACEHOLDERS'];
+
+    // ★DEFAULT が無いとカスタムタグで undefined が出る（本番の約1/4がカスタムタグ）
+    const noDefault = TABLES.filter(t => {
+      const b = (new RegExp(`export const ${t} = \\{([\\s\\S]*?)\\n\\};`).exec(co) || [])[1] || '';
+      return !/DEFAULT:\s*'/.test(b);
+    });
+    ok('★プレースホルダーに DEFAULT がある（カスタムタグで undefined を出さない）',
+      noDefault.length === 0, noDefault.join(', '));
+
+    // ビルトイン4タグぶん揃っているか
+    const missing = [];
+    for (const t of TABLES) {
+      const b = (new RegExp(`export const ${t} = \\{([\\s\\S]*?)\\n\\};`).exec(co) || [])[1] || '';
+      for (const tag of ['企画', '運営', '制作', '広報']) if (!b.includes(`'${tag}':`)) missing.push(`${t}.${tag}`);
+    }
+    ok('★ビルトイン4タグぶんの例文が揃っている', missing.length === 0, missing.join(', '));
+
+    ok('★プレースホルダーを _esc に通している',
+      (md.match(/placeholder="\$\{_esc\(_placeholderFor\(/g) || []).length === 3);
+    // ★tag（単数）を先に見ること。実データは tag が主軸（123/125件）
+    ok('★tag（単数）を tags より先に見ている',
+      /mission\?\.tag \|\| \(Array\.isArray\(mission\?\.tags\)/.test(codeOnly(md)));
+
+    // ★振り返り欄は既定で開く（入力実績が0件で、畳まれて気づかれていなかった）
+    ok('★振り返り欄が既定で開いている', /class="p-mission-detail__reflect" open>/.test(md));
+    // ★既定が open なので、閉じた人を開き直さないこと
+    ok('★閉じた振り返り欄を再描画で開き直さない',
+      /open:\s+document\.querySelector\('\.p-mission-detail__reflect'\)\?\.open \?\? null/.test(md) &&
+      /prevReflect\.open !== null\) reflectEl\.open = prevReflect\.open/.test(md));
+
+    // ★示すだけ。完了時に中身のチェックを足さない
+    const submit = codeOnly(R('public/js/modals/helpers.js'));
+    const fn = submit.slice(submit.indexOf('export async function submitMissionClear'));
+    ok('★提出の中身をバリデーションしていない（完了率を落とさない）',
+      !/完了しました|minLength|trim\(\)\.length\s*[<>]=?\s*\d/.test(fn.slice(0, 2000)));
+  }
+
   // ★ズームを殺して逃げていないこと
   const html = R('public/index.html');
   ok('★viewport でピンチズームを禁止していない（maximum-scale / user-scalable）',
