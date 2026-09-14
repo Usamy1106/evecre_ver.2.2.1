@@ -453,6 +453,34 @@ section('[B] 実機で見つかった不具合');
       !/完了しました|minLength|trim\(\)\.length\s*[<>]=?\s*\d/.test(fn.slice(0, 2000)));
   }
 
+  // ★メインボードのミッションの並び。既定は締切順で、締切順のときだけ月の見出しが付く。
+  {
+    const mi = R('public/js/modals/mission.js');
+    const st = R('public/js/state.js');
+    const mb = R('public/js/views/mainBoard.js');
+
+    // 並びは「締切順 → 優先度順 → 制作日順」
+    const order = [...mi.matchAll(/\{ id: '(deadline|priority|createdAt)',/g)].map(m => m[1]);
+    ok('★並び替えメニューが 締切順 → 優先度順 → 制作日順 の順',
+      order.join(',') === 'deadline,priority,createdAt', order.join(','));
+    ok('★既定の並びが締切順', /missionSortMode: 'deadline'/.test(st));
+
+    // ★見出しは締切順のときだけ。他の並びで出すと「月の順に並んでいる」という嘘になる
+    ok('★月の見出しは締切順のときだけ出す',
+      /state\.missionSortMode !== 'deadline'\) return cards\.join\(''\)/.test(codeOnly(mb)));
+    // ★m.dates は未ソート保存（落とし穴 12）。ソートしてから最終日を取ること
+    ok('★締切は dates をソートしてから最終日を取っている',
+      /\[\.\.\.dates\]\.sort\(\)\.at\(-1\)/.test(codeOnly(mb).slice(codeOnly(mb).indexOf('function _deadlineMonthKey'))));
+    // 締切なしは末尾に「期限なし」でまとめる
+    ok('★締切が無いものに「期限なし」の見出しを出す', /return '期限なし'/.test(mb));
+    // 年をまたぐときだけ年を出す
+    ok('★年をまたぐときだけ見出しに年を出す',
+      /const withYear = years\.size > 1/.test(codeOnly(mb)));
+    // 空のときは配列にならないので、見出し処理へ渡さない
+    ok('★ミッションが0件のときは見出し処理を通さない',
+      /Array\.isArray\(missionCardList\)/.test(codeOnly(mb)));
+  }
+
   // ★ズームを殺して逃げていないこと
   const html = R('public/index.html');
   ok('★viewport でピンチズームを禁止していない（maximum-scale / user-scalable）',

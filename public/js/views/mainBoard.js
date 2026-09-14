@@ -558,7 +558,7 @@ function _renderMainTab(p) {
     });
   }).join('');
 
-  const missionCards = displayMissions.length === 0
+  const missionCardList = displayMissions.length === 0
     ? (state.missionFilterTag
         ? `<p class="p-main-board__empty p-main-board__empty--tight">このタグのミッションはありません</p>`
         : viewMode === 'mine'
@@ -670,7 +670,11 @@ function _renderMainTab(p) {
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
               </svg>
             </div>`}
-        </div>`;}).join('');
+        </div>`;});
+
+  const missionCards = Array.isArray(missionCardList)
+    ? _withMonthHeadings(displayMissions, missionCardList)
+    : missionCardList;
 
   // 担当応募待ちミッション（selfClaim=true かつ applicants あり かつ未確定）
   const pendingClaimMissions = canMgr
@@ -1498,6 +1502,57 @@ function _esc(s) {
 }
 
 // ミッションの残り日数テキスト（dates をソートし最終日から計算）
+/**
+ * 締切順のときだけ、ミッションの間に月の見出しを差し込む。
+ *
+ * ★見出しを出すのは締切順のときだけ。優先度順・制作日順では並びが月と無関係なので、
+ *   見出しを付けると嘘になる。
+ * ★`missions` と `cards` は**同じ並び・同じ長さ**であること（添字で対応づける）。
+ * ★超過したミッションも「その月」の見出しの下に置く（先頭に「超過」を作らない）。
+ *   並びが日付順のままになり、規則が単純で予測しやすい。カードには赤字で
+ *   「N日超過」と出るので、見落とすことはない。
+ * ★締切が無いものは**末尾に「期限なし」**でまとめる。getSortedMissions が
+ *   Infinity で最後尾に寄せているので、並べ替えはせず見出しだけ足す。
+ *
+ * @param {Array} missions 並び替え済みのミッション
+ * @param {Array<string>} cards 同じ並びのカード HTML
+ */
+function _withMonthHeadings(missions, cards) {
+  if (state.missionSortMode !== 'deadline') return cards.join('');
+
+  const keys = missions.map(_deadlineMonthKey);
+  // 年をまたぐときだけ見出しに年を出す（同じ年なら「9月」だけで足りる）
+  const years = new Set(keys.filter(Boolean).map(k => k.slice(0, 4)));
+  const withYear = years.size > 1;
+
+  let prev;
+  const out = [];
+  for (let i = 0; i < cards.length; i++) {
+    const k = keys[i];
+    if (k !== prev) {
+      out.push(`<h3 class="p-main-board__month">${_monthHeadingLabel(k, withYear)}</h3>`);
+      prev = k;
+    }
+    out.push(cards[i]);
+  }
+  return out.join('');
+}
+
+/** 締切の月キー 'YYYY-MM'。締切が無ければ null
+ *  ★m.dates は未ソートで保存される（落とし穴 12）。必ずソートしてから最終日を取る。 */
+function _deadlineMonthKey(m) {
+  const dates = Array.isArray(m?.dates) ? m.dates.filter(Boolean) : [];
+  if (dates.length === 0) return null;
+  return String([...dates].sort().at(-1)).slice(0, 7);
+}
+
+/** 見出しの文言。null は「期限なし」 */
+function _monthHeadingLabel(key, withYear) {
+  if (!key) return '期限なし';
+  const [y, mo] = key.split('-');
+  return withYear ? `${Number(y)}年 ${Number(mo)}月` : `${Number(mo)}月`;
+}
+
 function _missionDeadlineText(m) {
   if (!Array.isArray(m.dates) || m.dates.length === 0) {
     return '<span class="p-main-board__deadline">スケジュール未設定</span>';

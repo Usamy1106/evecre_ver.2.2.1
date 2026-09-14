@@ -274,6 +274,22 @@
   color: var(--color-text);
 }
 
+/* 締切順のときだけ出る月の見出し（views/mainBoard.js の _withMonthHeadings）。
+   ★折りたたみ機能は付けていない。畳めるようにすると、SSE の再描画をまたいで
+     開閉を保持する仕組みが別途必要になる（見出しだけなら何も持たなくて済む）。
+   ★1件目の見出しは上の余白を詰める。リストの先頭で間が空きすぎるため。 */
+.p-main-board__month {
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-main-board__month:first-child {
+  margin-top: 0;
+}
+
 .p-main-board__empty {
   padding-block: var(--space-10);
   font-size: var(--font-size-md);

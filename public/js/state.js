@@ -107,7 +107,9 @@ export const state = {
   draftMission: { title: '', labels: [], priority: 0, dates: [], clearFormat: 'text', note: '' },
   missionModalTab: 'BASIC',
   calendarDate: new Date(),
-  missionSortMode: 'createdAt',
+  // ★既定は締切順。「次に何をやるか」が一覧の主な用途なので、作った順より締切が先。
+  //   締切順のときだけ月の見出しが付く（views/mainBoard.js の _withMonthHeadings）。
+  missionSortMode: 'deadline',
   notifications: [],   // [{id, type, message, eventId, missionId, read, createdAt}]
   _saveTimer: null,    // save() のデバウンスタイマー（flushPendingSave で確定させる）
 

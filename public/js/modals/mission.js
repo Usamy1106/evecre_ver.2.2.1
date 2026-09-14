@@ -716,10 +716,12 @@ export function toggleSortMenu(e) {
   const menu = document.createElement('div');
   menu.id = 'sort-menu';
   menu.className = 'c-context-menu c-context-menu--dropdown u-animate-fade';
+  // ★並びは「締切順 → 優先度順 → 制作日順」。既定は締切順（state.js の
+  //   missionSortMode）。締切順のときだけ月の見出しが付く（views/mainBoard.js）。
   const modes = [
-    { id: 'createdAt', label: '制作日順' },
     { id: 'deadline',  label: '締切順' },
     { id: 'priority',  label: '優先度順' },
+    { id: 'createdAt', label: '制作日順' },
   ];
   menu.innerHTML = modes.map(m =>
     `<button onclick="window._app.changeMissionSort('${m.id}')"
