@@ -536,6 +536,24 @@ section('[B] 実機で見つかった不具合');
       /size: 28, userId: m\.userId/.test(files['modals/mission.js']) &&
       /p-assignee__row-user/.test(files['modals/mission.js']));
 
+    // ★★<button> の中に <button> を置かないこと。HTML として不正で、パーサーが
+    //   **外側の button を強制的に閉じる**。アバター以降の中身が行の外へ弾き出され、
+    //   名前が中央に揃わないだけでなく、**そこをタップしても行が選択されない**
+    //   （実際に起きた。parse5 で DOM を作って確認済み）。
+    //   アバター（userId 付き＝button）を含む行は <div role="button"> にする。
+    {
+      const mi = files['modals/mission.js'];
+      const userRows = [...mi.matchAll(/<(\w+)[^>]*data-assignee-pick="user:/g)].map(m => m[1]);
+      ok('★アバターを含む行を <button> にしていない（button の入れ子は不正）',
+        userRows.length > 0 && userRows.every(t => t === 'div'), userRows.join(', '));
+      ok('★その行に role="button" と tabindex がある',
+        (mi.match(/<div role="button" tabindex="0" data-assignee-pick="user:/g) || []).length === 2);
+      // role="button" は Enter / Space で発火しないので、自前で補うこと
+      ok('★role="button" の行をキーボードで操作できる',
+        /getAttribute\('role'\) === 'button'/.test(codeOnly(mi)) &&
+        /e\.key === 'Enter' \|\| e\.key === ' '/.test(codeOnly(mi)));
+    }
+
     // ★プロフィールカードはシートより前に出すこと。既定の --z-overlay(100) だと
     //   担当者シート(210)やリーダーチェック(150)の裏に隠れて見えない（実際に起きた）。
     const up = R('public/js/modals/userProfileModal.js');

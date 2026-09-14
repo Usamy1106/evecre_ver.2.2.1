@@ -208,21 +208,6 @@
   gap: var(--space-3);
 }
 
-/* ★名前を上下中央に見せるための調整。
-   align-items:center は効いていて**ボックスは中央に揃っている**。それでも
-   下がって見えるのは、日本語フォントの ascent(約1.16em)が descent(約0.29em)より
-   ずっと大きく、**行ボックスの中で字面の中心が約 0.07em 下**に来るため。
-   隣がきっかり円形のアバター（28px）なので、そのずれが目立つ。
-   - line-height:1 … 行ボックスを字面の大きさに寄せる
-   - translateY   … 残りを視覚的に補正する。13px の字面に対して約1px
-   ★transform なのでレイアウトには影響しない（行の高さは変わらない）。
-   ★ここを .p-assignee__row-name 全体に掛けないこと。ROLE タブの行は
-     名前＋補足の2行組みで、詰めると窮屈になる。 */
-.p-assignee__row-user .p-assignee__row-name {
-  line-height: 1;
-  transform: translateY(-1px);
-}
-
 .p-assignee__row:active {
   background-color: var(--color-bg);
 }

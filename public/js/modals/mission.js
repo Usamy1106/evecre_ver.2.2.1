@@ -939,7 +939,10 @@ function _assigneeSuggestHtml(members, multiIds) {
         ${recs.map(r => {
           const checked = multiIds.includes(r.userId);
           return `
-            <button type="button" data-assignee-pick="user:${_escAttr(r.userId)}"
+            <!-- ★<button> にしないこと。中にアバターの <button> を置くため。
+                 button の入れ子は HTML として不正で、**パーサーが外側を強制的に
+                 閉じる**（中身が行の外へ弾き出され、レイアウトもタップ範囲も壊れる）。 -->
+            <div role="button" tabindex="0" data-assignee-pick="user:${_escAttr(r.userId)}"
               class="p-assignee__suggest-item${checked ? ' is-checked' : ''}">
               <!-- ★アバターは Components.UserAvatar に userId を渡す。中で
                    stopPropagation しているので、タップしても担当者の選択にはならず
@@ -952,7 +955,7 @@ function _assigneeSuggestHtml(members, multiIds) {
               ${checked
                 ? '<span class="p-assignee__check">✓</span>'
                 : '<span class="p-assignee__checkbox"></span>'}
-            </button>`;
+            </div>`;
         }).join('')}
       </div>
     </div>`;
@@ -1002,7 +1005,8 @@ function _renderAssigneeSheetList() {
       html += members.map(m => {
         const checked = multiIds.includes(m.userId);
         return `
-          <button type="button" data-assignee-pick="user:${_escAttr(m.userId)}"
+          <!-- ★<button> にしないこと（理由は上のおすすめ行と同じ）。 -->
+          <div role="button" tabindex="0" data-assignee-pick="user:${_escAttr(m.userId)}"
             class="p-assignee__row${checked ? ' is-checked' : ''}">
             <!-- ★アバターと名前は1つのまとまりにする。この行は space-between なので、
                  素のまま並べるとアバターと名前が左右に引き離される。
@@ -1013,7 +1017,7 @@ function _renderAssigneeSheetList() {
               <span class="p-assignee__row-name">${_esc(m.username)}</span>
             </span>
             ${checked ? '<span class="p-assignee__check">✓</span>' : '<span class="p-assignee__checkbox"></span>'}
-          </button>`;
+          </div>`;
       }).join('');
     }
   } else if (tab === 'ROLE') {
@@ -1042,7 +1046,14 @@ function _renderAssigneeSheetList() {
   if (list) list.innerHTML = html;
 
   // 行の選択ハンドラ
+  // ★アバターを含む行は <div role="button">（button の入れ子が作れないため）。
+  //   role="button" は Enter / Space で発火しないので、ここで補う。
   overlay.querySelectorAll('[data-assignee-pick]').forEach(btn => {
+    if (btn.getAttribute('role') === 'button') {
+      btn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+      });
+    }
     btn.addEventListener('click', () => {
       const val = btn.dataset.assigneePick;
       if (tab === 'ACCOUNT') {
