@@ -16,7 +16,7 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { Components } from '../components.js';
 import {
-  MISSION_DESCRIPTIONS,
+  MISSION_DESCRIPTIONS, LABEL_CONFIG,
   SUBMISSION_PLACEHOLDERS, REFLECT_STRUGGLE_PLACEHOLDERS, REFLECT_SOLUTION_PLACEHOLDERS,
 } from '../constants.js';
 import { initClearDraft } from '../modals/helpers.js';
@@ -299,15 +299,24 @@ function _renderClearSection(p, m, canMgr) {
 /**
  * ミッションのタグからプレースホルダーを引く。
  *
+ * ★ビルトイン4タグ（企画/運営/制作/広報）が**ちょうど1つ**のときだけ、その例文を出す。
+ *   - 0個（カスタムタグのみ・タグ未設定）… DEFAULT
+ *   - 2個以上（例：企画＋広報）… **DEFAULT**。どちらに寄せても片方に対して嘘の
+ *     例文になるため、粒度だけを伝える汎用文に倒す
  * ★**DEFAULT へのフォールバックを外さないこと。** カスタムタグ（ユーザーが自由に作る）
- *   とタグ未設定はここに落ちる。本番では全ミッションの約1/4がカスタムタグ。
- * ★tag（単数）と tags（配列）は**両方実在する**。実データでは tag が主軸で
- *   （123/125件）、tags は後から入った複数対応（61件・値は tag と一致）。
- *   単数を先に見ること。
+ *   はここに落ちる。本番では全ミッションの約1/4がカスタムタグ。
+ * ★tag（単数）と tags（配列）は**両方実在する**（実データで tag 123件 / tags 61件）。
+ *   どちらか一方だけを見ると取りこぼすので、**両方を集合にしてから数える**。
+ * ★ビルトインの判定は LABEL_CONFIG のキーで行う。ここに4つを書き写さないこと
+ *   （タグを増やしたときに片方だけ直す事故になる）。
  */
 function _placeholderFor(table, mission) {
-  const tag = mission?.tag || (Array.isArray(mission?.tags) ? mission.tags[0] : null);
-  return table[tag] || table.DEFAULT;
+  const tags = new Set([
+    ...(Array.isArray(mission?.tags) ? mission.tags : []),
+    ...(mission?.tag ? [mission.tag] : []),
+  ].filter(Boolean));
+  const builtin = [...tags].filter(t => Object.prototype.hasOwnProperty.call(LABEL_CONFIG, t));
+  return builtin.length === 1 ? (table[builtin[0]] || table.DEFAULT) : table.DEFAULT;
 }
 
 function _renderClearInput(m) {

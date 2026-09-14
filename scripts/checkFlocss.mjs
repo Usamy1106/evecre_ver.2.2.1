@@ -435,9 +435,17 @@ section('[B] 実機で見つかった不具合');
 
     ok('★プレースホルダーを _esc に通している',
       (md.match(/placeholder="\$\{_esc\(_placeholderFor\(/g) || []).length === 3);
-    // ★tag（単数）を先に見ること。実データは tag が主軸（123/125件）
-    ok('★tag（単数）を tags より先に見ている',
-      /mission\?\.tag \|\| \(Array\.isArray\(mission\?\.tags\)/.test(codeOnly(md)));
+    // ★tag（単数）と tags（配列）は両方実在する。片方だけ見ると取りこぼす
+    ok('★tag と tags の両方を集合にしてから数えている',
+      /Array\.isArray\(mission\?\.tags\) \? mission\.tags : \[\]/.test(codeOnly(md)) &&
+      /mission\?\.tag \? \[mission\.tag\] : \[\]/.test(codeOnly(md)));
+    // ★ビルトインが**ちょうど1つ**のときだけ、そのタグの例文を出す。
+    //   2つ以上（例：企画＋広報）はどちらに寄せても片方に対して嘘になるので DEFAULT。
+    ok('★ビルトインタグが1つのときだけ専用の例文を出す（複数なら DEFAULT）',
+      /builtin\.length === 1 \? \(table\[builtin\[0\]\] \|\| table\.DEFAULT\) : table\.DEFAULT/.test(codeOnly(md)));
+    // ★4タグをここに書き写さないこと（増やしたとき片方だけ直す事故になる）
+    ok('★ビルトインの判定を LABEL_CONFIG から引いている',
+      /hasOwnProperty\.call\(LABEL_CONFIG, t\)/.test(codeOnly(md)));
 
     // ★振り返り欄は既定で開く（入力実績が0件で、畳まれて気づかれていなかった）
     ok('★振り返り欄が既定で開いている', /class="p-mission-detail__reflect" open>/.test(md));
@@ -522,6 +530,27 @@ section('[B] 実機で見つかった不具合');
     // ★リーダーチェックは「誰の提出か」を出す（以前は分からないまま判断させていた）
     ok('★リーダーチェックに提出者を出している',
       /c-list-sheet__submitter/.test(files['main.js']) && /cd\?\.submittedBy/.test(files['main.js']));
+
+    // ★担当者シートの通常行にもアバターを出す（おすすめの行だけではない）
+    ok('★担当者シートのメンバー行にアバターがある',
+      /size: 28, userId: m\.userId/.test(files['modals/mission.js']) &&
+      /p-assignee__row-user/.test(files['modals/mission.js']));
+
+    // ★プロフィールカードはシートより前に出すこと。既定の --z-overlay(100) だと
+    //   担当者シート(210)やリーダーチェック(150)の裏に隠れて見えない（実際に起きた）。
+    const up = R('public/js/modals/userProfileModal.js');
+    const ov = R('public/css/object/component/_overlay.css');
+    const vr = R('public/css/foundation/_variables.css');
+    ok('★プロフィールカードがシートより前に出る',
+      /c-overlay--profile/.test(up) &&
+      /\.c-overlay--profile\s*\{[^}]*z-index: var\(--z-user-profile\)/.test(ov));
+    {
+      const z = (n) => +(new RegExp(`--z-${n}:\\s*(\\d+)`).exec(vr) || [])[1];
+      const profile = z('user-profile');
+      const sheets = ['sheet', 'sheet-stacked', 'pending', 'list-modal', 'schedule'].map(z);
+      ok('★プロフィールの z がすべてのシートより大きい',
+        sheets.every(v => profile > v), `profile=${profile} vs ${sheets.join(',')}`);
+    }
   }
 
   // ★ズームを殺して逃げていないこと

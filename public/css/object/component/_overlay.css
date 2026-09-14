@@ -55,6 +55,13 @@
   z-index: var(--z-sheet-stacked);
 }
 
+/* プロフィールカード。★シートの中のアバターから開くので、どのシートよりも前に出す。
+   既定の --z-overlay(100) のままだと担当者シート(210)やリーダーチェック(150)の
+   裏に隠れて見えない（実際にその報告を受けた）。 */
+.c-overlay--profile {
+  z-index: var(--z-user-profile);
+}
+
 /* 全画面のモーダル（ミッション作成）。暗幕ではなく画面ごと差し替える */
 .c-overlay--full {
   z-index: var(--z-overlay);

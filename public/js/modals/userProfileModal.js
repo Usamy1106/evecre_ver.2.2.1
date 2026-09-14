@@ -119,7 +119,9 @@ export function openUserProfileModal(userId) {
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   // スタイル: public/css/object/project/_user-profile.css
-  overlay.className = 'c-overlay c-overlay--center';
+  // ★--profile を外さないこと。シート（担当者・承認待ち・リーダーチェック）の
+  //   中のアバターから開くので、既定の z-index だと裏に隠れて見えない。
+  overlay.className = 'c-overlay c-overlay--center c-overlay--profile';
   overlay.innerHTML = `
     <div class="c-modal c-modal--compact u-animate-fade p-user-profile">
       <button type="button" data-up-close class="c-modal__close" aria-label="閉じる">

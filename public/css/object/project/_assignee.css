@@ -199,6 +199,15 @@
   text-align: left;
 }
 
+/* アバター＋名前のまとまり。★この行は space-between なので、束ねないと
+   アバターと名前が左右に引き離される。 */
+.p-assignee__row-user {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .p-assignee__row:active {
   background-color: var(--color-bg);
 }

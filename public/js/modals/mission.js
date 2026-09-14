@@ -1004,7 +1004,14 @@ function _renderAssigneeSheetList() {
         return `
           <button type="button" data-assignee-pick="user:${_escAttr(m.userId)}"
             class="p-assignee__row${checked ? ' is-checked' : ''}">
-            <p class="p-assignee__row-name">${_esc(m.username)}</p>
+            <!-- ★アバターと名前は1つのまとまりにする。この行は space-between なので、
+                 素のまま並べるとアバターと名前が左右に引き離される。
+                 ★アバターは userId を渡す（タップでプロフィールが開く）。
+                 UserAvatar が stopPropagation するので、担当者選択はトグルされない。 -->
+            <span class="p-assignee__row-user">
+              ${Components.UserAvatar(m, { size: 28, userId: m.userId })}
+              <span class="p-assignee__row-name">${_esc(m.username)}</span>
+            </span>
             ${checked ? '<span class="p-assignee__check">✓</span>' : '<span class="p-assignee__checkbox"></span>'}
           </button>`;
       }).join('');
