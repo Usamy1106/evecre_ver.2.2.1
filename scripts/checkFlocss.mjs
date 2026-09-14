@@ -481,6 +481,49 @@ section('[B] 実機で見つかった不具合');
       /Array\.isArray\(missionCardList\)/.test(codeOnly(mb)));
   }
 
+  // ★人を表す箇所はアバターを出し、タップでプロフィールを開けるようにする。
+  //   アバターは必ず Components.UserAvatar を通すこと。自前で <img> と頭文字を
+  //   描き分けると、Google の画像が読めなかったときのフォールバックが無くなり、
+  //   他の画面と見た目も揃わない（承認待ちと選定モーダルで実際にそうなっていた）。
+  {
+    const files = {
+      'views/missionDetail.js': R('public/js/views/missionDetail.js'),
+      'views/mainBoard.js':     R('public/js/views/mainBoard.js'),
+      'modals/mission.js':      R('public/js/modals/mission.js'),
+      'main.js':                R('public/js/main.js'),
+    };
+    // 自前で頭文字の丸を描いていないこと（UserAvatar のフォールバックに任せる）
+    const handRolled = Object.entries(files).filter(([, src]) =>
+      /charAt\(0\)\.toUpperCase\(\)/.test(codeOnly(src)));
+    ok('★アバターを自前で描いていない（UserAvatar に任せる）',
+      handRolled.length === 0, handRolled.map(([f]) => f).join(', '));
+
+    // userId を渡してタップでプロフィールが開くこと
+    const spots = [
+      ['個別完了の完了状況リスト', files['views/missionDetail.js'], /size: 24, userId: uid/],
+      ['担当者・応募者のチップ',   files['views/mainBoard.js'],     /size: 20, userId: uid/],
+      ['選定モーダルの応募者',     files['modals/mission.js'],      /size: 36, userId: uid/],
+      ['承認待ちメンバー',         files['main.js'],                /size: 36, userId: m\.userId/],
+      ['リーダーチェックの提出者', files['main.js'],                /size: 24, userId: cd\.submittedBy/],
+    ];
+    const noProfile = spots.filter(([, src, re]) => !re.test(src)).map(([n]) => n);
+    ok('★人のアイコンはタップでプロフィールが開く（userId を渡している）',
+      noProfile.length === 0, noProfile.join(', '));
+
+    // ★チップは HTML を返す。埋め込む側で _esc に通すと二重エスケープになる
+    ok('★担当者チップを二重エスケープしていない',
+      /class="p-main-board__mission-assignee">担当：\$\{names\}/.test(files['views/mainBoard.js']) &&
+      /class="p-main-board__claim-names">\$\{names\}/.test(files['views/mainBoard.js']));
+
+    // ★承認待ちカードの HTML は2箇所で組み立てる。アバターも共通ヘルパに集約すること
+    ok('★承認待ちのアバターが2箇所とも共通ヘルパを通る',
+      (files['main.js'].match(/\$\{_pendingAvatarHtml\(m\)\}/g) || []).length === 2);
+
+    // ★リーダーチェックは「誰の提出か」を出す（以前は分からないまま判断させていた）
+    ok('★リーダーチェックに提出者を出している',
+      /c-list-sheet__submitter/.test(files['main.js']) && /cd\?\.submittedBy/.test(files['main.js']));
+  }
+
   // ★ズームを殺して逃げていないこと
   const html = R('public/index.html');
   ok('★viewport でピンチズームを禁止していない（maximum-scale / user-scalable）',

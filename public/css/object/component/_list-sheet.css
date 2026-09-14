@@ -174,3 +174,19 @@
 .c-list-sheet__card-actions > button:active {
   transform: scale(.95);
 }
+
+/* 提出者（リーダーチェックのシート）。main.js の openLeaderCheckSheet。
+   ★以前は提出物だけが並び、誰のものか分からないまま承認/差し戻しを
+     判断させていた。アバターは userId 付きでプロフィールが開く。 */
+.c-list-sheet__submitter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.c-list-sheet__submitter-name {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}

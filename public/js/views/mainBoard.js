@@ -601,7 +601,7 @@ function _renderMainTab(p) {
                 class="p-main-board__claim-link p-main-board__claim-link--action">選定する</button>`;
             }
           } else {
-            const names = _resolveUsernames(p, assignees);
+            const names = _resolveUserChips(p, assignees);
             actionsBlock = `<span class="p-main-board__claim-note p-main-board__claim-note--done">担当：${names}</span>`;
           }
 
@@ -613,7 +613,7 @@ function _renderMainTab(p) {
         let assigneeLine = '';
         if (!m.selfClaim) {
           if (assignees.length > 0) {
-            const names = _resolveUsernames(p, assignees);
+            const names = _resolveUserChips(p, assignees);
             assigneeLine = `<p class="p-main-board__mission-assignee">担当：${names}</p>`;
           } else if (m.assignee?.type === 'role') {
             const roleObj = (p.roles || []).find(r => r.id === m.assignee.roleId);
@@ -842,17 +842,14 @@ function _renderLeaderCheckBanner(missions) {
 // ===== 応募待ちアナウンスバナー（管理者向け）=====
 function _renderClaimAnnouncementBanner(p, missions) {
   const rows = missions.map(m => {
-    const count = m.claimApplicants.length;
-    const names = m.claimApplicants.slice(0, 3).map(uid => {
-      const mem = (p.members || []).find(x => x.userId === uid);
-      return mem ? `@${mem.username}` : '?';
-    }).join('、') + (count > 3 ? ` 他${count - 3}名` : '');
+    // ★チップ（アバター＋名前）。HTML なので下で _esc に通さないこと
+    const names = _resolveUserChips(p, m.claimApplicants);
 
     return `
       <div class="p-main-board__claim-row">
         <div class="p-main-board__claim-body">
           <p class="p-main-board__claim-title">${_esc(m.title)}</p>
-          <p class="p-main-board__claim-names">${_esc(names)}</p>
+          <p class="p-main-board__claim-names">${names}</p>
         </div>
         <button type="button" onclick="event.stopPropagation(); window._app.openSelectClaimModal('${m.id}')"
           class="p-main-board__claim-select">
@@ -1635,16 +1632,26 @@ function _fmtDate(ts) {
   return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-// userId 配列 → ユーザー名カンマ区切り
-function _resolveUsernames(p, userIds, max = 3) {
+/**
+ * userId 配列 → アバター＋名前のチップ列（HTML）。
+ *
+ * ★アバターには userId を渡す。タップでプロフィールが開く（UserAvatar 側で
+ *   stopPropagation しているので、ミッションカードのタップとは干渉しない）。
+ * ★max（既定3）人まで出し、超過分は「他N人」に集約する。カードの1行に収める
+ *   ためで、ここを増やすとミッション一覧が縦に伸びる。
+ * ★**戻り値は HTML**。埋め込む側で _esc に通さないこと（二重エスケープになる）。
+ *   名前は中で _esc 済み。
+ */
+function _resolveUserChips(p, userIds, max = 3) {
   if (!Array.isArray(userIds) || userIds.length === 0) return '未確定';
-  const names = userIds.map(uid => {
+  const shown = userIds.slice(0, max);
+  const rest  = userIds.length - shown.length;
+  const chips = shown.map(uid => {
     const member = (p.members || []).find(m => m.userId === uid);
-    return member ? `@${member.username}` : '不明なユーザー';
-  });
-  // ミッション欄では担当者は max（既定3）人まで表示し、超過分は「他N人」に集約
-  if (names.length > max) {
-    return names.slice(0, max).join('、') + ` 他${names.length - max}人`;
-  }
-  return names.join('、');
+    const name = member ? member.username : '不明なユーザー';
+    return `<span class="p-main-board__user-chip">${
+      Components.UserAvatar(member || { username: name }, { size: 20, userId: uid })
+    }<span class="p-main-board__user-chip-name">${_esc(name)}</span></span>`;
+  }).join('');
+  return chips + (rest > 0 ? `<span class="p-main-board__user-more">他${rest}人</span>` : '');
 }

@@ -440,6 +440,9 @@ function _renderIndividualSection(p, m, canMgr, meId) {
       <div class="p-mission-detail__member">
         <div class="p-mission-detail__member-row">
           <span class="p-mission-detail__member-mark${done ? ' is-done' : ''}">${done ? '✓' : '–'}</span>
+          <!-- ★アバターは userId を渡す（タップでプロフィールが開く）。
+               UserAvatar 側で stopPropagation しているので、行の他の処理とは干渉しない。 -->
+          ${Components.UserAvatar(mem || { username: name }, { size: 24, userId: uid })}
           <span class="p-mission-detail__member-name">${_esc(name)}</span>
           <span class="p-mission-detail__member-state${done ? ' is-done' : ''}">${done ? '完了済み' : '未完了'}</span>
         </div>

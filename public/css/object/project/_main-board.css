@@ -347,6 +347,30 @@
   color: var(--color-text);
 }
 
+/* 担当者・応募者のチップ（アバター＋名前）。views/mainBoard.js の _resolveUserChips。
+   ★アバターは userId 付きなのでタップでプロフィールが開く。
+   ★1行に収める前提。折り返すとミッション一覧が縦に伸びるので、
+     人数の上限（既定3人）は JS 側で持っている。 */
+.p-main-board__user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  vertical-align: middle;
+}
+
+.p-main-board__user-chip + .p-main-board__user-chip {
+  margin-left: var(--space-2);
+}
+
+.p-main-board__user-chip-name {
+  line-height: 1;
+}
+
+.p-main-board__user-more {
+  margin-left: var(--space-2);
+  color: var(--color-text-muted);
+}
+
 /* 右上のメニュー（管理者）／リンクコピー（一般） */
 .p-main-board__mission-action {
   position: absolute;

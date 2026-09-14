@@ -56,6 +56,7 @@ import { checkPurposeReminderModal } from './modals/purposeReminderModal.js';
 import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/leaderMotivationModal.js';
 import { openJoinFormModal } from './modals/joinFormModal.js';
 import { SKILL_TAGS } from './constants.js';
+import { Components } from './components.js';
 import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
@@ -821,9 +822,7 @@ window._app = {
         card.innerHTML = `
           <div class="p-member-manage__card-head">
             <div class="p-member-manage__card-user">
-              <div class="p-member-manage__avatar">
-                ${_escH((m.username || '?').charAt(0).toUpperCase())}
-              </div>
+              ${_pendingAvatarHtml(m)}
               <p class="p-member-manage__username">@${_escH(m.username)}</p>
             </div>
             <div class="p-member-manage__card-actions">
@@ -876,9 +875,7 @@ window._app = {
       <div data-pending-uid="${_escH(m.userId)}" class="c-list-sheet__card">
           <div class="p-member-manage__card-head">
             <div class="p-member-manage__card-user">
-              <div class="p-member-manage__avatar">
-                ${_escH((m.username || '?').charAt(0).toUpperCase())}
-              </div>
+              ${_pendingAvatarHtml(m)}
               <p class="p-member-manage__username">@${_escH(m.username)}</p>
             </div>
             <div class="p-member-manage__card-actions">
@@ -1205,10 +1202,26 @@ window._app = {
           previewHtml = `<p class="c-list-sheet__preview-text">${_escH(cd.content)}</p>`;
         }
       }
+      // ★誰の提出かを出す。以前は提出物だけが並んでいて、**誰のものか分からない
+      //   まま承認/差し戻しを判断させていた**。submittedBy は submissions 由来で、
+      //   /api/data が clearedData に合成して返している（サーバー変更は不要）。
+      //   ★古い提出には submittedBy が無いので、その場合は行ごと出さない。
+      const submitter = cd?.submittedBy
+        ? (p.members || []).find(x => x.userId === cd.submittedBy)
+        : null;
+      const submitterHtml = cd?.submittedBy ? `
+        <div class="c-list-sheet__submitter">
+          ${Components.UserAvatar(
+            submitter || { username: '不明なユーザー' },
+            { size: 24, userId: cd.submittedBy })}
+          <span class="c-list-sheet__submitter-name">${
+            _escH(submitter?.username || '不明なユーザー')} が提出</span>
+        </div>` : '';
       return `
         <div data-leader-check-id="${_escH(m.id)}" class="c-list-sheet__card">
           <div class="c-list-sheet__chips">${tagNames.map(t => `<span class="c-list-sheet__chip">${_escH(t)}</span>`).join('')}</div>
           <p class="c-list-sheet__card-title">${_escH(m.title)}</p>
+          ${submitterHtml}
           ${previewHtml}
           <div class="c-list-sheet__card-actions">
             <button data-lc-reject="${_escH(m.id)}" class="c-button c-button--muted">差し戻す</button>
@@ -1512,6 +1525,23 @@ function _cleanChecklist(list) {
  *   「シートを開いたまま新しい申請が来たとき」だけタグが出ない不整合になる。
  * 回答なしで申請した人（旧経路含む）は何も出さない。
  */
+/**
+ * 承認待ちメンバーのアバター。
+ *
+ * ★以前はここで頭文字の丸を自前で描いていたため、**Google アカウントの写真が
+ *   設定されていても出ず**、他の画面と見た目も揃っていなかった。
+ * ★userId を渡してタップでプロフィールを開けるようにしてある。
+ *   まだメンバーではないが、承認の判断材料として profile は見られてよい。
+ * ★このカードの HTML は**2箇所**（SSE での追加時とシート新規作成時）で
+ *   組み立てられる。片方だけ直さないよう、アバターもここに集約している。
+ */
+function _pendingAvatarHtml(m) {
+  return Components.UserAvatar(
+    { username: m.username, avatarUrl: m.avatarUrl },
+    { size: 36, userId: m.userId },
+  );
+}
+
 function _pendingAnswersHtml(m) {
   const label = (id) => SKILL_TAGS.find(t => t.id === id)?.label;
   const good = (m.skillsGood || []).map(label).filter(Boolean);

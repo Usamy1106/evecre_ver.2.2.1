@@ -1311,9 +1311,13 @@ export function openSelectClaimModal(missionId) {
     const member = (p.members || []).find(mem => mem.userId === uid);
     const name = member ? member.username : '(不明なユーザー)';
     const rec = recIndex.get(uid) || null;
-    const avatarHtml = member?.avatarUrl
-      ? `<img src="${_escAttr(member.avatarUrl)}" referrerpolicy="no-referrer" class="p-assignee__applicant-avatar">`
-      : `<div class="p-assignee__applicant-initial">${_esc(name.charAt(0).toUpperCase())}</div>`;
+    // ★共通の UserAvatar を使う。自前で <img> と頭文字を描き分けていた頃は、
+    //   Google の画像が読めなかったときのフォールバックが無かった。
+    // ★userId を渡してタップでプロフィールを開けるようにしてある。
+    //   この行は <label>（チェックボックス）だが、UserAvatar が stopPropagation
+    //   するので、アバターを押しても選択はトグルされない。
+    const avatarHtml = Components.UserAvatar(
+      member || { username: name }, { size: 36, userId: uid });
     return `
       <label class="p-assignee__applicant${rec ? ' is-recommended' : ''}">
         <input type="checkbox" data-select-claim value="${_escAttr(uid)}" class="p-assignee__applicant-check">
