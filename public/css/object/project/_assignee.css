@@ -208,6 +208,16 @@
   gap: var(--space-3);
 }
 
+/* ★名前の行ボックスを字面に合わせる（line-height:1）。
+   既定の normal だと、日本語フォントは行ボックスの中で字面が下寄りになるため、
+   きっかり円形のアバターや右のチェックと並べたとき**名前だけ下がって見える**。
+   align-items:center は効いているので、ずれているのは行ボックスの中身のほう。
+   ★ここを .p-assignee__row-name 全体に掛けないこと。ROLE タブの行は
+     名前＋補足の2行組みで、詰めると窮屈になる。 */
+.p-assignee__row-user .p-assignee__row-name {
+  line-height: 1;
+}
+
 .p-assignee__row:active {
   background-color: var(--color-bg);
 }
