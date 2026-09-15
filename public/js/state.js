@@ -99,8 +99,11 @@ export const state = {
   answersMode: 'user',
   charactersIntro: false,
   proposalsRevealed: false,
-  missionViewMode: 'all',      // 'all' | 'mine'  ミッション表示モード
-  missionFilterTag: null,      // ミッション絞り込みタグ（null=全表示）
+  // ★既定は 'mine'（私のやること）。一覧の用途は「自分が次に何をやるか」なので、
+  //   開いた直後に全員ぶんを見せると自分の担当が他人のカードに埋もれる（2026-09-16）。
+  //   ★mainBoard.js のフォールバック（`|| 'mine'`）も同じ値に保つこと。
+  missionViewMode: 'mine',     // 'mine' | 'all'  タスク表示モード
+  missionFilterTag: null,      // タスク絞り込みタグ（null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority' | 'assignee'
   editingMissionId: null,
   draftEvent: newDraftEvent(),   // イベント作成フローの下書き。リセットは state.resetDraftEvent()

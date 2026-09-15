@@ -457,10 +457,12 @@ function _renderMainTab(p) {
     return false;
   };
 
-  // ── ミッション表示モードの定義 ──────────────────────────────────
+  // ── タスク表示モードの定義 ──────────────────────────────────
+  // 'mine' : 自分が担当 / 未割当 /応募受付中のタスクのみ（★既定）
   // 'all'  : cleared・pending_leader_check 以外を全件表示
-  // 'mine' : 自分が担当 / 未割当 /応募受付中のミッションのみ
-  const viewMode = state.missionViewMode || 'all';
+  // ★既定値は state.js の missionViewMode と揃えること（片方だけ変えると、
+  //   未設定のときだけ別のタブが開くという分かりにくいずれ方をする）
+  const viewMode = state.missionViewMode || 'mine';
   // ★閲覧のみのロールは書き込み操作の UI を出さない（担保はサーバー側）
   const viewOnly = state.isViewOnlyCurrentEvent();
 
