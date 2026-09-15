@@ -112,7 +112,7 @@ export const api = {
     return json || { ok: false };
   },
 
-  // ----- ミッション完了（メンバー可・サーバーで永続化）-----
+  // ----- タスク完了（メンバー可・サーバーで永続化）-----
   // struggle / solution / shareable は振り返り（任意）。サーバーが 200 字で切り、
   // submissions コレクションに保存する（★CRDT 対象外）。
   async completeMission(eventId, missionId,
@@ -139,7 +139,7 @@ export const api = {
     return json || { ok: false, error: 'network' };
   },
 
-  // ----- ミッションチャット -----
+  // ----- タスクチャット -----
   async listMissionChat(eventId, missionId) {
     const { json } = await _send('GET', `/api/events/${eventId}/missions/${missionId}/chat`);
     return json || { ok: false };
@@ -157,7 +157,7 @@ export const api = {
     return json || { ok: false };
   },
 
-  // ----- ミッション自己申告 -----
+  // ----- タスク自己申告 -----
   async claimMission(eventId, missionId) {
     const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/claim`);
     return json || { ok: false };
@@ -171,7 +171,7 @@ export const api = {
     const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/select-claims`, { userIds });
     return json || { ok: false };
   },
-  // ミッション提案を動的生成
+  // タスク提案を動的生成
   async generateProposals(eventId) {
     const { json } = await _send('POST', `/api/events/${eventId}/proposals/generate`);
     return json || { ok: false };

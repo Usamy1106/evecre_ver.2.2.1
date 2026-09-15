@@ -4,12 +4,12 @@
 //
 // [カレンダービュー]
 //   - 上部：月次カレンダー（固定）
-//   - 下部：日付別ミッション一覧（スクロール）
+//   - 下部：日付別やること一覧（スクロール）
 //
 // [ガントチャービュー]
-//   - 左列：ミッション名（sticky left）
+//   - 左列：タスク名（sticky left）
 //   - 横：日付軸（横スクロール）
-//   - バー：ミッションの期限をバーで表示
+//   - バー：タスクの期限をバーで表示
 
 import { state } from '../state.js';
 import { getSortedMissions, bindMissionInteractions } from './mission.js';
@@ -19,9 +19,9 @@ const OVERLAY_ID = 'event-cal-sheet';
 
 // ガントチャートの定数
 const CELL_W     = 30;   // 1日あたりの列幅 (px)
-const NAME_W     = 116;  // ミッション名列の幅 (px)
+const NAME_W     = 116;  // タスク名列の幅 (px)
 const HEADER_H   = 46;   // ヘッダー行の高さ (px)
-const ROW_H      = 38;   // ミッション行の高さ (px)
+const ROW_H      = 38;   // タスク行の高さ (px)
 const DAYS_BEFORE = 14;  // 今日より前に表示する日数
 const DAYS_AFTER  = 75;  // 今日より後に表示する日数
 
@@ -73,7 +73,7 @@ function _close(overlay) {
 // =====================================================
 function _render(overlay, ctx) {
   const isCalendar = ctx.view === 'calendar';
-  // ミッション詳細ページへの遷移時に「どのビューから開いたか」を参照できるようにする
+  // タスク詳細ページへの遷移時に「どのビューから開いたか」を参照できるようにする
   overlay.dataset.calView = ctx.view;
 
   // ★ガントの寸法は JS の定数が正。CSS には custom property で渡す
@@ -125,7 +125,7 @@ function _render(overlay, ctx) {
 
   _bindAllEvents(overlay, ctx);
 
-  // ミッション行：タップ＝完了モーダル（完了可の場合）、管理者長押し＝編集/削除メニュー
+  // タスク行：タップ＝完了モーダル（完了可の場合）、管理者長押し＝編集/削除メニュー
   bindMissionInteractions(overlay, ctx.p, { useInlineTap: false });
 }
 
@@ -164,7 +164,7 @@ function _renderCalendarView(ctx) {
     <div id="mb-cal-fixed" class="p-schedule__cal">
       ${_renderCalendar(ctx)}
     </div>
-    <!-- ミッション一覧（スクロール）-->
+    <!-- やること一覧（スクロール）-->
     <div id="mb-cal-list" class="p-schedule__list">
       ${_renderSections(ctx)}
     </div>`;
@@ -313,7 +313,7 @@ function _bindDateEditDrag(overlay, ctx) {
       cell.classList.toggle('is-project', ctx.editDates.includes(cell.dataset.mbDay));
     });
     // ★カレンダー領域に限定して引く。overlay 全体から引くと、
-    //   下のミッション一覧に同じクラスが出たときに別物を書き換えてしまう。
+    //   下のやること一覧に同じクラスが出たときに別物を書き換えてしまう。
     const note = overlay.querySelector('#mb-cal-fixed .p-schedule__cal-note');
     if (note) note.textContent = `タップまたはスワイプで開催日を選択（${ctx.editDates.length}件）`;
   };
@@ -360,7 +360,7 @@ function _renderCalendarContent(overlay, ctx) {
   if (list) list.innerHTML = _renderSections(ctx);
 }
 
-// ミッションの最初のタグ名からカラーコードを解決する
+// タスクの最初のタグ名からカラーコードを解決する
 function _resolveTagColor(tagNames, customTags) {
   const name = Array.isArray(tagNames) ? tagNames[0] : tagNames;
   if (!name) return '#D3D6D8';
@@ -417,9 +417,9 @@ function _renderGanttView(ctx) {
     </div>`;
   }).join('');
 
-  // ── ミッション行 ────────────────────────────────
+  // ── タスク行 ────────────────────────────────
   const missionsHtml = missions.length === 0
-    ? `<div class="p-schedule__gantt-empty">ミッションがありません</div>`
+    ? `<div class="p-schedule__gantt-empty">タスクがありません</div>`
     : missions.map(m => {
         const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
         const barColor = _resolveTagColor(tagNames, ctx.p.customTags);
@@ -453,7 +453,7 @@ function _renderGanttView(ctx) {
         }).join('');
 
         return `<div data-mission-id="${m.id}" class="p-schedule__gantt-row" style="${rowVars}">
-          <!-- ミッション名（sticky left）-->
+          <!-- タスク名（sticky left）-->
           <div class="p-schedule__gantt-name">
             <div class="p-schedule__gantt-name-inner">
               <div class="p-schedule__gantt-tagdot"></div>
@@ -470,7 +470,7 @@ function _renderGanttView(ctx) {
     <div class="p-schedule__gantt-head">
       <!-- コーナーセル -->
       <div class="p-schedule__gantt-corner">
-        <span class="p-schedule__gantt-corner-label">ミッション</span>
+        <span class="p-schedule__gantt-corner-label">タスク</span>
       </div>
       <!-- 日付ヘッダー（スクロール非表示・JS同期）-->
       <div class="p-schedule__gantt-head-scroll">
@@ -514,7 +514,7 @@ function _scrollGanttToToday(overlay) {
 }
 
 // =====================================================
-// ミッション一覧セクション（カレンダービュー用）
+// タスク一覧セクション（カレンダービュー用）
 // =====================================================
 function _renderSections(ctx) {
   const sections = _buildSections(ctx.p);

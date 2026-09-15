@@ -76,7 +76,7 @@ function _bindDateTimeInputs(project) {
 // サポートする target:
 // - 'project'       : イベント作成中のドラフトの開催日を編集（state.draftEvent.dates）
 // - 'projectEdit'   : 確定済みイベントの開催日（実施日）を編集（project.dates）
-// - 'mission'       : ミッション期限（単日のみ）
+// - 'mission'       : タスク期限（単日のみ）
 // - 'claimDeadline' : 申告期限（単日のみ、選択日の23:59をタイムスタンプとして保存）
 // - 'handover'      : 引き継ぎ（振り返り）を行う日を編集（project.handoverDates・複数日可）
 // - 'view'          : 旧・閲覧専用。後方互換で projectEdit と同じ挙動にする
@@ -97,7 +97,7 @@ export function openCalendarModal(target = 'project') {
   modal = document.createElement('div');
   modal.id = 'calendar-modal';
   modal.dataset.target = target;
-  // ミッション・申告期限用はボトムシート（下から上にスライド）
+  // タスク・申告期限用はボトムシート（下から上にスライド）
   // スタイル: public/css/object/component/_overlay.css
   if (target === 'mission' || target === 'claimDeadline') {
     modal.className = 'c-overlay c-overlay--picker c-overlay--blur';
@@ -129,14 +129,14 @@ function _closeCalendar(target) {
   if (target === 'handover') {
     state.commitHandoverDatesEdit();
   }
-  // ミッション・申告期限用はボトムシートのスライドダウンアニメーション
+  // タスク・申告期限用はボトムシートのスライドダウンアニメーション
   if (target === 'mission' || target === 'claimDeadline') {
     const panel = document.getElementById('calendar-bottomsheet-panel');
     if (panel) panel.classList.remove('is-open');
     setTimeout(() => {
       document.getElementById('calendar-modal')?.remove();
       state.render();
-      // ミッションモーダルが背後にあれば再描画して日付表示を更新
+      // タスクモーダルが背後にあれば再描画して日付表示を更新
       if (document.getElementById('mission-modal-content')) {
         window._app?.renderMissionModalContent?.();
       }
@@ -263,8 +263,8 @@ function _renderCalendarInner(target) {
           </div>
         </div>
         ${target === 'mission' ? `
-          <!-- ★ミッションモーダルの基本設定と同じ説明を出す（同じことを2箇所で伝える）-->
-          <p class="p-date-picker__lead">ミッションを行う期間を設定します。</p>
+          <!-- ★タスクモーダルの基本設定と同じ説明を出す（同じことを2箇所で伝える）-->
+          <p class="p-date-picker__lead">やることを行う期間を設定します。</p>
           <p class="p-date-picker__note">日付をなぞってスワイプすると、期間をまとめて選べます。</p>
         ` : `
           <p class="p-date-picker__note">${helperText}</p>
@@ -304,7 +304,7 @@ function _renderCalendarInner(target) {
       </div>`;
   }
 
-  // 決定ボタン（ミッション用は存在しない）
+  // 決定ボタン（タスク用は存在しない）
   const confirmBtn = document.getElementById('calendar-confirm-btn');
   if (confirmBtn) confirmBtn.onclick = () => _closeCalendar(target);
 
@@ -460,7 +460,7 @@ function _updateCellAppearance(dateStr, on) {
 }
 
 /**
- * 日付の選択状態をトグルする（単日用：ミッション、および旧来のクリック互換）
+ * 日付の選択状態をトグルする（単日用：タスク、および旧来のクリック互換）
  * @param {string} dateStr
  * @param {string} target
  */

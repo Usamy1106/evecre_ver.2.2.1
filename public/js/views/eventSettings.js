@@ -245,11 +245,11 @@ function _eventManagementSection(p, sec) {
         </div>
 
         <!-- イベントの種別 -->
-        <!-- ★ミッション提案のカテゴリ判定に直結する。作成フロー導入前のイベントは
+        <!-- ★タスク提案のカテゴリ判定に直結する。作成フロー導入前のイベントは
              未設定のままなので、ここから後追いで入力できるようにしている。 -->
         <div class="c-settings-list__row">
           <p class="c-settings-list__label">イベントの種別</p>
-          <p class="p-event-settings__sub-title">ミッション提案の内容がこれに合わせて変わります</p>
+          <p class="p-event-settings__sub-title">タスク提案の内容がこれに合わせて変わります</p>
           ${canMgr ? `
             <select data-ps-select="eventType"
               class="c-input p-event-settings__select">
@@ -399,7 +399,7 @@ function _userManagementSection(p, sec) {
               ${(sec.roleEditDraft?.canManage ?? r.canManage) ? 'checked' : ''}
               ${isOwnerRole ? 'disabled' : ''}>
             <span class="p-event-settings__member-name">管理者権限</span>
-            <span class="p-event-settings__check-note">${isOwnerRole ? '(オーナーは常にON)' : 'イベント管理・ミッション編集ができる'}</span>
+            <span class="p-event-settings__check-note">${isOwnerRole ? '(オーナーは常にON)' : 'イベント管理・タスク編集ができる'}</span>
           </label>
           <!-- ★閲覧のみは組み込みロールには付けない（オーナー／管理者／メンバーの意味を変えない）。
                管理者権限と同時に付いた場合は管理者権限が勝つ。その旨を必ず画面に出す。 -->
@@ -409,7 +409,7 @@ function _userManagementSection(p, sec) {
                 ${(sec.roleEditDraft?.viewOnly ?? r.viewOnly) ? 'checked' : ''}
                 ${(sec.roleEditDraft?.canManage ?? r.canManage) ? 'disabled' : ''}>
               <span class="p-event-settings__member-name">閲覧のみ</span>
-              <span class="p-event-settings__check-note">見るだけ。ミッションの完了・応募・チャットができなくなる</span>
+              <span class="p-event-settings__check-note">見るだけ。タスクの完了・応募・チャットができなくなる</span>
             </label>
             ${(sec.roleEditDraft?.canManage ?? r.canManage)
               ? `<p class="p-event-settings__role-note">管理者権限がオンのため、閲覧のみは適用されません（管理者権限が優先されます）</p>`
@@ -457,7 +457,7 @@ function _userManagementSection(p, sec) {
         <div class="p-event-settings__sub-head">
           <div>
             <p class="p-event-settings__member-name">ロール</p>
-            <p class="p-event-settings__member-sub">「管理者権限」がONのロールはミッションの作成・編集などができます。</p>
+            <p class="p-event-settings__member-sub">「管理者権限」がONのロールはタスクの作成・編集などができます。</p>
           </div>
           ${canMgr ? `
             <button id="ps-role-add" class="c-settings-list__edit">+ 追加</button>
@@ -487,7 +487,7 @@ function _renderRoleAddForm(sec) {
       <label class="p-event-settings__check p-event-settings__check--spaced">
         <input id="ps-role-new-canmanage" type="checkbox" ${sec.roleAdding.canManage ? 'checked' : ''}>
         <span class="p-event-settings__member-name">管理者権限</span>
-        <span class="p-event-settings__check-note">イベント管理・ミッション編集</span>
+        <span class="p-event-settings__check-note">イベント管理・タスク編集</span>
       </label>
       <label class="p-event-settings__check p-event-settings__check--spaced">
         <input id="ps-role-new-viewonly" type="checkbox"

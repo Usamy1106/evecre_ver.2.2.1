@@ -95,7 +95,7 @@ export function syncRealtime() {
     });
   });
 
-  // ミッションチャット：開いているミッション詳細ページに即時反映 + 通知タブ更新
+  // タスクチャット：開いているタスク詳細ページに即時反映 + 通知タブ更新
   _es.addEventListener('chatMessage', (e) => {
     try {
       const { missionId, message } = JSON.parse(e.data);
@@ -173,7 +173,7 @@ function _applyEventUpdate(eventId, event) {
   }
 
   const needsReset = (newLeader > prevLeader) || (newClaims > prevClaims) ||
-                     (newPending > prevPending && !pendingSheetOpen) || (newPropos > prevPropos);
+                     (newPending > prevPending && !pendingSheetOpen);
   if (needsReset && state._infoModalShownForEvent === eventId) {
     state._infoModalShownForEvent = null;
   }

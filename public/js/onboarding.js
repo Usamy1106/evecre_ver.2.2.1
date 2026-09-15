@@ -8,7 +8,7 @@
 //   - 他のモーダルが開いていたら**フラグを立てずに持ち越す**（次の render() で再判定）
 //   - **1回の render() で出すのは最大1つ**
 //
-// ★ミッションを自動追加しないこと。MountainMini は 完了数/全ミッション数 で
+// ★タスクを自動追加しないこと。MountainMini は 完了数/全タスク数 で
 //   進捗を描くため、勝手に増やすと登山者が下がり、モチベーションを上げる目的の機能で
 //   モチベーションの可視化を悪化させる。
 
@@ -90,7 +90,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // ── 参加したばかりかどうか ──────────────────────────────────
 // 入ったばかりの人に「困ったら目的に立ち返ろう」と言っても、まだ何も始めていない
 // ので響かない。それどころか歓迎（リーダーの意気込み＋🔥 → 進め方）の枠を奪う。
-// 実際に「参加した直後に目的リマインドと『ミッションがひとつ終わりました』が出て、
+// 実際に「参加した直後に目的リマインドと『タスクがひとつ終わりました』が出て、
 // 🔥と進め方が出なかった」という報告を受けた。
 //
 // ★オーナーは対象外。イベントを作った本人は「参加したばかり」ではない。
@@ -141,7 +141,7 @@ export function isNewcomer(p, userId) {
 //
 // ★**開催日を過ぎたら出さないもの**（`hideAfterEvent: true`）：
 //   L1 / L3 / L4 / L5 / M2 / M3。終わったイベントで「仲間を誘おう」「担当を決めよう」
-//   「空いているミッションがあります」と言っても、もうやることが無い。
+//   「空いているタスクがあります」と言っても、もうやることが無い。
 //   ★とくに L4 は `repeatEveryMs` で24時間ごとに繰り返すので、止めないと
 //     終わったイベントの承認待ちを**永久に催促し続ける**（実際にそうなっていた）。
 //   ★L6 / M4（お祝い）と M1（メンバー向けの進め方）は**止めない**。
@@ -163,8 +163,8 @@ function _stalePending(p) {
 
 
 // ── L5 で使うヘルパ ────────────────────────────────────────
-// スキルタグ（12種）→ ミッションのタグ（4種）の対応。
-// ★ミッションのタグは 企画/運営/制作/広報 の4つしかないので、ここで寄せて突き合わせる。
+// スキルタグ（12種）→ タスクのタグ（4種）の対応。
+// ★タスクのタグは 企画/運営/制作/広報 の4つしかないので、ここで寄せて突き合わせる。
 //   constants.js の SKILL_TAGS に足したらここにも足すこと（未定義は候補に出ないだけ）。
 const SKILL_TO_MISSION_TAG = {
   design: '制作', photo: '制作', equipment: '制作',
@@ -173,7 +173,7 @@ const SKILL_TO_MISSION_TAG = {
   finance: '運営', negotiation: '運営', mc: '運営', admin: '運営', onsite: '運営', physical: '運営',
 };
 
-/** ミッションのタグ（tags 優先、無ければ tag） */
+/** タスクのタグ（tags 優先、無ければ tag） */
 function _missionTag(m) {
   return (Array.isArray(m.tags) && m.tags[0]) || m.tag || null;
 }
@@ -186,14 +186,14 @@ function _isAssigned(m) {
   return false;
 }
 
-/** 未完了で担当が空のミッション */
+/** 未完了で担当が空のタスク */
 function _unassigned(p) {
   return (p.missions || []).filter(m =>
     m.status !== 'cleared' && m.status !== 'pending_leader_check' && !_isAssigned(m));
 }
 
 /**
- * そのミッションに向いていそうなメンバーを1人返す。
+ * そのタスクに向いていそうなメンバーを1人返す。
  * 「得意」を優先し、いなければ「やってみたい」から選ぶ。
  * ★やってみたい を含めるのが肝。経験が無くても挑戦したい人に機会が回る。
  */
@@ -214,7 +214,7 @@ function _suggestMember(p, mission, selfId) {
 }
 
 // ── メンバー向けのヘルパ ──────────────────────────────────
-/** 自分が担当している未完了ミッション */
+/** 自分が担当している未完了タスク */
 function _myMissions(p, userId) {
   return (p.missions || []).filter(m =>
     m.status !== 'cleared' && (
@@ -224,14 +224,14 @@ function _myMissions(p, userId) {
 }
 
 /**
- * 「**他の人から**割り当てられた」担当ミッション。M3 の案内だけがこれを使う。
+ * 「**他の人から**割り当てられた」担当タスク。M3 の案内だけがこれを使う。
  *
  * ★自分で作って自分に割り当てたものを除く。除かないと、リーダーが自分で
- *   作ったミッションに対して「あなたの担当が決まりました／お願いします」と
+ *   作ったタスクに対して「あなたの担当が決まりました／お願いします」と
  *   案内され、さらに自分で書いた意気込みを自分に読み聞かせることになる。
  * ★_myMissions とは分けること。M2（担当が1件も無い人への案内）は
  *   「自分で作ったものも担当のうち」で判定する必要があり、意味が違う。
- * ★createdBy は途中で入れたフィールドなので、古いミッションには無い。
+ * ★createdBy は途中で入れたフィールドなので、古いタスクには無い。
  *   その場合は除外せず従来どおり案内する（安全側に倒す）。
  */
 function _assignedByOthers(p, userId) {
@@ -281,7 +281,7 @@ function _daysSinceCreated(p) {
   return p.createdAt ? Math.floor((Date.now() - p.createdAt) / DAY_MS) : 0;
 }
 
-/** 自分の skillsWant に合う未割当ミッション（M2 用） */
+/** 自分の skillsWant に合う未割当タスク（M2 用） */
 function _wantMatches(p, userId) {
   const me = (p.members || []).find(m => m.userId === userId);
   const want = me?.skillsWant || [];
@@ -290,7 +290,7 @@ function _wantMatches(p, userId) {
   return _unassigned(p).filter(m => tags.has(_missionTag(m)));
 }
 
-/** 自分が担当していて完了済みのミッション（M4 用） */
+/** 自分が担当していて完了済みのタスク（M4 用） */
 function _myCompleted(p, userId) {
   return (p.missions || []).filter(m =>
     (m.status === 'cleared' || m.status === 'pending_leader_check') && (
@@ -352,8 +352,8 @@ const STEPS = [
         title: '誰にお願いする？',
         steps: lines,
         bullet: true,     // 手順ではなく一覧なので番号を振らない
-        body: '担当が決まると、その人の画面にミッションが出ます。',
-        primary: 'ミッションを開く',
+        body: '担当が決まると、その人の画面にタスクが表示されます。',
+        primary: 'タスクを開く',
         action: 'openMissionList',
       };
     },
@@ -378,7 +378,7 @@ const STEPS = [
       return {
         emoji: '🎉',
         eyebrow: 'はじめての完了',
-        title: 'ミッションが<br>ひとつ終わりました',
+        title: 'やることが<br>ひとつ終わりました',
         body: done?.title
           ? `「${done.title}」が完了しました。アーカイブに記録が残ります。`
           : 'アーカイブに記録が残ります。',
@@ -417,7 +417,7 @@ const STEPS = [
       ],
       // ★自動作成される「イベントの目的を定めよう」が既に入っているので、
       //   「最初の1件を作ろう」は不正確。「作ってみよう」に留める。
-      body: 'やることをミッションとして書き出してスケジュールを作ってみましょう。',
+      body: 'やることを書き出してスケジュールを作ってみましょう。',
       primary: 'わかった',
       action: 'openMissionModal',
     }),
@@ -456,14 +456,14 @@ const STEPS = [
         eyebrow: '開催が近づいています',
         title: '直前チェック',
         steps: [
-          ['未完了のミッション', `${open.length}件`],
+          ['未完了のタスク', `${open.length}件`],
           ['担当が決まっていない', `${un.length}件`],
         ],
         bullet: true,
         body: open.length === 0
           ? '準備は整っています。当日を楽しんでください。'
           : '残っているものを確認して、必要なら担当を決めましょう。',
-        primary: 'ミッションを確認する',
+        primary: 'やることを確認する',
         action: 'openMissionList',
       };
     },
@@ -534,8 +534,8 @@ const STEPS = [
         ['やる',           '期限までに進めます'],
         ['提出する',       '成果物を出すと完了になります'],
       ],
-      body: 'まずは、どんなミッションがあるか見てみましょう。',
-      primary: 'ミッションを見る',
+      body: 'まずは、どんなタスクがあるか見てみましょう。',
+      primary: 'やることを見る',
       action: 'openMissionList',
     }),
   },
@@ -559,17 +559,17 @@ const STEPS = [
         emoji: '📌',
         eyebrow: 'あなたの担当が決まりました',
         title: `「${_escapeName(first.title)}」を<br>お願いします`,
-        body: 'ミッションを開くと、やることと期限が見られます。'
+        body: 'タスクを開くと、やることと期限が見られます。'
           + '終わったら成果物を出して完了にしてください。'
           + (voice ? `\n${voice}` : ''),
-        primary: 'ミッションを開く',
+        primary: 'タスクを開く',
         action: 'openMission',
         actionArg: first.id,
       };
     },
   },
   {
-    // 参加から1日たっても自分の担当が無い人に、合いそうなミッションを示す
+    // 参加から1日たっても自分の担当が無い人に、合いそうなタスクを示す
     id: 'M2',
     role: 'member',
     densities: [DENSITY.FIRST, DENSITY.FEW],
@@ -585,20 +585,20 @@ const STEPS = [
       const hits = _wantMatches(ctx.p, ctx.userId).slice(0, 3);
       return {
         eyebrow: 'まだ担当がありません',
-        title: hits.length ? 'こんなミッションが<br>空いています' : 'リーダーに<br>声をかけてみよう',
+        title: hits.length ? 'こんなタスクが<br>空いています' : 'リーダーに<br>声をかけてみよう',
         steps: hits.length ? hits.map(m => [m.title, 'やってみたいと答えた分野です']) : null,
         bullet: true,
         body: hits.length
           ? '気になるものがあれば、リーダーに「やりたい」と伝えてみましょう。'
           : 'いまは自分に合いそうな空きがありません。何を手伝えるか聞いてみましょう。',
-        primary: 'ミッションを見る',
+        primary: 'やることを見る',
         action: 'openMissionList',
       };
     },
   },
 
   {
-    // メンバーが初めてミッションを完了したとき（褒める）
+    // メンバーが初めてタスクを完了したとき（褒める）
     // ★M5（差し戻し時の案内）は実装しない方針
     id: 'M4',
     role: 'member',

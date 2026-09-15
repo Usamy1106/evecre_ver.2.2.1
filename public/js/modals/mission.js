@@ -1,4 +1,4 @@
-// ===== ミッションモーダル =====
+// ===== タスクモーダル =====
 import { state } from '../state.js';
 import { startMissionFormTour, onMissionFormClosed } from '../onboardingIntro.js';
 import { api } from '../api.js';
@@ -8,7 +8,7 @@ import { Components } from '../components.js';
 import { logEvent } from '../logger.js';
 
 /**
- * ミッション作成/編集モーダルを開く
+ * タスク作成/編集モーダルを開く
  * @param {string|null} missionId - 編集時はID、新規作成時はnull
  */
 export function openMissionModal(missionId = null, prefill = null) {
@@ -128,7 +128,7 @@ export function openMissionModal(missionId = null, prefill = null) {
 }
 
 /**
- * ミッションモーダルを閉じる
+ * タスクモーダルを閉じる
  */
 export function closeMissionModal() {
   // ★途中で閉じても③は「一度見た」として完了扱いにする（状態を宙ぶらりんにしない）
@@ -141,7 +141,7 @@ export function closeMissionModal() {
 }
 
 /**
- * ミッションを削除する
+ * タスクを削除する
  * @param {Event} e
  */
 export function deleteMission(e) {
@@ -158,7 +158,7 @@ export function deleteMission(e) {
     overlay.innerHTML = `
       <div class="c-modal u-animate-fade">
         <h3 class="c-modal__title">削除できません</h3>
-        <p class="c-modal__text c-modal__text--strong">初期フローのミッションは削除できません。</p>
+        <p class="c-modal__text c-modal__text--strong">初期フローのタスクは削除できません。</p>
         <button class="c-button c-button--secondary c-modal__button">閉じる</button>
       </div>`;
     overlay.querySelector('button').onclick = () => overlay.remove();
@@ -171,7 +171,7 @@ export function deleteMission(e) {
   overlay.onclick = (e2) => { if (e2.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
-      <h3 class="c-modal__title">ミッションを削除しますか</h3>
+      <h3 class="c-modal__title">タスクを削除しますか</h3>
       <p class="c-modal__text c-modal__text--strong">一度削除すると元に戻せません。</p>
       <div class="c-modal__actions">
         <button data-action="cancel" class="c-button c-button--secondary c-modal__button">戻る</button>
@@ -193,7 +193,7 @@ export function deleteMission(e) {
 }
 
 /**
- * ミッションモーダルの内容を（再）レンダリングする
+ * タスクモーダルの内容を（再）レンダリングする
  */
 export function renderMissionModalContent() {
   const container = document.getElementById('mission-modal-content');
@@ -202,7 +202,7 @@ export function renderMissionModalContent() {
 
   const isEdit  = state.editingMissionId !== null;
   const isBasic = state.missionModalTab === 'BASIC';
-  titleEl.innerText = isEdit ? 'ミッションを編集' : '新規ミッションを作成';
+  titleEl.innerText = isEdit ? 'タスクを編集' : '新規タスクを作成';
 
   const _sd = state.draftMission.dates;
   const dateDisplay = _sd.length === 0
@@ -267,17 +267,17 @@ function _renderBasicTab(isEdit, dateDisplay) {
       </div>
       <div class="p-mission-form__fields">
         <div>
-          <label class="heading-rs p-mission-form__label">ミッション名</label>
-          <input type="text" id="mission-title-input" data-coach="mission-title" placeholder="ミッションを入力"
+          <label class="heading-rs p-mission-form__label">タスク名</label>
+          <input type="text" id="mission-title-input" data-coach="mission-title" placeholder="タスクを入力"
             value="${_escAttr(state.draftMission.title || '')}"
             oninput="state.draftMission.title=this.value; this.style.borderColor=''"
             class="c-input p-mission-form__input">
-          <p id="error-title" class="p-mission-form__error u-hidden">※ミッション名は入力必須です</p>
+          <p id="error-title" class="p-mission-form__error u-hidden">※タスク名は入力必須です</p>
         </div>
         <div>
-          <label class="heading-rs p-mission-form__label">ミッションの説明</label>
+          <label class="heading-rs p-mission-form__label">やることの説明</label>
           <textarea id="mission-desc-input" rows="3"
-            placeholder="このミッションの目的・進め方など"
+            placeholder="目的・進め方など"
             oninput="state.draftMission.description=this.value"
             class="c-input p-mission-form__textarea">${_esc(state.draftMission.description || '')}</textarea>
         </div>
@@ -298,7 +298,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
         </div>
         <div data-coach="schedule">
           <label class="heading-rs p-mission-form__label">スケジュール</label>
-          <p class="p-mission-form__note">ミッションを行う期間を設定します。</p>
+          <p class="p-mission-form__note">行う期間を設定します。</p>
           <div class="p-mission-form__date" onclick="window._app.openCalendarModal('mission')">
             <img src="/images/icon/icon-Calender.svg" class="p-mission-form__date-icon">
             <span class="p-mission-form__date-text">${dateDisplay}</span>
@@ -389,7 +389,7 @@ function _renderDetailTab(isEdit) {
             </button>
           </div>
 
-          <p class="p-mission-form__desc p-mission-form__desc--tight">担当したいメンバーがこのミッションへ応募し、管理者が担当者を選定することができるようになります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--tight">担当したいメンバーが応募し、管理者が担当者を選定することができるようになります。</p>
           ${selfClaim ? `
             <!-- 応募期限（カレンダーUIで設定） -->
             <div>
@@ -428,7 +428,7 @@ function _renderDetailTab(isEdit) {
               <span class="c-toggle__knob"></span>
             </button>
           </div>
-          <p class="p-mission-form__desc p-mission-form__desc--flush">テキスト・完了ボタンのみで即完了するミッションになります。</p>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">テキスト・完了ボタンのみで即完了するようになります。</p>
         </div>
 
         <!-- 個別完了 -->
@@ -458,7 +458,7 @@ function _renderDetailTab(isEdit) {
         ${canDelete ? `
           <button onclick="window._app.deleteMission(event)"
             class="p-mission-form__delete">
-            <span>このミッションを削除する</span>
+            <span>このタスクを削除する</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -474,12 +474,12 @@ function _renderDetailTab(isEdit) {
 }
 
 /**
- * 提案をミッションとして追加する
+ * 提案をタスクとして追加する
  * @param {string} proposalId
  */
-// 提案カードのタップ：即時追加ではなく、提案内容を事前入力したミッション作成シートを開く。
+// 提案カードのタップ：即時追加ではなく、提案内容を事前入力したタスク作成シートを開く。
 // 実際の作成（採用）は createOrUpdateMission で行い、そのとき採用元の提案を消す。
-// AI提案の description はそのままミッションの説明として引き継ぐ。
+// AI提案の description はそのままタスクの説明として引き継ぐ。
 export function addProposalToMission(proposalId) {
   const project  = state.events.find(p => p.id === state.selectedEventId);
   const proposal = project?.proposals.find(x => x.id === proposalId);
@@ -508,7 +508,7 @@ export function addProposalToMission(proposalId) {
 function _proposalHelpText(proposal) {
   return proposal?.description
     || MISSION_DESCRIPTIONS[proposal?.id]
-    || 'ミッションを完了してイベントを進めましょう。';
+    || 'タスクを完了してイベントを進めましょう。';
 }
 
 /**
@@ -548,7 +548,7 @@ export function showProposalHelp(e, proposalId) {
 }
 
 /**
- * ミッションカードの3点メニューを表示/非表示
+ * タスクカードの3点メニューを表示/非表示
  * @param {Event} e
  * @param {string} missionId
  */
@@ -610,8 +610,8 @@ export function toggleMissionMenu(e, missionId) {
   openMissionMenuAt(missionId, rect.left, rect.bottom + 4);
 }
 
-// ミッションのタップ時アクションを返す。
-// 全ミッションでミッション詳細ページを開く（完了入力欄はページ側で従来条件のまま出し分け）。
+// タスクのタップ時アクションを返す。
+// 全タスクでタスク詳細ページを開く（完了入力欄はページ側で従来条件のまま出し分け）。
 // カレンダー/ガントシートから開いた場合は openMissionDetail がシートを閉じ、
 // 戻るボタンで同じビューを再オープンする。
 export function missionTapAction(m) {
@@ -674,7 +674,7 @@ function _openMissionDeleteConfirm(missionId) {
   const m = project?.missions.find(x => x.id === missionId);
   if (!m) return;
   if (m.isDeletable === false) {
-    window._app?.showToast('このミッションは削除できません', 'error');
+    window._app?.showToast('このタスクは削除できません', 'error');
     return;
   }
 
@@ -684,7 +684,7 @@ function _openMissionDeleteConfirm(missionId) {
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
-      <h3 class="c-modal__title">ミッションを削除しますか</h3>
+      <h3 class="c-modal__title">タスクを削除しますか</h3>
       <p class="c-modal__text c-modal__text--strong">一度削除すると元に戻せません。</p>
       <div class="c-modal__actions">
         <button id="mdel-cancel" class="c-button c-button--secondary c-modal__button">戻る</button>
@@ -734,7 +734,7 @@ export function toggleSortMenu(e) {
 }
 
 /**
- * ミッション一覧モーダルを表示する
+ * タスク一覧モーダルを表示する
  */
 export function showMissionListModal() {
   const p = state.events.find(x => x.id === state.selectedEventId);
@@ -775,7 +775,7 @@ export function showMissionListModal() {
   overlay.innerHTML = `
     <div class="p-main-board__list-modal u-animate-fade">
       <div class="p-main-board__list-head">
-        <h2 class="c-modal__title c-modal__title--tight">ミッション一覧</h2>
+        <h2 class="c-modal__title c-modal__title--tight">やること一覧</h2>
         <button onclick="document.getElementById('mission-list-modal').remove()" class="p-main-board__list-close">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
@@ -788,7 +788,7 @@ export function showMissionListModal() {
 }
 
 /**
- * ミッションのソートモードを変更する
+ * タスクのソートモードを変更する
  * @param {string} mode
  */
 export function changeMissionSort(mode) {
@@ -797,7 +797,7 @@ export function changeMissionSort(mode) {
 }
 
 /**
- * ミッションを並び替えて返す
+ * タスクを並び替えて返す
  * @param {Array} missions
  * @returns {Array}
  */

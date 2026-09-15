@@ -73,7 +73,7 @@ async function _confirmAndDeleteAccount() {
   const joined = events.filter(p => p.ownerId !== me);
 
   const lines = ['この操作は取り消せません。'];
-  if (soloOwned.length)   lines.push(`・あなただけのイベント ${soloOwned.length} 件は、ミッションやチャットごと完全に削除されます`);
+  if (soloOwned.length)   lines.push(`・あなただけのイベント ${soloOwned.length} 件は、タスクやチャットごと完全に削除されます`);
   if (sharedOwned.length) lines.push(`・他のメンバーがいるイベント ${sharedOwned.length} 件は残り、管理者権限は他のメンバーへ引き継がれます`);
   if (joined.length)      lines.push(`・参加中のイベント ${joined.length} 件からは退出します`);
   lines.push('・通知の設定、操作履歴、プロフィール画像も削除されます');
@@ -274,7 +274,7 @@ function _notificationSection() {
 
   const heading = `<h2 class="p-account__section-title">通知</h2>
     <p class="p-account__section-lead">
-      ミッションの割り当てや締め切り、完了のお知らせをアプリを閉じている間も受け取れます。
+      やることの割り当てや締め切り、完了のお知らせをアプリを閉じている間も受け取れます。
     </p>`;
 
   // iOS でブラウザのまま開いている：ホーム画面への追加を案内する（購読ボタンは出さない）

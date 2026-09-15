@@ -5,17 +5,17 @@
 // 構成（★ビジュアルは画面全体・スクロール操作は上部領域のみ）：
 // - 背景レイヤー `#mountain-bg`（position:fixed、ヘッダー/タブの下〜画面下端、z-0）に
 //   道キャンバス `#mountain-canvas`（全マス分の縦長）を描画。メインタブのコンテンツ
-//   （日付/お知らせ=上部固定、提案/ミッション=下部パネル、いずれも z-10 以上）の裏側で
+//   （日付/お知らせ=上部固定、提案/タスク=下部パネル、いずれも z-10 以上）の裏側で
 //   画面全体に見える。
 // - スクロール窓 `#mountain-path-scroll`（上部の透明領域）＝キャンバスと同じ高さのスペーサーを
 //   持つだけの「スクロール操作の受け皿」。scroll イベントで背景キャンバスを translateY 同期する
 //   （ネイティブ慣性がそのまま効く）。下部パネルが被さった領域はパネル側のスクロールになる。
 //
-// ★マスは「完了したミッションの数」だけ並び、その先に灰色のマスが1つだけ出る。
+// ★マスは「完了したタスクの数」だけ並び、その先に灰色のマスが1つだけ出る。
 //   ＝1つ完了すると1マス色がつき、次の1マスが現れる。
-//   ★未完了ミッションが何個あっても、先に見えるマスは常に1つだけ。残り全体の長さを
-//     見せないことで、ミッションを追加しても「後退した」ように見えない構造にしてある。
-//   ★したがってマスとミッション一覧は1対1で対応しない（意図的）。タップ不可・タイトル無し。
+//   ★未完了タスクが何個あっても、先に見えるマスは常に1つだけ。残り全体の長さを
+//     見せないことで、タスクを追加しても「後退した」ように見えない構造にしてある。
+//   ★したがってマスとタスク一覧は1対1で対応しない（意図的）。タップ不可・タイトル無し。
 //
 // 初期表示は最上部（山頂＝道の先端）。再レンダリングをまたぐスクロール位置保持は
 // mainBoard.js が capture → initMountainPathSync(restoreTop) で復元する。
@@ -162,7 +162,7 @@ const SUMMIT_SINK = 700;
 // ★0 にしないこと。看板が道の天井にぴったり張り付き、下部パネルの裏に
 //   潜り込んで読めなくなる。
 const SUMMIT_REACH = 120;
-// 標高＝完了ミッション数 × これ。マスの数と一致させてある
+// 標高＝完了タスク数 × これ。マスの数と一致させてある
 const METERS_PER_CLEAR = 100;
 
 /** どちらの看板を立てるか。★イベントIDから決定的に決める（全メンバーが同じ絵を見る） */
@@ -219,7 +219,7 @@ function _esc(s) {
 }
 
 // マス列とキャンバス寸法（背景・スクロール窓で共有）
-// ★n は「完了数 + 1」。ミッション数ではない（先に見えるマスは常に1つだけ）。
+// ★n は「完了数 + 1」。タスク数ではない（先に見えるマスは常に1つだけ）。
 function _layout(p) {
   const missions = p.missions || [];
   // ★完了した順ではなく作成順に並べる。完了のたびに既存のマスが入れ替わると
@@ -386,7 +386,7 @@ function _usableThemes() {
  * 素材の高さがバラバラでも隙間が出ない。
  *
  * ★needTopArt はパーツの**枚数**にしか影響しない。k 番目の中身は eventId と k だけで
- *   決まるので、ミッションが完了してキャンバスが伸びても既存のパーツは動かない
+ *   決まるので、タスクが完了してキャンバスが伸びても既存のパーツは動かない
  *   （上に足されるだけ）。ここを崩すと1つ完了するたびに山全体が変わる。
  * ★テーマは THEME_RUN 枚ごとの帯で交代し、隣り合う帯は必ず違うテーマになる。
  */
@@ -637,7 +637,7 @@ function _driftPlan(eventId, parts) {
 //   中身が変わっていなければ、DOM ごと元の要素に差し戻す。
 // ★効くのは2つの場面：
 //   1. SSE の再描画（同じ画面のまま作り直される）
-//   2. **ミッション詳細など他のページから戻ってきたとき**。退避を持ち続けるので、
+//   2. **タスク詳細など他のページから戻ってきたとき**。退避を持ち続けるので、
 //      戻った瞬間に既に読み込み済みの絵がそのまま出る（＝背景が遅れて現れない）
 // ★流れている雲のアニメーションも途切れずに済む（作り直すと毎回先頭に戻る）。
 let _bgKeep = null;
@@ -754,7 +754,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   let summitHtml = '';
   if (isSummit) {
     const boardImg = _pickSummitBoard(eventId);
-    // 標高＝完了ミッション数 × 100m。マスの数と一致するので「ここまで登ってきた」が伝わる
+    // 標高＝完了タスク数 × 100m。マスの数と一致するので「ここまで登ってきた」が伝わる
     const meters = clearedCount * METERS_PER_CLEAR;
     summitHtml = `
       <div class="p-mountain__summit" style="--lf-y:${summitY};--summit-img:${boardImg};z-index:${2 * n + 1}">
@@ -783,8 +783,8 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
 }
 
 /**
- * そのミッションで出たオブジェクトを引く。
- * ★保存先は submissions（clearedData）。ミッション本体（CRDT）には持たせていない。
+ * そのタスクで出たオブジェクトを引く。
+ * ★保存先は submissions（clearedData）。タスク本体（CRDT）には持たせていない。
  *   個別完了は `<missionId>_u_<userId>` の複合キーで人数分あるので、
  *   代表として自分のぶん → 無ければ最初に見つかったものを使う。
  */
@@ -811,7 +811,7 @@ export function renderMountainBg(p, opts = {}) {
   const isSummit = _isSummit(p);
   const bg = _renderBgLayer(p, canvasH, isSummit, clearedCount);
 
-  // ★ミッション完了の演出。完了すると clearedCount が 1 増えるので、
+  // ★タスク完了の演出。完了すると clearedCount が 1 増えるので、
   //   「今しがた色がついたマス」＝ clearedCount - 1、「新しく現れた灰色のマス」＝ n - 1。
   //   データ側は既にこの形になっているので、ここは印を付けるだけでよい。
   //   演出を出さないときは -1（どのマスにも一致しない）。
@@ -829,7 +829,7 @@ export function renderMountainBg(p, opts = {}) {
     const x = xFor(i);
     const y = yFor(i);
     const isDone = i < clearedCount;
-    // ★完了したマスの横に、そのミッションで出たオブジェクトを置く。
+    // ★完了したマスの横に、そのタスクで出たオブジェクトを置く。
     //   何を完了したかが景色として残る。抽選はサーバーが完了時に1回だけ行い、
     //   結果は clearedData（submissions）に入っている。ここは読むだけ。
     const obj = isDone ? _objectFor(p, cleared[i]) : null;
@@ -872,7 +872,7 @@ export function renderMountainBg(p, opts = {}) {
   //   背景イラストの上に載ると読みづらく、地図としても情報が増えすぎるため。
 
   const emptyHint = (!backdrop && missionCount === 0)
-    ? `<p class="p-mountain__pin p-mountain__pin--center p-mountain__empty" style="top:220px">ミッションを作ると<br>山頂への道が伸びていきます</p>`
+    ? `<p class="p-mountain__pin p-mountain__pin--center p-mountain__empty" style="top:220px">タスクを作ると<br>山頂への道が伸びていきます</p>`
     : '';
 
   return `

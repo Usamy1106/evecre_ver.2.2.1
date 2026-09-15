@@ -12,7 +12,7 @@
 //   - このユーザー×イベントで初回（localStorage で永続化）
 //
 // 判定は render() 駆動のみ（バックグラウンドタイマー厳禁。
-// CLAUDE.md「ミッション提案」節・purposeReminderModal と同じ方針）。
+// CLAUDE.md「タスク提案」節・purposeReminderModal と同じ方針）。
 
 import { state } from '../state.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';

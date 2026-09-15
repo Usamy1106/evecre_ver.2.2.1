@@ -31,7 +31,7 @@ export const MISSION_DESCRIPTIONS = {
 //   埋まる。このプールは「生成APIの呼び出し自体が失敗したとき」の最終フォールバックにのみ使う
 //   （state.js の _refreshProposals の catch 節）。p1/p2 も他と同じ普通の候補として扱う。
 // （p3「広報リンクを挿入する」は廃止済み。ただし components.js の getEventMainVisual() が
-//   originProposalId === 'p3' の完了ミッションを旧データ用フォールバックとして参照しているので、
+//   originProposalId === 'p3' の完了タスクを旧データ用フォールバックとして参照しているので、
 //   その参照は消さないこと）
 export const PROPOSAL_POOL = [
   { id: 'p1', title: '開催場所を決める',         tag: '企画', format: 'text',  priority: 5,
@@ -51,7 +51,7 @@ export const PROPOSAL_POOL = [
 ];
 
 // ===== イベント作成フローの選択肢 =====
-// eventType はミッション提案のカテゴリ判定に直結する（サーバー側 lib/proposalEngine.js の
+// eventType はタスク提案のカテゴリ判定に直結する（サーバー側 lib/proposalEngine.js の
 // EVENT_TYPE_TO_CATEGORY で music/exhibit/sports/business/party/general に写す）。
 // ★ここに選択肢を足すときは EVENT_TYPE_TO_CATEGORY にも必ず対応を足すこと。
 // 未定義だと general にフォールバックし、カテゴリ固有のテンプレが選ばれなくなる。
@@ -119,7 +119,7 @@ export const SKILL_TAGS = [
   { id: 'physical',    label: '力仕事' },
 ];
 
-// ミッションのラベル → 参加申請フォームのスキルタグ（担当者の「おすすめ」に使う）
+// タスクのラベル → 参加申請フォームのスキルタグ（担当者の「おすすめ」に使う）
 // ★キーは LABEL_CONFIG のビルトイン4種と一致させること。
 //   カスタムタグはここに無いので、名前が SKILL_TAGS のラベルと一致すれば拾う
 //   （utils.js の suggestAssignees を参照）。
@@ -159,7 +159,7 @@ export const LABEL_CONFIG = {
 };
 
 // ===== 完了時の入力欄のプレースホルダー =====
-// ミッション完了時の入力欄に、タグごとに「何を書けばいいか」を具体例で示す。
+// タスク完了時の入力欄に、タグごとに「何を書けばいいか」を具体例で示す。
 //
 // ★中身の無い提出が大半だったため追加した（2026-09。本番の text 提出 48件のうち
 //   **35件が8文字以下**で、"OK" / "あ" / "了解しました" / 氏名だけ、という状態だった）。
@@ -171,7 +171,7 @@ export const LABEL_CONFIG = {
 //   ではなく「この粒度で書く」。抽象的な指示文にすると効かない。
 // ★キーは LABEL_CONFIG のビルトイン4種と一致させること。
 //   **DEFAULT を必ず持たせる**。カスタムタグ（ユーザーが自由に作る）とタグ未設定は
-//   ここに落ちる。本番では全ミッションの約1/4がカスタムタグなので、
+//   ここに落ちる。本番では全タスクの約1/4がカスタムタグなので、
 //   DEFAULT が undefined になると影響が大きい。
 export const SUBMISSION_PLACEHOLDERS = {
   '企画': '例：タイムテーブル確定。リハは前日17時から。司会は2人体制',

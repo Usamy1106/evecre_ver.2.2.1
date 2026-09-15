@@ -122,7 +122,7 @@ export function renderMainBoard(container) {
     _panelReturnFrom = null;
   }
 
-  // ★ミッション完了の演出（1回きり）。submitMissionClear が status:'cleared' の
+  // ★タスク完了の演出（1回きり）。submitMissionClear が status:'cleared' の
   //   ときだけ立てる。ここでは読むだけで、消費（フラグ倒し）は配線の最後に行う
   //   （HTML 構築で renderMountainBg に渡す必要があるため）。
   const celebrate = !!state.mountainCelebrate;
@@ -131,7 +131,7 @@ export function renderMainBoard(container) {
   if (celebrate) collapseMissionPanel();
 
   const isMain = state.mainBoardTab === 'MAIN';
-  // MAIN タブはページ自体をスクロールさせない（上部＝山スクロール／下部＝提案・ミッションパネル）。
+  // MAIN タブはページ自体をスクロールさせない（上部＝山スクロール／下部＝提案・タスクパネル）。
   // ARCHIVE / NOTIFICATIONS は従来どおり <main> のページスクロール。
   const mainLayout = isMain ? _renderMainTab(p) : null;
 
@@ -161,7 +161,7 @@ export function renderMainBoard(container) {
         <div class="p-main-board__layer">${mainLayout.pinnedAux}</div>
         <!-- 山スクロール窓（透明・上部領域を占める）。ここのスクロールで山を遡れる -->
         ${renderMountainScrollWindow(p)}
-        <!-- 下部パネル：提案＋ミッション一覧（独立スクロール・上ドラッグで拡大） -->
+        <!-- 下部パネル：提案＋やること一覧（独立スクロール・上ドラッグで拡大） -->
         <!-- id は mission-panel と衝突させないこと（modals/mission.js の作成モーダル内部パネルが
              その id を使っており、被せるとモーダルのスライドインが壊れて白画面になる） -->
         <div id="mainboard-bottom-panel" class="l-bottom-panel" style="top:62vh">
@@ -216,12 +216,12 @@ export function renderMainBoard(container) {
     state.charactersIntro = false;
     state.proposalsRevealed = false;
     _checkMissionDeadlineNotifications(p.missions || []);
-    // ミッションカード：タップ＝完了モーダル（inline onclick）、管理者長押し＝編集/削除メニュー
+    // タスクカード：タップ＝完了モーダル（inline onclick）、管理者長押し＝編集/削除メニュー
     bindMissionInteractions(container, p, { useInlineTap: true });
   }
 }
 
-// 下部パネル（提案＋ミッション一覧）の開閉状態。再レンダリングをまたいで保持する。
+// 下部パネル（提案＋やること一覧）の開閉状態。再レンダリングをまたいで保持する。
 let _missionPanelExpanded = false;
 
 // ★どのイベントの開閉状態かを覚えておく。
@@ -264,7 +264,7 @@ function _initMissionPanelGesture() {
   const vh = window.innerHeight || 640;
   // 通常：画面の下から 38%。★山を広く見せるため、パネルはここまで。
   //   ここを下げる（値を大きくする）とプログレスマップの手前が広く見え、
-  //   上げるとミッション一覧が読みやすくなる。トレードオフ。
+  //   上げるとやること一覧が読みやすくなる。トレードオフ。
   const collapsedTop = Math.round(vh * 0.62);
   // 展開：下から 70%（＝上端が画面の 30%）。一覧を読むための位置。
   const expandedTop  = Math.round(vh * 0.30);
@@ -295,13 +295,13 @@ function _initMissionPanelGesture() {
   setCharState(_missionPanelExpanded, false);
 
   if (_panelReturnFrom !== null) {
-    // ミッション完了の演出：上がっていた位置から通常位置へ滑らせて戻す。
+    // タスク完了の演出：上がっていた位置から通常位置へ滑らせて戻す。
     // 再描画で DOM は作り直されているので、まず元の位置に置いてから animate する。
     setTop(_panelReturnFrom);
     void panel.offsetHeight;          // ここで一度レイアウトさせないと transition が走らない
     panel.style.transition = SNAP;
     setTop(collapsedTop);
-    // ミッション完了でパネルが戻る＝キャラも戻ってくる
+    // タスク完了でパネルが戻る＝キャラも戻ってくる
     setCharState(false, true);
     _panelReturnFrom = null;
   } else {
@@ -310,7 +310,7 @@ function _initMissionPanelGesture() {
   }
 
   // 指の移動が閾値を超えたら「スワイプだった」とみなし、次の click を1回だけ
-  // 握り潰す。★これが無いと、パネルを上げた指の真下にあったミッションカードが
+  // 握り潰す。★これが無いと、パネルを上げた指の真下にあったタスクカードが
   // そのまま開いてしまう（touchend の後に click が発火するため）。
   const TAP_SLOP = 10;
   let swallowClick = false;
@@ -387,7 +387,7 @@ function _initMissionPanelGesture() {
 let _panelReturnFrom = null;
 
 /**
- * ミッション完了の演出：パネルを通常位置へ戻す。
+ * タスク完了の演出：パネルを通常位置へ戻す。
  * ★山側のスクロールとマスのアニメーションは mountainPath.js が持つ。
  *   ここはパネルの位置だけを戻し、山が見える状態を作る役。
  * ★上がっていなければ何もしない（動く必要がない）。
@@ -442,14 +442,14 @@ function _renderMainTab(p) {
   const canMgr = state.canManageCurrentEvent();
   const meId   = state.currentUser?.id;
 
-  // ヘルパ：ミッションが「自分が担当している」と言えるか
+  // ヘルパ：タスクが「自分が担当している」と言えるか
   const _isMyMission = (m) => {
     if (Array.isArray(m.assignees) && m.assignees.length > 0) {
       return m.assignees.includes(meId);
     }
     return m.assignee?.type === 'user' && m.assignee.userId === meId;
   };
-  // ヘルパ：このミッションの担当が「確定済み」か
+  // ヘルパ：このタスクの担当が「確定済み」か
   const _isAssigned = (m) => {
     if (Array.isArray(m.assignees) && m.assignees.length > 0) return true;
     if (!m.selfClaim && m.assignee?.type === 'user') return true;
@@ -555,10 +555,10 @@ function _renderMainTab(p) {
 
   const missionCardList = displayMissions.length === 0
     ? (state.missionFilterTag
-        ? `<p class="p-main-board__empty p-main-board__empty--tight">このタグのミッションはありません</p>`
+        ? `<p class="p-main-board__empty p-main-board__empty--tight">このタグのタスクがありません</p>`
         : viewMode === 'mine'
-          ? `<p class="p-main-board__empty">あなたに割り当てられたミッションはありません</p>`
-          : '<p class="p-main-board__empty">全てのミッションが完了されました！</p>')
+          ? `<p class="p-main-board__empty">あなたに割り当てられたタスクはありません</p>`
+          : '<p class="p-main-board__empty">全てのタスクが完了されました！</p>')
     : displayMissions.map(m => {
         const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
         const applicants = Array.isArray(m.claimApplicants) ? m.claimApplicants : [];
@@ -571,7 +571,7 @@ function _renderMainTab(p) {
         // 応募期間中／確定後の表示
         let claimLine = '';
         if (m.selfClaim) {
-          const modeBadge = `<span class="p-main-board__badge">担当の応募型ミッション</span>`;
+          const modeBadge = `<span class="p-main-board__badge">担当の応募型タスク</span>`;
           let actionsBlock = '';
 
           if (!assigned) {
@@ -622,7 +622,7 @@ function _renderMainTab(p) {
         const indivClearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
         const iIndivDone = m.individualClear && indivClearedBy.includes(meId);
 
-        // 全カードタップ可：ミッション詳細ページへ遷移（完了入力欄はページ側で出し分け）
+        // 全カードタップ可：タスク詳細ページへ遷移（完了入力欄はページ側で出し分け）
         const cardOnClick = `onclick="window._app.openMissionDetail('${m.id}')"`;
 
 
@@ -658,7 +658,7 @@ function _renderMainTab(p) {
             </div>` : `
             <div onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
               class="p-main-board__mission-action"
-              aria-label="ミッションリンクをコピー">
+              aria-label="リンクをコピー">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
@@ -671,7 +671,7 @@ function _renderMainTab(p) {
     ? _withMonthHeadings(displayMissions, missionCardList)
     : missionCardList;
 
-  // 担当応募待ちミッション（selfClaim=true かつ applicants あり かつ未確定）
+  // 担当応募待ちタスク（selfClaim=true かつ applicants あり かつ未確定）
   const pendingClaimMissions = canMgr
     ? p.missions.filter(m =>
         m.selfClaim &&
@@ -764,19 +764,19 @@ function _renderMainTab(p) {
           })()}
         </div>` : ''}`;
 
-  // 下部パネルの中身：ミッション一覧（背景レイヤーの山がカードの隙間から見える）
+  // 下部パネルの中身：タスク一覧（背景レイヤーの山がカードの隙間から見える）
   const bottomPanelInner = `
-      <!-- ミッション一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
+      <!-- やること一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
       <section data-coach="mission-list">
         <!-- 表示モード切替（私のみ / 全て）-->
         <div class="p-main-board__view-toggle">
           <button type="button" onclick="window._app.setMissionViewMode('mine')"
             class="p-main-board__view-button${viewMode === 'mine' ? ' is-active' : ''}">
-            私のミッション
+            私のやること
           </button>
           <button type="button" onclick="window._app.setMissionViewMode('all')"
             class="p-main-board__view-button${viewMode === 'all' ? ' is-active' : ''}">
-            全てのミッション
+            みんなのやること
           </button>
         </div>
         ${tagFilterHtml}
@@ -841,7 +841,7 @@ function _renderClaimAnnouncementBanner(p, missions) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
         </svg>
-        <p class="p-main-board__banner-text">ミッションへの応募があります（${missions.length}件）</p>
+        <p class="p-main-board__banner-text">タスクへの応募があります（${missions.length}件）</p>
       </div>
       <div>${rows}</div>
     </div>`;
@@ -869,14 +869,14 @@ function _renderAnnounceCards(p, meId) {
     const target = new Date(end); target.setHours(0,0,0,0);
     const now = new Date(); now.setHours(0,0,0,0);
     const diff = Math.ceil((target - now) / 86_400_000);
-    // アナウンスカード内の締め切り。ミッションカードより1段小さい
+    // アナウンスカード内の締め切り。タスクカードより1段小さい
     const cls = 'p-main-board__deadline p-main-board__deadline--sm';
     if (diff < 0)   return `<span class="${cls} p-main-board__deadline--urgent">${-diff}日超過</span>`;
     if (diff === 0) return `<span class="${cls} p-main-board__deadline--urgent">今日まで</span>`;
     return `<span class="${cls}">残り${diff}日</span>`;
   };
 
-  // タップでミッション詳細ページを開く（ミッションカードと同挙動）
+  // タップでタスク詳細ページを開く（タスクカードと同挙動）
   const _cardClick = (m) => `onclick="window._app.openMissionDetail('${m.id}')"`;
 
   // ★説明を出すのは1件のときだけ。複数を畳んで並べるときは、どれが何かを
@@ -906,7 +906,7 @@ function _renderAnnounceCards(p, meId) {
   }
 
   // ★2件以上：いちばん新しい1件だけを常に見せ、残りはプルダウンの中に隠す。
-  //   全部並べるとボードの上半分がアナウンスで埋まり、肝心のミッションが
+  //   全部並べるとボードの上半分がアナウンスで埋まり、肝心のタスクが
   //   見えなくなる。並びは新しい順（active は createdAt の降順）。
   const [newest, ...rest] = active;
   return `
@@ -937,10 +937,10 @@ function _renderAnnounceCards(p, meId) {
 // Layer 1（概要カード）が読むスロット。ここに一致するものは Layer 2（記録）から外す。
 //
 // ★def-2（タイトル）/ def-3（概要）は**外さない**（2026-09-02 に変更）。
-//   自動生成されるミッションとして本人が完了させるものなので、完了しても
+//   自動生成されるタスクとして本人が完了させるものなので、完了しても
 //   記録に出てこないと「やったのに残らない」と受け取られる。概要カードにも
 //   同じ内容が出るが、あちらは要約、こちらは作業の記録で役割が違う。
-// ★p1 / p2 / p3 は提案から作られたミッション（会場・広報リンク・メインビジュアル）。
+// ★p1 / p2 / p3 は提案から作られたタスク（会場・広報リンク・メインビジュアル）。
 //   こちらは概要カードのスロットを埋めるためだけのものなので外したままにする。
 const _OVERVIEW_IDS     = new Set();
 const _OVERVIEW_ORIGINS = new Set(['p1', 'p2', 'p3']);
@@ -950,7 +950,7 @@ function _isOverviewMission(m) {
   return _OVERVIEW_IDS.has(m.id) || _OVERVIEW_ORIGINS.has(m.originProposalId);
 }
 
-// originProposalId で生成されたミッションの clearedData を返す
+// originProposalId で生成されたタスクの clearedData を返す
 function _getClearedByOrigin(p, originId) {
   const m = (p.missions || []).find(x => x.originProposalId === originId && x.status === 'cleared');
   return m ? (p.clearedData?.[m.id] ?? null) : null;
@@ -974,7 +974,7 @@ function _renderArchiveTab(p) {
     ? formatEventPeriodLines(p.dates, p.dateTimes).join('<br>')
     : (p.clearedData?.['period-temp']?.content || '未設定');
 
-  // ── Layer 2 データ取得（概要スロット以外の完了ミッション）──────
+  // ── Layer 2 データ取得（概要スロット以外の完了タスク）──────
   const clearedMissions = (p.missions || []).filter(m =>
     m.status === 'cleared' && !_isOverviewMission(m)
   );
@@ -1101,13 +1101,13 @@ function _renderArchiveTab(p) {
           </section>
         </div>
         <button type="button" onclick="window._app.showMissionListModal()"
-          class="c-button c-button--secondary p-archive__list-button">ミッション一覧</button>
+          class="c-button c-button--secondary p-archive__list-button">やること一覧</button>
       </div>
 
-      <!-- Layer 2: ミッションの記録 -->
+      <!-- Layer 2: やったことの記録 -->
       <div class="p-archive__record">
         <div class="p-archive__record-head">
-          <h2 class="p-archive__record-title">ミッションの記録</h2>
+          <h2 class="p-archive__record-title">やったことの記録</h2>
           ${clearedMissions.length > 0
             ? `<span class="p-archive__record-count">${clearedMissions.length}件</span>`
             : ''}
@@ -1121,7 +1121,7 @@ function _renderArchiveTab(p) {
         </div>
         ${clearedMissions.length > 0 ? `
           <div class="p-archive__modes">${archiveTabBtns}</div>` : ''}
-        ${missionsRecordHtml || `<p class="p-archive__empty">完了したミッションが記録されます</p>`}
+        ${missionsRecordHtml || `<p class="p-archive__empty">完了したタスクが記録されます</p>`}
       </div>
 
       <!-- 振り返り用のサブページ。★メンバー全員が見られる（アーカイブと同じ）。
@@ -1182,7 +1182,7 @@ function _renderArchiveCategorySection(p, tag, missions) {
     </div>`;
 }
 
-// ミッションブロック（text / image / link で表示切替）
+// タスクブロック（text / image / link で表示切替）
 function _renderArchiveMissionBlock(m, cd, sectionTag) {
   const canMgr      = state.canManageCurrentEvent();
   const tagNames    = (Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : [sectionTag]));
@@ -1224,7 +1224,7 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
     </button>` : `
     <button type="button" onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
       class="p-archive__block-action"
-      aria-label="ミッションリンクをコピー">
+      aria-label="リンクをコピー">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
@@ -1277,12 +1277,12 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
 function _renderNotificationsTab(p) {
   const canMgr = state.canManageCurrentEvent();
 
-  // リーダー確認待ちのミッション（管理者権限のあるユーザーのみ）
+  // リーダー確認待ちのタスク（管理者権限のあるユーザーのみ）
   const pendingMissions = canMgr
     ? p.missions.filter(m => m.status === 'pending_leader_check')
     : [];
 
-  // 応募待ちのミッション（管理者権限のあるユーザーのみ）
+  // 応募待ちのタスク（管理者権限のあるユーザーのみ）
   const claimingMissions = canMgr
     ? p.missions.filter(m =>
         m.selfClaim &&
@@ -1475,20 +1475,20 @@ function _esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ミッションの残り日数テキスト（dates をソートし最終日から計算）
+// タスクの残り日数テキスト（dates をソートし最終日から計算）
 /**
- * 締切順のときだけ、ミッションの間に月の見出しを差し込む。
+ * 締切順のときだけ、タスクの間に月の見出しを差し込む。
  *
  * ★見出しを出すのは締切順のときだけ。優先度順・制作日順では並びが月と無関係なので、
  *   見出しを付けると嘘になる。
  * ★`missions` と `cards` は**同じ並び・同じ長さ**であること（添字で対応づける）。
- * ★超過したミッションも「その月」の見出しの下に置く（先頭に「超過」を作らない）。
+ * ★超過したタスクも「その月」の見出しの下に置く（先頭に「超過」を作らない）。
  *   並びが日付順のままになり、規則が単純で予測しやすい。カードには赤字で
  *   「N日超過」と出るので、見落とすことはない。
  * ★締切が無いものは**末尾に「期限なし」**でまとめる。getSortedMissions が
  *   Infinity で最後尾に寄せているので、並べ替えはせず見出しだけ足す。
  *
- * @param {Array} missions 並び替え済みのミッション
+ * @param {Array} missions 並び替え済みのタスク
  * @param {Array<string>} cards 同じ並びのカード HTML
  */
 function _withMonthHeadings(missions, cards) {
@@ -1565,7 +1565,7 @@ function _checkMissionDeadlineNotifications(missions) {
     const title = m.title.length > 15 ? m.title.slice(0, 15) + '…' : m.title;
 
     if (startDate === endDate && today === startDate) {
-      // 1日のみのミッション → 締め切り当日
+      // 1日のみのタスク → 締め切り当日
       const key = `notif:${m.id}:single:${today}`;
       if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」締め切り当日です`); }
     } else if (today === startDate) {
@@ -1577,7 +1577,7 @@ function _checkMissionDeadlineNotifications(missions) {
       const key = `notif:${m.id}:1day:${today}`;
       if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」の締め切りまで残り1日`); }
     } else if (diff === 0) {
-      // 締め切り当日（複数日ミッションの最終日）
+      // 締め切り当日（複数日タスクの最終日）
       const key = `notif:${m.id}:due:${today}`;
       if (!sessionStorage.getItem(key)) { sessionStorage.setItem(key, '1'); toasts.push(`「${title}」の締め切り当日です`); }
     }
@@ -1613,9 +1613,9 @@ function _fmtDate(ts) {
  * userId 配列 → アバター＋名前のチップ列（HTML）。
  *
  * ★アバターには userId を渡す。タップでプロフィールが開く（UserAvatar 側で
- *   stopPropagation しているので、ミッションカードのタップとは干渉しない）。
+ *   stopPropagation しているので、タスクカードのタップとは干渉しない）。
  * ★max（既定3）人まで出し、超過分は「他N人」に集約する。カードの1行に収める
- *   ためで、ここを増やすとミッション一覧が縦に伸びる。
+ *   ためで、ここを増やすとタスク一覧が縦に伸びる。
  * ★**戻り値は HTML**。埋め込む側で _esc に通さないこと（二重エスケープになる）。
  *   名前は中で _esc 済み。
  */

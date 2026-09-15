@@ -1,5 +1,5 @@
-// ===== ミッション詳細ページ（MISSION_DETAIL）=====
-// ミッションカード（メインボード / カレンダー / ガント / アナウンス等）のタップで開く。
+// ===== タスク詳細ページ（MISSION_DETAIL）=====
+// タスクカード（メインボード / カレンダー / ガント / アナウンス等）のタップで開く。
 // 旧・完了モーダル（helpers.js の openClearMissionModal /
 // openIndividualClearListModal）の後継。旧モーダルは 2026-08-18 に削除済み。
 //
@@ -56,7 +56,7 @@ export function renderMissionDetail(appEl) {
     _loadChat(p.id, m.id);
   }
 
-  // 別ミッションの返信対象が残っていたらクリア
+  // 別タスクの返信対象が残っていたらクリア
   if (_replyTarget && _replyTarget.missionId !== m.id) _replyTarget = null;
 
   // ===== 再レンダリングをまたいで入力値を保持 =====
@@ -100,7 +100,7 @@ export function renderMissionDetail(appEl) {
         </button>` : `
         <button type="button" onclick="window._app.copyMissionLink('${m.id}')"
           class="p-mission-detail__round-button"
-          aria-label="ミッションリンクをコピー">
+          aria-label="リンクをコピー">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
@@ -208,7 +208,7 @@ export function renderMissionDetail(appEl) {
 }
 
 // ===============================================
-// ミッション情報（タイトル・タグ・締切・説明）
+// タスク情報（タイトル・タグ・締切・説明）
 // ===============================================
 function _renderMissionInfo(p, m) {
   const tags = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
@@ -252,7 +252,7 @@ function _renderClearSection(p, m, canMgr) {
     return `
       <div class="p-mission-detail__status">
         <p class="p-mission-detail__status-label">閲覧のみのロールです</p>
-        <p class="p-mission-detail__status-note">このミッションを完了する操作はできません</p>
+        <p class="p-mission-detail__status-note">このタスクを完了する操作はできません</p>
       </div>`;
   }
 
@@ -278,7 +278,7 @@ function _renderClearSection(p, m, canMgr) {
   if (m.selfClaim && !myMission) {
     return `
       <div class="p-mission-detail__status">
-        <p class="p-mission-detail__status-label p-mission-detail__status-label--muted">応募型ミッションです（担当ではありません）</p>
+        <p class="p-mission-detail__status-label p-mission-detail__status-label--muted">応募型タスクです（担当ではありません）</p>
       </div>`;
   }
 
@@ -297,14 +297,14 @@ function _renderClearSection(p, m, canMgr) {
 // 完了入力欄（テキスト + 画像 + チェックリスト + 完了ボタン）。
 // DOM id は旧完了モーダルと同一（submitMissionClear / handleImageSelect / initClearDraft が参照）。
 /**
- * ミッションのタグからプレースホルダーを引く。
+ * タスクのタグからプレースホルダーを引く。
  *
  * ★ビルトイン4タグ（企画/運営/制作/広報）が**ちょうど1つ**のときだけ、その例文を出す。
  *   - 0個（カスタムタグのみ・タグ未設定）… DEFAULT
  *   - 2個以上（例：企画＋広報）… **DEFAULT**。どちらに寄せても片方に対して嘘の
  *     例文になるため、粒度だけを伝える汎用文に倒す
  * ★**DEFAULT へのフォールバックを外さないこと。** カスタムタグ（ユーザーが自由に作る）
- *   はここに落ちる。本番では全ミッションの約1/4がカスタムタグ。
+ *   はここに落ちる。本番では全タスクの約1/4がカスタムタグ。
  * ★tag（単数）と tags（配列）は**両方実在する**（実データで tag 123件 / tags 61件）。
  *   どちらか一方だけを見ると取りこぼすので、**両方を集合にしてから数える**。
  * ★ビルトインの判定は LABEL_CONFIG のキーで行う。ここに4つを書き写さないこと
@@ -431,7 +431,7 @@ function _reflectionHtml(cd) {
     </div>`;
 }
 
-// 個別完了ミッション：完了状況リスト + 自分の入力欄 + 管理者の公開終了
+// 個別完了タスク：完了状況リスト + 自分の入力欄 + 管理者の公開終了
 function _renderIndividualSection(p, m, canMgr, meId) {
   const assigneeIds = Array.isArray(m.assignees) && m.assignees.length > 0
     ? m.assignees

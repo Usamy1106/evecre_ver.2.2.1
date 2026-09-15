@@ -30,7 +30,7 @@ export function editArchiveItem(type) {
     return;
   } else if (type === 'venue') {
     // ★イベント設定の「開催場所」と同じ場所を読み書きする（utils.js に集約）。
-    //   以前はミッションをタイトルで探して venue-temp を作っていたが、アーカイブ側は
+    //   以前はタスクをタイトルで探して venue-temp を作っていたが、アーカイブ側は
     //   originProposalId==='p1' を読んでいたため、編集しても表示に反映されなかった。
     openEditModal('開催場所', getArchiveVenue(p), 'text', (newVal) => {
       setArchiveVenue(p, newVal);
@@ -49,7 +49,7 @@ export function editArchiveItem(type) {
     openCalendarModal('projectEdit');
     return;
   } else if (type === 'image') {
-    // ミッション経由ではなく専用ダイアログで画像を保存
+    // タスク経由ではなく専用ダイアログで画像を保存
     _openArchiveImageDialog(p);
     return;
   }
@@ -246,7 +246,7 @@ export function clearImagePreview() {
 }
 
 /**
- * ミッション完了を確定する
+ * タスク完了を確定する
  * @param {string} missionId
  */
 export async function submitMissionClear(missionId) {
@@ -295,7 +295,7 @@ export async function submitMissionClear(missionId) {
   // 再読み込みで未完了に戻る不具合があった。完了は専用エンドポイントで永続化する。
   // ── 振り返り（任意）──────────────────────────────────────
   // ★未入力でも完了できる。ここで弾かないこと（必須にすると完了率が落ちる）。
-  //   noInput のミッションには入力欄自体が無いので、要素が無ければ空で送る。
+  //   noInput のタスクには入力欄自体が無いので、要素が無ければ空で送る。
   const struggle  = (document.getElementById('reflect-struggle')?.value  || '').trim();
   const solution  = (document.getElementById('reflect-solution')?.value  || '').trim();
   const shareable = !!document.getElementById('reflect-shareable')?.checked;
@@ -336,7 +336,7 @@ export async function submitMissionClear(missionId) {
 
   document.getElementById('clear-mission-modal')?.remove();
 
-  // ★ミッション詳細ページから完了したときは、そのページを自動で閉じてイベントページへ戻す。
+  // ★タスク詳細ページから完了したときは、そのページを自動で閉じてイベントページへ戻す。
   //   完了した画面に留まり続ける理由がなく、戻ったところでオンボーディングの
   //   「はじめての完了」（M4 / L6）を出したいため。
   //   詳細ページ以外（アーカイブの一覧など）から完了した場合は現在地を維持する。
@@ -351,7 +351,7 @@ export async function submitMissionClear(missionId) {
   if (m.individualClear && newStatus === 'yet') {
     window._app?.showToast('完了を記録しました');
   } else {
-    window._app?.showToast(m.leaderCheck ? 'リーダーチェック提出完了' : 'ミッション完了');
+    window._app?.showToast(m.leaderCheck ? 'リーダーチェック提出完了' : 'タスク完了');
   }
 
   // 山に出たオブジェクトを続けて知らせる。
@@ -478,7 +478,7 @@ export function handleGoodClick(e) {
 // ===== 招待機能 =====
 
 /**
- * ミッションのディープリンク（/m/<eventId>/<missionId>）をクリップボードにコピーする。
+ * タスクのディープリンク（/m/<eventId>/<missionId>）をクリップボードにコピーする。
  * 管理者はミートボールメニュー、一般ユーザーはリンクアイコンから呼ばれる。
  * @param {string} missionId
  */
@@ -486,7 +486,7 @@ export function copyMissionLink(missionId) {
   const url = `${location.origin}/m/${state.selectedEventId}/${missionId}`;
   logEvent('mission_link_copied', { missionId });
   navigator.clipboard.writeText(url)
-    .then(() => window._app?.showToast('ミッションリンクをコピーしました'))
+    .then(() => window._app?.showToast('リンクをコピーしました'))
     .catch(() => window._app?.showToast('コピーに失敗しました: ' + url, 'error'));
 }
 
@@ -519,14 +519,14 @@ export function updateDraftInfo(field, value) {
 }
 
 
-// ===== ミッション完了入力のローカルドラフト =====
+// ===== タスク完了入力のローカルドラフト =====
 // 入力途中でモーダルを閉じても、同じユーザーが再度開けば内容が復元される。
 // 他ユーザーには共有されない（localStorage はそのブラウザ・そのアカウントだけ）。
 // 「完了する」で送信成功した時点で破棄。
 
 const DRAFT_KEY_PREFIX = 'evecre:clearDraft:v1';
 
-/** key 生成（ユーザー × イベント × ミッション）*/
+/** key 生成（ユーザー × イベント × タスク）*/
 function _draftKey(missionId) {
   const uid = state.currentUser?.id || '_anon';
   const pid = state.selectedEventId || '_';

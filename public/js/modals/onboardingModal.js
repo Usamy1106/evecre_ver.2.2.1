@@ -28,7 +28,7 @@ function _esc(s) {
  * @param {string} [o.body]    本文
  * @param {string} o.primary   主ボタンの文言
  * @param {string} [o.action]  主ボタンの動作（'openMissionModal' など。省略で閉じるだけ）
- * @param {*} [o.actionArg]    動作に渡す引数（'openMission' のミッションIDなど）
+ * @param {*} [o.actionArg]    動作に渡す引数（'openMission' のタスクIDなど）
  * @param {string} [o.emoji]   見出しの上に出す絵文字（お祝いの演出用）
  * @param {boolean} [o.bullet] steps を手順(①②③)ではなく一覧(・)として出す
  */
@@ -42,7 +42,7 @@ export function openOnboardingModal(o) {
   overlay.onclick = (e) => { if (e.target === overlay) _dismiss(); };
 
   // numbered: true なら手順（①②③）、false なら箇条（・）として出す。
-  // L1 は5ステップの手順、L5 は未割当ミッションの一覧なので見た目を変える。
+  // L1 は5ステップの手順、L5 は未割当タスクの一覧なので見た目を変える。
   const numbered = o.numbered !== false && !o.bullet;
   const stepsHtml = (o.steps || []).map(([label, desc], i) => `
     <div class="c-modal__step">
@@ -59,7 +59,7 @@ export function openOnboardingModal(o) {
       ${o.eyebrow ? `<p class="c-modal__eyebrow">${_esc(o.eyebrow)}</p>` : ''}
       <!-- ★title は _esc しないこと。改行のための <br> を意図的に含んでいる
            （「あなたのやることは<br>3つです」など）。中に入るユーザー名・
-           ミッション名は onboarding.js の _escapeName() が発生源で
+           タスク名は onboarding.js の _escapeName() が発生源で
            エスケープ済み。ここで二重に esc すると <br> が文字として出る
            （実際にその不具合を出した）。body は <br> を含まないので esc する。 -->
       <h3 class="c-modal__title c-modal__title--wide">${o.title}</h3>
@@ -91,7 +91,7 @@ export function openOnboardingModal(o) {
 function _runAction(action, arg) {
   if (!action) return;
   if (action === 'openMissionModal') {
-    // ★ミッションは自動追加しない。作成モーダルを開いてユーザーに作らせる
+    // ★タスクは自動追加しない。作成モーダルを開いてユーザーに作らせる
     window._app?.openMissionModal?.();
     return;
   }
@@ -100,7 +100,7 @@ function _runAction(action, arg) {
     return;
   }
   if (action === 'openMissionList') {
-    // メインタブに戻すだけ。担当はミッションを開いて決めてもらう
+    // メインタブに戻すだけ。担当はタスクを開いて決めてもらう
     state.mainBoardTab = 'MAIN';
     state.render();
     return;

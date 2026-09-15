@@ -11,7 +11,7 @@
 //   9/18〆切
 //   イベントリスト絞り込み（装飾アイデア）
 //
-// ★対象は「未完了 かつ 締め切りがある」ミッション**全件**。
+// ★対象は「未完了 かつ 締め切りがある」タスク**全件**。
 //   見えている範囲だけにすると、月をまたいだぶんが取れず用を成さない。
 // ★締め切りは m.dates の**最終日**。dates は未ソートで保存されうるので、
 //   必ずコピーしてから sort すること（落とし穴 12）。
@@ -51,7 +51,7 @@ export function copySchedule(source) {
   const p = state.events.find(x => x.id === state.selectedEventId);
   const text = buildScheduleText(p);
   if (!text) {
-    window._app?.showToast('締め切りが設定された未完了ミッションがありません', 'info');
+    window._app?.showToast('締め切りが設定された未完了タスクがありません', 'info');
     return;
   }
   logEvent('schedule_copied', { source, missions: text.split('\n').length });

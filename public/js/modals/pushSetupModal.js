@@ -77,7 +77,7 @@ export function pushSetupContentHtml(phase) {
       <p class="p-push-setup__icon">✅</p>
       <h3 class="heading-r p-push-setup__title">通知はオンになっています</h3>
       <p class="p-push-setup__text">
-        ミッションの割り当てや締め切りをお知らせします。<br>
+        担当の割り当てや締め切りをお知らせします。<br>
         アカウント設定からいつでも変更できます。
       </p>`;
   }
@@ -116,7 +116,7 @@ export function pushSetupContentHtml(phase) {
       <p class="p-push-setup__icon">📲</p>
       <h3 class="heading-r p-push-setup__title">ホーム画面に追加しませんか？</h3>
       <p class="p-push-setup__text p-push-setup__text--tight">
-        ミッションの締め切りや割り当てを<br>通知でお知らせできるようになります
+        やることの締め切りや割り当てを<br>通知でお知らせできるようになります
       </p>
       ${guide}
       ${native ? `
@@ -145,7 +145,7 @@ export function pushSetupContentHtml(phase) {
           </svg></p>
     <h3 class="heading-r p-push-setup__title">通知を受け取りますか？</h3>
     <p class="p-push-setup__text">
-      ミッションを割り当てられたときや<br>締め切りが近いときにお知らせします
+      やることを割り当てられたときや<br>締め切りが近いときにお知らせします
     </p>
     <p data-psm="error" class="p-push-setup__error u-hidden"></p>
     <button data-psm="enable" class="c-button c-button--primary p-push-setup__primary">

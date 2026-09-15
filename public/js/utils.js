@@ -122,8 +122,8 @@ export function isAfterEventDates(p) {
 //   両方から編集される。どちらから直しても同じ場所を読み書きするよう、
 //   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
 
-/** 概要。実体は clearedData['def-3']（初期ミッション「イベントの概要を定めよう」）。
- *  ★ミッションが無くても成立する（clearedData に直接書くため）。イベント設定と
+/** 概要。実体は clearedData['def-3']（初期タスク「イベントの概要を定めよう」）。
+ *  ★タスクが無くても成立する（clearedData に直接書くため）。イベント設定と
  *    アーカイブのペンからも同じ場所を読み書きする。個別に clearedData を触らないこと。 */
 export function getArchiveSummary(project) {
   return project?.clearedData?.['def-3']?.content ?? project?.description ?? '';
@@ -145,7 +145,7 @@ export function setArchiveSummary(project, value) {
 
 /**
  * 開催場所。実体は clearedData['archive-venue']。
- * ★旧データは提案 p1「開催場所を決める」由来の完了ミッションに入っているので、
+ * ★旧データは提案 p1「開催場所を決める」由来の完了タスクに入っているので、
  *   そちらもフォールバックで読む（本番に3件ある）。この参照は消さないこと。
  */
 export function getArchiveVenue(project) {
@@ -155,7 +155,7 @@ export function getArchiveVenue(project) {
   return (m ? project?.clearedData?.[m.id]?.content : '') || '';
 }
 
-/** 開催場所を書き込む（常に archive-venue へ。旧ミッション側は読むだけ） */
+/** 開催場所を書き込む（常に archive-venue へ。旧タスク側は読むだけ） */
 export function setArchiveVenue(project, value) {
   const v = String(value ?? '').trim();
   if (!project.clearedData) project.clearedData = {};

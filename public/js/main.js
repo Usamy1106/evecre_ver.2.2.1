@@ -145,7 +145,7 @@ function _openApproveModal(uid, username, roles, onSuccess) {
         <label class="p-member-manage__role-check-row">
           <input id="role-add-canmanage" type="checkbox" class="p-member-manage__check">
           <span class="p-member-manage__role-check-label">管理者権限</span>
-          <span class="p-member-manage__role-check-note">イベント管理・ミッション編集</span>
+          <span class="p-member-manage__role-check-note">イベント管理・タスク編集</span>
         </label>
         <div class="p-member-manage__role-form-actions">
           <button id="role-add-cancel" class="c-button c-button--muted">キャンセル</button>
@@ -255,7 +255,7 @@ window._app = {
   // --- メインボードのカレンダーボトムシート（開催まで残り○日 タップで開く）---
   openEventCalendarSheet: () => openEventCalendarSheet(),
 
-  // --- ミッションモーダル：担当者選択 ---
+  // --- タスクモーダル：担当者選択 ---
   openAssigneeSheet:  () => openAssigneeSheet(),
   // --- イベント設定ページへの遷移（歯車アイコン）---
   toggleProjectMenu: (e) => {
@@ -350,14 +350,14 @@ window._app = {
   openCalendarModal: (target) => openCalendarModal(target),
   moveCalendarMonth: (offset, target) => moveCalendarMonth(offset, target),
 
-  // --- ミッションモーダル ---
+  // --- タスクモーダル ---
   openMissionModal: (id = null) => openMissionModal(id),
   closeMissionModal: () => closeMissionModal(),
   deleteMission: (e) => deleteMission(e),
 
   revertMissionToIncomplete: async (missionId) => {
     const ok = await showConfirmDialog({
-      message: 'このミッションを未完了に戻しますか？\n完了記録は削除されます。',
+      message: 'このタスクを未完了に戻しますか？\n完了記録は削除されます。',
       confirmLabel: '未完了に戻す',
       cancelLabel: 'キャンセル',
     });
@@ -379,7 +379,7 @@ window._app = {
 
   deleteMissionFromArchive: async (missionId) => {
     const ok = await showConfirmDialog({
-      message: 'このミッションを完全に削除しますか？\nこの操作は元に戻せません。',
+      message: 'このタスクを完全に削除しますか？\nこの操作は元に戻せません。',
       confirmLabel: '削除する',
       cancelLabel: 'キャンセル',
       destructive: true,
@@ -394,7 +394,7 @@ window._app = {
     });
     state.save();
     state.render();
-    window._app.showToast('ミッションを削除しました');
+    window._app.showToast('タスクを削除しました');
   },
 
   openArchiveMissionMenu: (e, missionId) => {
@@ -436,7 +436,7 @@ window._app = {
 
   forceCloseMission: async (missionId) => {
     const ok = await showConfirmDialog({
-      message: 'このミッションを公開終了しますか？\n全員が完了していなくてもアーカイブされます。',
+      message: 'このタスクを公開終了しますか？\n全員が完了していなくてもアーカイブされます。',
       confirmLabel: '公開終了する',
       cancelLabel: 'キャンセル',
     });
@@ -531,7 +531,7 @@ window._app = {
     state.draftMission.individualClear = !state.draftMission.individualClear;
     renderMissionModalContent();
   },
-  // --- ミッション自己申告（メインボードの「やる」ボタンから）---
+  // --- タスク自己申告（メインボードの「やる」ボタンから）---
   claimMissionAsSelf: async (missionId) => {
     const eventId = state.selectedEventId;
     if (!eventId) return;
@@ -595,7 +595,7 @@ window._app = {
       const p = state.events.find(x => x.id === eventId);
       const m = p?.missions.find(x => x.id === missionId);
       if (m) m.status = 'cleared';
-      _showToast('ミッション確認完了');
+      _showToast('タスク確認完了');
       _removeLeaderCheckCard(missionId);
     } else {
       window._app?.showToast(r.error || '承認に失敗しました', 'error');
@@ -641,7 +641,7 @@ window._app = {
     api.markNotificationRead(notifId);
     const n = state.notifications.find(x => x.id === notifId);
     if (n) n.read = true;
-    // チャット通知はミッション詳細ページへ（戻るで通知タブに復帰）
+    // チャット通知はタスク詳細ページへ（戻るで通知タブに復帰）
     if (n?.type === 'chat_message' && missionId) {
       const p = state.events.find(x => x.id === state.selectedEventId);
       if (p?.missions?.some(m => m.id === missionId)) {
@@ -649,7 +649,7 @@ window._app = {
         return;
       }
     }
-    // ミッションがあるならメインタブへ
+    // タスクがあるならメインタブへ
     if (missionId) state.mainBoardTab = 'MAIN';
     state.render();
   },
@@ -757,14 +757,14 @@ window._app = {
     state.save();
     closeMissionModal();
     state.render();
-    _showToast(isNew ? 'ミッション作成' : 'ミッション更新');
+    _showToast(isNew ? 'タスク作成' : 'タスク更新');
   },
 
   // --- 提案 ---
   addProposalToMission: (pid) => addProposalToMission(pid),
   showProposalHelp: (e, pid) => showProposalHelp(e, pid),
 
-  // --- ミッションリスト操作 ---
+  // --- タスクリスト操作 ---
   toggleMissionMenu: (e, mid) => toggleMissionMenu(e, mid),
   toggleSortMenu: (e) => toggleSortMenu(e),
   showMissionListModal: () => showMissionListModal(),
@@ -773,7 +773,7 @@ window._app = {
   toggleAnnounceList: () => toggleAnnounceList(),
   changeMissionSort: (mode) => changeMissionSort(mode),
 
-  // --- ミッション詳細ページ ---
+  // --- タスク詳細ページ ---
   openMissionDetail:  (mid) => state.openMissionDetail(mid),
   closeMissionDetail: ()    => state.closeMissionDetail(),
   copyMissionLink:    (mid) => copyMissionLink(mid),
@@ -783,7 +783,7 @@ window._app = {
   openChatEmojiPicker: (msgId) => openChatEmojiPicker(msgId),
   cancelChatReply: () => cancelChatReply(),
 
-  // --- ミッション完了 ---
+  // --- タスク完了 ---
   submitMissionClear: (mid) => submitMissionClear(mid),
   handleImageSelect:  (input) => handleImageSelect(input),
   clearImagePreview:  ()      => clearImagePreview(),
@@ -950,7 +950,7 @@ window._app = {
     if (state._infoModalShownForEvent === p.id) return;
     // モーダルが既に開いていたら何もしない
     if (document.getElementById('info-modal-overlay')) return;
-    // ★ミッションを作成・編集している最中には割り込まない。
+    // ★タスクを作成・編集している最中には割り込まない。
     //   入力途中に全画面モーダルの上から別のモーダルが出ると、書きかけが
     //   見えなくなるうえ「表示済み」の印が付いて二度と出なくなる。
     //   フラグを立てずに帰るので、モーダルを閉じた次の render() で再判定される。
@@ -982,7 +982,7 @@ window._app = {
         icon: `<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>`,
         color: '#209DDB', bgColor: '#E8F7FD',
         title: '担当申請があります',
-        desc:  `${claimMissions.length}件のミッションに担当申請が届いています。`,
+        desc:  `${claimMissions.length}件のタスクに担当申請が届いています。`,
         action: '通知タブで確認する',
         onAction: () => { state.mainBoardTab = 'NOTIFICATIONS'; state.render(); },
       };
@@ -1145,14 +1145,14 @@ window._app = {
   // --- トースト公開（helpers.js など他モジュールから呼べるよう）---
   showToast: (msg) => _showToast(msg),
 
-  // --- ミッション表示モード切替（全て / 私のみ）---
+  // --- タスク表示モード切替（全て / 私のみ）---
   setMissionViewMode: (mode) => {
     state.missionViewMode = mode;
     state.missionFilterTag = null; // タグフィルタはリセット
     state.render();
   },
 
-  // --- ミッション絞り込みタグ変更 ---
+  // --- タスク絞り込みタグ変更 ---
   setMissionFilterTag: (tag) => {
     state.missionFilterTag = tag || null;
     state.render();
@@ -1701,10 +1701,10 @@ const _LOG_LABELS = {
   intro_feature_tour_step:   '主要機能の案内を進めた',
   intro_feature_tour_done:   '主要機能の案内を完了',
   intro_purpose_shown:       '目的の促しを表示',
-  intro_purpose_tapped:      '目的の促しから目的ミッションを開いた',
+  intro_purpose_tapped:      '目的の促しから目的タスクを開いた',
   intro_purpose_dismissed:   '目的の促しを閉じた（書かずに離脱）',
   intro_completed:           '初期オンボーディングを完了',
-  // ミッション作成フォームのツアー（初期オンボーディングとは独立・ユーザー単位で1回）
+  // タスク作成フォームのツアー（初期オンボーディングとは独立・ユーザー単位で1回）
   intro_form_tour_shown:     '作成フォームの案内を表示',
   intro_form_tour_step:      '作成フォームの案内を進めた',
   intro_form_tour_skipped:   '作成フォームの案内をスキップ',
@@ -1725,10 +1725,10 @@ const _LOG_LABELS = {
   join_form_submitted:    '参加を申請した',
   join_form_skipped_all:  '参加申請フォームを未回答で送信',
   event_created:          'イベントを作成した',
-  mission_created:        'ミッションを作成した',
-  mission_edited:         'ミッションを編集した',
-  mission_completed:      'ミッションを完了した',
-  mission_deleted:        'ミッションを削除した',
+  mission_created:        'タスクを作成した',
+  mission_edited:         'タスクを編集した',
+  mission_completed:      'タスクを完了した',
+  mission_deleted:        'タスクを削除した',
   proposal_accepted:      'AI提案を採用した',
   proposal_help_viewed:   'AI提案の詳細を見た',
   like_given:             'いいねした',
@@ -1739,7 +1739,7 @@ const _LOG_LABELS = {
   archive_viewed:         'アーカイブを表示',
   view_changed:           '画面を移動',
   chat_message_sent:      'チャットを送信した',
-  mission_link_copied:    'ミッションリンクをコピー',
+  mission_link_copied:    'タスクリンクをコピー',
   reflection_edited:       '振り返りを編集した',
   archive_answers_open:    'アーカイブから参加時の回答を開いた',
   archive_stats_open:      'アーカイブからみんなの活躍を開いた',

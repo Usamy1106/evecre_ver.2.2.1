@@ -26,9 +26,9 @@ function _esc(s) {
 }
 
 /**
- * 完了したミッションを「誰が完了させたか」で数える。
+ * 完了したタスクを「誰が完了させたか」で数える。
  *
- * ★個別完了（individualClear）は1つのミッションを複数人が完了する。
+ * ★個別完了（individualClear）は1つのタスクを複数人が完了する。
  *   その場合は individualClearedBy の全員を1件ずつ数える
  *   （提出物も人数ぶんあるので、実際に手を動かした人数と一致する）。
  * ★通常完了は submittedBy を見る。担当者（assignee）ではないことに注意。
@@ -50,8 +50,8 @@ function _completedCounts(p) {
 }
 
 /**
- * ミッションを「誰が作ったか」で数える。
- * ★createdBy は途中で入れたフィールドなので、それ以前のミッションには無い。
+ * タスクを「誰が作ったか」で数える。
+ * ★createdBy は途中で入れたフィールドなので、それ以前のタスクには無い。
  *   数え漏れではなく「分からない」ので、まとめて件数だけ添える。
  */
 function _createdCounts(p) {
@@ -152,7 +152,7 @@ export function renderArchiveStats(container) {
           </div>
           <div class="p-stats__stat">
             <span class="p-stats__stat-value">${totalMissions}</span>
-            <span class="p-stats__stat-label">ミッション</span>
+            <span class="p-stats__stat-label">やること</span>
           </div>
           <div class="p-stats__stat">
             <span class="p-stats__stat-value">${(p.members || []).length}</span>
@@ -162,22 +162,22 @@ export function renderArchiveStats(container) {
 
         <section class="p-stats__section">
           <h2 class="p-stats__title">誰が完了させたか</h2>
-          <p class="p-stats__note">個別完了のミッションは、完了した人数ぶん数えています</p>
-          ${_memberChart(p, completed, 'まだ完了したミッションがありません')}
+          <p class="p-stats__note">個別完了のタスクは、完了した人数ぶん数えています</p>
+          ${_memberChart(p, completed, 'まだ完了したタスクがありません')}
         </section>
 
         <section class="p-stats__section">
-          <h2 class="p-stats__title">誰がミッションを作ったか</h2>
-          ${_memberChart(p, created, 'まだミッションがありません')}
+          <h2 class="p-stats__title">誰がタスクを作ったか</h2>
+          ${_memberChart(p, created, 'まだタスクがありません')}
           ${unknown > 0 ? `
             <p class="p-stats__note">
-              ${unknown}件は作成者の記録が無いミッションです（記録を始める前に作られたもの）
+              ${unknown}件は作成者の記録が無いタスクです（記録を始める前に作られたもの）
             </p>` : ''}
         </section>
 
         <section class="p-stats__section">
           <h2 class="p-stats__title">ラベル別の完了数</h2>
-          ${tagRows || `<p class="p-stats__empty">まだ完了したミッションがありません</p>`}
+          ${tagRows || `<p class="p-stats__empty">まだ完了したタスクがありません</p>`}
         </section>
       </main>
     </div>`;

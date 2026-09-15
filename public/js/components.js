@@ -10,7 +10,7 @@ function _escText(s) {
 }
 
 // イベントのメインビジュアル（アーカイブで設定する画像）のパスを返す。無ければ null。
-// 保存先は clearedData['archive-image']。旧データは提案 p3 由来のミッション完了画像を見る
+// 保存先は clearedData['archive-image']。旧データは提案 p3 由来のタスク完了画像を見る
 // （mainBoard.js の _getClearedByOrigin と同じ後方互換）。
 export function getEventMainVisual(project) {
   const direct = project?.clearedData?.['archive-image']?.content;
@@ -228,7 +228,7 @@ export const Components = {
 
   /**
    * 簡易山ビジュアル（プラント画像の後継。ホームのイベントカード・ヘッダー・
-   * プロジェクト詳細で使用）。完了ミッションの割合に応じて登山者ドットが山頂へ近づく。
+   * プロジェクト詳細で使用）。完了タスクの割合に応じて登山者ドットが山頂へ近づく。
    * 後日画像が支給されたら差し替え予定のプレースホルダー実装。
    * @param {object} project イベント（flat 形式）
    * @param {{size?:number}} opts

@@ -84,7 +84,7 @@ function _openDayStartModal() {
       <path d="M12 22v-4"/><path d="m18.6 20.6-2.8-2.8"/><path d="M22 13h-4"/><path d="m18.6 5.4-2.8 2.8"/>
       <circle cx="12" cy="13" r="4"/>`,
     title: 'ついに今日から！',
-    desc: '開催日を迎えました。準備してきたことを、当日のミッションで仕上げていきましょう。',
+    desc: '開催日を迎えました。準備してきたことを仕上げていきましょう。',
     buttonsHtml: `<button data-action="close" class="c-button c-button--primary c-modal__button">閉じる</button>`,
   });
   overlay.querySelector('[data-action="close"]').onclick = () => overlay.remove();

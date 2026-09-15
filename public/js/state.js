@@ -83,7 +83,7 @@ export const state = {
   _eventDateReminderCheckedForEvent: null, // 開催日リマインドモーダル（初日/翌日）のチェック実施済みか（セッション1回）
   _devAnnouncementChecked: false, // 開発者からのお知らせモーダルのチェックを実施済みか（セッション1回、イベント非依存）
   _skillCollectCheckedForEvent: null, // ★暫定：既存メンバーのスキル回収チェック済みか（回収後に削除）
-  // ミッション完了の演出を次の描画で1回だけ出す。submitMissionClear（helpers.js）が
+  // タスク完了の演出を次の描画で1回だけ出す。submitMissionClear（helpers.js）が
   // status が 'cleared' になったときだけ立て、renderMainBoard が消費して倒す。
   // ★leaderCheck（承認待ち）と individualClear の途中では立てないこと。
   //   どちらも status が cleared にならない＝マスが増えないので、
@@ -116,8 +116,8 @@ export const state = {
   notifications: [],   // [{id, type, message, eventId, missionId, read, createdAt}]
   _saveTimer: null,    // save() のデバウンスタイマー（flushPendingSave で確定させる）
 
-  // --- ミッション詳細ページ ---
-  selectedMissionId: null,     // MISSION_DETAIL で表示中のミッションID
+  // --- タスク詳細ページ ---
+  selectedMissionId: null,     // MISSION_DETAIL で表示中のタスクID
   missionDetailReturn: null,   // 戻り先 { tab, calendarSheetView } （view は常に MAIN_BOARD）
   missionChat: null,           // { missionId, messages, loading } チャットのキャッシュ
   pendingMissionLink: null,    // ディープリンク /m/<eventId>/<missionId> の保留分
@@ -196,12 +196,12 @@ export const state = {
       return;
     }
 
-    // ミッションのディープリンク（/m/<eventId>/<missionId>）の検出。
+    // タスクのディープリンク（/m/<eventId>/<missionId>）の検出。
     // ここでは保留にだけして通常フロー（me() → loadAfterAuth）に乗せ、loadAfterAuth で消費する。
     const mlm = window.location.pathname.match(/^\/m\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/?$/);
     if (mlm) {
       this.pendingMissionLink = { eventId: mlm[1], missionId: mlm[2] };
-      console.log('[init] ミッションリンク検出:', this.pendingMissionLink);
+      console.log('[init] タスクリンク検出:', this.pendingMissionLink);
       window.history.replaceState(null, '', '/'); // URL をきれいに
     }
 
@@ -393,8 +393,8 @@ export const state = {
       return;
     }
 
-    // ミッションのディープリンク（/m/<eventId>/<missionId>）から来た場合：
-    // メンバーかつミッションが存在すれば直接ミッション詳細ページへ。
+    // タスクのディープリンク（/m/<eventId>/<missionId>）から来た場合：
+    // メンバーかつタスクが存在すれば直接タスク詳細ページへ。
     // 招待フローと同時の場合は上の pendingInviteToken ブロックが先に return する（招待優先）。
     if (this.pendingMissionLink) {
       const { eventId, missionId } = this.pendingMissionLink;
@@ -411,15 +411,15 @@ export const state = {
       this.currentView = 'HOME';
       if (!skipRender) this.render();
       setTimeout(() => window._app?.showToast?.(
-        p ? 'ミッションが見つかりません（削除された可能性があります）'
-          : 'このミッションにアクセスできる権限がありません', 'error'), 300);
+        p ? 'タスクが見つかりません（削除された可能性があります）'
+          : 'このタスクにアクセスできる権限がありません', 'error'), 300);
       return;
     }
 
     // オンボーディング（プロフィール作成）が途中なら続きから再開する。
     // ★iOS の Google サインインはリダイレクトで JS の状態が消えるため、
     //   進行状態はサーバー（users.onboarding）から復元している。
-    // ★招待・ミッションリンクの着地は上のブロックで先に return しているので、
+    // ★招待・タスクリンクの着地は上のブロックで先に return しているので、
     //   ここへ来るのは通常の起動・ログイン直後だけ。
     if (this._resumeOnboarding && this._resumeOnboarding()) {
       this._hideLoading();
@@ -626,7 +626,7 @@ export const state = {
     const mission = p?.missions?.find(x => x.id === missionId);
     // 非メンバー・削除済みは白画面にせず HOME へ退避（ディープリンクと同じ扱い）
     if (!p || !mission) {
-      window._app?.showToast('ミッションが見つかりませんでした');
+      window._app?.showToast('タスクが見つかりませんでした');
       this.setView('HOME');
       return;
     }
@@ -694,7 +694,7 @@ export const state = {
     window.scrollTo(0, 0);
   },
 
-  // --- ミッション詳細ページへ遷移 ---
+  // --- タスク詳細ページへ遷移 ---
   // 完了モーダルの後継。遷移元コンテキストを記録し、戻るボタンで元の画面へ復元する。
   // カレンダー/ガントシートから開いた場合はシートを閉じ、戻り時に同じビューで再オープン。
   openMissionDetail(missionId, opts = {}) {
@@ -717,7 +717,7 @@ export const state = {
     window.scrollTo(0, 0);
   },
 
-  // --- ミッション詳細ページから戻る ---
+  // --- タスク詳細ページから戻る ---
   closeMissionDetail() {
     const ret = this.missionDetailReturn || {};
     this.selectedMissionId = null;
@@ -769,10 +769,10 @@ export const state = {
     // 種をランダム選択
     const randomSeed = SEED_TYPES[Math.floor(Math.random() * SEED_TYPES.length)];
 
-    // ★自動作成するミッションは「目的」と「概要」の2件。
+    // ★自動作成するタスクは「目的」と「概要」の2件。
     //   def-2（タイトル）は作らない。タイトルはアーカイブのペンから入力でき
     //   （modals/helpers.js の editArchiveItem('title')、保存時に def-2 を作る）、
-    //   ミッションとして並べるほどの作業ではないため。★この入口は消さないこと。
+    //   タスクとして並べるほどの作業ではないため。★この入口は消さないこと。
     //   ★def-3（概要）は utils.js の setArchiveSummary と同じ clearedData キーを使う。
     //     イベント設定・アーカイブのペンからも同じ場所を読み書きするので、
     //     どこから書いても表示が食い違わない。
@@ -1156,7 +1156,7 @@ export const state = {
   //   かつては p1「開催場所を決める」/ p2「メインビジュアルを作成する」を固定していたが、
   //   3枠のうち2枠を恒久的に占有し、序盤は生成・選出の余地が実質1枠しか無かったため廃止した。
   //   会場・メインビジュアルはアーカイブから直接編集できる（modals/helpers.js の
-  //   editArchiveItem('venue') / ('image')）ので、ミッション経由で回収する必要はない。
+  //   editArchiveItem('venue') / ('image')）ので、タスク経由で回収する必要はない。
   // - 基準時刻：直近生成 lastProposalGeneratedAt から12時間。未生成なら即時生成
   //   （作成直後にイベント適合の提案を出すため。createdAt は基準に使わない）。
   // 提案カードは管理者UIのみのため、非管理者では走らせない（生成・保存しない）。
