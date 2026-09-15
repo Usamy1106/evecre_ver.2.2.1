@@ -79,7 +79,7 @@ export const Components = {
               </svg>
             </button>
             <button type="button" onclick="window._app.openJoinByCodeModal()"
-              data-log="home_join_by_code" class="l-header__action"
+              data-log="home_join_by_code" class="l-header__action l-header__action--join"
               aria-label="イベントに参加">
               <img src="/images/icon/icon-join.svg" alt="" class="l-header__action-icon">
             </button>

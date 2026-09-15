@@ -101,6 +101,10 @@
   border: 1px solid var(--color-primary);
 }
 
+.l-header__action--join {
+  border: 1px solid var(--create-green);
+}
+
 .l-header__action-icon {
   width: 20px;
   height: 20px;
