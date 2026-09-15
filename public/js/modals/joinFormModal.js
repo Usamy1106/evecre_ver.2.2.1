@@ -11,7 +11,9 @@
 //   戻っても選択は保持される（ctx を作り直さないため）。
 //
 // STEP 1  できること（得意）      … タップでオン／オフの単純な複数選択
-// STEP 2  やってみたいこと        … STEP 1 で「得意」にしたタグは出さない
+// STEP 2  やってみたいこと        … ★12種すべて出す。STEP 1 で「得意」にしたものも選べる
+//         （得意なことを「もっとやりたい」と言えないと、経験者が自分の持ち場を
+//           名乗れない。候補から消すと、そのタグを押した理由も分からなくなる）
 // STEP 3  意気込み（自由記述・任意）
 // どれも未回答のまま申請できる（必須にしない）。
 //
@@ -65,9 +67,6 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
     overlay.remove();
   };
 
-  /** STEP 2 に出すタグ。STEP 1 で「得意」にしたものは除く（できることは やってみたい ではない） */
-  const wantCandidates = () => SKILL_TAGS.filter(t => !ctx.good[t.id]);
-
   const goTo = (step, from) => {
     if (step < 1 || step > LAST_STEP) return;
     ctx.step = step; ctx.error = '';
@@ -94,11 +93,9 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
   const skillBody = (heading, sub, tags, sel) => `
     <h3 class="c-step-modal__title">${heading}</h3>
     <p class="c-step-modal__lead">${sub}</p>
-    ${tags.length === 0
-      ? '<p class="c-step-modal__empty">すべて「できること」に選びました</p>'
-      : `<div class="c-skill-tags">
-          ${tags.map(t => _tagHtml(t, !!sel[t.id], ctx.step)).join('')}
-        </div>`}`;
+    <div class="c-skill-tags">
+      ${tags.map(t => _tagHtml(t, !!sel[t.id], ctx.step)).join('')}
+    </div>`;
 
   const render = (from = null) => {
     if (ctx.step === 1) {
@@ -114,8 +111,8 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
 
     } else if (ctx.step === 2) {
       overlay.innerHTML = shell(
-        skillBody('やってみたいことは？', 'まだ得意ではないけど挑戦したいこと<br>選ばなくても申請できます',
-                  wantCandidates(), ctx.want),
+        skillBody('やってみたいことは？', '挑戦したいこと・もっとやりたいこと<br>「できること」と重ねて選べます',
+                  SKILL_TAGS, ctx.want),
         `<button id="jf-next" class="c-button c-button--primary c-step-modal__primary">次へ</button>
          <button id="jf-back" class="c-step-modal__secondary">戻る</button>`
       );
@@ -171,8 +168,8 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
         const id = btn.dataset.jfTag;
         if (sel[id]) delete sel[id];
         else sel[id] = true;
-        // 「得意」にしたら「やってみたい」からは外す（STEP 2 の候補からも消えるため）
-        if (ctx.step === 1 && ctx.good[id]) delete ctx.want[id];
+        // ★2つの画面は独立している。片方を押しても、もう片方には触らないこと
+        //   （同じタグを「できる」かつ「やってみたい」と言えるのが仕様）
         render();
       });
     });
@@ -184,7 +181,7 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
     render();
 
     const skillsGood = Object.keys(ctx.good);
-    const skillsWant = Object.keys(ctx.want).filter(k => !ctx.good[k]);
+    const skillsWant = Object.keys(ctx.want);   // ★得意との重複を落とさない
     const message    = ctx.message.trim();
 
     logEvent('join_form_submitted', {

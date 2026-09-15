@@ -70,7 +70,7 @@ export function checkSkillCollectModal() {
   if (!p || !state.currentUser) return;
   if (!needsSkillCollect(p, state.currentUser.id)) return;
   // ★開催日を過ぎたイベントでは聞かない。回収したスキルは「担当者のおすすめ」に
-  //   使うものなので、もう割り当てるミッションが無いイベントで聞いても使い道が無い。
+  //   使うものなので、もう割り当てるタスクが無いイベントで聞いても使い道が無い。
   //   ★スヌーズも記録せずに戻る（この人は他のイベントで聞かれる）。
   if (isAfterEventDates(p)) return;
   // ★重なったら表示しない。スヌーズも記録しないので次の render() で再判定される
@@ -100,9 +100,6 @@ export function openSkillCollectModal(project) {
     close();
   };
 
-  /** STEP 2 の候補。STEP 1 で「できる」にしたものは外す（できること ≠ やってみたいこと） */
-  const wantCandidates = () => SKILL_TAGS.filter(t => !ctx.good[t.id]);
-
   const tagHtml = (tag, on, isGood) => {
     if (!on) {
       return `
@@ -123,7 +120,9 @@ export function openSkillCollectModal(project) {
 
   const render = () => {
     const isGood = ctx.step === 1;
-    const tags = isGood ? SKILL_TAGS : wantCandidates();
+    // ★STEP 2 も12種すべて出す。できることを「もっとやりたい」と言えるようにする
+    //   （参加申請フォームと同じ仕様。片方だけ変えないこと）
+    const tags = SKILL_TAGS;
     const sel  = isGood ? ctx.good : ctx.want;
 
     overlay.innerHTML = `
@@ -140,13 +139,11 @@ export function openSkillCollectModal(project) {
           <p class="c-step-modal__lead">
             ${isGood
               ? 'タップで選べます（複数可）<br>担当を決めるときの参考になります'
-              : 'まだ得意ではないけど挑戦したいこと<br>選ばなくても大丈夫です'}
+              : '挑戦したいこと・もっとやりたいこと<br>「できること」と重ねて選べます'}
           </p>
-          ${tags.length === 0
-            ? '<p class="c-step-modal__empty">すべて「できること」に選びました</p>'
-            : `<div class="c-skill-tags">
-                ${tags.map(t => tagHtml(t, !!sel[t.id], isGood)).join('')}
-              </div>`}
+          <div class="c-skill-tags">
+            ${tags.map(t => tagHtml(t, !!sel[t.id], isGood)).join('')}
+          </div>
         </div>
         <div class="c-step-modal__footer">
           <div class="c-step-modal__dots">
@@ -167,8 +164,7 @@ export function openSkillCollectModal(project) {
       btn.onclick = () => {
         const id = btn.dataset.scTag;
         if (sel[id]) delete sel[id]; else sel[id] = true;
-        // ★できることを外したら、やってみたい側の同じタグも消す（両方に立たせない）
-        if (isGood && !sel[id]) delete ctx.want[id];
+        // ★2つの画面は独立している。片方を押しても、もう片方には触らないこと
         render();
       };
     });
@@ -188,7 +184,7 @@ export function openSkillCollectModal(project) {
 
   const save = async () => {
     const skillsGood = Object.keys(ctx.good);
-    const skillsWant = Object.keys(ctx.want).filter(id => !ctx.good[id]);
+    const skillsWant = Object.keys(ctx.want);   // ★得意との重複を落とさない
     ctx.saving = true; ctx.error = ''; render();
     try {
       const r = await api.saveMySkills(project.id, skillsGood, skillsWant);

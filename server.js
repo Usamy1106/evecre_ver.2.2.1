@@ -588,8 +588,10 @@ function _sanitizeJoinAnswers(body) {
     .slice(0, Object.keys(_SKILL_LABELS).length);
 
   const skillsGood = pick(body?.skillsGood);
-  // 同じタグが両方に入っていたら「得意」を優先（UIでは起きないが念のため）
-  const skillsWant = pick(body?.skillsWant).filter(id => !skillsGood.includes(id));
+  // ★同じタグが両方に入っていてよい（「得意だし、もっとやりたい」は普通の回答）。
+  //   ここで落とすとフォームで選べても保存されず、静かに消える。
+  //   二重カウントは assigneeSuggest.js 側が得意を優先して除いている。
+  const skillsWant = pick(body?.skillsWant);
   const joinMessage = String(body?.joinMessage ?? '').trim().slice(0, JOIN_MESSAGE_MAX);
 
   return {
