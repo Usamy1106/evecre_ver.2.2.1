@@ -1186,15 +1186,28 @@ export const state = {
     if (this._proposalFetching) return;
     this._proposalFetching = true;
     const FULL = 3;
-    // ★レース対策：除外集合は「必ず await の後」に最新の p.missions から計算する。
-    //   生成を待つ間にユーザーが採用（提案削除＋ミッション追加）しても、古いスナップショットで
-    //   採用済みの提案を復活させない（＝ミッションと重複しない）。
-    //   除外：採用済みid（originProposalId）／既存ミッション名。
+    // ★生成は2〜15秒かかる。その間に this.events が丸ごと差し替わることがあるので
+    //   （SSE の _applyEventUpdate は state.events[idx] に**新しいオブジェクト**を入れ、
+    //   silentReloadEvents() は this.events ごと置き換える）、**id だけを覚えて、
+    //   await の後に必ず引き直す**。引数の p を握り続けると、書き込み先が
+    //   this.events から外れた迷子のオブジェクトになり、saveNow() が送るのは
+    //   差し替え後の（提案が空のままの）オブジェクト＝生成結果が黙って消える。
+    //   サーバーは呼ばれた時点で lastProposalGeneratedAt を打つので、
+    //   消えたうえに12時間ゲートだけが閉じる（「作った直後なのに12時間後と出る」
+    //   「何度開いても提案が更新されない」の原因。2026-09-16 に修正）。
+    //   ★ここを p のまま使う書き方に戻さないこと。
+    const eventId = p.id;
+    const FULL_MISSIONS = () => this.events.find(x => x.id === eventId)?.missions || [];
+    // ★レース対策：除外集合は「必ず await の後」に最新のタスクから計算する。
+    //   生成を待つ間にユーザーが採用（提案削除＋タスク追加）しても、古いスナップショットで
+    //   採用済みの提案を復活させない（＝タスクと重複しない）。
+    //   除外：採用済みid（originProposalId）／既存タスク名。
     // タイトル比較は正規化して行う（表記ゆれ・空白差で重複がすり抜けるのを防ぐ）
     const normTitle = (t) => String(t || '').normalize('NFKC').toLowerCase().replace(/[\s　]/g, '');
     const buildResult = (candidates) => {
-      const adoptedIds    = new Set((p.missions || []).map(m => m.originProposalId).filter(Boolean));
-      const missionTitles = new Set((p.missions || []).map(m => normTitle(m.title)));
+      const missions      = FULL_MISSIONS();
+      const adoptedIds    = new Set(missions.map(m => m.originProposalId).filter(Boolean));
+      const missionTitles = new Set(missions.map(m => normTitle(m.title)));
       const seenIds    = new Set();
       const seenTitles = new Set();
       const out = [];
@@ -1209,23 +1222,28 @@ export const state = {
       return out;
     };
     try {
-      const r = await api.generateProposals(p.id);
+      const r = await api.generateProposals(eventId);
+      // ★await の後に引き直す（this.events が差し替わっている可能性があるため）
+      const live = this.events.find(x => x.id === eventId);
+      if (!live) return;   // 開いている間に削除された／一覧から外れた
       if (r.ok && Array.isArray(r.proposals)) {
         // 既存の提案は破棄して3枠すべて入れ替える（12時間ごと更新）
-        p.proposals = buildResult(r.proposals);
+        live.proposals = buildResult(r.proposals);
         // ★届いた瞬間だけ「完成」の演出を出す（バッジの出現・目線が定位置へ戻る）
         this.proposalsRevealed = true;
-        p.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
-        p.lastProposalClearedTime = null;
+        live.lastProposalGeneratedAt = r.lastProposalGeneratedAt;
+        live.lastProposalClearedTime = null;
         // AI 生成結果は失うと再生成でクレジットを消費するため即時保存
         this.saveNow();
         this.render();
       }
     } catch (_) {
       // API 失敗時は PROPOSAL_POOL フォールバック（採用済みidは除外して3枠を補充）
-      const usedIds = new Set((p.missions || []).map(m => m.originProposalId).filter(Boolean));
+      const live = this.events.find(x => x.id === eventId);
+      if (!live) return;
+      const usedIds = new Set(FULL_MISSIONS().map(m => m.originProposalId).filter(Boolean));
       const available = PROPOSAL_POOL.filter(pr => !usedIds.has(pr.id));
-      p.proposals = buildResult(available.sort(() => 0.5 - Math.random()));
+      live.proposals = buildResult(available.sort(() => 0.5 - Math.random()));
       this.save();
       this.render();
     } finally {
