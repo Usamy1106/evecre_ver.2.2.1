@@ -94,9 +94,3 @@
   background-color: var(--color-primary);
   box-shadow: 0 4px 15px rgba(32, 157, 219, .4);
 }
-
-/* 一般メンバー：ミッションを提案する */
-.l-fab--member {
-  background-color: var(--color-success);
-  box-shadow: 0 4px 15px rgba(40, 171, 61, .4);
-}

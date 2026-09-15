@@ -68,7 +68,6 @@ import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.j
 import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
-import { isAfterEventDates } from './utils.js';
 import {
   registerServiceWorker, initPushNavigation,
   enablePush, disablePush, getPushState, hasSubscription,
@@ -943,110 +942,6 @@ window._app = {
     });
   },
 
-  // --- メンバー提案：送信シート（一般ユーザー）---
-  openMemberProposalSheet: () => {
-    const overlay = document.createElement('div');
-    overlay.id = 'member-proposal-sheet';
-    overlay.className = 'c-overlay c-overlay--pending c-overlay--blur';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-    overlay.innerHTML = `
-      <div data-sheet class="c-list-sheet c-list-sheet--form u-animate-fade">
-        <div data-sheet-handle class="c-list-sheet__handle"><div class="c-sheet__grip"></div></div>
-        <h3 class="c-list-sheet__title">ミッションを提案する</h3>
-        <textarea id="member-proposal-input" rows="4"
-          placeholder="ミッション名を入力してください"
-          class="p-archive__edit-input"></textarea>
-        <button id="member-proposal-submit"
-          class="c-button c-button--success p-member-proposal__submit">提案する</button>
-      </div>`;
-    document.body.appendChild(overlay);
-
-    document.getElementById('member-proposal-submit').onclick = async () => {
-      const text = document.getElementById('member-proposal-input')?.value?.trim();
-      if (!text) { window._app?.showToast('ミッション名を入力してください', 'error'); return; }
-      const eventId = state.selectedEventId;
-      const btn = document.getElementById('member-proposal-submit');
-      if (btn) { btn.disabled = true; btn.textContent = '送信中…'; }
-      const r = await api.submitMemberProposal(eventId, text);
-      if (r.ok) {
-        overlay.remove();
-      } else {
-        // 失敗時はモーダルを残してボタンをリセット → ユーザーが再試行できる
-        if (btn) { btn.disabled = false; btn.textContent = '提案する'; }
-        window._app?.showToast(r.error || '提案の送信に失敗しました', 'error');
-      }
-    };
-  },
-
-  // --- メンバー提案：レビューシート（管理者）---
-  openMemberProposalsSheet: () => {
-    const p = state.events.find(x => x.id === state.selectedEventId);
-    if (!p) return;
-    const proposals = p.memberProposals || [];
-
-    const overlay = document.createElement('div');
-    overlay.id = 'member-proposals-review-sheet';
-    overlay.className = 'c-overlay c-overlay--pending c-overlay--blur';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-    const rows = proposals.map(pr => `
-      <div class="c-list-sheet__card">
-        <p class="c-list-sheet__card-meta">@${_escH(pr.proposedByName)}</p>
-        <p class="c-list-sheet__card-title c-list-sheet__card-title--roomy">${_escH(pr.text)}</p>
-        <div class="c-list-sheet__card-actions">
-          <button data-reject="${_escH(pr.id)}" class="c-button c-button--muted">拒否</button>
-          <button data-accept="${_escH(pr.id)}" class="c-button c-button--success">受理</button>
-        </div>
-      </div>`).join('');
-
-    overlay.innerHTML = `
-      <div data-sheet class="c-list-sheet c-list-sheet--scroll u-animate-fade">
-        <div data-sheet-handle class="c-list-sheet__handle"><div class="c-sheet__grip"></div></div>
-        <h3 class="c-list-sheet__title">ミッションの提案（${proposals.length}件）</h3>
-        ${rows || '<p class="c-list-sheet__empty c-list-sheet__empty--tight text-rs">提案はありません</p>'}
-      </div>`;
-    document.body.appendChild(overlay);
-
-    // 拒否ボタン
-    overlay.querySelectorAll('[data-reject]').forEach(btn => {
-      btn.addEventListener('click', async (ev) => {
-        ev.stopPropagation();
-        const pid = btn.dataset.reject;
-        const r = await api.deleteMemberProposal(state.selectedEventId, pid);
-        if (r.ok) {
-          const proj = state.events.find(x => x.id === state.selectedEventId);
-          if (proj) proj.memberProposals = (proj.memberProposals || []).filter(x => x.id !== pid);
-          overlay.remove();
-          state.render();
-        } else {
-          window._app?.showToast(r.error || '失敗しました', 'error');
-        }
-      });
-    });
-
-    // 受理ボタン
-    overlay.querySelectorAll('[data-accept]').forEach(btn => {
-      btn.addEventListener('click', async (ev) => {
-        ev.stopPropagation();
-        const pid  = btn.dataset.accept;
-        const text = proposals.find(x => x.id === pid)?.text || '';
-        const r    = await api.deleteMemberProposal(state.selectedEventId, pid);
-        if (r.ok) {
-          const proj = state.events.find(x => x.id === state.selectedEventId);
-          if (proj) proj.memberProposals = (proj.memberProposals || []).filter(x => x.id !== pid);
-          overlay.remove();
-          state.render();
-          // ミッション作成モーダルを開き、提案テキストをタイトルに pre-fill
-          openMissionModal(null);
-          state.draftMission.title = text;
-          renderMissionModalContent();
-        } else {
-          window._app?.showToast(r.error || '失敗しました', 'error');
-        }
-      });
-    });
-  },
-
   // --- インフォメーションモーダル（管理者向け・イベント入室時に1回表示）---
   checkAndShowInfoModal: () => {
     const p = state.events.find(x => x.id === state.selectedEventId);
@@ -1069,11 +964,8 @@ window._app = {
       !(Array.isArray(m.assignees) && m.assignees.length > 0)
     );
     const leaderMissions = (p.missions || []).filter(m => m.status === 'pending_leader_check');
-    // ★開催日を過ぎたら提案は出さない。メンバーからの「こういうミッションを作ろう」は
-    //   これから動かすための提案なので、終わったイベントで勧める意味が無い。
-    //   ★承認待ち・担当申請・リーダーチェックは**止めないこと**。開催後でも
-    //     処理しないと相手が待たされたままになる（提案だけが対象）。
-    const proposals      = isAfterEventDates(p) ? [] : (p.memberProposals || []);
+    // ★承認待ち・担当申請・リーダーチェックは開催日を過ぎても出し続けること。
+    //   処理しないと相手が待たされたままになる。
 
     let config = null;
     if (pendingMembers.length > 0) {
@@ -1099,18 +991,9 @@ window._app = {
         icon: `<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>`,
         color: '#EE3E12', bgColor: '#FFF0ED',
         title: 'リーダーチェック待ちがあります',
-        desc:  `${leaderMissions.length}件のミッションが承認待ちです。`,
+        desc:  `${leaderMissions.length}件のタスクが承認待ちです。`,
         action: '確認リストを開く',
         onAction: () => window._app.openLeaderCheckSheet(),
-      };
-    } else if (proposals.length > 0) {
-      config = {
-        icon: `<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`,
-        color: '#28AB3D', bgColor: '#ECF9F2',
-        title: 'ミッション提案が届いています',
-        desc:  `${proposals.length}件の提案があります。確認してください。`,
-        action: '提案を確認する',
-        onAction: () => window._app.openMemberProposalsSheet(),
       };
     }
 

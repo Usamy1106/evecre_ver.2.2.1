@@ -179,15 +179,8 @@ export function renderMainBoard(container) {
       `}
       ${state.mainBoardTab === 'MAIN' && state.canManageCurrentEvent() ? `
         <button type="button" onclick="window._app.openMissionModal()" data-log="mission_add_open" data-coach="fab"
-          class="l-fab l-fab--primary" aria-label="ミッションを作成">
+          class="l-fab l-fab--primary" aria-label="タスクを作成">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>` : ''}
-      ${state.mainBoardTab === 'MAIN' && !state.canManageCurrentEvent() && !state.isViewOnlyCurrentEvent() && state.currentUser ? `
-        <button type="button" onclick="window._app.openMemberProposalSheet()"
-          class="l-fab l-fab--member" aria-label="ミッションを提案">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>` : ''}
@@ -688,7 +681,6 @@ function _renderMainTab(p) {
       )
     : [];
 
-  const memberProposals   = canMgr ? (p.memberProposals  || []) : [];
   const pendingMembers    = canMgr ? (p.pendingMembers   || []) : [];
   const leaderCheckMissions = canMgr
     ? (p.missions || []).filter(m => m.status === 'pending_leader_check')
@@ -734,9 +726,6 @@ function _renderMainTab(p) {
 
       <!-- 承認待ちメンバーバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingMembers.length > 0 ? _renderPendingMembersBanner(pendingMembers) : ''}
-
-      <!-- メンバー提案バナー（管理者のみ・該当がある場合のみ表示）-->
-      ${memberProposals.length > 0 ? _renderMemberProposalsBanner(memberProposals) : ''}
 
       <!-- リーダーチェック待ちバナー（管理者のみ・該当がある場合のみ表示）-->
       ${leaderCheckMissions.length > 0 ? _renderLeaderCheckBanner(leaderCheckMissions) : ''}
@@ -806,20 +795,6 @@ function _renderPendingMembersBanner(members) {
           <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
         </svg>
         <p class="p-main-board__banner-text">参加申請が届いています（${members.length}件）</p>
-      </div>
-    </div>`;
-}
-
-// ===== メンバー提案バナー（管理者向け）=====
-function _renderMemberProposalsBanner(proposals) {
-  return `
-    <div onclick="window._app.openMemberProposalsSheet()"
-      class="p-main-board__banner p-main-board__banner--proposal">
-      <div class="p-main-board__banner-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <p class="p-main-board__banner-text">ミッションの提案があります（${proposals.length}件）</p>
       </div>
     </div>`;
 }

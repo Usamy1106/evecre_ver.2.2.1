@@ -164,8 +164,6 @@ function _applyEventUpdate(eventId, event) {
     !(Array.isArray(m.assignees) && m.assignees.length > 0)).length;
   const prevPending = (prev?.pendingMembers || []).length;
   const newPending  = (event?.pendingMembers || []).length;
-  const prevPropos  = (prev?.memberProposals || []).length;
-  const newPropos   = (event?.memberProposals || []).length;
 
   // 参加申請が増えた && ボトムシートが開いている → シートをリアルタイム更新（インフォモーダル抑制）
   const pendingSheetOpen = !!document.getElementById('pending-members-sheet');

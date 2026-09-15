@@ -529,12 +529,6 @@
   color: var(--color-warning-dark);
 }
 
-.p-main-board__banner--proposal {
-  border-color: var(--color-success-half);
-  background-color: var(--color-success-pale);
-  color: var(--color-success-dark);
-}
-
 .p-main-board__banner--check {
   border-color: var(--color-danger-half2);
   background-color: var(--color-danger-pale2);

@@ -193,16 +193,6 @@ export const api = {
     return json || { ok: false };
   },
 
-  // ----- メンバー提案 -----
-  async submitMemberProposal(eventId, text) {
-    const { json } = await _send('POST', `/api/events/${eventId}/member-proposals`, { text });
-    return json || { ok: false };
-  },
-  async deleteMemberProposal(eventId, proposalId) {
-    const { json } = await _send('DELETE', `/api/events/${eventId}/member-proposals/${proposalId}`);
-    return json || { ok: false };
-  },
-
   // ----- リーダーチェック承認 / 差し戻し -----
   async approveMission(eventId, missionId) {
     const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/approve`);

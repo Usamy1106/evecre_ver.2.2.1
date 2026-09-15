@@ -338,11 +338,10 @@ section('[B] 実機で見つかった不具合');
     ok('★スキル回収は開催日を過ぎたら聞かない',
       /if \(isAfterEventDates\(p\)\) return;/.test(sc));
 
-    // ★インフォメーションは「提案」だけ止める。承認待ち・担当申請・リーダー
-    //   チェックは開催後でも処理しないと相手が待たされたままになる。
+    // ★承認待ち・担当申請・リーダーチェックは開催後でも処理しないと
+    //   相手が待たされたままになるので、止めないこと。
+    //   （メンバー提案は機能ごと廃止済み。2026-09-16）
     const mn = codeOnly(R('public/js/main.js'));
-    ok('★インフォメーションの「提案」は開催日を過ぎたら出さない',
-      /const proposals\s*=\s*isAfterEventDates\(p\) \? \[\] :/.test(mn));
     ok('★承認待ち・リーダーチェックは開催後も止めていない',
       /const pendingMembers = p\.pendingMembers \|\| \[\];/.test(mn) &&
       /const leaderMissions = \(p\.missions \|\| \[\]\)\.filter\(m => m\.status === 'pending_leader_check'\);/.test(mn));
