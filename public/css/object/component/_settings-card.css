@@ -225,7 +225,7 @@
   white-space: pre-wrap;
 }
 
-/* 入力済みのキャッチコピーは目立たせる（招待相手に見える文言なので）*/
+/* 入力済みの一言説明は目立たせる（招待相手に見える文言なので）*/
 .c-settings-list__value--accent {
   font-size: 13px;
   font-weight: var(--font-weight-heavy);

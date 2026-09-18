@@ -300,7 +300,7 @@ window._app = {
     state.setView('CREATE_EVENT_CATCHPHRASE');
   },
 
-  // STEP 5: キャッチコピー。入力のたびに再描画すると入力欄のフォーカスが飛ぶので、
+  // STEP 5: 一言説明（旧キャッチコピー）。入力のたびに再描画すると入力欄のフォーカスが飛ぶので、
   // state を更新するだけで再描画はしない（プレビューは廃止済み）。
   updateDraftCatchphrase: (v) => {
     state.draftEvent.catchphrase = v;
@@ -1234,7 +1234,7 @@ window._app = {
       </div>`;
     document.body.appendChild(overlay);
 
-    // メンバー・意気込み・キャッチコピーは招待プレビューから後追いで差し込む。
+    // メンバー・意気込み・一言説明は招待プレビューから後追いで差し込む。
     // 取得に失敗しても参加フロー自体は従来どおり動く（表示が増えないだけ）。
     // ここで得た invite は参加申請フォームにも渡す（再取得しない）。
     let previewCtx = null;
@@ -1457,7 +1457,7 @@ function _escH(s) {
 }
 
 /**
- * 参加確認モーダルに、招待側の意気込み・キャッチコピー・🔥ボタンを差し込む。
+ * 参加確認モーダルに、招待側の意気込み・一言説明・🔥ボタンを差し込む。
  *
  * ★🔥を出すのはここ（ログイン済みの参加確認モーダル）だけ。認証前の招待バナー
  *   （auth.js の _inviteContextBanner）では押せないためボタンを置かない。
@@ -1685,7 +1685,7 @@ const _LOG_LABELS = {
   event_create_step_completed: 'イベント作成の項目を入力',
   event_create_step_skipped:   'イベント作成の項目をスキップ',
   event_create_completed:      'イベント作成を完了した',
-  catchphrase_suggestion_used: 'キャッチコピーの例文を使った',
+  catchphrase_suggestion_used: '一言説明の例文を使った',
   motivation_reaction_added:   '意気込みに応援を送った',
 
   // 参加申請フォーム（modals/joinFormModal.js）。入口A/Bの両方から同じイベントが出る。

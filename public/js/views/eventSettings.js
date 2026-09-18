@@ -183,12 +183,12 @@ function _eventManagementSection(p, sec) {
           `}
         </div>
 
-        <!-- キャッチコピー -->
+        <!-- 一言説明（旧キャッチコピー。保存先は catchphrase のまま）-->
         <!-- 招待ページ（招待バナー・参加確認モーダル）の一番上に表示される -->
         <div class="c-settings-list__row">
-          <p class="c-settings-list__label">キャッチコピー</p>
+          <p class="c-settings-list__label">一言で言うとどんなイベント？</p>
           ${editingCatch ? `
-            <input id="ps-catch-input" type="text" maxlength="50" placeholder="例：つくる、をみせる。"
+            <input id="ps-catch-input" type="text" maxlength="50" placeholder="例：学生の作品30点を展示する2日間の展示会"
               value="${_esc(sec.draftValue || '')}"
               class="c-input c-input--block c-settings-list__input">
             <div class="c-settings-card__actions">
@@ -579,7 +579,7 @@ function _bindEvents(p, sec) {
     state.render();
   });
 
-  // キャッチコピー 保存・キャンセル
+  // 一言説明（catchphrase）保存・キャンセル
   document.getElementById('ps-catch-input')?.addEventListener('input', e => sec.draftValue = e.target.value);
   document.getElementById('ps-catch-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
   document.getElementById('ps-catch-save')?.addEventListener('click', async () => {

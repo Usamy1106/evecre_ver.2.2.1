@@ -81,7 +81,7 @@
   font-size: 36px;
 }
 
-/* イベント作成時のキャッチコピー。無ければ JS が hidden を付ける */
+/* イベント作成時の一言説明（旧キャッチコピー）。無ければ JS が hidden を付ける */
 .p-app-shell__join-catch {
   margin-bottom: var(--space-2);
   font-size: var(--font-size-md);

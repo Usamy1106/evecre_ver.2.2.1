@@ -3,7 +3,7 @@
 // STEP 2  どんなイベントを計画中？        CREATE_EVENT_TYPE
 // STEP 3  どのくらいの人に来てほしい？    CREATE_EVENT_SCALE
 // STEP 4  開催日はいつ？                  CREATE_EVENT_DATES
-// STEP 5  キャッチコピー                  CREATE_EVENT_CATCHPHRASE
+// STEP 5  一言で言うとどんなイベント？    CREATE_EVENT_CATCHPHRASE（旧キャッチコピー）
 // STEP 6  なんでやりたい？（意気込み）    CREATE_EVENT_MOTIVATION
 // STEP 7  招待リンク                      CREATE_EVENT_INVITE
 //
@@ -355,7 +355,9 @@ function _bindCalendarDrag(container) {
 }
 
 // =====================================================
-// STEP 5: キャッチコピー（スキップ可）
+// STEP 5: 一言で言うとどんなイベント？（旧キャッチコピー。スキップ可）
+// ★スローガンではなく「何をするイベントか」を一行で書いてもらう。見出しを問いの形に
+//   しているのはそのため（「キャッチコピー」だと分かりづらいという声を受けて 2026-09-18 に変更）
 // ★入力中のプレビューは出さない（かつて「招待ページのプレビュー」を出していたが、
 //   そもそも招待ページという画面が存在せず、実体と食い違っていたため撤去した）。
 // =====================================================
@@ -364,7 +366,7 @@ export function renderCreateEventCatchphrase(container) {
   const examples = CATCHPHRASE_EXAMPLES[d.eventType] || CATCHPHRASE_EXAMPLES.other;
 
   const body = `
-    <input type="text" id="cp-catch-input" placeholder="キャッチコピーを入力"
+    <input type="text" id="cp-catch-input" placeholder="何をするイベントか一行で"
       value="${_esc(d.catchphrase || '')}" maxlength="50"
       oninput="window._app.updateDraftCatchphrase(this.value)"
       class="c-input c-input--block p-create-event__input p-create-event__input--spaced">
@@ -379,7 +381,7 @@ export function renderCreateEventCatchphrase(container) {
 
   container.innerHTML = _stepShell({
     step: 5, stepLabel: 'イベント作成（5/6）',
-    heading: 'キャッチコピーを<br>つけよう',
+    heading: '一言で言うと<br>どんなイベント？',
     sub: '招待した相手に表示されます<br>あとで変更できます',
     body,
     footer: `
