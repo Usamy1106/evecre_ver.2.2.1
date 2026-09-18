@@ -1716,6 +1716,7 @@ const _LOG_LABELS = {
   skill_collect_submitted: 'スキルを回答した',
   skill_collect_skipped:   'スキル回収を「あとで」',
   skills_collected:        'スキルを保存した（サーバー記録）',
+  join_answers_updated:    '参加時の回答を変更した（プロフィール設定・サーバー記録）',
 
   onboarding_shown:       'オンボーディングを表示',
   onboarding_action:      'オンボーディングのボタンを押した',

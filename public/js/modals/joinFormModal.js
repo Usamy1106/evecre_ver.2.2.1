@@ -23,11 +23,11 @@
 import { api } from '../api.js';
 import { logEvent } from '../logger.js';
 import { Components } from '../components.js';
-import { SKILL_TAGS, JOIN_MESSAGE_EXAMPLES } from '../constants.js';
+import { SKILL_TAGS, JOIN_MESSAGE_EXAMPLES, JOIN_MESSAGE_MAX } from '../constants.js';
 import { bindCardSwipe, slideInCard } from '../swipeCard.js';
 
 const OVERLAY_ID = 'join-form-modal';
-const MAX_MESSAGE = 50;   // ★キャッチコピー・意気込みと揃えて50字（server.js の JOIN_MESSAGE_MAX も同じ値にすること）
+const MAX_MESSAGE = JOIN_MESSAGE_MAX;   // ★値は constants.js（server.js の JOIN_MESSAGE_MAX と揃える）
 const PLACEHOLDER_INTERVAL_MS = 3000;
 const LAST_STEP = 3;   // できること / やってみたいこと / 意気込み
 
@@ -233,21 +233,8 @@ export function openJoinFormModal({ invite, token, entry = 'code', onDone }) {
  * @param {number} step 1=できること / 2=やってみたいこと
  */
 function _tagHtml(tag, on, step) {
-  if (!on) {
-    return `
-      <button type="button" data-jf-tag="${tag.id}" class="c-skill-tag">
-        ${_esc(tag.label)}
-      </button>`;
-  }
-  // ★色だけに頼らず、できる=チェック / やってみたい=プラス でも区別する
-  const isGood = step === 1;
-  const icon = isGood
-    ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>'
-    : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
-  return `
-    <button type="button" data-jf-tag="${tag.id}" class="c-skill-tag ${isGood ? 'is-good' : 'is-want'}">
-      ${icon}${_esc(tag.label)}
-    </button>`;
+  // 見た目はイベント設定のプロフィール設定と共用（Components.SkillTag）
+  return Components.SkillTag(tag, { on, kind: step === 1 ? 'good' : 'want', attr: 'data-jf-tag' });
 }
 
 

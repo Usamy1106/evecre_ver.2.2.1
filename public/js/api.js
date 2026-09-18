@@ -320,6 +320,11 @@ export const api = {
   // 省略可（旧経路・回答なしの申請でも通る）。サーバーが pendingMembers に載せる。
   // ★暫定：既存メンバーのスキル回収（modals/skillCollectModal.js）専用。
   //   回収が済んだらこのラッパーごと削除すること。
+  // 自分の「参加時の回答」を変更する（イベント設定のプロフィール設定）。恒久機能
+  async saveMyJoinAnswers(eventId, { skillsGood, skillsWant, joinMessage }) {
+    const { json } = await _send('PUT', `/api/events/${eventId}/my-answers`, { skillsGood, skillsWant, joinMessage });
+    return json || { ok: false };
+  },
   async saveMySkills(eventId, skillsGood, skillsWant) {
     const { json } = await _send('POST', `/api/events/${eventId}/my-skills`, { skillsGood, skillsWant });
     return json || { ok: false };

@@ -300,6 +300,29 @@ export const Components = {
    * @param {{size?:number, ring?:boolean, className?:string}} opts
    */
   /**
+   * スキルタグ1つ（参加申請フォーム・イベント設定のプロフィール設定で共用）。
+   * スタイル: public/css/object/component/_step-modal.css（.c-skill-tag）
+   *
+   * ★色だけに頼らず、できる=青＋チェック / やってみたい=黄緑＋プラス でも区別する。
+   * @param {{id: string, label: string}} tag  SKILL_TAGS の1件
+   * @param {object} opts
+   *   on   … 選択中か
+   *   kind … 'good'（できること）| 'want'（やってみたいこと）
+   *   attr … タップを拾うための data 属性名（例 'data-jf-tag'）。値は tag.id
+   */
+  SkillTag(tag, { on = false, kind = 'good', attr = 'data-skill-tag' } = {}) {
+    const a = `${attr}="${_escText(tag.id)}"`;
+    if (!on) {
+      return `<button type="button" ${a} aria-pressed="false" class="c-skill-tag">${_escText(tag.label)}</button>`;
+    }
+    const isGood = kind === 'good';
+    const icon = isGood
+      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+    return `<button type="button" ${a} aria-pressed="true" class="c-skill-tag ${isGood ? 'is-good' : 'is-want'}">${icon}${_escText(tag.label)}</button>`;
+  },
+
+  /**
    * アバター。
    * @param {object} user  { username, avatarUrl }
    * @param {object} opts

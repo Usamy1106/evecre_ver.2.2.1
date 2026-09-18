@@ -1,9 +1,13 @@
 // ===== イベント設定ページ =====
 // メインボード歯車アイコンから遷移する設定ページ。
 // - 上部：メンバーアイコン一覧（重ね表示、最大5つ）
-// - イベント管理：イベント名 / 概要 / 開催日時 / 開催場所 / キャッチコピー / 意気込み / 種別 / 規模 / フェーズ
-//   ★概要と開催場所はアーカイブ側の表示と連動する（utils.js の getter/setter に集約）
-// - ユーザー管理：メンバーの招待 / メンバーのロール設定
+// - 以下3つはアコーディオン（<details>）。開閉は sec.openSections に持つ
+//   （SSE で innerHTML を差し替えても閉じないように。画面に入るたびに全部閉じた状態へ戻る）
+//   - プロフィール設定：自分の「参加時の回答」（できること / やってみたいこと / ひとこと）
+//     ★オーナーには出さない（参加申請フォームを通っていないので回答が無い）
+//   - イベント管理：イベント名 / 概要 / 開催日時 / 開催場所 / 一言説明 / 意気込み / 種別 / 規模 / フェーズ
+//     ★概要と開催場所はアーカイブ側の表示と連動する（utils.js の getter/setter に集約）
+//   - メンバー管理：メンバーの招待 / ロール定義 / メンバーのロール設定
 
 import { state } from '../state.js';
 import { api }   from '../api.js';
@@ -14,7 +18,10 @@ import {
   formatEventPeriodLines,
   getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue,
 } from '../utils.js';
-import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS } from '../constants.js';
+import {
+  EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS,
+  SKILL_TAGS, JOIN_MESSAGE_MAX, JOIN_MESSAGE_EXAMPLES,
+} from '../constants.js';
 
 export function renderEventSettings(container) {
   const p = state.events.find(x => x.id === state.selectedEventId);
@@ -53,8 +60,11 @@ export function renderEventSettings(container) {
 
       <main class="p-event-settings__main">
         ${_membersAvatarsSection(sec)}
-        ${_eventManagementSection(p, sec)}
-        ${_userManagementSection(p, sec)}
+        <div class="p-event-settings__sections">
+          ${_profileSection(p, sec)}
+          ${_accordion('event',   'イベント管理', _eventManagementSection(p, sec), sec)}
+          ${_accordion('members', 'メンバー管理', _userManagementSection(p, sec), sec)}
+        </div>
         ${_leaveSection(p)}
       </main>
     </div>`;
@@ -90,6 +100,99 @@ function _membersAvatarsSection(sec) {
 }
 
 // =====================================================
+// アコーディオン（プロフィール設定 / イベント管理 / メンバー管理）
+// =====================================================
+// ★<details> を使う（開閉・キーボード操作・読み上げがブラウザ標準で付く）。
+// ★開閉は sec.openSections に持って、描画のたびに open 属性へ戻す。
+//   この画面は SSE や保存のたびに innerHTML を丸ごと差し替えるので、DOM に任せると
+//   「変更」を押した瞬間に閉じてしまう。書き戻しは _bindEvents の toggle で行う。
+function _accordion(key, title, body, sec) {
+  const open = !!sec.openSections?.[key];
+  return `
+    <details class="p-event-settings__section" data-ps-acc="${key}" ${open ? 'open' : ''}>
+      <summary class="p-event-settings__section-summary" data-log="settings_section_${key}">
+        ${_esc(title)}
+      </summary>
+      <div class="p-event-settings__section-body">${body}</div>
+    </details>`;
+}
+
+// =====================================================
+// セクション: プロフィール設定（自分の「参加時の回答」）
+// =====================================================
+// 参加申請フォームで答えた「できること / やってみたいこと / ひとこと」をあとから直す。
+// ★オーナーには出さない。作った人は参加申請フォームを通らないので、直す元の回答が無い。
+// ★参加申請フォームが入る前に参加した人は未回答（null）だが、ここから新しく書ける。
+// 保存は PUT /api/events/:id/my-answers（検証は参加申請フォームと同じ _sanitizeJoinAnswers）。
+function _profileSection(p, sec) {
+  const meId = state.currentUser?.id;
+  if (!meId || p.ownerId === meId) return '';
+  const me = (p.members || []).find(m => m.userId === meId);
+  if (!me) return '';
+
+  let body;
+  if (sec.editing === 'profile' && sec.profileDraft) {
+    const d = sec.profileDraft;
+    const tags = (kind) => `
+      <div class="c-skill-tags p-event-settings__skill-tags" data-ps-skill-group="${kind}">
+        ${SKILL_TAGS.map(t => Components.SkillTag(t, { on: !!d[kind][t.id], kind, attr: 'data-ps-skill' })).join('')}
+      </div>`;
+    body = `
+      <div class="c-settings-list">
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">できること</p>
+          ${tags('good')}
+        </div>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">やってみたいこと</p>
+          <p class="p-event-settings__sub-title">「できること」と重ねて選べます</p>
+          ${tags('want')}
+        </div>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">ひとこと</p>
+          <input id="ps-profile-msg" type="text" maxlength="${JOIN_MESSAGE_MAX}"
+            placeholder="例：${_esc(JOIN_MESSAGE_EXAMPLES[0] || '')}"
+            value="${_esc(d.message)}"
+            class="c-input c-input--block c-settings-list__input">
+          <p id="ps-profile-count" class="p-event-settings__count">${d.message.length}/${JOIN_MESSAGE_MAX}</p>
+          <div class="c-settings-card__actions">
+            <button id="ps-profile-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+            <button id="ps-profile-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    const labels = (ids) => (ids || [])
+      .map(id => SKILL_TAGS.find(t => t.id === id)?.label).filter(Boolean).join('・');
+    const good = labels(me.skillsGood);
+    const want = labels(me.skillsWant);
+    const msg  = String(me.joinMessage || '').trim();
+    body = `
+      <div class="c-settings-list">
+        <div class="c-settings-list__row">
+          <div class="c-settings-list__view c-settings-list__view--center">
+            <p class="p-event-settings__sub-title">このイベントのメンバーに共有され、担当を決めるときの参考になります</p>
+            <button data-ps-profile-edit data-log="settings_profile_edit" class="c-settings-list__edit">変更</button>
+          </div>
+        </div>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">できること</p>
+          <span class="c-settings-list__value c-settings-list__value--body">${_esc(good || '(未設定)')}</span>
+        </div>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">やってみたいこと</p>
+          <span class="c-settings-list__value c-settings-list__value--body">${_esc(want || '(未設定)')}</span>
+        </div>
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">ひとこと</p>
+          <span class="c-settings-list__value c-settings-list__value--body">${msg ? `「${_esc(msg)}」` : '(未設定)'}</span>
+        </div>
+      </div>`;
+  }
+  return _accordion('profile', 'プロフィール設定', body, sec);
+}
+
+// =====================================================
 // セクション: イベント管理
 // =====================================================
 function _eventManagementSection(p, sec) {
@@ -102,8 +205,6 @@ function _eventManagementSection(p, sec) {
   const editingMotiv = sec.editing === 'motivationText';
 
   return `
-    <section>
-      <h2 class="p-event-settings__section-title">イベント管理</h2>
       <div class="c-settings-list">
 
         <!-- イベント名 -->
@@ -315,12 +416,11 @@ function _eventManagementSection(p, sec) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </button>` : ''}
 
-      </div>
-    </section>`;
+      </div>`;
 }
 
 // =====================================================
-// セクション: ユーザー管理
+// セクション: メンバー管理（旧「ユーザー管理」）
 // =====================================================
 function _userManagementSection(p, sec) {
   const members = sec.members || [];
@@ -438,9 +538,6 @@ function _userManagementSection(p, sec) {
   }).join('');
 
   return `
-    <section>
-      <h2 class="p-event-settings__section-title">ユーザー管理</h2>
-
       <!-- メンバーの招待 -->
       <div class="c-settings-list c-settings-list__row p-event-settings__group">
         <div class="c-settings-list__view c-settings-list__view--center">
@@ -474,8 +571,7 @@ function _userManagementSection(p, sec) {
           ${!isOwner && !canMgr ? '<p class="p-event-settings__member-sub">ロールの変更は管理者権限を持つメンバーのみ可能です</p>' : ''}
         </div>
         <div class="c-settings-list">${memberList}</div>
-      </div>
-    </section>`;
+      </div>`;
 }
 
 function _renderRoleAddForm(sec) {
@@ -528,6 +624,85 @@ function _leaveSection(p) {
 // イベント結線
 // =====================================================
 function _bindEvents(p, sec) {
+  // アコーディオンの開閉を覚えておく（再描画で閉じないように）
+  document.querySelectorAll('[data-ps-acc]').forEach(el => {
+    el.addEventListener('toggle', () => {
+      sec.openSections = { ...(sec.openSections || {}), [el.dataset.psAcc]: el.open };
+    });
+  });
+
+  // ── プロフィール設定 ──
+  document.querySelector('[data-ps-profile-edit]')?.addEventListener('click', () => {
+    const me = (p.members || []).find(m => m.userId === state.currentUser?.id) || {};
+    const toMap = (ids) => Object.fromEntries((ids || []).map(id => [id, true]));
+    sec.editing = 'profile';
+    sec.profileDraft = {
+      good:    toMap(me.skillsGood),
+      want:    toMap(me.skillsWant),
+      message: String(me.joinMessage || ''),
+    };
+    state.render();
+  });
+
+  // タグのオン／オフ。★ページ全体を描き直さず、押したボタンだけ差し替える
+  //   （意気込みカードと同じ理由。描き直すとスクロール位置が飛ぶ）
+  const bindSkill = (btn) => {
+    btn.addEventListener('click', () => {
+      const kind = btn.closest('[data-ps-skill-group]')?.dataset.psSkillGroup;
+      const sel  = sec.profileDraft?.[kind];
+      const tag  = SKILL_TAGS.find(t => t.id === btn.dataset.psSkill);
+      if (!sel || !tag) return;
+      if (sel[tag.id]) delete sel[tag.id]; else sel[tag.id] = true;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = Components.SkillTag(tag, { on: !!sel[tag.id], kind, attr: 'data-ps-skill' });
+      const next = tmp.firstElementChild;
+      btn.replaceWith(next);
+      bindSkill(next);
+    });
+  };
+  document.querySelectorAll('[data-ps-skill]').forEach(bindSkill);
+
+  document.getElementById('ps-profile-msg')?.addEventListener('input', (e) => {
+    if (!sec.profileDraft) return;
+    sec.profileDraft.message = e.target.value;
+    const c = document.getElementById('ps-profile-count');
+    if (c) c.textContent = `${e.target.value.length}/${JOIN_MESSAGE_MAX}`;
+  });
+  document.getElementById('ps-profile-cancel')?.addEventListener('click', () => {
+    sec.editing = null; sec.profileDraft = null; state.render();
+  });
+  document.getElementById('ps-profile-save')?.addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget;
+    const d = sec.profileDraft;
+    if (!d || btn.disabled) return;
+    btn.disabled = true; btn.textContent = '保存中…';
+    let r = null;
+    try {
+      r = await api.saveMyJoinAnswers(p.id, {
+        skillsGood:  Object.keys(d.good),
+        skillsWant:  Object.keys(d.want),
+        joinMessage: d.message.trim(),
+      });
+    } catch (_) { /* 下で失敗として扱う */ }
+    if (!r?.ok) {
+      btn.disabled = false; btn.textContent = '保存';
+      window._app?.showToast(r?.error || '保存に失敗しました', 'error');
+      return;
+    }
+    // ★await の後は state.events から引き直す（待っている間に SSE で差し替わりうる）
+    const live = state.events.find(x => x.id === p.id);
+    const me = (live?.members || []).find(m => m.userId === state.currentUser?.id);
+    if (me) {
+      me.skillsGood      = r.skillsGood;
+      me.skillsWant      = r.skillsWant;
+      me.joinMessage     = r.joinMessage;
+      me.joinedAnswersAt = Date.now();
+    }
+    sec.editing = null; sec.profileDraft = null;
+    state.render();
+    window._app?.showToast('保存しました');
+  });
+
   // 編集モード開始
   document.querySelectorAll('[data-ps-edit]').forEach(el => {
     el.addEventListener('click', () => {

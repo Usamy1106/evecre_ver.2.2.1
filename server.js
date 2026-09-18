@@ -572,7 +572,7 @@ const _SKILL_LABELS = {
   onsite:      '当日運営',
   physical:    '力仕事',
 };
-const JOIN_MESSAGE_MAX = 50;   // ★クライアント（joinFormModal.js の MAX_MESSAGE）と同じ値にすること
+const JOIN_MESSAGE_MAX = 50;   // ★クライアント（public/js/constants.js の JOIN_MESSAGE_MAX）と同じ値にすること
 
 /**
  * 参加申請フォームの回答を検証して正規化する。
@@ -3327,6 +3327,48 @@ app.post('/api/events/:id/my-skills', requireAuth, async (req, res) => {
     res.json({ ok: true, skillsGood: a.skillsGood, skillsWant: a.skillsWant });
   } catch (e) {
     console.error('POST /api/events/:id/my-skills error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ── 自分の「参加時の回答」を変更する（イベント設定の「プロフィール設定」）──
+// ★恒久機能。上の my-skills（暫定）とは別物。回収が済んで my-skills を消すときも、
+//   こちらと eventStore.setMemberJoinAnswers は残すこと。
+// 検証は参加申請フォームと同じ _sanitizeJoinAnswers を通す（未知のタグ・長すぎる本文を弾く）。
+app.put('/api/events/:id/my-answers', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const a = _sanitizeJoinAnswers(req.body);
+    const ok = await eventStore.setMemberJoinAnswers(req.params.id, req.user.id, {
+      skillsGood:  a.skillsGood,
+      skillsWant:  a.skillsWant,
+      joinMessage: a.joinMessage,
+      // ★全部空にしても「回答した」扱いにする（未回答の null に戻さない）
+      joinedAnswersAt: Date.now(),
+    });
+    if (!ok) return res.status(404).json({ ok: false, error: 'member not found' });
+
+    logServerEvent(req.params.id, req.user.id, 'join_answers_updated', {
+      good: a.skillsGood.length, want: a.skillsWant.length, hasMessage: !!a.joinMessage,
+    });
+
+    // 他のメンバーの画面（アーカイブの「参加時の回答」・担当者のおすすめ）にも反映する。
+    // ★_mergeSubmissions を通すこと。通さずに送ると、受け取った側の clearedData
+    //   （提出物の実体は submissions にある）が SSE で空に差し替わる。
+    const updated = await eventStore.loadEvent(req.params.id);
+    const flat = crdt.crdtToFlat(updated);
+    await _mergeSubmissions(req.params.id, flat);
+    eventBus.broadcast(req.params.id, 'eventUpdated', {
+      eventId: req.params.id, rev: updated.rev, event: flat,
+    }, req.get('X-Client-Id') || null);
+
+    res.json({ ok: true, skillsGood: a.skillsGood, skillsWant: a.skillsWant, joinMessage: a.joinMessage });
+  } catch (e) {
+    console.error('PUT /api/events/:id/my-answers error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });

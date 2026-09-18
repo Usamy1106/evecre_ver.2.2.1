@@ -23,13 +23,78 @@
   margin-top: var(--space-8);
 }
 
-.p-event-settings__section-title {
-  margin-bottom: var(--space-3);
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--bg-textbox);
+/* --- アコーディオン（プロフィール設定 / イベント管理 / メンバー管理）------------
+   ★<details> を使う。開閉は JS 側（sec.openSections）が覚えて open 属性へ戻す。
+   ★要素の間隔は __sections の gap で取る。__main の `> * + *`（space-8）だと
+     アコーディオン同士が離れすぎて、1つのメニューに見えない。 */
+
+.p-event-settings__sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.p-event-settings__section {
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-event-settings__section-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  cursor: pointer;
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text);
+  /* 既定の三角を消して、右端に自前の開閉マークを置く */
+  list-style: none;
+}
+
+.p-event-settings__section-summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 開閉マーク。閉じているときは下向き（開く）、開いたら上向き（閉じる） */
+.p-event-settings__section-summary::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-event-settings__section[open] > .p-event-settings__section-summary::after {
+  transform: rotate(-135deg) translateY(-2px);
+}
+
+.p-event-settings__section[open] > .p-event-settings__section-summary {
+  border-bottom: 1px solid var(--bg-textbox);
+}
+
+.p-event-settings__section-body {
+  padding: var(--space-4);
+}
+
+/* プロフィール設定のスキルタグ。参加申請フォーム（中央寄せ）と違い、
+   設定の行の中なので左に揃える */
+.p-event-settings__skill-tags {
+  justify-content: flex-start;
+  margin-top: var(--space-2);
+}
+
+/* ひとことの文字数 */
+.p-event-settings__count {
+  margin-top: var(--space-1);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: right;
 }
 
 .p-event-settings__section-note {

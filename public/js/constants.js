@@ -139,6 +139,10 @@ export const TAG_SKILL_HINTS = {
   '広報': ['pr', 'writing', 'design', 'photo'],
 };
 
+// 参加時の「ひとこと（意気込み）」の上限。参加申請フォームとイベント設定のプロフィール設定で共用。
+// ★server.js の JOIN_MESSAGE_MAX と必ず同じ値にすること（超えた分はサーバーで切られる）
+export const JOIN_MESSAGE_MAX = 50;
+
 // 参加申請フォームの意気込み欄のプレースホルダー（順に切り替えて書き出しを促す）
 export const JOIN_MESSAGE_EXAMPLES = [
   'みんなで最高の一日にしたい',
