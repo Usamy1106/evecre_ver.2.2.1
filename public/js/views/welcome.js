@@ -20,7 +20,7 @@ export function renderWelcome(container) {
     <div class="p-welcome u-page-transition">
       <main class="p-welcome__main">
         <div class="p-welcome__hero">
-          <img src="/images/icon/app-icon-192.png" alt="" class="p-welcome__logo">
+          <img src="/images/icon/evecre-icon-192.png" alt="" class="p-welcome__logo">
           <h1 class="p-welcome__title">イベクリ</h1>
           <p class="p-welcome__lead">イベントづくりを、みんなで楽しく。</p>
         </div>

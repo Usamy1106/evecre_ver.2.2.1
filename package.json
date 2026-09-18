@@ -11,6 +11,7 @@
     "dev": "nodemon server.js",
     "migrate": "node scripts/migrate-fs-to-atlas.js",
     "bg:manifest": "node scripts/genBgManifest.mjs",
+    "icons": "node scripts/genIcons.mjs",
     "check:mountain": "node scripts/checkMountain.mjs",
     "check:flocss": "node scripts/checkFlocss.mjs"
   },

@@ -24,8 +24,10 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'イベクリ';
   const options = {
     body:  data.body || '',
-    icon:  '/images/icon/app-icon-192.png',
-    badge: '/images/icon/app-badge-72.png',
+    icon:  '/images/icon/evecre-icon-192.png',
+    // ★バッジは白抜き・透過のもの。Android は不透明度しか使わないので、
+    //   通常のアイコン（不透明な正方形）を渡すとステータスバーに白い四角が出る
+    badge: '/images/icon/evecre-badge-96.png',
     data:  { url: data.url || '/' },
   };
   // ★renotify は tag とセットでないと TypeError になる（仕様）。tag があるときだけ付ける。
