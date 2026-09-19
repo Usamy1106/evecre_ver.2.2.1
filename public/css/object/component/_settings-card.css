@@ -32,6 +32,17 @@
   justify-content: space-between;
 }
 
+/* 行のどこをタップしても編集に入れる（アカウント設定。utils.js の bindTapToEdit）。
+   ★押せると分かるよう、押している間だけ薄くする */
+.c-settings-card__row--tappable {
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.c-settings-card__row--tappable:active {
+  opacity: .6;
+}
+
 /* 編集中は入力欄との間を空ける */
 .c-settings-card__row.is-editing {
   margin-bottom: var(--space-3);
@@ -160,6 +171,16 @@
 
 .c-settings-list__row:last-child {
   border-bottom: 0;
+}
+
+/* 行のどこをタップしても編集に入れる（プロフィール設定。utils.js の bindTapToEdit）*/
+.c-settings-list__row--tappable {
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.c-settings-list__row--tappable:active {
+  background-color: var(--color-bg);
 }
 
 /* 行そのものを押せるタイプ（操作履歴・招待リンクなど）*/

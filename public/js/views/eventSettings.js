@@ -17,6 +17,7 @@ import { showConfirmDialog } from '../dialog.js';
 import {
   formatEventPeriodLines,
   getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue,
+  bindTapToEdit,
 } from '../utils.js';
 import {
   EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS,
@@ -169,21 +170,21 @@ function _profileSection(p, sec) {
     const msg  = String(me.joinMessage || '').trim();
     body = `
       <div class="c-settings-list">
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row c-settings-list__row--tappable" data-tap-edit="profile">
           <div class="c-settings-list__view c-settings-list__view--center">
             <p class="p-event-settings__sub-title">このイベントのメンバーに共有され、担当を決めるときの参考になります</p>
-            <button data-ps-profile-edit data-log="settings_profile_edit" class="c-settings-list__edit">変更</button>
+            <button data-ps-profile-edit data-tap-edit-btn="profile" data-log="settings_profile_edit" class="c-settings-list__edit">変更</button>
           </div>
         </div>
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row c-settings-list__row--tappable" data-tap-edit="profile">
           <p class="c-settings-list__label">できること</p>
           <span class="c-settings-list__value c-settings-list__value--body">${_esc(good || '(未設定)')}</span>
         </div>
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row c-settings-list__row--tappable" data-tap-edit="profile">
           <p class="c-settings-list__label">やってみたいこと</p>
           <span class="c-settings-list__value c-settings-list__value--body">${_esc(want || '(未設定)')}</span>
         </div>
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row c-settings-list__row--tappable" data-tap-edit="profile">
           <p class="c-settings-list__label">ひとこと</p>
           <span class="c-settings-list__value c-settings-list__value--body">${msg ? `「${_esc(msg)}」` : '(未設定)'}</span>
         </div>
@@ -637,6 +638,8 @@ function _bindEvents(p, sec) {
   });
 
   // ── プロフィール設定 ──
+  // 表示中の行（できること・やってみたいこと・ひとこと）のどこをタップしても「変更」と同じ
+  bindTapToEdit();
   document.querySelector('[data-ps-profile-edit]')?.addEventListener('click', () => {
     const me = (p.members || []).find(m => m.userId === state.currentUser?.id) || {};
     const toMap = (ids) => Object.fromEntries((ids || []).map(id => [id, true]));

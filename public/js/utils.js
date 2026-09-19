@@ -117,6 +117,25 @@ export function isAfterEventDates(p) {
   return todayStr() > sorted[sorted.length - 1];
 }
 
+// ===== 設定画面：項目をタップして編集 =====
+// 行に data-tap-edit="<名前>"、その項目の「変更」ボタンに data-tap-edit-btn="<名前>" を付けると、
+// 行のどこをタップしても「変更」を押したのと同じになる（アカウント設定・プロフィール設定）。
+// ★編集の処理は「変更」ボタンのハンドラ1つだけ。行側に同じ処理を書き写さないこと。
+//   ボタンの click() を呼ぶので、data-log の計測もそのまま効く。
+// ★行の中のボタン・入力欄・リンクのタップは素通しする（二重に反応させない）。
+// ★編集中は行に data-tap-edit を付けないこと（付けたままだと入力欄の周りのタップで開き直す）。
+//   ボタンが見つからなければ何もしない。
+// ★行は <div> のまま。キーボード操作は中の「変更」ボタンが担うので role="button" にしない
+//   （ボタンを含む要素を role="button" にすると操作可能な要素が入れ子になる）。
+export function bindTapToEdit(root = document) {
+  root.querySelectorAll('[data-tap-edit]').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button, a, input, textarea, select, label')) return;
+      root.querySelector(`[data-tap-edit-btn="${row.dataset.tapEdit}"]`)?.click();
+    });
+  });
+}
+
 // ===== アーカイブの「概要」「開催場所」=====
 // ★イベント設定（eventSettings.js）とアーカイブのペン（modals/helpers.js）の
 //   両方から編集される。どちらから直しても同じ場所を読み書きするよう、

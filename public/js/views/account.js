@@ -7,6 +7,7 @@ import { logEvent } from '../logger.js';
 import {
   getPushState, hasSubscription, enablePush, disablePush, isStandalone, isIOS, isMacDesktop,
 } from '../push.js';
+import { bindTapToEdit } from '../utils.js';
 import { refreshPushSubscribed, snoozePushBanner } from '../modals/pushSetupModal.js';
 
 /**
@@ -157,12 +158,12 @@ function _avatarSection(u, sec) {
 function _usernameSection(u, sec) {
   const editing = sec.active === 'username';
   return `
-    <div class="c-settings-card__row${editing ? ' is-editing' : ''}">
+    <div class="c-settings-card__row${editing ? ' is-editing' : ' c-settings-card__row--tappable" data-tap-edit="username'}">
       <div class="c-settings-card__body">
         <p class="c-settings-card__label">ユーザー名</p>
         <p class="c-settings-card__value">${_esc(u.username || '')}</p>
       </div>
-      ${!editing ? `<button type="button" id="acc-username-edit" class="c-settings-card__edit">変更</button>` : ''}
+      ${!editing ? `<button type="button" id="acc-username-edit" data-tap-edit-btn="username" class="c-settings-card__edit">変更</button>` : ''}
     </div>
     ${editing ? `
       <input id="acc-username-input" type="text" maxlength="20"
@@ -184,7 +185,7 @@ function _emailSection(u, sec) {
   const editing = sec.active === 'email';
   const step = sec.step || 'edit';
   return `
-    <div class="c-settings-card__row${editing ? ' is-editing' : ''}">
+    <div class="c-settings-card__row${editing ? ' is-editing' : ' c-settings-card__row--tappable" data-tap-edit="email'}">
       <div class="c-settings-card__body">
         <p class="c-settings-card__label">メールアドレス
           ${u.isVerified
@@ -193,7 +194,7 @@ function _emailSection(u, sec) {
         </p>
         <p class="c-settings-card__value">${_esc(u.email || '')}</p>
       </div>
-      ${!editing ? `<button type="button" id="acc-email-edit" class="c-settings-card__edit">変更</button>` : ''}
+      ${!editing ? `<button type="button" id="acc-email-edit" data-tap-edit-btn="email" class="c-settings-card__edit">変更</button>` : ''}
     </div>
     ${editing && step === 'edit' ? `
       <input id="acc-email-input" type="email"
@@ -227,12 +228,12 @@ function _passwordSection(sec) {
   const editing = sec.active === 'password';
   const step = sec.step || 'edit';
   return `
-    <div class="c-settings-card__row${editing ? ' is-editing' : ''}">
+    <div class="c-settings-card__row${editing ? ' is-editing' : ' c-settings-card__row--tappable" data-tap-edit="password'}">
       <div class="c-settings-card__body">
         <p class="c-settings-card__label">パスワード</p>
         <p class="c-settings-card__value c-settings-card__value--masked">●●●●●●●●</p>
       </div>
-      ${!editing ? `<button type="button" id="acc-pw-edit" class="c-settings-card__edit">変更</button>` : ''}
+      ${!editing ? `<button type="button" id="acc-pw-edit" data-tap-edit-btn="password" class="c-settings-card__edit">変更</button>` : ''}
     </div>
     ${editing && step === 'edit' ? `
       <input id="acc-pw-current" type="password"
@@ -366,6 +367,9 @@ function _bindEvents() {
 
   document.getElementById('acc-logout')?.addEventListener('click', () => state.logout());
   document.getElementById('acc-delete')?.addEventListener('click', () => _confirmAndDeleteAccount());
+
+  // ユーザー名・メール・パスワードは、行のどこをタップしても「変更」と同じ
+  bindTapToEdit();
 
   // --- 通知（Web Push）---
   // 購読状態の取得は非同期なので、初回は未取得のまま描画し、判明したら再描画する。
