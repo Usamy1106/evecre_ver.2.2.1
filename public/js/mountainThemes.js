@@ -30,27 +30,31 @@ export const BG_THEMES = [
     landform: { advanceMin: 420, advanceMax: 720 },
 
     // ── 植物 ────────────────────────────────────────────
-    // every: 「見えている地形」N 枚につき1枚に植える（雲の every と同じ考え方）
-    //        ★これが本数を決める一番効く摘み。使わないテーマは `WorldSpawnedObjects: null`。
+    // every: 「見えている地形」N 枚につき1枚に植える（雲の every と同じ考え方）。
+    //        使わないテーマは `WorldSpawnedObjects: null`。
     // count: 選ばれた1枚に植える本数（この範囲で毎回抽選）
     //
-    // ★密度の目安：**地形1枚あたりの本数 ≒ (countMin + countMax) ÷ 2 ÷ every**
-    //     every:4 / count 1〜2 → 0.375 本（＝地形 2.7 枚に1本）
-    //     every:3 / count 1〜2 → 0.5   本（＝地形 2 枚に1本）
-    //     every:1              → 全部の地形に植わり、1イベント100本超の密林になる
-    //   1 にしないこと。3〜4 を目安に。
+    // ★密度の目安：**(countMin + countMax) ÷ 2 ÷ every** 本を植えようとし、置き場所が
+    //   見つからない・天井を超える分を諦めるので、実際はその6〜8割になる。
+    //   2026-09-19 の調整：MorningMeadow 0〜2本 / WindyMeadow 0〜3本（大きめの草木）で、
+    //   見えている地形1枚あたり 0.6〜0.9 本・1イベント最大 40 本前後。
+    //   （一度 5〜7本＝1枚あたり3〜4本にしたが、多すぎたので戻した）
+    //   countMin を 0 にすると、1本も生えない地形が混ざって疎密ができる。
+    //   総数は mountainPath.js の MAX_PLANTS（200）で頭打ちになる。
     // size : 描画後の幅（素材px）。素材の縦横比は保つので、細長い草と
     //        横広の茂みが同じ幅で並ぶ
-    // sink : 地形の上端（稜線）から**下へ**何px のところに根元を置くか。
-    //        ★0 に近づけると稜線から浮き、大きくすると地形に埋もれる。
-    //          素材ごとに稜線の高さが違うので、実機を見ながら詰める値
-    // ★横位置は幅いっぱいから自由に散らし、重なったときだけ引き直す。
+    // sink : 根元を置く高さの範囲。**稜線から下へ**何px か（素材px）。
+    //        ★根元は「見えている斜面」全体に散らす。sinkMin は稜線のすぐ下の上限
+    //          （素材の稜線は枠の上端より下にある）。下は手前の地形の上端までで、
+    //          sinkMax はとても高く見えている地形で下へ行きすぎないための上限。
+    //        ★sinkMin を 0 に近づけると稜線から浮く。素材ごとに稜線の高さが違うので、
+    //          実機を見ながら詰める値
+    // ★横位置は幅いっぱいから自由に散らし、重なったときだけ引き直す。重なりは縦横の
+    //   2次元で見るので、根元の高さが違えば横に重なってよい（奥行きが出る）。
     //   置き場所が見つからなかった1本は諦めるので、countMax を上げても
     //   際限なく詰まることはない（無理に詰めると結局くっついて見える）。
-    // ★sink の幅を狭くすると、同じ地形の2本が同じ高さに並んで横一列に見える。
-    //   ある程度は開けておくこと。
-    WorldSpawnedObjects: { every: 3, countMin: 1, countMax: 2,
-             sizeMin: 280, sizeMax: 560, sinkMin: 150, sinkMax: 430 },
+    WorldSpawnedObjects: { every: 1, countMin: 0, countMax: 2,
+             sizeMin: 480, sizeMax: 900, sinkMin: 150, sinkMax: 1400 },
 
     // ── 気象 ────────────────────────────────────────────
     // 素材が無いテーマは null。★フォルダが空でも null と同じ扱いになる。
@@ -78,8 +82,8 @@ export const BG_THEMES = [
     id: 'WindyMeadow',
     // ★「風」のテーマなので地形は間隔を広めに取り、雲を多く・速く流す。
     landform: { advanceMin: 460, advanceMax: 760 },
-    WorldSpawnedObjects: { every: 3, countMin: 1, countMax: 2,
-             sizeMin: 240, sizeMax: 520, sinkMin: 160, sinkMax: 470 },
+    WorldSpawnedObjects: { every: 1, countMin: 0, countMax: 3,
+             sizeMin: 540, sizeMax: 820, sinkMin: 160, sinkMax: 1400 },
     phenomenon: null,
     cloud: { every: 3, speed: [55, 100], dir: 'both',
              sizeMin: 460, sizeMax: 820, skyMin: 150, skyMax: 1000 },

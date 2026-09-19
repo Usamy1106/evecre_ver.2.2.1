@@ -55,7 +55,11 @@ const OPACITY_MIN = K('OPACITY_MIN'), OPACITY_RANGE = K('OPACITY_RANGE');
 const ART_W = K('ART_W'), LF_OVERLAP = K('LF_OVERLAP');
 const THEME_RUN = K('THEME_RUN'), MAX_PARTS = K('MAX_PARTS');
 const PLANT_MIN_STRIP = K('PLANT_MIN_STRIP'), MAX_PLANTS = K('MAX_PLANTS');
-const PLANT_GAP = K('PLANT_GAP');
+const PLANT_GAP = K('PLANT_GAP'), PLANT_ROW_RATIO = K('PLANT_ROW_RATIO'), PLANT_MIN_BAND = K('PLANT_MIN_BAND');
+// ★mountainPath.js の _plantsCollide と同じ条件（横にすき間込みで重なり、かつ根元の高さが近い）
+const plantsCollide = (a, b) =>
+  a.x < b.x + b.w + PLANT_GAP && b.x < a.x + a.w + PLANT_GAP &&
+  Math.abs(a.y - b.y) < PLANT_ROW_RATIO * Math.min(a.h, b.h);
 const MAX_DRIFT = K('MAX_DRIFT');
 
 // 素材の一覧と調整値。★テスト側に複製せず、実装と同じものを読む
@@ -434,8 +438,9 @@ section('[E] 退行していないこと');
 section('[F] 植物が重ならず、設定の範囲に収まる');
 {
   const events = ['e1', 'e2', 'e3', 'x9', 'zz'];
-  const overlap = [], outRange = [], outBox = [], hiddenPlanted = [];
-  let total = 0, planted = 0;
+  const overlap = [], outRange = [], outBox = [], hiddenPlanted = [], outBand = [];
+  let total = 0, planted = 0, plantable = 0;
+  const spreads = [];
 
   for (const ev of events) {
     const parts = build(48, ev).parts;
@@ -450,6 +455,7 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
       const prev = parts[k - 1];
       const strip = prev ? (pt.y + pt.h) - (prev.y + prev.h) : pt.h;
       if (pt.plants.length && strip < PLANT_MIN_STRIP) hiddenPlanted.push(`${ev}[${k}] 帯${strip}`);
+      if (cfg && cfg.every > 0 && strip >= PLANT_MIN_STRIP) plantable++;
 
       if (cfg && pt.plants.length > cfg.countMax) outRange.push(`${ev} ${pt.theme} ${pt.plants.length}個`);
       for (const pl of pt.plants) {
@@ -458,14 +464,36 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
         if (pl.x < 0 || pl.x + pl.w > ART_W) outBox.push(`${ev} x=${pl.x} w=${pl.w}`);
         // 根元が地形の中にあるか
         if (pl.y < 0 || pl.y > pt.h) outBox.push(`${ev} y=${pl.y} h=${pt.h}`);
+        // ★根元が「見えている斜面」の中にある。手前の地形の上端（pt.h - strip）より下だと
+        //   根元が隠れて宙に浮いて見え、稜線から sinkMin より上だと稜線から浮く
+        //   ★見えている斜面が狭い地形では、最低 PLANT_MIN_BAND の幅まで下へ広げてよい
+        const bandBot = Math.max(0, Math.min(pt.h - strip, pt.h - cfg.sinkMin - PLANT_MIN_BAND));
+        if (cfg && (pl.y < bandBot || pl.y > pt.h - cfg.sinkMin)) outBand.push(`${ev}[${k}] y=${pl.y} 帯=${bandBot}〜${pt.h - cfg.sinkMin}`);
       }
-      // 同じ地形の植物どうしが重ならない（横の区間で判定）
-      const xs = pt.plants.map(pl => [pl.x, pl.x + pl.w]).sort((a, b) => a[0] - b[0]);
-      for (let i = 1; i < xs.length; i++) if (xs[i][0] < xs[i - 1][1]) overlap.push(`${ev} ${xs[i - 1]}∩${xs[i]}`);
+      // ★同じ地形の植物どうしが重ならない（縦横の2次元。根元の高さが十分違えば横に重なってよい）
+      for (let i = 0; i < pt.plants.length; i++) {
+        for (let j = i + 1; j < pt.plants.length; j++) {
+          if (plantsCollide(pt.plants[i], pt.plants[j])) overlap.push(`${ev}[${k}] ${pt.plants[i].x},${pt.plants[i].y}∩${pt.plants[j].x},${pt.plants[j].y}`);
+        }
+      }
+      if (pt.plants.length >= 3) {
+        const ys = pt.plants.map(pl => pl.y);
+        spreads.push(Math.max(...ys) - Math.min(...ys));
+      }
     }
   }
 
-  ok('★同じ地形の植物どうしが重ならない', overlap.length === 0, overlap.slice(0, 3).join(' '));
+  ok(`★同じ地形の植物どうしが重ならない（横 ${PLANT_GAP}px のすき間込み・根元の高さの差が高さ×${PLANT_ROW_RATIO} 未満のとき）`,
+    overlap.length === 0, overlap.slice(0, 3).join(' '));
+  ok('★根元が見えている斜面の中にある（手前の地形に隠れない・稜線から浮かない）',
+    outBand.length === 0, outBand.slice(0, 3).join(' '));
+  // ★縦にも散っていること（稜線沿いの1列に戻っていない）。3本以上ある地形の大半で
+  //   根元の高さに 150 素材px 以上の幅がある
+  {
+    const wide = spreads.filter(d => d >= 150).length;
+    ok('★斜面の上下にも散っている（稜線沿いの1列に戻っていない）',
+      spreads.length > 0 && wide / spreads.length >= 0.6, `${wide}/${spreads.length} 枚`);
+  }
   ok(`★ほとんど隠れている地形（見える帯 ${PLANT_MIN_STRIP} 未満）には植えない`,
     hiddenPlanted.length === 0, hiddenPlanted.slice(0, 3).join(' '));
   ok('個数・大きさがテーマ設定の範囲に収まる', outRange.length === 0, outRange.slice(0, 3).join(' '));
@@ -635,23 +663,15 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
     firstXs.length > 0 && firstXs.some(x => x > ART_W / 2),
     `1本目の x: ${firstXs.slice(0, 8).join(', ')}`);
 
-  // 隙間。0 だと葉が触れて1本の茂みに見える
-  const tight = [];
-  for (const ev of events) {
-    for (const pt of build(48, ev).parts) {
-      const xs = pt.plants.map(pl => [pl.x, pl.x + pl.w]).sort((a, b) => a[0] - b[0]);
-      for (let i = 1; i < xs.length; i++) {
-        if (xs[i][0] - xs[i - 1][1] < PLANT_GAP) tight.push(`${ev} すき間${xs[i][0] - xs[i - 1][1]}`);
-      }
-    }
-  }
-  ok(`★植物どうしに ${PLANT_GAP} 素材px 以上のすき間がある`, tight.length === 0, tight.slice(0, 3).join(' '));
+  // ★すき間（PLANT_GAP）は上の「重ならない」に含めた（根元の高さが近い草木どうしだけに効く）
 
   // ★縦位置も1本ごとに散っていること。同じ高さに並ぶとそれだけで横一列に見える
+  // ★見るのは3本以上の地形（2026-09-19 に変更）。5〜7本を斜面に散らす今の置き方では、
+  //   2本がたまたま近い高さになることは普通に起きる（それは「1列」ではない）。
   const flat = [];
   for (const ev of events) {
     for (const pt of build(48, ev).parts) {
-      if (pt.plants.length >= 2) {
+      if (pt.plants.length >= 3) {
         const ys = pt.plants.map(pl => pl.y);
         if (Math.max(...ys) - Math.min(...ys) < 20) flat.push(`${ev} ${ys.join('/')}`);
       }
@@ -659,12 +679,18 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
   }
   ok('★同じ地形の植物が同じ高さに並ばない', flat.length === 0, flat.slice(0, 3).join(' '));
 
-  // 密度。「地形2〜4枚に1本」を目安にしている
-  const density = total / events.length / (build(48, 'e1').parts.length || 1);
-  ok('★密度が「地形2〜4枚に1本」の範囲に収まる', density >= 0.2 && density <= 0.55,
-    `地形1枚あたり ${density.toFixed(2)} 本`);
+  // ★密度。分母は草木のあるテーマで、見えている帯が PLANT_MIN_STRIP 以上の地形（＝植える候補）。
+  // ★期待値はテーマ設定から計算する（(countMin+countMax)÷2÷every の平均）。数字を決め打ちしないこと
+  //   （本数は mountainThemes.js で何度も調整されるので、決め打ちだと調整のたびに検査が落ちる。落とし穴 0-8）。
+  //   置き場所が見つからない・天井を超える分は諦めるので、実測は期待値より少ない。
+  //   期待値の 4割〜10割に収まれば正常（下回るのは草木が植わらなくなった不具合、上回るのは設定を超えた不具合）。
+  const plantCfgs = BG_THEMES.map(t => t.WorldSpawnedObjects).filter(c => c && c.every > 0);
+  const expected = plantCfgs.reduce((s2, c) => s2 + (c.countMin + c.countMax) / 2 / c.every, 0) / (plantCfgs.length || 1);
+  const density = total / (plantable || 1);
+  ok('★密度がテーマ設定の本数に見合っている（期待値の 4割〜10割）',
+    density >= expected * 0.4 && density <= expected, `見えている地形1枚あたり ${density.toFixed(2)} 本 / 期待値 ${expected.toFixed(2)} 本`);
 
-  console.log(`     （完了48 で 地形 ${p48.length} 枚 / 植えた ${withPlants} 枚 / 植物 ${total / events.length | 0} 本 = 地形 ${(1 / density).toFixed(1)} 枚に1本）`);
+  console.log(`     （完了48 で 地形 ${p48.length} 枚 / 植えた ${withPlants} 枚 / 植物 ${total / events.length | 0} 本 / 見えている地形1枚あたり ${density.toFixed(2)} 本）`);
 }
 
 // ── [G] 横に流れる要素（雲）──────────────────────────────

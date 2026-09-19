@@ -108,7 +108,7 @@ const LF_OVERLAP = 800;
 //   ★マスの数で切り替えないこと。マスは画面px、地形は素材px で、画面幅によって
 //     対応がずれるので、マス基準にすると端末ごとに景色が変わってしまう。
 //   ★変えると全イベントの景色の帯の区切りが一斉に変わる（全員で同じように変わる）。
-const THEME_RUN = 6;
+const THEME_RUN = 8;
 // ★1イベントで積むパーツ数の上限。素材1枚が平均 247KB なので、
 //   ここを上げると通信量とメモリが素直に増える。実際に必要な枚数は
 //   キャンバスの高さから決まり、たいていこの上限には届かない。
@@ -116,15 +116,31 @@ const MAX_PARTS = 60;
 // ★植物を植えるのは「実際に見えている地形」だけ。手前の地形に隠れて
 //   ほとんど出ていない地形に植えても、正しく隠れて見えないまま DOM だけ増える。
 const PLANT_MIN_STRIP = 200;   // 見えている帯がこれ未満（素材px）の地形には植えない
-// ★植物の総数の上限。1本ずつは軽い SVG だが、要素数が増えるとスクロールの
+// ★植物の総数の上限。1本ずつは軽い画像だが、要素数が増えるとスクロールの
 //   合成コストが効いてくる。0.5CPU 環境が基準。
-const MAX_PLANTS = 120;
+// ★200（2026-09-19 に 120 から上げた）。一時「見えている地形1枚あたり3〜4本」にした際、
+//   完了の多いイベントで 120 に当たったため。今の設定（1枚あたり1本前後）では
+//   1イベント最大 40 本前後で、上限には届かない。上げるときは iPhone 実機で
+//   スクロールの滑らかさを確かめること。
+const MAX_PLANTS = 200;
 // ★植物の横位置を引き直す回数。等分スロットに1本ずつ置く方式は「左・中・右」に
 //   きれいに並んで横一列に見えたので、幅いっぱいから引いて重なりだけ避ける方式にした。
 //   上げすぎると、狭い場所へ無理に押し込んで結局くっついて見える。
-const PLANT_TRIES = 8;
+// ★16（本数を増やしたので 8 から上げた）。見つからなければその1本は諦める。
+const PLANT_TRIES = 16;
 // 植物どうしの最低すき間（素材px）。0 にすると葉が触れて1本の茂みに見える
 const PLANT_GAP = 60;
+// ★「重なり」とみなす根元の高さの近さ（小さいほうの草木の高さに対する割合）。
+//   根元の高さがこれ以上違えば、横に重なっていてもよい（奥の草木を手前の草木が
+//   少し隠す＝奥行きが出る）。0 にすると横に重ならない制約が消え、1 に近づけるほど
+//   横に重ならなかった以前の置き方（稜線に沿って1列）に戻る。
+const PLANT_ROW_RATIO = 0.35;
+// ★根元を散らす高さの最小の幅（素材px）。見えている斜面がとても狭い地形でも、
+//   これだけの幅に根元を散らす。幅が0に近いと、同じ高さに横一列で並んでしまう
+//   （check:mountain の「同じ高さに並ばない」で検出した）。
+//   ★手前の地形の稜線は、その枠の上端より sinkMin 程度下にあるので、枠の上端より
+//     少し下までは実際に見えている。200 ならその範囲に収まる。
+const PLANT_MIN_BAND = 200;
 // ★草木を「植える／植えない」の判定（天井・看板よけ）に使う**基準の画面**（画面px）。
 //   ★実際の画面で判定しないこと。積む地形の枚数と看板の位置は画面の大きさで変わるので、
 //     実画面で判定すると**同じイベントでも端末ごとに草木が違っていた**（約半数のイベントで
@@ -338,6 +354,27 @@ function _rndInt(seed, min, max) {
 }
 
 /**
+ * _rndInt と同じだが、ハッシュの後に murmur3 の仕上げ（fmix32）で**よく混ぜる**。
+ *
+ * ★FNV-1a は**種の最後の1文字だけが違うと結果がほとんど混ざらない**
+ *   （最後の文字は XOR してから1回掛けるだけのため）。`…:ps:${k}:${j}` のように末尾で
+ *   番号を回すと、範囲によっては値が 1 ずつしか違わず、同じ地形の草木7本の根元が
+ *   すべて同じ高さに並んだ（2026-09-19 に check:mountain で検出）。横位置の引き直し
+ *   （末尾が試行回数）も同じで、何回引き直してもほぼ同じ場所を試していた。
+ * ★草木（_plantingPlan）の抽選はこれを使う。
+ * ★地形・雲・テーマの抽選を _rndInt からこちらへ移さないこと。**全イベントの景色が
+ *   一斉に作り直される**（草木は今回作り直したので構わないが、地形は据え置く）。
+ */
+function _rndIntMix(seed, min, max) {
+  if (!(max > min)) return min;
+  let h = _hash(seed);
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return min + ((h >>> 0) % (max - min + 1));
+}
+
+/**
  * 山札から count 枚を配る。**同じキーが2回続かない**ように取る。
  *
  * ★保存しない。seedBase（イベントIDなど）から決定的に導出する。
@@ -399,6 +436,16 @@ function _artHeight(a) {
 /** 設定と素材が両方そろっているテーマだけを使う（片方だけのものは黙って飛ばす） */
 function _usableThemes() {
   return BG_THEMES.filter(t => (BG_ASSETS[t.id]?.landform || []).length > 0);
+}
+
+/**
+ * 同じ地形の草木2本が「重なっている」か（素材px）。
+ * 横に（PLANT_GAP のすき間を含めて）重なり、**かつ**根元の高さが近いときだけ true。
+ * ★check:mountain も同じ条件で検査する。条件を変えるときは両方を直すこと。
+ */
+function _plantsCollide(a, b) {
+  const xHit = a.x < b.x + b.w + PLANT_GAP && b.x < a.x + a.w + PLANT_GAP;
+  return xHit && Math.abs(a.y - b.y) < PLANT_ROW_RATIO * Math.min(a.h, b.h);
 }
 
 /**
@@ -495,9 +542,8 @@ function _plantingPlan(eventId, parts, board) {
    * その位置に置くと**山頂の看板と重なる**か（素材px の矩形どうし）。
    *
    * ★看板は文字が乗るので、草木が前に生えると読めない。少し余白も取る。
-   * ★看板の有無（isSummit）で切り替えないこと。開催が終わった瞬間に草木が
-   *   消えると「全メンバーがいつでも同じ景色を見る」が崩れる。看板を出していない
-   *   間も、その場所には最初から生やさない。
+   * ★いまの呼び出し元（_renderBgLayer）は board に null を渡す（開催前は看板よけをしない。
+   *   開催後の看板の前は _renderBgLayer がその端末で隠す）。board を渡したときだけ効く。
    * ★x が空いていれば諦めずに引き直す（下の PLANT_TRIES のループの中で見る）。
    *   先に諦めると、看板の高さ帯の草木がまるごと消えて一段だけ禿げて見える。
    */
@@ -541,18 +587,31 @@ function _plantingPlan(eventId, parts, board) {
 
     const part = parts[k];
     const list = BG_ASSETS[part.theme].WorldSpawnedObjects;
-    const count = Math.min(_rndInt(`${eventId}:pc:${k}`, cfg.countMin, cfg.countMax), budget);
+    const count = Math.min(_rndIntMix(`${eventId}:pc:${k}`, cfg.countMin, cfg.countMax), budget);
     if (count <= 0) continue;
 
     const picks = _dealDeck(list, `${eventId}:pl:${k}`, count, x => x.n);
     const placed = [];
 
+    // ★根元は**見えている斜面の上から下まで**に散らす（2026-09-19）。
+    //   以前は稜線のすぐ下の細い帯（sink）だけに置いていたので、稜線に沿って1列に並び、
+    //   地形ごとに固まって見えた。
+    //   - 上限：稜線から sinkMin 下（素材の稜線は枠の上端より下にあるため）
+    //   - 下限：手前の地形の上端（part.h - strip）。これより下に根元を置くと、
+    //     根元が手前の地形に隠れて草木が宙に浮いて見える
+    //   - sinkMax：帯がとても高い地形（いちばん下の地形など）で下へ行きすぎない上限
+    //   - 幅は最低 PLANT_MIN_BAND 確保する（狭すぎると同じ高さに横一列で並ぶ）
+    const rootTop = Math.max(0, part.h - cfg.sinkMin);
+    const rootBot = Math.max(0, Math.min(
+      Math.max(part.h - part.strip, part.h - cfg.sinkMax),
+      rootTop - PLANT_MIN_BAND,
+    ));
+
     for (let j = 0; j < picks.length; j++) {
       const x0 = picks[j];
-      const w = _rndInt(`${eventId}:pw:${k}:${j}`, cfg.sizeMin, cfg.sizeMax);
+      const w = _rndIntMix(`${eventId}:pw:${k}:${j}`, cfg.sizeMin, cfg.sizeMax);
       const h = Math.max(1, Math.round(w * x0.h / x0.w));
-      const sink = _rndInt(`${eventId}:ps:${k}:${j}`, cfg.sinkMin, cfg.sinkMax);
-      const y = Math.max(0, part.h - sink);
+      const y = _rndIntMix(`${eventId}:ps:${k}:${j}`, rootBot, rootTop);
 
       // ★先端が天井を超えるなら、この1本は諦める（位置も大きさも調整しない）。
       //   下げたり縮めたりして救うと、天井付近で高さが揃って**横一直線の生け垣**に
@@ -563,16 +622,22 @@ function _plantingPlan(eventId, parts, board) {
 
       // ★重ならない位置が見つかるまで引き直す。見つからなければその1本は諦める
       //   （無理に詰めると等分スロットと同じ「並んだ」見た目に戻る）。
+      // ★重なりは**縦横の2次元**で見る。横に重なっても、根元の高さが
+      //   PLANT_ROW_RATIO 以上違えば別の段として許す（奥行きが出て、本数も入る）。
       let x = -1;
       for (let t = 0; t < PLANT_TRIES; t++) {
-        const cand = _rndInt(`${eventId}:px:${k}:${j}:${t}`, 0, Math.max(0, ART_W - w));
-        const hit = placed.some(q => cand < q.x + q.w + PLANT_GAP && q.x < cand + w + PLANT_GAP);
+        const cand = _rndIntMix(`${eventId}:px:${k}:${j}:${t}`, 0, Math.max(0, ART_W - w));
+        const hit = placed.some(q => _plantsCollide(q, { x: cand, y, w, h }));
         if (!hit && !hitsBoard(part.y, cand, y, w, h)) { x = cand; break; }
       }
       if (x < 0) continue;
 
       placed.push({ file: x0.f, v: x0.v, x, y, w, h });
     }
+
+    // ★奥（根元が高い＝上）のものから先に DOM へ並べる。後から描かれる手前の草木が
+    //   奥の草木に重なって見える（同じ地形の中の前後関係）。
+    placed.sort((a, b) => b.y - a.y);
 
     if (placed.length === 0) continue;
     out.set(k, placed);
@@ -733,10 +798,14 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   //   地形の k 番目の中身は eventId と k だけで決まる（画面では変わらない）ので、
   //   基準の画面で決めた k 番目の草木を、この端末の k 番目の地形にそのまま植えられる。
   //   ★実画面の parts / board を _plantingPlan に渡さないこと（端末ごとに草木が変わる）。
-  //   ★看板よけも基準の画面の看板で行う。看板が出ていない間も、その場所には生やさない。
+  //   ★開催前は看板よけをしない（board に null）。2026-09-19 に「草木をもっと散らして
+  //     たくさん」という要望で決めた。以前は開催前から看板の予定地（斜面の真ん中の
+  //     幅1100の四角）を空けており、完了が少ないうちは斜面の真ん中が禿げて見えた。
+  //     代わりに、開催後は下の hiddenHere がその端末の看板の前の草木を隠す
+  //     （＝開催が終わった瞬間、看板の前の草木だけ消える。看板の文字を読むため）。
   const refCanvasH = _canvasHFor(PLANT_REF_H, clearedCount + 1);
   const refParts   = _landformPlan(eventId, _needTopArt(refCanvasH, PLANT_REF_W, PLANT_REF_H));
-  const planting   = _plantingPlan(eventId, refParts, _summitRect(refParts, refCanvasH, PLANT_REF_W));
+  const planting   = _plantingPlan(eventId, refParts, null);
 
   // ★この端末でだけ描かない草木（どちらも「見えてはいけない」ものに限る）：
   //   - この端末の天井を超えるもの … 基準より小さい画面だけで起きる（空に浮くのを防ぐ）
