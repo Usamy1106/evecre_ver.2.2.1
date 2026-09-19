@@ -85,6 +85,21 @@ const app = express();
 // req.ip が正しいクライアント IP を返すようになる（rate limiting に必要）
 app.set('trust proxy', 1);
 
+// ===== レスポンス圧縮 =====
+// ★JS/CSS が無圧縮で 1,662KB あり、1ファイルずつ gzip しても 533KB になる（実測。br ならさらに小さい）。
+//   本番（Render）の手前でも圧縮されていなかった（2026-09-19 に content-encoding 無しを確認）。
+//   静的配信・API レスポンスの両方に効かせるため、express.json より前・
+//   express.static より前に置く。順番を変えないこと。
+// ★SSE（GET /api/events）は圧縮してはいけない（バッファされてリアルタイム性が死ぬ）。
+//   このミドルウェアは Cache-Control に no-transform があるレスポンスを自動で
+//   スキップする。SSE 側は 'no-cache, no-transform' を送っている。
+//   **あの no-transform を消すと SSE が壊れる。**
+// ★ブラウザが対応していれば Brotli（br）を優先し、未対応なら gzip になる（compression@1.8 の既定）。
+//   強さは既定のまま（br は quality 4、gzip は level 6）。どちらも CPU 負担は同程度。
+//   Render は 0.5 CPU なので上げないこと。
+// ★画像（webp/png）は compressible ではないので対象外になる。CPU は無駄にならない。
+app.use(require('compression')());
+
 // 5MB：提出物画像の上限 2MB（base64 で約 2.7MB）＋余裕。
 // PUT /api/data の実測ボディは最大 146KB（全イベント全文送信でも）なので影響しない。
 app.use(express.json({ limit: '5mb' }));
