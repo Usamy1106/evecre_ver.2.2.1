@@ -276,6 +276,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
   padding: var(--space-4) var(--space-4) var(--space-2);
 }
 
@@ -362,8 +363,12 @@
   gap: var(--space-1);
 }
 
+/* 塗りの丸いボタン。「招待する」とロールの「+ 追加」で共用する。
+   ★隣の説明文が長くても潰れて折り返さないよう、縮ませない */
 .p-event-settings__invite {
+  flex-shrink: 0;
   padding: var(--space-2) var(--space-4);
+  white-space: nowrap;
   border-radius: var(--radius-full);
   background-color: var(--color-primary);
   font-size: var(--font-size-sm);

@@ -571,7 +571,7 @@ function _userManagementSection(p, sec) {
             <p class="p-event-settings__member-sub">「管理者権限」がONのロールはタスクの作成・編集などができます。</p>
           </div>
           ${canMgr ? `
-            <button id="ps-role-add" class="c-settings-list__edit">+ 追加</button>
+            <button id="ps-role-add" class="p-event-settings__invite">+ 追加</button>
           ` : ''}
         </div>
         ${sec.roleAdding ? _renderRoleAddForm(sec) : ''}
