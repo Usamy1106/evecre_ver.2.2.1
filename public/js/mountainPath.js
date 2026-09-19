@@ -119,6 +119,17 @@ const MAX_PLANTS = 120;
 const PLANT_TRIES = 8;
 // 植物どうしの最低すき間（素材px）。0 にすると葉が触れて1本の茂みに見える
 const PLANT_GAP = 60;
+// ★草木を「植える／植えない」の判定（天井・看板よけ）に使う**基準の画面**（画面px）。
+//   ★実際の画面で判定しないこと。積む地形の枚数と看板の位置は画面の大きさで変わるので、
+//     実画面で判定すると**同じイベントでも端末ごとに草木が違っていた**（約半数のイベントで
+//     本数や位置が変わっていた。2026-09-19 に修正）。
+//   ★この大きさは「地形がいちばん少なく積まれる画面」（幅が最大の 448・背が低い）。
+//     天井がいちばん低くなるので、これより大きい端末では草木が稜線から浮くことが無い。
+//     代償として、背の高い端末では基準より上に積まれた地形に草木が生えない。
+//   ★これより小さい画面（背の低い PC のウィンドウなど）では、その端末の天井を超える
+//     草木だけを描かない（_renderBgLayer）。
+const PLANT_REF_W = 448;
+const PLANT_REF_H = 600;
 // 山頂の看板のまわりに空ける余白(素材px)。★看板には文字が乗るので、
 // 草木が前に生えると読めない。ぎりぎりだと葉先が掛かるので少し広めに取る。
 const BOARD_CLEAR = 60;
@@ -218,6 +229,14 @@ function _esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/** 画面の高さ viewH・マス n 個のときのキャンバスの高さ（画面px） */
+function _canvasHFor(viewH, n) {
+  return Math.max(
+    viewH - 120, // 画面全体に見せる最低高
+    TOP_PAD + Math.max(n - 1, 0) * NODE_GAP + BOTTOM_PAD + 44,
+  );
+}
+
 // マス列とキャンバス寸法（背景・スクロール窓で共有）
 // ★n は「完了数 + 1」。タスク数ではない（先に見えるマスは常に1つだけ）。
 function _layout(p) {
@@ -229,10 +248,7 @@ function _layout(p) {
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const clearedCount = cleared.length;
   const n = clearedCount + 1;   // 完了マス + 1個先の灰色マス
-  const canvasH = Math.max(
-    (typeof window !== 'undefined' ? window.innerHeight : 640) - 120, // 画面全体に見せる最低高
-    TOP_PAD + Math.max(n - 1, 0) * NODE_GAP + BOTTOM_PAD + 44,
-  );
+  const canvasH = _canvasHFor((typeof window !== 'undefined' ? window.innerHeight : 640), n);
   const xFor = i => _xAt(i);
   const yFor = i => canvasH - BOTTOM_PAD - i * NODE_GAP;
   return { missionCount: missions.length, cleared, clearedCount, n, canvasH, xFor, yFor };
@@ -280,15 +296,17 @@ const TOP_ALLOWANCE = 0.35;
  * ★使ってよいのは「どこまで積むか」を決める**組み立ての段階だけ**。
  *   描画の座標に使わないこと（端末幅で景色が変わる。換算は CSS の --art-unit）。
  */
-function _pxToArt(px) {
-  const w = Math.min((typeof window !== 'undefined' ? window.innerWidth : 400) || 400, 448);
+function _pxToArt(px, viewW) {
+  const vw = viewW ?? ((typeof window !== 'undefined' ? window.innerWidth : 400) || 400);
+  const w = Math.min(vw, 448);
   return px * ART_W / w;
 }
 
-function _needTopArt(canvasH) {
-  const viewH = (typeof window !== 'undefined' ? window.innerHeight : 640) || 640;
+/** viewW / viewH を省略すると実際の画面。草木の判定では基準の画面（PLANT_REF_*）を渡す */
+function _needTopArt(canvasH, viewW, viewH) {
+  const vh = viewH ?? ((typeof window !== 'undefined' ? window.innerHeight : 640) || 640);
   // キャンバスぶん＋逃げ（headroom で下へずらす量ぶん）
-  return _pxToArt(canvasH + viewH * TOP_ALLOWANCE);
+  return _pxToArt(canvasH + vh * TOP_ALLOWANCE, viewW);
 }
 
 /**
@@ -680,27 +698,52 @@ export function restoreBgLayer() {
  * ★<img> で出す（background-image では loading="lazy" が効かない）。
  *   画面外のぶんはブラウザがデコード済みビットマップを捨てられる。
  */
+/**
+ * 看板の矩形（素材px）。計算の中身は _renderBgLayer の「山頂」の節を参照。
+ * ★整数に丸める。_pxToArt は小数を返すので、そのまま CSS 変数に出すと
+ *   --lf-y:3566.5975 のような値になる（他のパーツはすべて整数）。
+ * 横は中央固定（CSS が left:50% + translateX(-50%)）。
+ */
+function _summitRect(parts, canvasH, viewW) {
+  const n = parts.length;
+  const anchor = parts[n - 2] || parts[n - 1] || null;
+  const anchorTop = anchor ? anchor.y + anchor.h : 0;
+  const summitCeil = Math.max(0, Math.round(_pxToArt(canvasH + SUMMIT_REACH, viewW)) - SUMMIT_W);
+  const y0 = Math.min(Math.max(0, anchorTop - SUMMIT_SINK), summitCeil);
+  return { x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2, y0, y1: y0 + SUMMIT_W };
+}
+
 function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   const parts = _landformPlan(String(p?.id || ''), _needTopArt(canvasH));
   const n = parts.length;
 
   const eventId = String(p?.id || '');
 
-  // ★看板の位置は**草木を植える前**に決める。看板と重なる場所には生やさないため
-  //   （文字の前に草木が生えると読めない）。計算の中身は下の「山頂」の節を参照。
-  const anchor = parts[n - 2] || parts[n - 1] || null;
-  const anchorTop = anchor ? anchor.y + anchor.h : 0;
-  // ★整数に丸める。_pxToArt は小数を返すので、そのまま CSS 変数に出すと
-  //   --lf-y:3566.5975 のような値になる（他のパーツはすべて整数）。
-  const summitCeil = Math.max(0, Math.round(_pxToArt(canvasH + SUMMIT_REACH)) - SUMMIT_W);
-  const summitY = Math.min(Math.max(0, anchorTop - SUMMIT_SINK), summitCeil);
-  // 看板の矩形（素材px）。横は中央固定（CSS が left:50% + translateX(-50%)）
-  const board = {
-    x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2,
-    y0: summitY,                y1: summitY + SUMMIT_W,
-  };
+  // この端末での看板の位置（実際に看板を立てる場所）
+  const board = _summitRect(parts, canvasH);
+  const summitY = board.y0;
 
-  const planting = _plantingPlan(eventId, parts, board);
+  // ★草木は**基準の画面（PLANT_REF_*）で**決める。全メンバー・全端末で同じ草木にするため。
+  //   地形の k 番目の中身は eventId と k だけで決まる（画面では変わらない）ので、
+  //   基準の画面で決めた k 番目の草木を、この端末の k 番目の地形にそのまま植えられる。
+  //   ★実画面の parts / board を _plantingPlan に渡さないこと（端末ごとに草木が変わる）。
+  //   ★看板よけも基準の画面の看板で行う。看板が出ていない間も、その場所には生やさない。
+  const refCanvasH = _canvasHFor(PLANT_REF_H, clearedCount + 1);
+  const refParts   = _landformPlan(eventId, _needTopArt(refCanvasH, PLANT_REF_W, PLANT_REF_H));
+  const planting   = _plantingPlan(eventId, refParts, _summitRect(refParts, refCanvasH, PLANT_REF_W));
+
+  // ★この端末でだけ描かない草木（どちらも「見えてはいけない」ものに限る）：
+  //   - この端末の天井を超えるもの … 基準より小さい画面だけで起きる（空に浮くのを防ぐ）
+  //   - 開催後、この端末の看板に重なるもの … 看板の文字を読めることを優先する
+  //   ★この2つ以外で端末ごとに草木を変えないこと。
+  const ceiling = parts.length ? Math.max(...parts.map(q => q.y + q.h)) : 0;
+  const hiddenHere = (pt, pl) => {
+    if (pt.y + pl.y + pl.h > ceiling) return true;
+    if (!isSummit) return false;
+    const x0 = pl.x - BOARD_CLEAR, x1 = pl.x + pl.w + BOARD_CLEAR;
+    const y0 = pt.y + pl.y - BOARD_CLEAR, y1 = pt.y + pl.y + pl.h + BOARD_CLEAR;
+    return x0 < board.x1 && board.x0 < x1 && y0 < board.y1 && board.y0 < y1;
+  };
 
   const lf = parts.map((pt, k) => {
 
@@ -716,7 +759,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
     //   ★lazy をやめても通信は増えない。**素材はユニークで12個・合計 48KB しかなく**、
     //     同じ src はブラウザが1回しか取りに行かない。何枚並べても取得は12回まで。
     //     1枚 250KB の地形とは事情がまったく違う（デコード量の問題も起きない）。
-    const plantHtml = (planting.get(k) || []).map(pl => `
+    const plantHtml = (planting.get(k) || []).filter(pl => !hiddenHere(pt, pl)).map(pl => `
         <img class="p-mountain__plant" src="${bgUrl(pt.theme, 'WorldSpawnedObjects', pl.file, pl.v)}" alt=""
           decoding="async" fetchpriority="low"
           style="--pl-x:${pl.x};--pl-y:${pl.y};--pl-w:${pl.w};--pl-h:${pl.h}">`).join('');

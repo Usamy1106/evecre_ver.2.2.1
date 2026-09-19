@@ -499,32 +499,57 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
   // ★山頂の看板の上に草木を生やさないこと。看板には文字が乗るので、前に生えると
   //   読めない（実機で指摘を受けた）。看板の横位置は中央固定（CSS が
   //   left:50% + translateX(-50%)）なので、矩形は ART_W と SUMMIT_W から出せる。
-  //   ★看板の有無（isSummit）で切り替えていないこと。開催が終わった瞬間に草木が
-  //     消えると「全メンバーがいつでも同じ景色を見る」が崩れる。ここでは看板を
-  //     出していない**開催前**のイベントでも、同じ場所が空いていることを見る。
+  //   ★見るのは**看板を出している開催後**だけ。開催前は「基準の画面の看板」を
+  //     よけて植えるだけで、端末ごとの看板の位置では変えない（下の検査を参照）。
+  //     開催後は、その端末の看板に重なる草木をその端末でだけ隠す。
   {
     const SUMMIT_W = K('SUMMIT_W');
     const hit = [];
     for (const ev of ['e1', 'e2', 'e3', 'e4', 'e5', 'e6']) {
       for (const done of [0, 3, 8, 16, 32]) {
-        for (const dates of [['2020-01-01'], ['2099-01-01']]) {   // 開催後／開催前
-          const r = build(done, ev, dates);
-          // 看板を出していないイベントでも、位置は同じ式で決まっている
-          const sy = r.summit ? +r.summit[1]
-            : Math.max(0, Math.round(r.canvasH * ART_W / 400 + K('SUMMIT_REACH') * ART_W / 400) - SUMMIT_W);
-          const b = { x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2, y0: sy, y1: sy + SUMMIT_W };
-          for (const pt of r.parts) {
-            for (const pl of pt.plants) {
-              const x0 = pl.x, x1 = pl.x + pl.w;
-              const y0 = pt.y + pl.y, y1 = pt.y + pl.y + pl.h;
-              if (x0 < b.x1 && b.x0 < x1 && y0 < b.y1 && b.y0 < y1) hit.push(`${ev}/${done} ${pl.file}`);
-            }
+        const r = build(done, ev, ['2020-01-01']);   // 開催後（看板あり）
+        const sy = +r.summit[1];
+        const b = { x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2, y0: sy, y1: sy + SUMMIT_W };
+        for (const pt of r.parts) {
+          for (const pl of pt.plants) {
+            const x0 = pl.x, x1 = pl.x + pl.w;
+            const y0 = pt.y + pl.y, y1 = pt.y + pl.y + pl.h;
+            if (x0 < b.x1 && b.x0 < x1 && y0 < b.y1 && b.y0 < y1) hit.push(`${ev}/${done} ${pl.file}`);
           }
         }
       }
     }
     ok('★山頂の看板に草木が重ならない（文字が読めなくなる）',
       hit.length === 0, hit.slice(0, 3).join(' / '));
+  }
+
+  // ★★同じイベントなら、**画面の大きさが違っても草木は同じ**であること（開催前）。
+  //   以前は天井と看板よけを実際の画面で判定していたため、約半数のイベントで端末ごとに
+  //   草木の本数や位置が変わっていた（「アカウントによって草木があったりなかったりする」
+  //   という報告。2026-09-19）。いまは基準の画面（PLANT_REF_W / PLANT_REF_H）で決める。
+  //   ★比べるのは全端末に共通してある地形だけ（背の高い端末ほど上に地形が多く積まれる）。
+  //   ★開催後は看板の前の草木を端末ごとに隠すので対象外（上の検査が見ている）。
+  {
+    const VIEWS = [[375, 667], [390, 844], [430, 932], [1440, 700], [1920, 1080]];
+    const saved = { w: window.innerWidth, h: window.innerHeight };
+    const diff = [];
+    for (const ev of ['e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8']) {
+      for (const done of [0, 3, 10, 32]) {
+        const runs = VIEWS.map(([w, h]) => {
+          window.innerWidth = w; window.innerHeight = h;
+          return build(done, ev, ['2099-01-01']).parts.map(pt => pt.plants.map(pl => `${pl.file}@${pl.x},${pl.y},${pl.w}`).join('|'));
+        });
+        const common = Math.min(...runs.map(r => r.length));
+        if (new Set(runs.map(r => r.slice(0, common).join(';'))).size > 1) diff.push(`${ev}/${done}`);
+      }
+    }
+    window.innerWidth = saved.w; window.innerHeight = saved.h;
+    ok('★★画面の大きさが違っても草木は同じ（全メンバーが同じ景色を見る）',
+      diff.length === 0, diff.slice(0, 5).join(' / '));
+    // ★草木の判定に実画面の地形・看板を渡していないこと（挙動の検査の裏付け）
+    const body = srcCode.slice(srcCode.indexOf('function _renderBgLayer'));
+    ok('★草木は基準の画面の地形で決めている（_plantingPlan に refParts を渡す）',
+      /_plantingPlan\(eventId,\s*refParts,/.test(body) && !/_plantingPlan\(eventId,\s*parts,/.test(body));
   }
 
   // ★天井は「全パーツの最高点」＝シルエット。parts.at(-1) で代用しないこと。
