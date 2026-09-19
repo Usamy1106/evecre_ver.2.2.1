@@ -193,6 +193,11 @@ function _profileSection(p, sec) {
   return _accordion('profile', 'プロフィール設定', body, sec);
 }
 
+// 行をタップして編集（utils.js の bindTapToEdit）。on が false の行には何も付けない
+// ＝編集中・権限なしの行は押せる見た目にもならない。
+const _tapCls  = (on, cls = 'c-settings-list__row--tappable') => on ? ` ${cls}` : '';
+const _tapAttr = (key, on) => on ? ` data-tap-edit="${_esc(key)}"` : '';
+
 // =====================================================
 // セクション: イベント管理
 // =====================================================
@@ -209,7 +214,7 @@ function _eventManagementSection(p, sec) {
       <div class="c-settings-list">
 
         <!-- イベント名 -->
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row${_tapCls(canMgr && !editingName)}"${_tapAttr('name', canMgr && !editingName)}>
           <p class="c-settings-list__label">イベント名</p>
           ${editingName ? `
             <input id="ps-name-input" type="text" value="${_esc(sec.draftValue || '')}"
@@ -221,7 +226,7 @@ function _eventManagementSection(p, sec) {
           ` : `
             <div class="c-settings-list__view c-settings-list__view--center">
               <span class="c-settings-list__value c-settings-list__value--truncate">${_esc(p.name)}</span>
-              ${canMgr ? `<button data-ps-edit="name" class="c-settings-list__edit">変更</button>` : ''}
+              ${canMgr ? `<button data-ps-edit="name" data-tap-edit-btn="name" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
@@ -229,7 +234,7 @@ function _eventManagementSection(p, sec) {
         <!-- 概要（旧「イベントの説明」）-->
         <!-- ★アーカイブの「概要」と同じ場所を読み書きする（utils.js の getter/setter 経由）。
              description にも同じ値が入る（提案エンジンと AI プロンプトが参照するため）。 -->
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row${_tapCls(canMgr && !editingDesc)}"${_tapAttr('description', canMgr && !editingDesc)}>
           <p class="c-settings-list__label">概要</p>
           ${editingDesc ? `
             <textarea id="ps-desc-input" rows="3" class="c-input c-input--block c-settings-list__input c-settings-list__input--multiline">${_esc(sec.draftValue || '')}</textarea>
@@ -240,34 +245,34 @@ function _eventManagementSection(p, sec) {
           ` : `
             <div class="c-settings-list__view">
               <span class="c-settings-list__value c-settings-list__value--body">${_esc(getArchiveSummary(p) || '(未設定)')}</span>
-              ${canMgr ? `<button data-ps-edit="description" class="c-settings-list__edit">変更</button>` : ''}
+              ${canMgr ? `<button data-ps-edit="description" data-tap-edit-btn="description" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
 
         <!-- 開催日時 -->
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row${_tapCls(canMgr)}"${_tapAttr('dates', canMgr)}>
           <p class="c-settings-list__label">開催日時</p>
           <div class="c-settings-list__view c-settings-list__view--center">
             <span class="c-settings-list__value c-settings-list__value--pre">${_formatDates(p.dates, p.dateTimes)}</span>
-            ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" class="c-settings-list__edit">変更</button>` : ''}
+            ${canMgr ? `<button onclick="window._app.openCalendarModal('projectEdit')" data-tap-edit-btn="dates" class="c-settings-list__edit">変更</button>` : ''}
           </div>
         </div>
 
         <!-- 引き継ぎ日（振り返りをやる日。複数日可）
              ★開催日（dates）とは別の配列（handoverDates）。締切計算やガントには入らない。
              ★最終日の翌日に、フェーズが自動で「完了」になる（state.js の _checkEventPhase）。 -->
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row${_tapCls(canMgr)}"${_tapAttr('handover', canMgr)}>
           <p class="c-settings-list__label">引き継ぎ日</p>
           <div class="c-settings-list__view c-settings-list__view--center">
             <span class="c-settings-list__value c-settings-list__value--pre">${_formatHandover(p.handoverDates)}</span>
-            ${canMgr ? `<button onclick="window._app.openCalendarModal('handover')" class="c-settings-list__edit">変更</button>` : ''}
+            ${canMgr ? `<button onclick="window._app.openCalendarModal('handover')" data-tap-edit-btn="handover" class="c-settings-list__edit">変更</button>` : ''}
           </div>
         </div>
 
         <!-- 開催場所 -->
         <!-- ★アーカイブの「場所」と同じ場所を読み書きする（utils.js の getter/setter 経由）-->
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row${_tapCls(canMgr && !editingVenue)}"${_tapAttr('venue', canMgr && !editingVenue)}>
           <p class="c-settings-list__label">開催場所</p>
           ${editingVenue ? `
             <input id="ps-venue-input" type="text" value="${_esc(sec.draftValue || '')}"
@@ -280,14 +285,14 @@ function _eventManagementSection(p, sec) {
           ` : `
             <div class="c-settings-list__view">
               <span class="c-settings-list__value">${_esc(getArchiveVenue(p) || '(未設定)')}</span>
-              ${canMgr ? `<button data-ps-edit="venue" class="c-settings-list__edit">変更</button>` : ''}
+              ${canMgr ? `<button data-ps-edit="venue" data-tap-edit-btn="venue" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
 
         <!-- 一言説明（旧キャッチコピー。保存先は catchphrase のまま）-->
         <!-- 招待ページ（招待バナー・参加確認モーダル）の一番上に表示される -->
-        <div class="c-settings-list__row">
+        <div class="c-settings-list__row${_tapCls(canMgr && !editingCatch)}"${_tapAttr('catchphrase', canMgr && !editingCatch)}>
           <p class="c-settings-list__label">一言で言うとどんなイベント？</p>
           ${editingCatch ? `
             <input id="ps-catch-input" type="text" maxlength="50" placeholder="例：学生の作品30点を展示する2日間の展示会"
@@ -300,7 +305,7 @@ function _eventManagementSection(p, sec) {
           ` : `
             <div class="c-settings-list__view">
               <span class="c-settings-list__value ${p.catchphrase ? 'c-settings-list__value--accent' : 'c-settings-list__value--body'}">${_esc(p.catchphrase || '(未設定)')}</span>
-              ${canMgr ? `<button data-ps-edit="catchphrase" class="c-settings-list__edit">変更</button>` : ''}
+              ${canMgr ? `<button data-ps-edit="catchphrase" data-tap-edit-btn="catchphrase" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
@@ -475,8 +480,9 @@ function _userManagementSection(p, sec) {
         </div>`;
     }
 
+    const canEditRow = (isOwner || canMgr) && !isOwnerRow;
     return `
-      <div class="p-event-settings__member">
+      <div class="p-event-settings__member${_tapCls(canEditRow, 'p-event-settings__member--tappable')}"${_tapAttr(`mrole-${m.userId}`, canEditRow)}>
         <div class="p-event-settings__member-main">
           ${Components.UserAvatar({ username: m.username, avatarUrl: m.avatarUrl }, { size: 32, userId: m.userId })}
           <div class="p-event-settings__member-body">
@@ -484,8 +490,8 @@ function _userManagementSection(p, sec) {
             <p class="p-event-settings__member-sub c-settings-list__value--truncate">${_esc(labels)}</p>
           </div>
         </div>
-        ${(isOwner || canMgr) && !isOwnerRow ? `
-          <button data-ps-mrole-edit="${m.userId}" class="c-settings-list__edit">変更</button>
+        ${canEditRow ? `
+          <button data-ps-mrole-edit="${m.userId}" data-tap-edit-btn="mrole-${_esc(m.userId)}" class="c-settings-list__edit">変更</button>
         ` : ''}
       </div>`;
   }).join('') || '<p class="p-event-settings__empty">メンバーがいません</p>';
@@ -526,8 +532,10 @@ function _userManagementSection(p, sec) {
           </div>
         </div>`;
     }
+    // ★行のタップは「編集」だけにつなぐ。「削除」は必ずボタンを押させる
+    const canEditRole = canMgr && !isOwnerRole;
     return `
-      <div class="p-event-settings__member">
+      <div class="p-event-settings__member${_tapCls(canEditRole, 'p-event-settings__member--tappable')}"${_tapAttr(`role-${r.id}`, canEditRole)}>
         <div class="p-event-settings__member-main">
           <span class="p-event-settings__member-name c-settings-list__value--truncate">${_esc(r.name)}</span>
           <span class="p-event-settings__role-chip${r.canManage ? ' p-event-settings__role-chip--manager' : (r.viewOnly ? ' p-event-settings__role-chip--view' : '')}">
@@ -537,7 +545,7 @@ function _userManagementSection(p, sec) {
         </div>
         ${canMgr ? `
           <div class="p-event-settings__member-actions">
-            ${!isOwnerRole ? `<button data-ps-role-edit="${r.id}" class="c-settings-list__edit c-settings-list__edit--tight">編集</button>` : ''}
+            ${!isOwnerRole ? `<button data-ps-role-edit="${r.id}" data-tap-edit-btn="role-${_esc(r.id)}" class="c-settings-list__edit c-settings-list__edit--tight">編集</button>` : ''}
             ${!disableDel ? `<button data-ps-role-delete="${r.id}" class="c-settings-list__edit c-settings-list__edit--tight c-settings-list__edit--danger">削除</button>` : ''}
           </div>` : ''}
       </div>`;
@@ -545,13 +553,13 @@ function _userManagementSection(p, sec) {
 
   return `
       <!-- メンバーの招待 -->
-      <div class="c-settings-list c-settings-list__row p-event-settings__group">
+      <div class="c-settings-list c-settings-list__row c-settings-list__row--tappable p-event-settings__group" data-tap-edit="invite">
         <div class="c-settings-list__view c-settings-list__view--center">
           <div>
             <p class="p-event-settings__member-name">メンバーを招待</p>
             <p class="p-event-settings__member-sub">招待リンクを発行して共有</p>
           </div>
-          <button id="ps-invite-open" class="p-event-settings__invite">招待する</button>
+          <button id="ps-invite-open" data-tap-edit-btn="invite" class="p-event-settings__invite">招待する</button>
         </div>
       </div>
 
@@ -637,9 +645,13 @@ function _bindEvents(p, sec) {
     });
   });
 
-  // ── プロフィール設定 ──
-  // 表示中の行（できること・やってみたいこと・ひとこと）のどこをタップしても「変更」と同じ
+  // ── 行のタップで編集 ──
+  // プロフィール設定・イベント管理・メンバー管理の各行は、どこをタップしても
+  // その行の「変更」（ロールは「編集」、招待は「招待する」）と同じ。
+  // ★行に data-tap-edit、ボタンに data-tap-edit-btn を付けるだけで対象になる
   bindTapToEdit();
+
+  // ── プロフィール設定 ──
   document.querySelector('[data-ps-profile-edit]')?.addEventListener('click', () => {
     const me = (p.members || []).find(m => m.userId === state.currentUser?.id) || {};
     const toMap = (ids) => Object.fromEntries((ids || []).map(id => [id, true]));

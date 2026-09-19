@@ -131,7 +131,7 @@ export function bindTapToEdit(root = document) {
   root.querySelectorAll('[data-tap-edit]').forEach(row => {
     row.addEventListener('click', (e) => {
       if (e.target.closest('button, a, input, textarea, select, label')) return;
-      root.querySelector(`[data-tap-edit-btn="${row.dataset.tapEdit}"]`)?.click();
+      root.querySelector(`[data-tap-edit-btn="${CSS.escape(row.dataset.tapEdit)}"]`)?.click();
     });
   });
 }

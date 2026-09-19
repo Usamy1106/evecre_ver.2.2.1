@@ -211,6 +211,16 @@
   border-bottom: 0;
 }
 
+/* 行のどこをタップしても「変更」「編集」と同じ（utils.js の bindTapToEdit）*/
+.p-event-settings__member--tappable {
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-event-settings__member--tappable:active {
+  background-color: var(--color-bg);
+}
+
 .p-event-settings__member-body {
   min-width: 0;
 }
