@@ -548,7 +548,7 @@ const _SCALE_LABELS = {
 const _MOTIVATION_LABELS = {
   lead:      'みんなを引っ張っていく',
   listen:    '一人ひとりの声を聞く',
-  enjoy:     'まず自分が全力で楽しむ',
+  enjoy:     'みんなで楽しむ',
   finish:    '最後までやりきる',
   challenge: '新しいことに挑戦する',
   // ★'trust'（仲間を信じて任せる）は選択肢から削除済み（2026-08-31）。

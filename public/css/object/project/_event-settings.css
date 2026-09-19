@@ -186,6 +186,11 @@
   color: var(--white);
 }
 
+/* 最後の1枚「＋ 自分で書く」。未入力だと分かるよう点線にする */
+.p-event-settings__motivation-pick--add {
+  border-style: dashed;
+}
+
 .p-event-settings__motivation-pick.is-on::before {
   margin-right: 4px;
   content: "✓";

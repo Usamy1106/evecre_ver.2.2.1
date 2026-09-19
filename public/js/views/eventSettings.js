@@ -304,12 +304,14 @@ function _eventManagementSection(p, sec) {
           `}
         </div>
 
-        <!-- 意気込み（カード複数選択＋ひとこと）-->
+        <!-- 意気込み（カード複数選択＋自分で書く）-->
         <!-- ★招待相手に表示され、🔥で応援できる。意気込みが未入力だと🔥ボタン自体が
              出ない（＝空のイベントでは応援できない）ので、ここから後追いで入れられるようにする。 -->
         <div class="c-settings-list__row">
           <p class="c-settings-list__label">意気込み</p>
           <p class="p-event-settings__sub-title">招待した相手に表示され、🔥で応援してもらえます</p>
+          <!-- ★最後の1枚が「＋ 自分で書く」（motivationText）。作成フロー STEP 6 と同じ並び。
+               自由記述は「一言でまとめる」欄ではなく、カードに無い意気込みを自分で足す欄。 -->
           ${canMgr ? `
             <div class="p-event-settings__motivation-tags p-event-settings__group">
               ${MOTIVATION_CARDS.map(c => {
@@ -320,27 +322,30 @@ function _eventManagementSection(p, sec) {
                     ${_esc(c.label)}
                   </button>`;
               }).join('')}
+              ${editingMotiv ? '' : p.motivationText ? `
+                <button type="button" data-ps-edit="motivationText" aria-label="自分で書いた意気込みを変更"
+                  class="p-event-settings__motivation-pick is-on">${_esc(p.motivationText)}</button>
+              ` : `
+                <button type="button" data-ps-edit="motivationText"
+                  class="p-event-settings__motivation-pick p-event-settings__motivation-pick--add">＋ 自分で書く</button>
+              `}
             </div>
+            ${editingMotiv ? `
+              <input id="ps-motiv-input" type="text" maxlength="50" placeholder="例：全員の名前を覚える"
+                value="${_esc(sec.draftValue || '')}" aria-label="自分で書く意気込み"
+                class="c-input c-input--block c-settings-list__input">
+              <div class="c-settings-card__actions">
+                <button id="ps-motiv-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+                <button id="ps-motiv-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
+              </div>
+            ` : ''}
           ` : `
             <div class="p-event-settings__motivation-tags">
-              ${(p.motivationTags || []).map(id => {
-                const label = MOTIVATION_CARDS.find(c => c.id === id)?.label;
-                return label ? `<span class="p-event-settings__motivation-tag">${_esc(label)}</span>` : '';
-              }).join('') || '<span class="c-settings-list__value c-settings-list__value--body">(未設定)</span>'}
-            </div>
-          `}
-          ${editingMotiv ? `
-            <input id="ps-motiv-input" type="text" maxlength="50" placeholder="ひとことで言うと？"
-              value="${_esc(sec.draftValue || '')}"
-              class="c-input c-input--block c-settings-list__input">
-            <div class="c-settings-card__actions">
-              <button id="ps-motiv-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
-              <button id="ps-motiv-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
-            </div>
-          ` : `
-            <div class="c-settings-list__view">
-              <span class="c-settings-list__value c-settings-list__value--body">${p.motivationText ? `「${_esc(p.motivationText)}」` : '(ひとこと未設定)'}</span>
-              ${canMgr ? `<button data-ps-edit="motivationText" class="c-settings-list__edit">変更</button>` : ''}
+              ${[
+                ...(p.motivationTags || []).map(id => MOTIVATION_CARDS.find(c => c.id === id)?.label),
+                p.motivationText,
+              ].filter(Boolean).map(label => `<span class="p-event-settings__motivation-tag">${_esc(label)}</span>`).join('')
+                || '<span class="c-settings-list__value c-settings-list__value--body">(未設定)</span>'}
             </div>
           `}
         </div>
@@ -716,6 +721,8 @@ function _bindEvents(p, sec) {
       : f === 'venue'          ? getArchiveVenue(p)
       :                          getArchiveSummary(p);
       state.render();
+      // 「＋ 自分で書く」はタップした場所と入力欄が離れるので、すぐ書き始められるようにする
+      if (f === 'motivationText') document.getElementById('ps-motiv-input')?.focus();
     });
   });
 
@@ -786,7 +793,7 @@ function _bindEvents(p, sec) {
     });
   });
 
-  // 意気込みのひとこと 保存・キャンセル
+  // 意気込みのひとこと（＝自分で書く意気込み）保存・キャンセル
   document.getElementById('ps-motiv-input')?.addEventListener('input', e => sec.draftValue = e.target.value);
   document.getElementById('ps-motiv-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
   document.getElementById('ps-motiv-save')?.addEventListener('click', async () => {

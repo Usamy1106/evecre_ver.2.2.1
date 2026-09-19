@@ -403,12 +403,42 @@ export function renderCreateEventCatchphrase(container) {
 // ★「なぜこのイベントをやりたいか」ではなく「リーダーとしてどう臨むか」を聞く。
 //   参加が承認された直後にメンバーへ見せ、🔥で応援してもらうための言葉なので、
 //   イベントの動機ではなく“この人がどういう姿勢でやるか”が伝わるほうがよい。
-// ★自由記述を2連続にしないため、カード選択（複数可）＋任意の一言の二段構えにする。
-//   カード0件・一言なしでも次へ進める。
+// ★カード選択（複数可）の**最後の1枚**として「＋ 自分で書く」を置く。
+//   自由記述（motivationText）は「意気込みを一言でまとめる」欄ではなく、
+//   **カードに無い意気込みを自分で足す**欄（アンケートの「その他」と同じ）。
+//   以前はカードの下に「ひとことで言うと？」という別の質問として置いていたため、
+//   STEP 5「一言で言うとどんなイベント？」と続けて読まれ、役割が伝わらなかった。
+// ★データは motivationText（1件・50字）のまま。表示の形だけを変えている。
+// ★入力中は再描画しない（フォーカスが飛ぶ）。blur で描き直すのも禁止：
+//   入力したまま「次へ」を押すと blur → 再描画でボタンが差し替わり、
+//   タップが空振りする。チェックの付け外しは DOM を直接触る。
+//   カード0件・自由記述なしでも次へ進める。
 // =====================================================
+// 「＋ 自分で書く」を開いた下書き。下書きのオブジェクトで覚えるので、
+// 新しいイベントを作り始める（resetDraftEvent）と自動で閉じた状態に戻る。
+let _customMotivOpenFor = null;
+
+const _CHECK_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
 export function renderCreateEventMotivation(container) {
   const d = state.draftEvent;
   const sel = new Set(d.motivationTags || []);
+  const text = d.motivationText || '';
+  const customOpen = _customMotivOpenFor === d || !!text.trim();
+  const customOn = !!text.trim();
+
+  const customCard = customOpen ? `
+      <div class="p-create-event__card p-create-event__card--custom${customOn ? ' is-selected' : ''}" data-cp-motiv-custom>
+        <span class="p-create-event__card-check">${customOn ? _CHECK_SVG : ''}</span>
+        <input type="text" id="cp-motiv-input" placeholder="例：全員の名前を覚える"
+          value="${_esc(text)}" maxlength="50" enterkeyhint="done"
+          aria-label="自分で書く意気込み（任意）"
+          class="p-create-event__card-input">
+      </div>` : `
+      <button type="button" data-cp-motiv-add
+        class="p-create-event__card p-create-event__card--add">
+        <span class="p-create-event__card-label">＋ 自分で書く</span>
+      </button>`;
 
   const body = `
     <div class="p-create-event__cards">
@@ -417,21 +447,12 @@ export function renderCreateEventMotivation(container) {
         return `
           <button type="button" data-cp-motiv="${c.id}"
             class="p-create-event__card${on ? ' is-selected' : ''}">
-            <span class="p-create-event__card-check">
-              ${on ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>` : ''}
-            </span>
+            <span class="p-create-event__card-check">${on ? _CHECK_SVG : ''}</span>
             <span class="p-create-event__card-label">${_esc(c.label)}</span>
           </button>`;
       }).join('')}
-    </div>
-
-    <label class="p-create-event__inline-label" for="cp-motiv-input">
-      ひとことで言うと？ <span class="p-create-event__optional">（任意）</span>
-    </label>
-    <input type="text" id="cp-motiv-input" placeholder="例：全部出しきる"
-      value="${_esc(d.motivationText || '')}" maxlength="50"
-      oninput="window._app.updateDraftMotivationText(this.value)"
-      class="c-input c-input--block p-create-event__input">`;
+      ${customCard}
+    </div>`;
 
   container.innerHTML = _stepShell({
     step: 6, stepLabel: 'イベント作成（6/6）',
@@ -450,6 +471,29 @@ export function renderCreateEventMotivation(container) {
   container.querySelectorAll('[data-cp-motiv]').forEach(el =>
     el.addEventListener('click', () => window._app.toggleMotivationTag(el.dataset.cpMotiv))
   );
+
+  // 「＋ 自分で書く」→ その場で入力欄のカードに変える
+  container.querySelector('[data-cp-motiv-add]')?.addEventListener('click', () => {
+    _customMotivOpenFor = d;
+    state.render();
+    document.getElementById('cp-motiv-input')?.focus();
+  });
+
+  const input = container.querySelector('#cp-motiv-input');
+  if (input) {
+    const card  = input.closest('[data-cp-motiv-custom]');
+    const check = card.querySelector('.p-create-event__card-check');
+    input.addEventListener('input', () => {
+      window._app.updateDraftMotivationText(input.value);
+      // ★再描画せずにチェックだけ切り替える（上のコメント参照）
+      const on = !!input.value.trim();
+      card.classList.toggle('is-selected', on);
+      check.innerHTML = on ? _CHECK_SVG : '';
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); input.blur(); }
+    });
+  }
 }
 
 // =====================================================

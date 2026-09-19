@@ -80,7 +80,7 @@ export const EXPECTED_SCALES = [
 export const MOTIVATION_CARDS = [
   { id: 'lead',      label: 'みんなを引っ張っていく' },
   { id: 'listen',    label: '一人ひとりの声を聞く' },
-  { id: 'enjoy',     label: 'まず自分が全力で楽しむ' },
+  { id: 'enjoy',     label: 'みんなで楽しむ' },
   { id: 'finish',    label: '最後までやりきる' },
   { id: 'challenge', label: '新しいことに挑戦する' },
 ];

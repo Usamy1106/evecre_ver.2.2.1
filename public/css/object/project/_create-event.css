@@ -465,12 +465,43 @@
   color: var(--color-danger);
 }
 
-.p-create-event__inline-label {
-  display: block;
-  margin-bottom: var(--space-2);
-  font-size: var(--font-size-xs);
+/* 最後の1枚「＋ 自分で書く」。まだ何も無いことが分かるよう点線にする */
+.p-create-event__card--add {
+  border-style: dashed;
+}
+
+.p-create-event__card--add .p-create-event__card-label {
+  color: var(--color-text-muted);
+}
+
+/* 「自分で書く」を開いたあと。カードの中に入力欄を置く。
+   ★入力欄は 16px 未満にしない（iOS がタップ時に勝手にズームする。落とし穴 0-8-3） */
+.p-create-event__card--custom {
+  padding-block: var(--space-1);
+}
+
+.p-create-event__card-input {
+  flex: 1;
+  min-width: 0;
+  padding-block: 10px;
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text);
+}
+
+.p-create-event__card-input:focus {
+  outline: none;
+}
+
+.p-create-event__card-input::placeholder {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+.p-create-event__card.is-selected .p-create-event__card-input {
+  color: var(--color-danger);
 }
 
 /* 下に例文が続く入力欄 */
