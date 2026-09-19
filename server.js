@@ -1768,39 +1768,74 @@ function _memberProfile(u) {
 
 // ===== イベント =====
 
+/**
+ * CRDT イベントの配列を、クライアントに返す flat 形式へまとめて変換する。
+ *
+ * ★members への username / avatarUrl / profile の埋め込みと clearedData のマージを、
+ *   **イベント件数に関係なく2クエリ**で済ませる（旧実装はイベントごとに2クエリ＝N+1）。
+ * ★GET /api/data・GET /api/projects/:id・PUT /api/data の ?return=events から呼ぶ。
+ *   片方だけ直すと「作成直後だけ members が空」のような差が出るので、必ず共通化すること。
+ * ★email / acquisitionChannel / notificationPreference は絶対に載せない
+ *   （本人にしか返さない情報。_memberProfile が通すものだけに限る）。
+ * ★旧フラット形式のイベントは crdtToFlat が値を引けない。これは旧実装と同じ挙動なので、
+ *   ここでは対処しない（2026-09-19 時点で開発DBに旧形式は0件）。
+ * ★flat.members は map で**再代入**すること（crdtToFlat が返す members は元の
+ *   イベントの配列への参照なので、in-place で書き換えると入力を汚す）。
+ *
+ * @param {object[]} rawEvents  eventStore が返す CRDT 形式のイベント配列
+ * @returns {Promise<object[]>} flat 形式のイベント配列（rawEvents と同じ順序）
+ */
+async function _enrichEventsForClient(rawEvents) {
+  if (!Array.isArray(rawEvents) || rawEvents.length === 0) return [];
+
+  const flats = rawEvents.map(p => crdt.crdtToFlat(p));
+
+  // (1) 全イベントのメンバーをまとめて1クエリで引く
+  //     ★findManyByIds は空配列なら DB に問い合わせず [] を返すので、0件の分岐は不要。
+  const memberIdSet = new Set();
+  for (const flat of flats) {
+    if (Array.isArray(flat.members)) {
+      for (const m of flat.members) if (m?.userId) memberIdSet.add(m.userId);
+    }
+  }
+  const users = await userStore.findManyByIds([...memberIdSet]);
+  const usersMap = {};
+  for (const u of users) usersMap[u.id] = u;
+
+  // (2) 全イベントの提出物をまとめて1クエリで引く
+  const subsByEvent = await submissionStore.getSubmissionsForProjects(rawEvents.map(p => p.id));
+
+  return flats.map((flat, i) => {
+    const p = rawEvents[i];
+    if (Array.isArray(flat.members)) {
+      flat.members = flat.members.map(mem => ({
+        ...mem,
+        username:  usersMap[mem.userId]?.username  || '(削除されたユーザー)',
+        avatarUrl: usersMap[mem.userId]?.avatarUrl || null,
+        // ★同じイベントのメンバーに見せてよい「タイプ」だけを載せる
+        //   （ユーザー紹介モーダル・public/js/modals/userProfileModal.js が使う）。
+        //   ★email / acquisitionChannel / notificationPreference は絶対に載せないこと。
+        //     本人にしか返さない情報で、他人が見る画面には要らない
+        //     （userPublic はログイン本人向けなので、あちらとは別物として扱う）。
+        profile:   _memberProfile(usersMap[mem.userId]),
+      }));
+    }
+    // submissions をマージ（clearedData として返す）
+    flat.clearedData             = subsByEvent[p.id] || {};
+    // CRDT外フィールドを付与
+    flat.lastProposalGeneratedAt = p.lastProposalGeneratedAt || null;
+    flat.folderId                = p.folderId                || null;
+    return flat;
+  });
+}
+
 // 全イベント取得（HOME 用）
+// ★イベント件数に関係なく Atlas 往復は3回（イベント・メンバー・提出物）。
+//   以前はイベントごとにメンバーと提出物を引いており 1+2N 回だった。
 app.get('/api/data', requireAuth, async (req, res) => {
   try {
     const rawEvents = await eventStore.listEventsForUser(req.user.id);
-
-    // members 配列に username / avatarUrl を埋め込む（クライアントの表示用）
-    const events = await Promise.all(rawEvents.map(async p => {
-      const flat = crdt.crdtToFlat(p);
-      if (Array.isArray(flat.members)) {
-        const memberIds = flat.members.map(m => m.userId);
-        const users = await userStore.findManyByIds(memberIds);
-        const usersMap = {};
-        for (const u of users) usersMap[u.id] = u;
-        flat.members = flat.members.map(mem => ({
-          ...mem,
-          username:  usersMap[mem.userId]?.username  || '(削除されたユーザー)',
-          avatarUrl: usersMap[mem.userId]?.avatarUrl || null,
-          // ★同じイベントのメンバーに見せてよい「タイプ」だけを載せる
-          //   （ユーザー紹介モーダル・public/js/modals/userProfileModal.js が使う）。
-          //   ★email / acquisitionChannel / notificationPreference は絶対に載せないこと。
-          //     本人にしか返さない情報で、他人が見る画面には要らない
-          //     （userPublic はログイン本人向けなので、あちらとは別物として扱う）。
-          profile: _memberProfile(usersMap[mem.userId]),
-        }));
-      }
-      // submissions をマージ（clearedData として返す）
-      await _mergeSubmissions(p.id, flat);
-      // CRDT外フィールドを付与
-      flat.lastProposalGeneratedAt = p.lastProposalGeneratedAt || null;
-      flat.folderId = p.folderId || null;
-      return flat;
-    }));
-
+    const events    = await _enrichEventsForClient(rawEvents);
     res.json({ events });
   } catch (e) {
     console.error('GET /api/data error:', e);
@@ -3716,13 +3751,10 @@ app.get('/api/projects/:id', requireAuth, async (req, res) => {
     if (!projectStore.isMember(project, req.user.id))
       return res.status(403).json({ ok: false, error: 'forbidden' });
 
+    // ★N+1 解消。_enrichEventsForClient は members の埋め込みも行うため、
+    //   旧実装より members が充実する（欠けるフィールドは無いので互換）。
     const rawEvents = await eventStore.listByFolder(req.params.id);
-    const events = await Promise.all(rawEvents.map(async (p) => {
-      const flat = crdt.crdtToFlat(p);
-      flat.folderId = p.folderId || null;
-      await _mergeSubmissions(p.id, flat);
-      return flat;
-    }));
+    const events    = await _enrichEventsForClient(rawEvents);
     res.json({ ok: true, project, events });
   } catch (e) {
     console.error('GET /api/projects/:id error:', e);
@@ -3805,11 +3837,16 @@ app.get('/api/events', requireAuth, async (req, res) => {
     const eventIds  = eventIdsParam.split(',').filter(Boolean);
     const clientId  = (req.query.cid || '').toString() || null;
 
-    const allowed = [];
-    for (const pid of eventIds) {
-      const p = await eventStore.loadEvent(pid);
-      if (p && eventStore.isMember(p, req.user.id)) allowed.push(pid);
-    }
+    // ★購読イベント数ぶん往復していた。モバイルは SSE 再接続が頻繁なので、
+    //   接続のたびに N 回の全文ロードが走っていた。1クエリにまとめる。
+    // ★loadEvents は旧形式の昇格をしないが、ここは isMember（members 配列のみ参照）に
+    //   しか使わないので旧形式でも結果は変わらない。書き込みもしない。
+    // ★eventIds の順序は保ったまま、メンバーであるものだけ残す。
+    const loaded   = await eventStore.loadEvents(eventIds);
+    const memberOf = new Set(
+      loaded.filter(p => eventStore.isMember(p, req.user.id)).map(p => p.id),
+    );
+    const allowed = eventIds.filter(pid => memberOf.has(pid));
 
     res.set({
       'Content-Type':      'text/event-stream',
