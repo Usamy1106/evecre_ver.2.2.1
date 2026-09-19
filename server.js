@@ -827,6 +827,15 @@ function _missionContentChanged(prev, m) {
  * - R2 未設定の場合はそのまま submissions に保存（dataURL のまま）。
  * - flat.clearedData を in-place で削除して返す（applyPatch に渡さないよう除外）。
  *
+ * ★クライアントは保存のたびに全イベントの clearedData を丸ごと送ってくる
+ *   （GET /api/data で受け取ったものをそのまま持っているため）。
+ *   - **中身が変わっていない提出物は書かない。** 以前は毎回すべて書き直しており、
+ *     イベント数 × 提出物数の書き込みが保存を遅くしていた
+ *   - **書くときも本文まわりの項目だけ**（upsertSubmissionFields）。saveSubmission で
+ *     丸ごと差し替えると、振り返り（struggle / solution / shareable）と山のオブジェクト
+ *     （objectId / objectTier）が空に戻る。以前はそれで管理者が保存するたびに消えていた
+ *     （2026-09-19 に発見・修正。消えた値は戻らない）。**saveSubmission に戻さないこと。**
+ *
  * @param {string} projectId
  * @param {object} flat  クライアントから来たフラット形式イベント（変更あり）
  */
@@ -835,9 +844,12 @@ async function _extractClearedData(projectId, flat) {
   const entries = Object.entries(flat.clearedData);
   if (entries.length === 0) { delete flat.clearedData; return; }
 
+  // 変わったかどうかを比べるため、今の提出物を1回で読む
+  const current = await submissionStore.getSubmissionsForProject(projectId);
+
   await Promise.all(entries.map(async ([missionId, submission]) => {
     if (!submission) return;
-    let content = submission.content ?? '';
+    let content = submission.content;
 
     // 画像 dataURL → R2 アップロード
     if (
@@ -856,13 +868,18 @@ async function _extractClearedData(projectId, flat) {
       }
     }
 
-    await submissionStore.saveSubmission(projectId, missionId, {
+    // ★送られてきた項目だけを書く（undefined は「変更なし」。既存の値を空で潰さない）
+    const fields = {
       content,
-      format:      submission.format      ?? 'text',
-      title:       submission.title       ?? '',
-      timestamp:   submission.timestamp   ?? Date.now(),
-      submittedBy: submission.submittedBy ?? null,
-    });
+      format:      submission.format,
+      title:       submission.title,
+      timestamp:   submission.timestamp,
+      submittedBy: submission.submittedBy,
+    };
+    const prev = current[missionId];
+    if (prev && Object.keys(fields).every(k => fields[k] === undefined || fields[k] === prev[k])) return;
+
+    await submissionStore.upsertSubmissionFields(projectId, missionId, fields);
   }));
 
   // CRDT には clearedData を渡さない（submissions コレクションで管理）
