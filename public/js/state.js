@@ -814,14 +814,17 @@ export const state = {
 
     this.events.push(newProject);
     // 同期的にサーバー保存（招待リンク発行で必要なため await する）
+    // ★保存レスポンスに正規化後のイベント一覧を同梱してもらう（?return=events）。
+    //   以前はこの直後に api.load() を呼んでいたが、PUT と同じ内容を取り直すだけの
+    //   往復で、イベント作成画面（「チームメンバーを招待しよう！」）のローディングを
+    //   そのぶん長くしていた。**api.load() を戻さないこと。**
+    // ★events が返らなかった場合は楽観的更新のまま進む（新規イベントは既に
+    //   this.events.push 済みなので、members が未正規化でも画面は成立する。
+    //   canManageCurrentEvent に ownerId のフォールバックがある）。
     try {
-      await api.save({ events: this.events });
+      const saved = await api.save({ events: this.events }, { returnEvents: true });
+      if (saved?.events) this.events = saved.events;
       syncRealtime();
-      // サーバー側で members/roles などが正規化されているので再取得
-      try {
-        const fresh = await api.load();
-        if (fresh?.events) this.events = fresh.events;
-      } catch (_) {}
     } catch (e) {
       console.error('イベント保存エラー:', e);
       // ロールバック

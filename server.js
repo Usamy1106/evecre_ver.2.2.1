@@ -2068,9 +2068,22 @@ app.put('/api/data', requireAuth, async (req, res) => {
 
     // --- 既存イベントの更新 ---
     const clientId = req.get('X-Client-Id') || null;
+    // ★current は同じリクエストで取得済み。ループ内で loadEvent を呼び直すと
+    //   イベント件数ぶん無駄に往復する。id で引けるようにしておく。
+    const currentById = new Map(current.map(p => [p.id, p]));
     for (const incomingP of incoming) {
       if (!currentIds.has(incomingP.id)) continue;
-      const existing = await eventStore.loadEvent(incomingP.id);
+      // ★listEventsForUser は旧フラット形式を CRDT 形式へ昇格しない（loadEvent だけが行う）。
+      //   昇格を経ないまま書き込み経路へ入ると、prevMissionsMap が壊れ、
+      //   missionDeletions が存在しない id（"0","1"…）に tombstone を立て、applyPatch の
+      //   $set: 'fields.X' がドキュメントと整合しなくなる。
+      //   旧形式のときだけ loadEvent に落とし、昇格＋再保存を従来どおり起こさせる。
+      //   旧形式のイベントが残っていなければ、この往復は1回も発生しない
+      //   （2026-09-19 時点で本番・開発とも0件。将来の復元に備えた保険）。
+      const cached   = currentById.get(incomingP.id);
+      const existing = eventStore.isLegacyShape(cached)
+        ? await eventStore.loadEvent(incomingP.id)
+        : cached;
       if (!existing || !eventStore.isMember(existing, req.user.id)) continue;
       if (!eventStore.canManage(existing, req.user.id)) continue;
 
@@ -2310,6 +2323,18 @@ app.put('/api/data', requireAuth, async (req, res) => {
     const _ms = Date.now() - _t0;
     if (_ms > SLOW_SAVE_WARN_MS) {
       console.warn(`[slow] PUT /api/data ${_ms}ms events=${incoming.length} user=${req.user.id}`);
+    }
+    // ★?return=events のときだけイベント一覧を同梱する。
+    //   イベント作成直後のクライアントは「サーバーで正規化された members/roles」が
+    //   必要で、従来はそのために GET /api/data を別途叩いていた（往復が1回増えていた）。
+    //   通常の保存では返さない（一覧の再読み込みぶんだけ重くなるため）。
+    // ★整形は GET /api/data と同じ _enrichEventsForClient を使う。
+    //   ここだけ独自に組むと「作成直後だけ形が違う」不具合になる。
+    // ★スロー警告より後ろに置く（警告は保存本体の時間だけを測る。改善前後の比較に使うため）。
+    if (req.query.return === 'events') {
+      const fresh  = await eventStore.listEventsForUser(req.user.id);
+      const events = await _enrichEventsForClient(fresh);
+      return res.json({ ok: true, events });
     }
     res.json({ ok: true });
   } catch (e) {

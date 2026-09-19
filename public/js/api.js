@@ -82,8 +82,11 @@ export const api = {
     }
     return json;
   },
-  async save(data) {
-    const { ok, status, json } = await _send('PUT', '/api/data', data);
+  // ★opts.returnEvents = true のとき、サーバーが正規化後のイベント一覧を同梱して返す
+  //   （json.events）。イベント作成直後に GET /api/data を別途叩かないため。
+  async save(data, opts = {}) {
+    const path = opts.returnEvents ? '/api/data?return=events' : '/api/data';
+    const { ok, status, json } = await _send('PUT', path, data);
     if (!ok) {
       const err = new Error(json?.error || 'データの保存に失敗しました');
       if (status === 401) err.code = 'unauthorized';
