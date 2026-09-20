@@ -508,12 +508,30 @@ export const state = {
     setTimeout(() => window._app?.showToast?.('アカウントを削除しました', 'info'), 100);
   },
 
+  // --- 変更のあったイベントを覚える（部分保存のため）---
+  // ★入口は save() / saveNow() の2つだけ。呼び出し側（35か所）は書き換えない。
+  //   引数なしで呼ばれたら「いま開いているイベント」を変更扱いにし、
+  //   **それが分からないときは全件送信に落とす**（重いが安全side）。
+  // ★ここを「分からなければ部分保存」に倒さないこと。記録し損ねた変更が
+  //   静かに保存されないまま消える（いちばん見つけにくい壊れ方）。
+  _dirtyIds: new Set(),
+  _forceFullSave: false,
+
+  // eventId: 文字列＝そのイベントを変更扱い／null＝対象が分からないので全件送信／
+  //          false＝いま積んであるぶんをそのまま使う（何も足さない）
+  markDirty(eventId) {
+    if (eventId === false) return;
+    if (eventId) this._dirtyIds.add(eventId);
+    else this._forceFullSave = true;   // 対象が分からない → 全件送信
+  },
+
   // --- 保存（楽観的更新：バックグラウンドで保存）---
   // save() は 400ms のトレーリングデバウンス。チェックリストの連続チェックなど
   // 短時間に何度も呼ばれる操作で、毎回「全イベント全文の PUT + SSE 全文ブロードキャスト」が
   // 走るのを防ぐ。UI の反映は従来どおり即座（楽観的更新は変えない）。
   // ★保存の完了を待ちたい場合は saveNow() を使うこと（save() の await は無意味）。
-  save() {
+  save(eventId = this.selectedEventId) {
+    this.markDirty(eventId);
     if (this._saveTimer) clearTimeout(this._saveTimer);
     this._saveTimer = setTimeout(() => {
       this._saveTimer = null;
@@ -523,26 +541,59 @@ export const state = {
 
   // --- 即時保存（await 可能）---
   // 保存完了後に続けて処理したい場合（イベント設定の保存後リロードなど）はこちらを使う。
-  saveNow() {
+  saveNow(eventId = this.selectedEventId) {
     if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+    this.markDirty(eventId);
+
+    // ★部分保存（PATCH）に出せるのは、次の条件を**すべて**満たすときだけ。
+    //   1つでも怪しければ全件送信（PUT）に落とす。全件送信は重いだけで、壊れない。
+    //   - 全件送信の指示が出ていない（対象の分からない保存があった）
+    //   - 変更したイベントが1件以上あり、いまも手元にある（＝新規作成でも削除でもない）
+    //   - 手元のイベント数より少ない（全部なら PUT と同じなので素直に PUT）
+    const dirty = [...this._dirtyIds]
+      .map(id => this.events.find(p => p.id === id))
+      .filter(Boolean);
+    const canPartial = !this._forceFullSave
+      && dirty.length > 0
+      && dirty.length === this._dirtyIds.size
+      && dirty.length < this.events.length;
+
+    if (canPartial) {
+      return api.savePartial(dirty)
+        .then(r => {
+          // ★保存できた id だけを「済み」にする。返ってこなかったぶんは残し、
+          //   次の保存で再送する（途中で失敗しても変更が失われない）。
+          for (const id of (r?.savedIds || [])) this._dirtyIds.delete(id);
+          syncRealtime();
+        })
+        .catch(e => this._onSaveError(e));
+    }
+
+    // 全件送信（削除の意味を持つ経路。★ここを部分送信に変えないこと）
+    this._dirtyIds.clear();
+    this._forceFullSave = false;
     return api.save({ events: this.events })
       .then(() => {
         // 新規イベントが追加されている可能性 → 購読対象を更新
         syncRealtime();
       })
-      .catch(e => {
-        console.error('保存エラー:', e);
-        if (e?.code === 'unauthorized') {
-          this.currentUser = null;
-          this.currentView = 'WELCOME';
-          this.render();
-        } else if (e?.code === 'verification_required') {
-          window._app?.showToast('メール認証が完了するまで新規イベントを作成できません。アカウント設定からメール認証を完了してください。', 'error');
-          this.setView('ACCOUNT');
-        } else if (e?.code === 'no_manage_permission') {
-          window._app?.showToast('このイベントを編集する権限がありません。ロール設定をご確認ください。', 'error');
-        }
-      });
+      .catch(e => this._onSaveError(e));
+  },
+
+  // 保存の失敗をさばく。★全件送信（PUT）と部分保存（PATCH）で同じ扱いにする
+  //   （片方だけ直すと、保存の失敗がどちらかで無反応になる）。
+  _onSaveError(e) {
+    console.error('保存エラー:', e);
+    if (e?.code === 'unauthorized') {
+      this.currentUser = null;
+      this.currentView = 'WELCOME';
+      this.render();
+    } else if (e?.code === 'verification_required') {
+      window._app?.showToast('メール認証が完了するまで新規イベントを作成できません。アカウント設定からメール認証を完了してください。', 'error');
+      this.setView('ACCOUNT');
+    } else if (e?.code === 'no_manage_permission') {
+      window._app?.showToast('このイベントを編集する権限がありません。ロール設定をご確認ください。', 'error');
+    }
   },
 
   // --- 保留中の保存を確定させる（ページ離脱・バックグラウンド遷移時）---
@@ -552,7 +603,10 @@ export const state = {
     if (!this._saveTimer) return;
     clearTimeout(this._saveTimer);
     this._saveTimer = null;
-    this.saveNow();
+    // ★ここで対象を推測しない（save() が積んだ変更をそのまま出す）。
+    //   省略すると「いま開いているイベント」を足してしまい、離脱のたびに
+    //   関係ないイベントまで送ることになる。false ＝ 何も足さない。
+    this.saveNow(false);
   },
 
   // --- 自分が現在のイベントで管理者権限を持つかどうか ---
@@ -858,6 +912,9 @@ export const state = {
     //   canManageCurrentEvent に ownerId のフォールバックがある）。
     try {
       const saved = await api.save({ events: this.events }, { returnEvents: true });
+      // ★全件送ったので、溜まっていた「変更あり」は解消済み
+      this._dirtyIds.clear();
+      this._forceFullSave = false;
       if (saved?.events) this.events = saved.events;
       syncRealtime();
     } catch (e) {
@@ -929,7 +986,10 @@ export const state = {
     }
     // 削除は不可逆（サーバー側で submissions / notifications / チャット / R2画像まで消える）。
     // デバウンスで遅延させず即時に確定させる。
-    this.saveNow();
+    // ★null を渡して**全件送信（PUT）**にすること。削除は「送られてこなかったイベント＝削除」
+    //   という PUT の意味でのみ成立する。部分保存（PATCH）に流れると削除が起きず、
+    //   手元から消えただけで次の読み込みで復活する。
+    this.saveNow(null);
     this.render();
   },
 

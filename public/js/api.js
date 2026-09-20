@@ -97,6 +97,24 @@ export const api = {
     return json;
   },
 
+  // 変わったイベントだけを保存する（部分保存）。
+  // ★PUT ではなく PATCH。PUT は「送られてこなかったイベント＝削除」という意味を持つので、
+  //   一部だけを PUT に送ってはいけない（渡さなかったイベントが消える）。
+  //   ここを PUT に書き換えないこと。
+  // ★戻り値の savedIds は「実際に保存できた id」。呼び出し側はこれだけを
+  //   保存済みとして扱い、残りは次の保存で再送する。
+  async savePartial(events) {
+    const { ok, status, json } = await _send('PATCH', '/api/data', { events });
+    if (!ok) {
+      const err = new Error(json?.error || 'データの保存に失敗しました');
+      if (status === 401) err.code = 'unauthorized';
+      if (json?.code === 'verification_required') err.code = 'verification_required';
+      if (json?.code === 'no_manage_permission')  err.code = 'no_manage_permission';
+      throw err;
+    }
+    return json;
+  },
+
   // ----- メンバー -----
   async listMembers(eventId) {
     const { json } = await _send('GET', `/api/events/${eventId}/members`);
