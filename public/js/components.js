@@ -119,10 +119,7 @@ export const Components = {
    */
   Tabs(active) {
     // 未読通知数（表示中のイベントに紐づくものだけ。他イベントの通知は数えない）
-    const evId = window.state?.selectedEventId;
-    const unread = Array.isArray(window.state?.notifications)
-      ? window.state.notifications.filter(n => !n.read && n.eventId === evId).length
-      : 0;
+    const unread = Components.unreadCountFor(window.state?.selectedEventId);
     // ★アクティブ表示は is-active に集約してある（色はタブごとのモディファイアが持つ）。
     //   スタイル: public/css/layout/_tabs.css
     const on = (id) => active === id ? ' is-active' : '';
@@ -143,7 +140,7 @@ export const Components = {
           <!-- ★上限は 99+。9+ で頭打ちにしていた頃は「10件も200件も同じ見た目」で、
                溜まり具合が伝わらなかった。桁が増えても丸バッジは横に伸びる
                （min-width + radius-full のピル）ので、そのまま入る。 -->
-          ${unread > 0 ? `<span class="l-tabs__badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+          ${unread > 0 ? `<span class="l-tabs__badge">${Components.badgeText(unread)}</span>` : ''}
         </div>
         <div onclick="window._app.setTab('ARCHIVE')"
           class="l-tabs__item l-tabs__item--archive${on('ARCHIVE')}">
@@ -167,10 +164,7 @@ export const Components = {
     const item = document.querySelector('.l-tabs__item--notifications');
     if (!item) return;
 
-    const evId = window.state?.selectedEventId;
-    const unread = Array.isArray(window.state?.notifications)
-      ? window.state.notifications.filter(n => !n.read && n.eventId === evId).length
-      : 0;
+    const unread = Components.unreadCountFor(window.state?.selectedEventId);
 
     let badge = item.querySelector('.l-tabs__badge');
     if (unread <= 0) { badge?.remove(); return; }
@@ -179,7 +173,42 @@ export const Components = {
       badge.className = 'l-tabs__badge';
       item.appendChild(badge);
     }
-    badge.textContent = unread > 99 ? '99+' : String(unread);
+    badge.textContent = Components.badgeText(unread);
+  },
+
+  /**
+   * そのイベントの未読通知の数。
+   *
+   * ★数え方はここ1本にする。以前は Tabs / refreshNotifBadge が同じ式を持っており、
+   *   「ずらさないこと」と注意書きで担保していた。ホームのサムネイルにも
+   *   バッジを出すことになり、3箇所目を書き写す前に関数へまとめた（2026-09-21）。
+   * ★通知は全イベント分が手元にあるので、**必ず eventId で絞る**こと。
+   */
+  unreadCountFor(eventId) {
+    if (!eventId) return 0;
+    const list = window.state?.notifications;
+    return Array.isArray(list) ? list.filter(n => !n.read && n.eventId === eventId).length : 0;
+  },
+
+  /**
+   * バッジに出す文字。★上限は 99+（3文字）。
+   * 100件以上を数字のまま出すとバッジが横に伸びてサムネイルを覆う。
+   * ★実際には notificationStore の MAX_PER_USER=100 で頭打ちなので滅多に出ないが、
+   *   上限を外すと「1人100件 × 全イベント」の合計を出す実装に変えたときに破綻する。
+   */
+  badgeText(n) {
+    return n > 99 ? '99+' : String(n);
+  },
+
+  /**
+   * イベントのサムネイルに重ねる未読バッジ（ホーム／フォルダ詳細で共用）。
+   * 未読が無ければ空文字を返すので、呼び出し側で分岐しなくてよい。
+   * ★親に position: relative が要る（`.c-thumbnail-wrap`）。
+   */
+  UnreadBadge(eventId) {
+    const n = Components.unreadCountFor(eventId);
+    if (n <= 0) return '';
+    return `<span class="c-thumbnail__badge" aria-label="未読の通知 ${n}件">${Components.badgeText(n)}</span>`;
   },
 
   /**
@@ -314,12 +343,17 @@ export const Components = {
     const inner = visual
       ? `<img src="${visual}" alt="" class="c-thumbnail__image" loading="lazy">`
       : this.ThumbnailEmptyState();
+    // ★未読バッジ（ホーム・フォルダ詳細）。イベントページへ入る前に「動きがあった」ことが
+    //   分かるように、サムネイルの右上へ重ねる。opts.unread が true のときだけ出す
+    //   （アーカイブの表紙など、通知と関係ない場所では出さない）。
+    const badge = opts.unread ? this.UnreadBadge(project?.id) : '';
     // スタイル: public/css/object/component/_thumbnail.css
     // ★rounded は呼び出し側が Tailwind のクラスで渡してくる（Phase 3 で剥がす）。
     //   既定の角丸は .c-thumbnail が持つので、渡されなければそのままで良い。
     return `
       <div class="c-thumbnail ${rounded} ${extra}">
         ${inner}
+        ${badge}
       </div>`;
   },
 

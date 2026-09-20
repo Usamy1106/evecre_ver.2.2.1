@@ -6,9 +6,12 @@
      overflow:hidden は内側の画像を角丸で切るためで、影は外に出るので干渉しない。
    ★picture は inline 要素なので block と幅高さの明示が要る（無いと img の
      サイズ指定が効かない）。
+   ★未読バッジ（`__badge`）はサムネイルの**内側**に重ねる。外に出すと
+     .c-thumbnail の overflow: hidden で切られる。
    ========================================================================== */
 
 .c-thumbnail {
+  position: relative;      /* 未読バッジ（__badge）の基準 */
   width: 100%;
   overflow: hidden;
   aspect-ratio: 3 / 2;
@@ -32,4 +35,28 @@
 /* 横並びリストの小さいサムネイル（角丸を控えめにする）*/
 .c-thumbnail--sm {
   border-radius: var(--radius-sm);
+}
+
+/* 未読の通知の数。ホームとフォルダ詳細で、イベントに入る前に気づけるようにする。
+   ★タブのバッジ（l-tabs__badge）と同じ見た目・同じ上限（99+）。数え方は
+     components.js の unreadCountFor / badgeText に集約してある。
+   ★width を固定しないこと。固定すると 99+ が入らず切れる。 */
+.c-thumbnail__badge {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  white-space: nowrap;
+  /* サムネイルが明るい絵でも沈まないように、わずかに縁取る */
+  box-shadow: 0 0 0 1.5px var(--color-surface);
 }

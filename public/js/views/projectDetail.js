@@ -79,7 +79,7 @@ function _renderEventList(list) {
         onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
         class="p-project-detail__event">
         <div class="p-project-detail__event-thumb">
-          ${Components.EventThumbnail(p, { rounded: 'c-thumbnail--sm' })}
+          ${Components.EventThumbnail(p, { rounded: 'c-thumbnail--sm', unread: true })}
         </div>
         <div class="p-project-detail__event-body">
           <p class="p-project-detail__event-name">${_esc(p.name)}</p>

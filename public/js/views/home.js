@@ -261,7 +261,7 @@ function _renderGrid(list) {
             <div data-event-card data-event-id="${p.id}" class="p-home__card"
               onclick="window._app.setView('MAIN_BOARD', '${p.id}')">
               <div class="p-home__card-thumb">
-                ${Components.EventThumbnail(p)}
+                ${Components.EventThumbnail(p, { unread: true })}
               </div>
               <span class="p-home__card-name">${_esc(p.name)}</span>
             </div>`).join('')}
