@@ -292,10 +292,104 @@
   font-weight: var(--font-weight-heavy);
 }
 
+/* 1行目＝誰が（左）と、いつ（右）。本文は2行目に落とす。
+   ★以前は「〇〇さんが「…」を完了しました」の一文だけで、どれも同じ見た目だった。
+     名前と時刻を分けると、拾い読みで「誰の話か」が先に入る。 */
+.p-notification__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 2px;
+}
+
+.p-notification__actor {
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .p-notification__time {
-  margin-top: var(--space-1);
+  flex-shrink: 0;
   font-size: 10px;
   color: var(--color-text-muted);
+}
+
+/* アバター・アイコンは縮めない（名前が長いと潰れる） */
+.p-notification__swipe-card > .c-avatar,
+.p-notification__swipe-card > .c-avatar--fallback {
+  flex-shrink: 0;
+}
+
+/* --- 日付の見出し --------------------------------------------------------- */
+
+.p-notification__date {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-notification__date:first-child {
+  margin-top: 0;
+}
+
+/* --- 未読 / すべて の絞り込み --------------------------------------------- */
+
+.p-notification__filter {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.p-notification__filter-chip {
+  padding: var(--space-1) var(--space-4);
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-notification__filter-chip.is-active {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+/* --- 同じタスクの通知のまとめ ---------------------------------------------
+   ★畳んだぶんも DOM には置いたまま隠す（開閉でクラスを付け外しするだけ）。
+     描き直さないのでスクロール位置が飛ばず、スワイプ削除の配線もそのまま効く。 */
+
+.p-notification__row.is-collapsed {
+  display: none;
+}
+
+.p-notification__group-more {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  margin-top: calc(var(--space-2) * -1 + 2px);
+  margin-bottom: var(--space-2);
+  padding-block: var(--space-2);
+  font-size: 11px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-notification__group-more[aria-expanded="true"] .p-notification__group-chevron {
+  transform: rotate(180deg);
+}
+
+.p-notification__group-chevron {
+  transition: transform var(--duration-fast) var(--ease);
 }
 
 .p-notification__dot {

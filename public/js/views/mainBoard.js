@@ -1370,30 +1370,29 @@ function _renderNotificationsTab(p) {
   const notifs = allNotifs.filter(n => n.eventId === p.id);
   const unreadCount = notifs.filter(n => !n.read).length;
 
-  const notifsHtml = notifs.length === 0 ? `
-    <p class="p-notification__empty">通知はありません</p>` : `
-    <div>
-      ${notifs.map(n => `
-        <div class="notif-swipe-row p-notification__row" data-notif-id="${n.id}">
-          <div class="p-notification__row-delete">
-            <svg class="p-notification__row-delete-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-            </svg>
-          </div>
-          <!-- ★p-notification__swipe-card は横スワイプの対象として JS が掴む目印 -->
-          <div class="p-notification__swipe-card${n.read ? '' : ' is-unread'}"
-            onclick="window._app.openNotification('${n.id}', '${n.missionId || ''}')">
-            <div class="p-notification__icon" style="--notif-color:${_notifIconBg(n.type)}">
-              ${_notifIcon(n.type)}
-            </div>
-            <div class="p-notification__body">
-              <p class="p-notification__message">${_esc(n.message)}</p>
-              <p class="p-notification__time">${_formatNotifTime(n.createdAt)}</p>
-            </div>
-            ${!n.read ? '<span class="p-notification__dot"></span>' : ''}
-          </div>
-        </div>`).join('')}
+  // 絞り込み。★既定は「未読があれば未読、無ければすべて」。
+  //   本番では未読が 83%・9割が1か月より古いので、既定を「すべて」にすると
+  //   開いた瞬間に読み終わった古い通知が画面を埋める。
+  const filter = state.notifFilter || (unreadCount > 0 ? 'unread' : 'all');
+  const shown = filter === 'unread' ? notifs.filter(n => !n.read) : notifs;
+
+  const filterHtml = notifs.length === 0 ? '' : `
+    <div class="p-notification__filter" role="tablist">
+      <button type="button" role="tab" aria-selected="${filter === 'unread'}"
+        onclick="window._app.setNotifFilter('unread')" data-log="notif_filter_unread"
+        class="p-notification__filter-chip${filter === 'unread' ? ' is-active' : ''}">
+        未読${unreadCount > 0 ? ` ${Components.badgeText(unreadCount)}` : ''}
+      </button>
+      <button type="button" role="tab" aria-selected="${filter === 'all'}"
+        onclick="window._app.setNotifFilter('all')" data-log="notif_filter_all"
+        class="p-notification__filter-chip${filter === 'all' ? ' is-active' : ''}">すべて</button>
     </div>`;
+
+  const notifsHtml = shown.length === 0
+    ? (filter === 'unread'
+        ? `<p class="p-notification__empty">未読の通知はありません</p>`
+        : `<p class="p-notification__empty">通知はありません</p>`)
+    : _renderNotifGroups(shown, p);
 
   return `
     <div class="p-notification u-page-transition">
@@ -1406,9 +1405,147 @@ function _renderNotificationsTab(p) {
             <button type="button" onclick="window._app.markAllNotificationsRead()"
               class="p-notification__read-all">すべて既読</button>` : ''}
         </div>
+        ${filterHtml}
         ${notifsHtml}
       </section>
     </div>`;
+}
+
+/* ── 通知一覧の組み立て ──────────────────────────────────────────────
+   ★本番実測（2026-09-21）：1画面に並ぶのは中央値8件・最大16件。**量は多くない**。
+     読みづらさの正体は「全部が同じ見た目の一文」で、未読が 83%・9割が30日より古い、
+     つまり**溜めっぱなしで誰も片づけていない**こと。そこで3つ入れてある：
+       1. 未読／すべての絞り込み（既定は未読）
+       2. 今日・昨日・今週・それ以前の見出し
+       3. 同じタスクの通知をまとめる（作成→変更→完了が3行に散らない）
+   ★件数が増えたら無限スクロールを、と考えないこと。1ユーザー100件
+     （notificationStore の MAX_PER_USER）・TTL 90日で頭打ちになっている。 */
+
+// 「同じタスクのまとめ」を開いている group のキー。
+// ★モジュール変数に持つ（SSE の再描画をまたいで開いたままにするため）。
+// ★開閉では state.render() を呼ばず、クラスの付け外しだけで済ませる
+//   （描き直すとスクロール位置が飛ぶ。イベント設定のアコーディオンと同じ理由）。
+const _openNotifGroups = new Set();
+
+/** 通知を「今日 / 昨日 / 今週 / それ以前」に振り分けるときのキーと見出し */
+function _notifDateBucket(ts) {
+  const d = new Date(ts || 0);
+  const today = new Date();
+  const dayStart = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((dayStart(today) - dayStart(d)) / 86_400_000);
+  if (days <= 0) return { key: 'today',  label: '今日' };
+  if (days === 1) return { key: 'yday',   label: '昨日' };
+  if (days < 7)   return { key: 'week',   label: '今週' };
+  return { key: 'older', label: 'それ以前' };
+}
+
+/**
+ * 1件ぶんの行（横スワイプで削除できるカード）。
+ * ★`data-notif-id` はスワイプ削除が掴む目印。まとめても**行は1通ずつ**のままにして
+ *   あるので、削除の単位は今までどおり1件（まとめて消えたりしない）。
+ */
+function _notifRowHtml(n, p, opts = {}) {
+  const actor = n.actorId ? (p.members || []).find(m => m.userId === n.actorId) : null;
+  // 本文は「〇〇 さんが…」で始まるものが多い。見出しに名前を出すので重複を削る
+  //（role_assigned など名前で始まらない文面もあるため、消せたときだけ見出しを出す）
+  let body = n.message || '';
+  let head = '';
+  if (n.actorName && body.startsWith(`${n.actorName} さんが`)) {
+    body = body.slice(`${n.actorName} さんが`.length);
+    head = n.actorName;
+  }
+  const avatar = actor
+    ? Components.UserAvatar(actor, { size: 32 })
+    : `<div class="p-notification__icon" style="--notif-color:${_notifIconBg(n.type)}">${_notifIcon(n.type)}</div>`;
+
+  return `
+    <div class="notif-swipe-row p-notification__row${opts.hidden ? ' is-collapsed' : ''}" data-notif-id="${n.id}">
+      <div class="p-notification__row-delete">
+        <svg class="p-notification__row-delete-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+        </svg>
+      </div>
+      <!-- ★p-notification__swipe-card は横スワイプの対象として JS が掴む目印 -->
+      <div class="p-notification__swipe-card${n.read ? '' : ' is-unread'}"
+        onclick="window._app.openNotification('${n.id}', '${n.missionId || ''}')">
+        ${avatar}
+        <div class="p-notification__body">
+          <div class="p-notification__meta">
+            <span class="p-notification__actor">${_esc(head)}</span>
+            <span class="p-notification__time">${_formatNotifTime(n.createdAt)}</span>
+          </div>
+          <p class="p-notification__message">${_esc(body)}</p>
+        </div>
+        ${!n.read ? '<span class="p-notification__dot"></span>' : ''}
+      </div>
+    </div>`;
+}
+
+/** 日付の見出し＋同じタスクのまとめ、までを含んだ一覧 */
+function _renderNotifGroups(list, p) {
+  // 日付ごとに分ける（並びは元のまま＝新しい順）
+  const buckets = [];
+  for (const n of list) {
+    const b = _notifDateBucket(n.createdAt);
+    let cur = buckets.at(-1);
+    if (!cur || cur.key !== b.key) { cur = { key: b.key, label: b.label, items: [] }; buckets.push(cur); }
+    cur.items.push(n);
+  }
+
+  return buckets.map(b => {
+    // 同じタスクの通知をまとめる。★まとめるのは同じ日付の見出しの中だけ
+    //   （見出しをまたいでまとめると、まとめた側がどの日のものか言えなくなる）
+    const groups = [];
+    const byMission = new Map();
+    for (const n of b.items) {
+      if (!n.missionId) { groups.push([n]); continue; }
+      const g = byMission.get(n.missionId);
+      if (g) { g.push(n); continue; }
+      const created = [n];
+      byMission.set(n.missionId, created);
+      groups.push(created);
+    }
+
+    const rows = groups.map(g => {
+      if (g.length === 1) return _notifRowHtml(g[0], p);
+      const key  = `${b.key}:${g[0].missionId}`;
+      const open = _openNotifGroups.has(key);
+      const unread = g.filter(n => !n.read).length;
+      return `
+        <div class="p-notification__group" data-notif-group="${key}">
+          ${_notifRowHtml(g[0], p)}
+          ${g.slice(1).map(n => _notifRowHtml(n, p, { hidden: !open })).join('')}
+          <button type="button" onclick="window._app.toggleNotifGroup('${key}')"
+            data-log="notif_group_toggled"
+            class="p-notification__group-more" aria-expanded="${open}">
+            <span>同じタスクの通知 他${g.length - 1}件${unread > 0 && !open ? `（未読${unread}）` : ''}</span>
+            <svg class="p-notification__group-chevron" width="14" height="14" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>`;
+    }).join('');
+
+    return `
+      <h3 class="p-notification__date">${b.label}</h3>
+      ${rows}`;
+  }).join('');
+}
+
+/**
+ * まとめの開閉。★描き直さずにクラスだけ付け外しする。
+ * 開いたことは _openNotifGroups が覚えているので、SSE の再描画でも開いたまま。
+ */
+export function toggleNotifGroup(key) {
+  const box = [...document.querySelectorAll('[data-notif-group]')]
+    .find(el => el.dataset.notifGroup === key);
+  if (!box) return;
+  const open = !_openNotifGroups.has(key);
+  if (open) _openNotifGroups.add(key); else _openNotifGroups.delete(key);
+  box.querySelectorAll('.p-notification__row').forEach((row, i) => {
+    if (i === 0) return;                      // 先頭（代表）は常に出す
+    row.classList.toggle('is-collapsed', !open);
+  });
+  box.querySelector('.p-notification__group-more')?.setAttribute('aria-expanded', String(open));
 }
 
 // 通知アイコンの背景色。CSS 変数 --notif-color として渡す

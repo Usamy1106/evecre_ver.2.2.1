@@ -14,7 +14,7 @@ import {
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
-import { renderMainBoard, toggleAnnounceList } from './views/mainBoard.js';
+import { renderMainBoard, toggleAnnounceList, toggleNotifGroup } from './views/mainBoard.js';
 import { renderWelcome } from './views/welcome.js';
 import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
@@ -655,6 +655,11 @@ window._app = {
     if (missionId) state.mainBoardTab = 'MAIN';
     state.render();
   },
+  // 通知タブの絞り込み（未読／すべて）。★state に持たせて描き直す
+  //   （チップの見た目だけ差し替えると、一覧との食い違いが出る）
+  setNotifFilter: (v) => { state.notifFilter = v; state.render(); },
+  // 同じタスクのまとめの開閉。★描き直さない（mainBoard.js 側でクラスだけ付け外し）
+  toggleNotifGroup: (key) => toggleNotifGroup(key),
   markAllNotificationsRead: async () => {
     // 表示中のイベントの通知だけ既読にする（一覧の表示と整合）
     const evId = state.selectedEventId;
@@ -1751,6 +1756,9 @@ const _LOG_LABELS = {
   leader_motivation_failed:  '★意気込みモーダルの表示に失敗した',
   reflect_outcome_picked:  '振り返りで成否を選んだ',
   reflect_saved:           '振り返りを書いた（完了直後）',
+  notif_filter_unread:     '通知を未読だけに絞った',
+  notif_filter_all:        '通知をすべて表示した',
+  notif_group_toggled:     '同じタスクの通知のまとめを開閉した',
   archive_answers_open:    'アーカイブから参加時の回答を開いた',
   archive_stats_open:      'アーカイブからみんなの活躍を開いた',
   // Web Push（iOS はホーム画面追加が必須なので、どこで脱落するかを追う）
