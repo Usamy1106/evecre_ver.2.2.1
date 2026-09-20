@@ -76,6 +76,11 @@ const IMAGE_DATA_URL_RE    = /^data:image\/(png|jpeg|jpg|webp);base64,/;
 
 // PUT /api/data の処理時間がこれを超えたら警告ログを出す（接続待ち・スロークエリの検知用）
 const SLOW_SAVE_WARN_MS = 500;
+// SSE（GET /api/events）の接続まわり。
+// ★retry はクライアントの再接続間隔、lifetime は1本の接続の寿命。
+//   どちらも lib/eventBus.js のハートビート（25秒）とは別物。
+const SSE_RETRY_MS        = 15_000;
+const SSE_MAX_LIFETIME_MS = 50 * 60 * 1000;
 
 const rateLimit = require('express-rate-limit');
 
@@ -3935,13 +3940,27 @@ app.get('/api/events', requireAuth, async (req, res) => {
       'X-Accel-Buffering': 'no',
     });
     res.flushHeaders?.();
+    // ★再接続までの待ち時間をこちらから指示する（SSE 標準の retry フィールド）。
+    //   既定は約3秒で、圏外や障害のあいだ EventSource が3秒ごとに接続を試み続ける。
+    //   15秒にすると試行回数が 1/5 になり、端末・ルーター・Render の負担が減る。
+    //   ★ハートビート（lib/eventBus.js の25秒）とは役割が別。あちらはプロキシの
+    //     アイドル切断対策なので、揃えたり片方を消したりしないこと。
+    res.write(`retry: ${SSE_RETRY_MS}\n\n`);
     res.write(`event: ready\ndata: ${JSON.stringify({ eventIds: allowed, clientId })}\n\n`);
 
     res.__clientId = clientId;
     const unsubscribe     = eventBus.subscribe(allowed, res);
     const unsubscribeUser = eventBus.subscribeUser(req.user.id, res);
 
+    // ★接続に寿命を持たせ、定期的に張り直させる。
+    //   つなぎっぱなしの接続は、途中で死んでも双方が気づきにくく、ルーターやプロキシに
+    //   古い通信路が残り続ける。こちらから切れば EventSource が retry の間隔でつなぎ直すので、
+    //   ユーザーから見た挙動は変わらない（クライアントは再接続後に取りこぼしを取り直す）。
+    const lifeTimer = setTimeout(() => { try { res.end(); } catch (_) {} }, SSE_MAX_LIFETIME_MS);
+
     req.on('close', () => {
+      clearTimeout(lifeTimer);
+      // ★購読の解除を必ず通すこと。漏れるとブロードキャストのたびに死んだ res へ書き込む
       unsubscribe();
       unsubscribeUser();
       try { res.end(); } catch (_) {}

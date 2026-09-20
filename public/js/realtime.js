@@ -7,7 +7,9 @@
 //   - 接続: state.currentUser がいる時だけ
 //   - 購読対象: state.events 全部の id
 //   - メッセージ受信: eventUpdated → state.events を置換、メンバー変更 → loadAfterAuth で再取得
-//   - 自動再接続: EventSource 内蔵（接続切れたら数秒後に自動）
+//   - 自動再接続: EventSource 内蔵（待ち時間はサーバーが retry で指示する。server.js の SSE_RETRY_MS）
+//   - 隠れている間は切る: タブが見えていない間・圏外の間は接続を閉じ、戻ったら張り直して
+//     取りこぼしを silentReloadEvents で取り直す（下の「接続を持つのは見えている間だけ」を参照）
 //   - エコーバック抑止: X-Client-Id を保存に乗せる（main.js 側で fetch をラップ）
 
 import { state } from './state.js';
@@ -229,4 +231,42 @@ function _flashToast(msg) {
 
 export function disconnectRealtime() {
   _disconnect();
+}
+
+// ===== 接続を持つのは「見えている間」だけ =====
+//
+// ★つなぎっぱなしの接続は、開いているタブの数だけ端末・ルーター・サーバーに残り続ける。
+//   見ていない間は切り、戻ったときに張り直すほうが、体験を変えずに常時接続を減らせる。
+// ★すぐには切らない（HIDE_GRACE_MS）。タブの行き来やアプリの往復のたびに
+//   接続を張り直すと、かえって接続の数が増える。
+// ★戻ったときは **必ず silentReloadEvents で取り直す**。切れている間の更新は届かないので、
+//   つなぎ直すだけだと画面が古いままになる。
+// ★配線はこのファイルの中だけに閉じる（main.js に散らさない）。logger.js と main.js にも
+//   visibilitychange の登録があるが、役割が違う（ログの送信・保存の確定）ので相乗りしない。
+const HIDE_GRACE_MS = 60_000;
+let _hideTimer = null;
+
+function _resume() {
+  if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
+  if (!state.currentUser) return;
+  // まず接続を戻す（取り直しが失敗しても、以降の更新は受け取れる）
+  syncRealtime();
+  // 切れている間の更新は届いていないので取り直す。
+  // ★silentReloadEvents は中で syncRealtime と render まで済ませるので、ここで重ねて呼ばない
+  state.silentReloadEvents?.();
+}
+
+function _pauseSoon() {
+  if (_hideTimer) return;
+  _hideTimer = setTimeout(() => { _hideTimer = null; _disconnect(); }, HIDE_GRACE_MS);
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') _pauseSoon();
+    else _resume();
+  });
+  // 圏外のあいだ EventSource が無駄に再接続を試み続けるのを止める
+  window.addEventListener('offline', () => _disconnect());
+  window.addEventListener('online',  () => _resume());
 }
