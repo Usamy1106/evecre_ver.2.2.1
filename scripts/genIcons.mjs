@@ -1,6 +1,7 @@
 // scripts/genIcons.mjs — アプリアイコン一式を 1024px の元絵から作り直す
 //
-//   元絵: public/images/icon/evecre-icon-1024px.png（正方形・不透明）
+//   元絵: public/images/icon/evecre-icon-1024.png（正方形・不透明）
+//   ★2026-09-20 にファイル名を -1024px.png から -1024.png へ変更（差し替え時に合わせた）。
 //   出力: public/images/icon/evecre-icon-{16,32,48,180,192,512}.png
 //         public/images/icon/evecre-badge-96.png（Android の通知バッジ。白抜き・透過）
 //         public/favicon.ico（16/32/48 を1つに束ねたもの）
@@ -24,7 +25,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SRC  = path.join(ROOT, 'public/images/icon/evecre-icon-1024px.png');
+const SRC  = path.join(ROOT, 'public/images/icon/evecre-icon-1024.png');
 const OUT  = path.join(ROOT, 'public/images/icon');
 
 async function loadSharp() {
