@@ -2081,6 +2081,266 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
 });
 
 // 旧 PUT /api/data（後方互換）
+/**
+ * 送られてきたイベントを保存する（新規作成＋既存更新）。**削除はここでは扱わない。**
+ *
+ * ★PUT /api/data（全件送信）と PATCH /api/data（変わったぶんだけ）の**両方**から呼ぶ。
+ *   片方だけ直すと、通知・push・SSE の挙動が2つの経路でずれる。
+ * ★「送られてこなかったイベント＝削除」という意味を**この関数に持たせないこと**。
+ *   削除は PUT のハンドラにだけ残してある（事故の経路を1か所に閉じるため）。
+ * ★res には触らない。エラーは戻り値（error）で返し、呼び出し元が応答する。
+ *
+ * @param {object} req      認証済みリクエスト（req.user / X-Client-Id を読む）
+ * @param {object[]} incoming クライアントから届いた flat 形式のイベント
+ * @param {object[]} current  そのユーザーの現在のイベント（CRDT 形式）
+ * @param {number} now        タイムスタンプ（呼び出し元で1つに揃える）
+ * @returns {Promise<{savedIds?: string[], error?: {status:number, body:object}}>}
+ */
+async function _saveIncomingEvents(req, incoming, current, now) {
+  const currentIds = new Set(current.map(p => p.id));
+  // --- 新規イベント ---
+  const created = incoming.filter(p => !currentIds.has(p.id));
+  if (created.length > 0 && !req.user.isVerified) {
+    // ★呼び出し元が 403 を返す（この関数の中で res を触らない）
+    return { error: { status: 403, body: { ok: false, error: 'メール認証が完了するまで新規イベントを作成できません', code: 'verification_required' } } };
+  }
+  for (const p of created) {
+    const cp = crdt.flatToCrdt(p, now);
+    cp.members   = [{ userId: req.user.id, role: 'owner', roles: ['owner'], joinedAt: now }];
+    cp.ownerId   = req.user.id;
+    cp.createdAt = p.createdAt || now;
+    cp.rev = 1;
+    await eventStore.saveEvent(cp);
+    eventBus.broadcast(cp.id, 'eventUpdated', {
+      eventId: cp.id, rev: cp.rev, event: crdt.crdtToFlat(cp),
+    });
+  }
+
+  // --- 既存イベントの更新 ---
+  const clientId = req.get('X-Client-Id') || null;
+  // ★保存できた id を返す。クライアントはこれを見て「保存済み」を確定させる
+  //   （途中で失敗しても、保存できなかったぶんは次の保存で再送される）。
+  const savedIds = [...created.map(p => p.id)];
+  // ★current は同じリクエストで取得済み。ループ内で loadEvent を呼び直すと
+  //   イベント件数ぶん無駄に往復する。id で引けるようにしておく。
+  const currentById = new Map(current.map(p => [p.id, p]));
+  for (const incomingP of incoming) {
+    if (!currentIds.has(incomingP.id)) continue;
+    // ★listEventsForUser は旧フラット形式を CRDT 形式へ昇格しない（loadEvent だけが行う）。
+    //   昇格を経ないまま書き込み経路へ入ると、prevMissionsMap が壊れ、
+    //   missionDeletions が存在しない id（"0","1"…）に tombstone を立て、applyPatch の
+    //   $set: 'fields.X' がドキュメントと整合しなくなる。
+    //   旧形式のときだけ loadEvent に落とし、昇格＋再保存を従来どおり起こさせる。
+    //   旧形式のイベントが残っていなければ、この往復は1回も発生しない
+    //   （2026-09-19 時点で本番・開発とも0件。将来の復元に備えた保険）。
+    const cached   = currentById.get(incomingP.id);
+    const existing = eventStore.isLegacyShape(cached)
+      ? await eventStore.loadEvent(incomingP.id)
+      : cached;
+    if (!existing || !eventStore.isMember(existing, req.user.id)) continue;
+    if (!eventStore.canManage(existing, req.user.id)) continue;
+
+    // 通知トリガー検出（変更前後のミッション比較）
+    const prevMissionsMap = {};
+    for (const mid of Object.keys(existing.missions || {})) {
+      const cm = existing.missions[mid];
+      if (cm.deletedAt) continue;
+      const flat = { id: mid };
+      for (const k of Object.keys(cm.fields || {})) flat[k] = cm.fields[k]?.v;
+      prevMissionsMap[mid] = flat;
+    }
+
+    const notifications = [];
+    // push はアプリ内通知と宛先が異なるため別配列に積み、保存成功後に送る
+    const pushJobs = [];
+    for (const m of (incomingP.missions || [])) {
+      const prev = prevMissionsMap[m.id];
+      const projectMembers = (existing.members || []).map(x => x.userId);
+
+      // (A) 担当者の新規割当（手動アサイン）
+      const prevAssigneeUser = (prev?.assignee?.type === 'user') ? prev.assignee.userId : null;
+      const newAssigneeUser  = (m.assignee?.type  === 'user')    ? m.assignee.userId    : null;
+      if (newAssigneeUser && newAssigneeUser !== prevAssigneeUser && newAssigneeUser !== req.user.id) {
+        if (!m.selfClaim) {
+          notifications.push({
+            userIds: [newAssigneeUser],
+            notif: {
+              type:      'assigned_to_me',
+              message:   `${req.user.username} さんが「${m.title}」をあなたに割り当てました`,
+              eventId: incomingP.id,
+              missionId: m.id,
+              actorId:   req.user.id,
+              actorName: req.user.username,
+            },
+          });
+        }
+      }
+
+      // ── push：**既存ミッションに後から担当が付いた**とき ──
+      // ★新規作成時の push は下の (D) が出す。こちらは「あとで割り当てられた」ぶん。
+      //   割り当てはアプリを閉じている間に起きるので、push が無いと本人は
+      //   次に開くまで気づけない（アプリ内通知だけでは届かない）。
+      // ★単数 assignee だけでなく assignees（複数担当）も見る。実データは配列側で、
+      //   単数は後方互換で書かれうるので _resolveAssigneeIds に揃える。
+      // ★申告制（selfClaim）は自分で手を挙げた結果なので送らない。
+      //   選定で決まったぶんは /select-claims が別途 push する。
+      if (prev && !m.selfClaim) {
+        const prevIds = new Set(_resolveAssigneeIds(prev));
+        const added = _resolveAssigneeIds(m)
+          .filter(uid => !prevIds.has(uid) && uid !== req.user.id);
+        if (added.length > 0) {
+          pushJobs.push({
+            userIds: added,
+            missionId: m.id,
+            title: 'ミッションが割り当てられました',
+            body:  `「${m.title}」が割り当てられました！`,
+          });
+        }
+      }
+
+      // (B) ミッション完了
+      const prevStatus = prev?.status || 'yet';
+      const newStatus  = m.status     || 'yet';
+      if (prevStatus !== 'cleared' && newStatus === 'cleared') {
+        // push は管理者だけに鳴らす（アプリ内通知は従来どおり全メンバー）
+        pushJobs.push({
+          userIds: _getManagerIds(existing).filter(uid => uid !== req.user.id),
+          missionId: m.id,
+          title: 'ミッションが完了しました',
+          body:  `${req.user.username}さんが「${m.title}」を完了しました！`,
+        });
+        notifications.push({
+          userIds: projectMembers.filter(uid => uid !== req.user.id),
+          notif: {
+            type:      'mission_cleared',
+            message:   `${req.user.username} さんが「${m.title}」を完了しました`,
+            eventId: incomingP.id,
+            missionId: m.id,
+            actorId:   req.user.id,
+            actorName: req.user.username,
+          },
+        });
+      }
+
+      // (C) リーダー確認待ち
+      if (prevStatus !== 'pending_leader_check' && newStatus === 'pending_leader_check') {
+        const managerIds = _getManagerIds(existing).filter(uid => uid !== req.user.id);
+        notifications.push({
+          userIds: managerIds,
+          notif: {
+            type:      'pending_leader_check',
+            message:   `${req.user.username} さんが「${m.title}」を提出しました。確認をお願いします`,
+            eventId: incomingP.id,
+            missionId: m.id,
+            actorId:   req.user.id,
+            actorName: req.user.username,
+          },
+        });
+      }
+
+      // (E) アーカイブから未完了に戻された（cleared → cleared 以外）→ 全メンバー（実行者除く）
+      if (prevStatus === 'cleared' && newStatus !== 'cleared') {
+        notifications.push({
+          userIds: projectMembers.filter(uid => uid !== req.user.id),
+          notif: {
+            type:      'mission_reverted',
+            message:   `${req.user.username} さんが「${m.title}」を未完了に戻しました`,
+            eventId: incomingP.id,
+            missionId: m.id,
+            actorId:   req.user.id,
+            actorName: req.user.username,
+          },
+        });
+      }
+
+      // (D) 新規ミッション作成 / (F) 既存ミッションの内容変更
+      if (!prev) {
+        // アプリ内通知は従来どおり全メンバー（実行者除く）
+        notifications.push({
+          userIds: projectMembers.filter(uid => uid !== req.user.id),
+          notif: {
+            type:      'mission_created',
+            message:   `${req.user.username} さんが「${m.title}」を作成しました`,
+            eventId: incomingP.id,
+            missionId: m.id,
+            actorId:   req.user.id,
+            actorName: req.user.username,
+          },
+        });
+
+        // ── push（担当者の有無で排他。両方は送らない）──
+        const assignees = _resolveAssigneeIds(m).filter(uid => uid !== req.user.id);
+        if (assignees.length > 0) {
+          pushJobs.push({
+            userIds: assignees,
+            missionId: m.id,
+            title: 'ミッションが割り当てられました',
+            body:  `「${m.title}」が割り当てられました！`,
+          });
+        } else {
+          pushJobs.push({
+            userIds: projectMembers.filter(uid => uid !== req.user.id),
+            missionId: m.id,
+            title: 'ミッションが作成されました',
+            body:  `「${m.title}」が作成されました！`,
+          });
+        }
+      } else if (_missionContentChanged(prev, m)) {
+        // 内容変更は「担当者 ∪ 管理者」に絞る（従来は全メンバーで、編集のたびに
+        // 無関係なメンバーにも通知が溜まっていた）。担当者がいなければ管理者のみ。
+        const updateTargets = [...new Set([
+          ..._resolveAssigneeIds(m),
+          ..._getManagerIds(existing),
+        ])].filter(uid => uid !== req.user.id);
+        if (updateTargets.length > 0) {
+          notifications.push({
+            userIds: updateTargets,
+            notif: {
+              type:      'mission_updated',
+              message:   `${req.user.username} さんが「${m.title}」を変更しました`,
+              eventId: incomingP.id,
+              missionId: m.id,
+              actorId:   req.user.id,
+              actorName: req.user.username,
+            },
+          });
+        }
+      }
+    }
+
+    const existingMissionIds  = Object.keys(existing.missions  || {});
+    const existingProposalIds = Object.keys(existing.proposals || {});
+    const incomingMissionIds  = new Set((incomingP.missions  || []).map(m => m.id));
+    const incomingProposalIds = new Set((incomingP.proposals || []).map(p => p.id));
+    const missionDeletions   = existingMissionIds.filter(id  => !incomingMissionIds.has(id)  && !existing.missions[id].deletedAt);
+    const proposalDeletions  = existingProposalIds.filter(id => !incomingProposalIds.has(id) && !existing.proposals[id].deletedAt);
+
+    // clearedData を submissions コレクションに分離
+    const patchFlat = { ...incomingP };
+    await _extractClearedData(incomingP.id, patchFlat);
+
+    const merged = await eventStore.applyPatch(incomingP.id, patchFlat, {
+      timestamp: now, missionDeletions, proposalDeletions,
+    });
+
+    const broadcastFlat = crdt.crdtToFlat(merged);
+    await _mergeSubmissions(incomingP.id, broadcastFlat);
+    eventBus.broadcast(incomingP.id, 'eventUpdated', {
+      eventId: incomingP.id, rev: merged.rev, event: broadcastFlat,
+    }, clientId);
+
+    await Promise.all(notifications.map(n => notifStore.notifyAll(n.userIds, n.notif)));
+
+    // push は保存が成功してから送る（失敗しても本処理は止めない）
+    for (const j of pushJobs) {
+      _sendMissionPush(j.userIds, incomingP.id, j.missionId, j.title, j.body);
+    }
+    savedIds.push(incomingP.id);
+  }
+
+  return { savedIds };
+}
+
 app.put('/api/data', requireAuth, async (req, res) => {
   const _t0 = Date.now();
   try {
@@ -2090,246 +2350,14 @@ app.put('/api/data', requireAuth, async (req, res) => {
     const submissionErr = _validateIncomingSubmissions(incoming);
     if (submissionErr) return res.status(400).json({ ok: false, error: submissionErr });
 
-    const current   = await eventStore.listEventsForUser(req.user.id);
-    const currentIds  = new Set(current.map(p => p.id));
+    const current     = await eventStore.listEventsForUser(req.user.id);
     const incomingIds = new Set(incoming.map(p => p.id));
+    const now         = Date.now();
 
-    // --- 新規イベント ---
-    const created = incoming.filter(p => !currentIds.has(p.id));
-    if (created.length > 0 && !req.user.isVerified) {
-      return res.status(403).json({ ok: false, error: 'メール認証が完了するまで新規イベントを作成できません', code: 'verification_required' });
-    }
-    const now = Date.now();
-    for (const p of created) {
-      const cp = crdt.flatToCrdt(p, now);
-      cp.members   = [{ userId: req.user.id, role: 'owner', roles: ['owner'], joinedAt: now }];
-      cp.ownerId   = req.user.id;
-      cp.createdAt = p.createdAt || now;
-      cp.rev = 1;
-      await eventStore.saveEvent(cp);
-      eventBus.broadcast(cp.id, 'eventUpdated', {
-        eventId: cp.id, rev: cp.rev, event: crdt.crdtToFlat(cp),
-      });
-    }
-
-    // --- 既存イベントの更新 ---
-    const clientId = req.get('X-Client-Id') || null;
-    // ★current は同じリクエストで取得済み。ループ内で loadEvent を呼び直すと
-    //   イベント件数ぶん無駄に往復する。id で引けるようにしておく。
-    const currentById = new Map(current.map(p => [p.id, p]));
-    for (const incomingP of incoming) {
-      if (!currentIds.has(incomingP.id)) continue;
-      // ★listEventsForUser は旧フラット形式を CRDT 形式へ昇格しない（loadEvent だけが行う）。
-      //   昇格を経ないまま書き込み経路へ入ると、prevMissionsMap が壊れ、
-      //   missionDeletions が存在しない id（"0","1"…）に tombstone を立て、applyPatch の
-      //   $set: 'fields.X' がドキュメントと整合しなくなる。
-      //   旧形式のときだけ loadEvent に落とし、昇格＋再保存を従来どおり起こさせる。
-      //   旧形式のイベントが残っていなければ、この往復は1回も発生しない
-      //   （2026-09-19 時点で本番・開発とも0件。将来の復元に備えた保険）。
-      const cached   = currentById.get(incomingP.id);
-      const existing = eventStore.isLegacyShape(cached)
-        ? await eventStore.loadEvent(incomingP.id)
-        : cached;
-      if (!existing || !eventStore.isMember(existing, req.user.id)) continue;
-      if (!eventStore.canManage(existing, req.user.id)) continue;
-
-      // 通知トリガー検出（変更前後のミッション比較）
-      const prevMissionsMap = {};
-      for (const mid of Object.keys(existing.missions || {})) {
-        const cm = existing.missions[mid];
-        if (cm.deletedAt) continue;
-        const flat = { id: mid };
-        for (const k of Object.keys(cm.fields || {})) flat[k] = cm.fields[k]?.v;
-        prevMissionsMap[mid] = flat;
-      }
-
-      const notifications = [];
-      // push はアプリ内通知と宛先が異なるため別配列に積み、保存成功後に送る
-      const pushJobs = [];
-      for (const m of (incomingP.missions || [])) {
-        const prev = prevMissionsMap[m.id];
-        const projectMembers = (existing.members || []).map(x => x.userId);
-
-        // (A) 担当者の新規割当（手動アサイン）
-        const prevAssigneeUser = (prev?.assignee?.type === 'user') ? prev.assignee.userId : null;
-        const newAssigneeUser  = (m.assignee?.type  === 'user')    ? m.assignee.userId    : null;
-        if (newAssigneeUser && newAssigneeUser !== prevAssigneeUser && newAssigneeUser !== req.user.id) {
-          if (!m.selfClaim) {
-            notifications.push({
-              userIds: [newAssigneeUser],
-              notif: {
-                type:      'assigned_to_me',
-                message:   `${req.user.username} さんが「${m.title}」をあなたに割り当てました`,
-                eventId: incomingP.id,
-                missionId: m.id,
-                actorId:   req.user.id,
-                actorName: req.user.username,
-              },
-            });
-          }
-        }
-
-        // ── push：**既存ミッションに後から担当が付いた**とき ──
-        // ★新規作成時の push は下の (D) が出す。こちらは「あとで割り当てられた」ぶん。
-        //   割り当てはアプリを閉じている間に起きるので、push が無いと本人は
-        //   次に開くまで気づけない（アプリ内通知だけでは届かない）。
-        // ★単数 assignee だけでなく assignees（複数担当）も見る。実データは配列側で、
-        //   単数は後方互換で書かれうるので _resolveAssigneeIds に揃える。
-        // ★申告制（selfClaim）は自分で手を挙げた結果なので送らない。
-        //   選定で決まったぶんは /select-claims が別途 push する。
-        if (prev && !m.selfClaim) {
-          const prevIds = new Set(_resolveAssigneeIds(prev));
-          const added = _resolveAssigneeIds(m)
-            .filter(uid => !prevIds.has(uid) && uid !== req.user.id);
-          if (added.length > 0) {
-            pushJobs.push({
-              userIds: added,
-              missionId: m.id,
-              title: 'ミッションが割り当てられました',
-              body:  `「${m.title}」が割り当てられました！`,
-            });
-          }
-        }
-
-        // (B) ミッション完了
-        const prevStatus = prev?.status || 'yet';
-        const newStatus  = m.status     || 'yet';
-        if (prevStatus !== 'cleared' && newStatus === 'cleared') {
-          // push は管理者だけに鳴らす（アプリ内通知は従来どおり全メンバー）
-          pushJobs.push({
-            userIds: _getManagerIds(existing).filter(uid => uid !== req.user.id),
-            missionId: m.id,
-            title: 'ミッションが完了しました',
-            body:  `${req.user.username}さんが「${m.title}」を完了しました！`,
-          });
-          notifications.push({
-            userIds: projectMembers.filter(uid => uid !== req.user.id),
-            notif: {
-              type:      'mission_cleared',
-              message:   `${req.user.username} さんが「${m.title}」を完了しました`,
-              eventId: incomingP.id,
-              missionId: m.id,
-              actorId:   req.user.id,
-              actorName: req.user.username,
-            },
-          });
-        }
-
-        // (C) リーダー確認待ち
-        if (prevStatus !== 'pending_leader_check' && newStatus === 'pending_leader_check') {
-          const managerIds = _getManagerIds(existing).filter(uid => uid !== req.user.id);
-          notifications.push({
-            userIds: managerIds,
-            notif: {
-              type:      'pending_leader_check',
-              message:   `${req.user.username} さんが「${m.title}」を提出しました。確認をお願いします`,
-              eventId: incomingP.id,
-              missionId: m.id,
-              actorId:   req.user.id,
-              actorName: req.user.username,
-            },
-          });
-        }
-
-        // (E) アーカイブから未完了に戻された（cleared → cleared 以外）→ 全メンバー（実行者除く）
-        if (prevStatus === 'cleared' && newStatus !== 'cleared') {
-          notifications.push({
-            userIds: projectMembers.filter(uid => uid !== req.user.id),
-            notif: {
-              type:      'mission_reverted',
-              message:   `${req.user.username} さんが「${m.title}」を未完了に戻しました`,
-              eventId: incomingP.id,
-              missionId: m.id,
-              actorId:   req.user.id,
-              actorName: req.user.username,
-            },
-          });
-        }
-
-        // (D) 新規ミッション作成 / (F) 既存ミッションの内容変更
-        if (!prev) {
-          // アプリ内通知は従来どおり全メンバー（実行者除く）
-          notifications.push({
-            userIds: projectMembers.filter(uid => uid !== req.user.id),
-            notif: {
-              type:      'mission_created',
-              message:   `${req.user.username} さんが「${m.title}」を作成しました`,
-              eventId: incomingP.id,
-              missionId: m.id,
-              actorId:   req.user.id,
-              actorName: req.user.username,
-            },
-          });
-
-          // ── push（担当者の有無で排他。両方は送らない）──
-          const assignees = _resolveAssigneeIds(m).filter(uid => uid !== req.user.id);
-          if (assignees.length > 0) {
-            pushJobs.push({
-              userIds: assignees,
-              missionId: m.id,
-              title: 'ミッションが割り当てられました',
-              body:  `「${m.title}」が割り当てられました！`,
-            });
-          } else {
-            pushJobs.push({
-              userIds: projectMembers.filter(uid => uid !== req.user.id),
-              missionId: m.id,
-              title: 'ミッションが作成されました',
-              body:  `「${m.title}」が作成されました！`,
-            });
-          }
-        } else if (_missionContentChanged(prev, m)) {
-          // 内容変更は「担当者 ∪ 管理者」に絞る（従来は全メンバーで、編集のたびに
-          // 無関係なメンバーにも通知が溜まっていた）。担当者がいなければ管理者のみ。
-          const updateTargets = [...new Set([
-            ..._resolveAssigneeIds(m),
-            ..._getManagerIds(existing),
-          ])].filter(uid => uid !== req.user.id);
-          if (updateTargets.length > 0) {
-            notifications.push({
-              userIds: updateTargets,
-              notif: {
-                type:      'mission_updated',
-                message:   `${req.user.username} さんが「${m.title}」を変更しました`,
-                eventId: incomingP.id,
-                missionId: m.id,
-                actorId:   req.user.id,
-                actorName: req.user.username,
-              },
-            });
-          }
-        }
-      }
-
-      const existingMissionIds  = Object.keys(existing.missions  || {});
-      const existingProposalIds = Object.keys(existing.proposals || {});
-      const incomingMissionIds  = new Set((incomingP.missions  || []).map(m => m.id));
-      const incomingProposalIds = new Set((incomingP.proposals || []).map(p => p.id));
-      const missionDeletions   = existingMissionIds.filter(id  => !incomingMissionIds.has(id)  && !existing.missions[id].deletedAt);
-      const proposalDeletions  = existingProposalIds.filter(id => !incomingProposalIds.has(id) && !existing.proposals[id].deletedAt);
-
-      // clearedData を submissions コレクションに分離
-      const patchFlat = { ...incomingP };
-      await _extractClearedData(incomingP.id, patchFlat);
-
-      const merged = await eventStore.applyPatch(incomingP.id, patchFlat, {
-        timestamp: now, missionDeletions, proposalDeletions,
-      });
-
-      const broadcastFlat = crdt.crdtToFlat(merged);
-      await _mergeSubmissions(incomingP.id, broadcastFlat);
-      eventBus.broadcast(incomingP.id, 'eventUpdated', {
-        eventId: incomingP.id, rev: merged.rev, event: broadcastFlat,
-      }, clientId);
-
-      await Promise.all(notifications.map(n => notifStore.notifyAll(n.userIds, n.notif)));
-
-      // push は保存が成功してから送る（失敗しても本処理は止めない）
-      for (const j of pushJobs) {
-        _sendMissionPush(j.userIds, incomingP.id, j.missionId, j.title, j.body);
-      }
-    }
-
+    // ★新規作成と既存更新は PATCH /api/data と共用（_saveIncomingEvents）。
+    //   ここに処理を書き戻さないこと（2経路で挙動がずれる）。
+    const saved = await _saveIncomingEvents(req, incoming, current, now);
+    if (saved.error) return res.status(saved.error.status).json(saved.error.body);
     // --- 削除 ---
     for (const p of current) {
       if (incomingIds.has(p.id)) continue;
@@ -2385,6 +2413,45 @@ app.put('/api/data', requireAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('PUT /api/data error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// 変わったイベントだけを保存する（部分保存）。
+//
+// ★PUT /api/data との違いは**ただ1つ、削除を扱わないこと**。
+//   PUT は「送られてこなかったイベント＝削除」という意味を持ち、オーナーなら
+//   タスク・提出物・通知・行動ログ・招待・チャット・R2 の画像まで消える。
+//   ふだんの保存でその経路を通らせないために、入口を分けてある。
+// ★**このハンドラに削除の処理を足さないこと。** 足した瞬間に、部分保存が
+//   「送らなかったぶんを消す」意味を持ってしまう（事故の経路が全保存に広がる）。
+// ★保存できた id を savedIds で返す。クライアントはこれを見て「保存済み」を確定させ、
+//   返ってこなかったぶんは次の保存で再送する（途中で失敗しても変更が失われない）。
+// ★新規イベントの作成もここを通れるが、クライアントは従来どおり
+//   PUT + ?return=events を使う（_createEventAndReturnId）。
+app.patch('/api/data', requireAuth, async (req, res) => {
+  const _t0 = Date.now();
+  try {
+    const incoming = req.body?.events || [];
+    if (!Array.isArray(incoming) || incoming.length === 0) {
+      return res.status(400).json({ ok: false, error: '保存するイベントがありません' });
+    }
+
+    // 提出物画像の検証は保存を始める前に行う（途中まで書き込まれるのを防ぐ）
+    const submissionErr = _validateIncomingSubmissions(incoming);
+    if (submissionErr) return res.status(400).json({ ok: false, error: submissionErr });
+
+    const current = await eventStore.listEventsForUser(req.user.id);
+    const saved   = await _saveIncomingEvents(req, incoming, current, Date.now());
+    if (saved.error) return res.status(saved.error.status).json(saved.error.body);
+
+    const _ms = Date.now() - _t0;
+    if (_ms > SLOW_SAVE_WARN_MS) {
+      console.warn(`[slow] PATCH /api/data ${_ms}ms events=${incoming.length} user=${req.user.id}`);
+    }
+    res.json({ ok: true, savedIds: saved.savedIds || [] });
+  } catch (e) {
+    console.error('PATCH /api/data error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
