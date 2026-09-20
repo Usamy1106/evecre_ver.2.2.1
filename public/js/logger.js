@@ -54,7 +54,12 @@ export function logEvent(name, props = {}) {
     projectId: _projectIdGetter(),
     props,
     ctx: {
-      ua:         navigator.userAgent,
+      // ★ua（約120バイト）は**セッションの先頭だけ**に載せる（2026-09-20）。
+      //   1イベントごとに送ると通信量と event_logs の保存量が無駄に増える。
+      //   セッション単位の分析（iOS 比率など）は session_started の行を見れば足りる。
+      //   ★分析ビュー（scripts/createAnalyticsViews.js）は ctx.ua を参照していない。
+      //     参照するビューを足すときは、sessionId で session_started の行に結合すること。
+      ...(name === 'session_started' ? { ua: navigator.userAgent } : {}),
       viewport:   `${window.innerWidth}x${window.innerHeight}`,
       appVersion: APP_VERSION,
       clientId,

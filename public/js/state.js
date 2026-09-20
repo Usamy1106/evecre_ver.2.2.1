@@ -345,13 +345,15 @@ export const state = {
       }
       this.events = data.events || [];
       console.log('[loadAfterAuth] イベント一覧取得:', this.events.length, '件');
-      // フォルダ一覧も取得
-      try {
-        const pData = await api.listProjects();
-        this.folders = pData.projects || [];
-      } catch (_) { this.folders = []; }
-      // 通知も取得
-      await this.loadNotifications();
+      // ★フォルダ一覧と通知は**並列**に取る（2026-09-20）。互いに依存していないので、
+      //   直列にすると起動が1往復ぶん遅くなる。イベント一覧（api.load）だけは
+      //   this.events を後続が使うので先に確定させること。
+      await Promise.all([
+        api.listProjects()
+          .then(pData => { this.folders = pData.projects || []; })
+          .catch(() => { this.folders = []; }),
+        this.loadNotifications(),
+      ]);
     } catch (e) {
       console.error('[loadAfterAuth] イベント読み込みエラー:', e);
       this.events = [];
