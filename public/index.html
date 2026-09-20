@@ -12,6 +12,11 @@
 
   <!-- ===== PWA（Web Push は iOS ではホーム画面追加が必須条件）===== -->
   <link rel="manifest" href="/manifest.json">
+  <!-- ★2つとも要る。iOS は apple- 付きしか見ず、これが無いとホーム画面から起動しても
+       フルスクリーン（standalone）にならない＝通知の前提が崩れる。
+       Chrome は標準名の mobile-web-app-capable を見る（apple- 付きだけだと
+       「deprecated」の警告が出る）。どちらも消さないこと。 -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="イベクリ">
@@ -30,10 +35,29 @@
        ★用途を限っている。本文には使わないこと（読み込みが重く、日本語は特に大きい）。
          Yuji Syuku … 看板のタイトル（筆文字）
          Noto Serif Georgian … 標高の数字（欧文数字だけなので軽い）
-       ★display=swap。読めなくても代替フォントで表示だけは出る（看板が空にならない）。 -->
+       ★display=swap。読めなくても代替フォントで表示だけは出る（看板が空にならない）。
+       ★2026-09-20: 描画ブロックから外した。
+         この <link> は同期読み込みで、初回描画の前に fonts.googleapis.com への
+         DNS + TLS + 往復が入っていた。ところが使い先は _mountain.css の
+         .p-mountain__summit-title / __summit-alt の2箇所だけで、山頂の看板は
+         開催最終日を過ぎたイベントにしか出ない（mountainPath.js の _isSummit）。
+         ほぼ全員が、自分には出ない要素のために往復を1回払っていた。
+       ★media="print" → onload で all に戻す形。ブラウザは print 用のスタイルシートを
+         描画の待ち対象にしないので、取得は走るが描画は待たない。
+         onload は1回だけ発火するので this.onload=null で自分を外す。
+       ★<noscript> のフォールバックを必ず残すこと。JS が無効だと onload が走らず、
+         看板のフォントが永久に当たらない。
+       ★preconnect の2行は残すこと（この形ではむしろ効く）。
+       ★URL は1文字も変えないこと（family の順序・display=swap を含む。
+         変えると Google 側のキャッシュキーが変わる）。 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Noto+Serif+Georgian:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" media="print" onload="this.onload=null;this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Noto+Serif+Georgian:wght@700&display=swap">
+  <noscript>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Noto+Serif+Georgian:wght@700&display=swap">
+  </noscript>
 
   <!-- スタイルは FLOCSS で public/css/ に分割してある。詳細は public/css/README.md
        ★Tailwind の CDN は 2026-08-18 に撤去した。ブラウザ既定の打ち消し（Preflight
