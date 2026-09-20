@@ -4,6 +4,7 @@ import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 import { openCalendarModal } from './calendar.js';
 import { getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue } from '../utils.js';
+import { REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 
 // ===== アーカイブ直接編集 =====
 
@@ -293,15 +294,12 @@ export async function submitMissionClear(missionId) {
   // ── サーバーで永続化 ─────────────────────────────────────
   // PUT /api/data は canManage 必須のため、一般メンバーの完了が保存されず
   // 再読み込みで未完了に戻る不具合があった。完了は専用エンドポイントで永続化する。
-  // ── 振り返り（任意）──────────────────────────────────────
-  // ★未入力でも完了できる。ここで弾かないこと（必須にすると完了率が落ちる）。
-  //   noInput のタスクには入力欄自体が無いので、要素が無ければ空で送る。
-  const struggle  = (document.getElementById('reflect-struggle')?.value  || '').trim();
-  const solution  = (document.getElementById('reflect-solution')?.value  || '').trim();
-  const shareable = !!document.getElementById('reflect-shareable')?.checked;
-
+  // ── 振り返りは完了**後**に聞く（views/missionReflect.js のページ）─────────
+  // ★完了フォームには振り返りの入力欄を置かない（2026-09-20 に移設）。
+  //   完了ボタンまでの道のりを軽くし、達成感がいちばん高い直後に聞くため。
+  //   ★ここで struggle / solution を送らないこと。送ると空文字で上書きされる。
   const r = await api.completeMission(project.id, missionId, {
-    content, format: detectedFormat, struggle, solution, shareable,
+    content, format: detectedFormat,
   });
   if (!r.ok) {
     window._app?.showToast(r.error || '完了の保存に失敗しました', 'error');
@@ -313,10 +311,7 @@ export async function submitMissionClear(missionId) {
     tag:      m.tag || (Array.isArray(m.tags) ? m.tags[0] : null),
     format:   detectedFormat,
     priority: m.priority,
-    // ★本文は送らない（行動ログに自由記述を混ぜない）。書かれたかどうかだけ数える
-    hasStruggle: !!struggle,
-    hasSolution: !!solution,
-    shareable,
+    // ★振り返りは完了後のページで書く。書かれたかどうかは reflect_saved で数える
   });
 
   // 送信成功 → ローカルドラフト破棄
@@ -336,14 +331,33 @@ export async function submitMissionClear(missionId) {
 
   document.getElementById('clear-mission-modal')?.remove();
 
-  // ★タスク詳細ページから完了したときは、そのページを自動で閉じてイベントページへ戻す。
-  //   完了した画面に留まり続ける理由がなく、戻ったところでオンボーディングの
+  // ★完了したら振り返りページへ進む（modals ではなくページ。views/missionReflect.js）。
+  //   ★入力欄が無いタスク（noInput）と、イベント作成時に入る初期タスク（目的・概要。
+  //     constants.js の REFLECT_SKIP_MISSION_IDS）では出さない。書くことが無い／
+  //     決める作業で成否を問う対象ではないため（アーカイブからはいつでも書ける）。
+  //   ★リーダーチェックの提出・個別完了（自分ぶんだけ完了）でも出す。提出物はもう
+  //     作られていて、振り返りは自分の提出物に対して書けるため。
+  // ★タスク詳細ページから完了したときは、そのページを閉じてから遷移する。完了した画面に
+  //   留まり続ける理由がなく、ボードへ戻ったところでオンボーディングの
   //   「はじめての完了」（M4 / L6）を出したいため。
-  //   詳細ページ以外（アーカイブの一覧など）から完了した場合は現在地を維持する。
+  const returnTab = state.currentView === 'MISSION_DETAIL'
+    ? (state.missionDetailReturn?.tab || state.mainBoardTab)
+    : state.mainBoardTab;
   if (state.currentView === 'MISSION_DETAIL' && state.selectedMissionId === missionId) {
-    state.closeMissionDetail();
-  } else {
+    state.selectedMissionId = null;
+    state.missionDetailReturn = null;
+    state.missionChat = null;
+  }
+  // ★初期タスク（目的・概要）でも出さない。決める作業で、成否を問う対象ではない
+  if (m.noInput || REFLECT_SKIP_MISSION_IDS.includes(m.id)) {
+    if (state.currentView === 'MISSION_DETAIL') {
+      state.currentView = 'MAIN_BOARD';
+      state.mainBoardTab = returnTab;
+      window.scrollTo(0, 0);
+    }
     state.render();
+  } else {
+    state.openMissionReflect(missionId, { tab: returnTab });
   }
 
   // トースト文言はサーバーが返した最新 status から判定

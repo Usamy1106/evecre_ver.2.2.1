@@ -414,7 +414,14 @@ section('[B] 実機で見つかった不具合');
   {
     const co = R('public/js/constants.js');
     const md = R('public/js/views/missionDetail.js');
-    const TABLES = ['SUBMISSION_PLACEHOLDERS', 'REFLECT_STRUGGLE_PLACEHOLDERS', 'REFLECT_SOLUTION_PLACEHOLDERS'];
+    const ut = R('public/js/utils.js');
+    const mr = R('public/js/views/missionReflect.js');
+    const TABLES = [
+      'SUBMISSION_PLACEHOLDERS',
+      'REFLECT_STRUGGLE_PLACEHOLDERS', 'REFLECT_SOLUTION_PLACEHOLDERS',
+      // 「うまくいった」側（2026-09-20）。成否で問いが変わるので例文も分ける
+      'REFLECT_EFFECT_PLACEHOLDERS', 'REFLECT_WHY_PLACEHOLDERS',
+    ];
 
     // ★DEFAULT が無いとカスタムタグで undefined が出る（本番の約1/4がカスタムタグ）
     const noDefault = TABLES.filter(t => {
@@ -433,25 +440,71 @@ section('[B] 実機で見つかった不具合');
     ok('★ビルトイン4タグぶんの例文が揃っている', missing.length === 0, missing.join(', '));
 
     ok('★プレースホルダーを _esc に通している',
-      (md.match(/placeholder="\$\{_esc\(_placeholderFor\(/g) || []).length === 3);
+      /placeholder="\$\{_esc\(placeholderFor\(/.test(md) &&
+      /placeholder="\$\{_esc\(f\.(struggle|solution)\.placeholder\)\}"/.test(mr));
+    // ★タグ別の出し分けは utils.js の placeholderFor 1本。各ファイルに書き写さないこと
+    ok('★タグ別の例文の選び方が utils.js に1本化されている',
+      /export function placeholderFor\(table, mission\)/.test(ut) &&
+      !/function _placeholderFor/.test(codeOnly(md)) &&
+      /import \{ placeholderFor \}/.test(md) && /import \{ placeholderFor \}/.test(mr));
     // ★tag（単数）と tags（配列）は両方実在する。片方だけ見ると取りこぼす
     ok('★tag と tags の両方を集合にしてから数えている',
-      /Array\.isArray\(mission\?\.tags\) \? mission\.tags : \[\]/.test(codeOnly(md)) &&
-      /mission\?\.tag \? \[mission\.tag\] : \[\]/.test(codeOnly(md)));
+      /Array\.isArray\(mission\?\.tags\) \? mission\.tags : \[\]/.test(codeOnly(ut)) &&
+      /mission\?\.tag \? \[mission\.tag\] : \[\]/.test(codeOnly(ut)));
     // ★ビルトインが**ちょうど1つ**のときだけ、そのタグの例文を出す。
     //   2つ以上（例：企画＋広報）はどちらに寄せても片方に対して嘘になるので DEFAULT。
     ok('★ビルトインタグが1つのときだけ専用の例文を出す（複数なら DEFAULT）',
-      /builtin\.length === 1 \? \(table\[builtin\[0\]\] \|\| table\.DEFAULT\) : table\.DEFAULT/.test(codeOnly(md)));
+      /builtin\.length === 1 \? \(table\[builtin\[0\]\] \|\| table\.DEFAULT\) : table\.DEFAULT/.test(codeOnly(ut)));
     // ★4タグをここに書き写さないこと（増やしたとき片方だけ直す事故になる）
     ok('★ビルトインの判定を LABEL_CONFIG から引いている',
-      /hasOwnProperty\.call\(LABEL_CONFIG, t\)/.test(codeOnly(md)));
+      /hasOwnProperty\.call\(LABEL_CONFIG, t\)/.test(codeOnly(ut)));
 
-    // ★振り返り欄は既定で開く（入力実績が0件で、畳まれて気づかれていなかった）
-    ok('★振り返り欄が既定で開いている', /class="p-mission-detail__reflect" open>/.test(md));
-    // ★既定が open なので、閉じた人を開き直さないこと
-    ok('★閉じた振り返り欄を再描画で開き直さない',
-      /open:\s+document\.querySelector\('\.p-mission-detail__reflect'\)\?\.open \?\? null/.test(md) &&
-      /prevReflect\.open !== null\) reflectEl\.open = prevReflect\.open/.test(md));
+    // ===== 完了後の振り返りページ（2026-09-20。完了フォームの入力欄から移設）=====
+    // ★完了は先に確定させ、振り返りは完全な任意。完了フォームに入力欄を戻さないこと
+    //   （同じ id が2箇所に描画されると getElementById が壊れる）。
+    ok('★完了フォームに振り返りの入力欄が無い（ページへ移設済み）',
+      !/_renderReflectionInput/.test(md) && !/id="reflect-struggle"/.test(md));
+    ok('★振り返りページが登録されている（ビュー MISSION_REFLECT）',
+      /registerRenderer\('MISSION_REFLECT'/.test(R('public/js/main.js')));
+    // ★保存は PATCH .../reflection だけ。completeMission を再送すると山のオブジェクトが
+    //   引き直され、完了通知と Web Push も再送される
+    // ★判定は codeOnly を通す。「completeMission を再送しないこと」という注意書き自体が
+    //   引っかかるため（落とし穴 0-8）
+    ok('★振り返りの保存に completeMission を再送していない',
+      /api\.updateReflection\(/.test(mr) && !/completeMission/.test(codeOnly(mr)));
+    // ★成否で問いを変える（「どう乗り越えた？」だけだと、乗り越えられなかった人が書けない）
+    ok('★成否で見出しを切り替えている（REFLECT_LABELS）',
+      /REFLECT_LABELS/.test(mr) && /REFLECT_LABELS/.test(md) &&
+      /REFLECT_LABELS/.test(R('public/js/modals/reflectionEditModal.js')));
+    // ★絵はイラストへ差し替える前提。constants.js の OUTCOME_CHOICES.art だけに置く
+    //   ★ここも codeOnly を通す（「絵は constants.js にだけ置く」という注意書きに
+    //     絵文字が出てくるため）
+    const artEmoji = /[🎉🤔]/u;
+    ok('★選択肢の絵が constants.js の1箇所にしかない',
+      artEmoji.test(co) && !artEmoji.test(codeOnly(mr)) &&
+      !artEmoji.test(codeOnly(R('public/css/object/project/_mission-reflect.css'))));
+    // ★枠は正方形で固定（イラストに差し替えてもレイアウトが崩れないようにする）
+    const mrc = R('public/css/object/project/_mission-reflect.css');
+    ok('★絵の枠が正方形で確保されている（48〜56px・aspect-ratio）',
+      /\.p-mission-reflect__chip-art \{[\s\S]*?width: 5[0-6]px;[\s\S]*?aspect-ratio: 1 \/ 1;/.test(mrc));
+    // ★成否で演出の「量」に差をつけない。無反応だと正直な報告が損をする
+    ok('★つまずいた側にも粒の演出がある',
+      /is-pressed\[data-reflect-outcome="struggle"\][\s\S]*?animation: fireSpark/.test(mrc));
+    ok('★受け止めの一言を両方に用意している（OUTCOME_REPLIES）',
+      /OUTCOME_REPLIES = \{[\s\S]*?success:[\s\S]*?struggle:/.test(co) && /OUTCOME_REPLIES/.test(mr));
+    // ★モバイルでキーボードが飛び出すので、開いたときに自動フォーカスしない
+    ok('★入力欄を開いても自動フォーカスしない',
+      !/(reflect-struggle|reflect-solution)'\)\?\.focus\(\)/.test(codeOnly(mr)));
+    // ★height:auto のトランジションは効かない
+    ok('★入力欄の開閉が max-height + opacity で作られている',
+      /\.p-mission-reflect__fields \{[\s\S]*?max-height: 0;[\s\S]*?opacity: 0;/.test(mrc));
+    ok('★prefers-reduced-motion で演出を止めている',
+      /@media \(prefers-reduced-motion: reduce\)/.test(mrc));
+    // ★@keyframes はグローバル名なので foundation/_animation.css に集める
+    const anim = R('public/css/foundation/_animation.css');
+    ok('★新しい @keyframes が foundation/_animation.css にある',
+      /@keyframes popIn/.test(anim) && /@keyframes pressDown/.test(anim) &&
+      !/@keyframes/.test(mrc));
 
     // ★示すだけ。完了時に中身のチェックを足さない
     const submit = codeOnly(R('public/js/modals/helpers.js'));

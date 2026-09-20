@@ -1,5 +1,7 @@
 // ===== ユーティリティ関数 =====
 
+import { LABEL_CONFIG } from './constants.js';
+
 /**
  * 日付文字列の配列を、連続した日付グループに分割する
  * 例: ['2025-01-01', '2025-01-02', '2025-01-04'] → [['2025-01-01','2025-01-02'], ['2025-01-04']]
@@ -117,6 +119,26 @@ export function isAfterEventDates(p) {
   return todayStr() > sorted[sorted.length - 1];
 }
 
+// ===== タグ別プレースホルダー =====
+/**
+ * タスクのタグに合わせて例文を選ぶ。
+ * ★ビルトインタグ（LABEL_CONFIG のキー）がちょうど1つのときだけ、そのタグの例文を出す。
+ *   0個（カスタムタグのみ・タグ未設定）と2個以上は DEFAULT。どちらに寄せても
+ *   片方に対して嘘の例文になるので、粒度だけを伝える汎用文に倒す（落とし穴 0-10）。
+ * ★完了の入力欄（missionDetail）と振り返りページ（missionReflect）で共用する。
+ *   片方に書き写さないこと。
+ * @param {object} table DEFAULT を必ず持つ例文テーブル（constants.js）
+ * @param {object} mission
+ */
+export function placeholderFor(table, mission) {
+  const tags = new Set([
+    ...(Array.isArray(mission?.tags) ? mission.tags : []),
+    ...(mission?.tag ? [mission.tag] : []),
+  ].filter(Boolean));
+  const builtin = [...tags].filter(t => Object.prototype.hasOwnProperty.call(LABEL_CONFIG, t));
+  return builtin.length === 1 ? (table[builtin[0]] || table.DEFAULT) : table.DEFAULT;
+}
+
 // ===== 設定画面：項目をタップして編集 =====
 // 行に data-tap-edit="<名前>"、その項目の「変更」ボタンに data-tap-edit-btn="<名前>" を付けると、
 // 行のどこをタップしても「変更」を押したのと同じになる（アカウント設定・プロフィール設定）。
@@ -141,7 +163,7 @@ export function bindTapToEdit(root = document) {
 //   両方から編集される。どちらから直しても同じ場所を読み書きするよう、
 //   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
 
-/** 概要。実体は clearedData['def-3']（初期タスク「イベントの概要を定めよう」）。
+/** 概要。実体は clearedData['def-3']（初期タスク「このイベントの概要を定めよう」）。
  *  ★タスクが無くても成立する（clearedData に直接書くため）。イベント設定と
  *    アーカイブのペンからも同じ場所を読み書きする。個別に clearedData を触らないこと。 */
 export function getArchiveSummary(project) {
@@ -157,7 +179,7 @@ export function setArchiveSummary(project, value) {
   const v = String(value ?? '').trim();
   if (!project.clearedData) project.clearedData = {};
   project.clearedData['def-3'] = {
-    content: v, timestamp: Date.now(), title: 'イベントの概要を定めよう', format: 'text',
+    content: v, timestamp: Date.now(), title: 'このイベントの概要を定めよう', format: 'text',
   };
   project.description = v;
 }

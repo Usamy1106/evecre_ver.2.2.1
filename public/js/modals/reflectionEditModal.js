@@ -12,6 +12,12 @@
 import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
+import { placeholderFor } from '../utils.js';
+import {
+  REFLECT_LABELS,
+  REFLECT_STRUGGLE_PLACEHOLDERS, REFLECT_SOLUTION_PLACEHOLDERS,
+  REFLECT_EFFECT_PLACEHOLDERS, REFLECT_WHY_PLACEHOLDERS,
+} from '../constants.js';
 
 const OVERLAY_ID = 'reflection-edit-overlay';
 const MAX = 200;
@@ -31,6 +37,14 @@ export function openReflectionEditModal(missionId) {
 
   document.getElementById(OVERLAY_ID)?.remove();
 
+  // ★見出し・例文は成否（outcome）で切り替える。完了直後の振り返りページ
+  //   （views/missionReflect.js）と同じ問いにしないと、書いたときと違う見出しで
+  //   編集させることになる。保存先は struggle / solution のまま。
+  const labels = REFLECT_LABELS[cd.outcome] || REFLECT_LABELS.struggle;
+  const tables = cd.outcome === 'success'
+    ? { struggle: REFLECT_EFFECT_PLACEHOLDERS, solution: REFLECT_WHY_PLACEHOLDERS }
+    : { struggle: REFLECT_STRUGGLE_PLACEHOLDERS, solution: REFLECT_SOLUTION_PLACEHOLDERS };
+
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   // スタイル: public/css/object/project/_archive.css の .p-reflect-edit
@@ -45,15 +59,15 @@ export function openReflectionEditModal(missionId) {
       <h3 class="c-modal__heading">振り返りを書く</h3>
       <p class="p-reflect-edit__mission">${_esc(m.title)}</p>
 
-      <label class="p-reflect-edit__label" for="re-struggle">困ったこと</label>
+      <label class="p-reflect-edit__label" for="re-struggle">${_esc(labels.struggle)}</label>
       <textarea id="re-struggle" maxlength="${MAX}" rows="3"
         class="c-input c-input--block p-reflect-edit__input"
-        placeholder="うまくいかなかったこと、迷ったこと">${_esc(cd.struggle || '')}</textarea>
+        placeholder="${_esc(placeholderFor(tables.struggle, m))}">${_esc(cd.struggle || '')}</textarea>
 
-      <label class="p-reflect-edit__label" for="re-solution">どう乗り越えた？</label>
+      <label class="p-reflect-edit__label" for="re-solution">${_esc(labels.solution)}</label>
       <textarea id="re-solution" maxlength="${MAX}" rows="3"
         class="c-input c-input--block p-reflect-edit__input"
-        placeholder="試したこと、助けになったこと">${_esc(cd.solution || '')}</textarea>
+        placeholder="${_esc(placeholderFor(tables.solution, m))}">${_esc(cd.solution || '')}</textarea>
 
       <label class="p-reflect-edit__share">
         <input type="checkbox" id="re-shareable" ${cd.shareable ? 'checked' : ''}>

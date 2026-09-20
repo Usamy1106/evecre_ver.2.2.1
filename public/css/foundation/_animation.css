@@ -86,3 +86,21 @@
   from { opacity: 1; }
   to   { opacity: 0; }
 }
+
+/* 使用: object/project/_mission-reflect.css（完了後の振り返りページ）
+   ★山の mtnObjectPop と同じ「行き過ぎて戻る」トーン。あちらは山の専用ファイルにあって
+     ここからは参照できないので、共有用に同じカーブで1つ持つ。 */
+@keyframes popIn {
+  0%   { transform: scale(0);    opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* 使用: object/project/_mission-reflect.css（成否チップ .is-pressed）
+   押した瞬間に一度沈んで戻る。★fireLaunch は「膨らんでから 0 に縮んで消える」動きなので
+   押し込みには使えない（消えてしまう）。 */
+@keyframes pressDown {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(.96); }
+  100% { transform: scale(1); }
+}

@@ -1,0 +1,292 @@
+/* ==========================================================================
+   Object / Project / mission-reflect — 完了後の振り返りページ
+   使用箇所: public/js/views/missionReflect.js（ビュー MISSION_REFLECT）
+
+   完了を確定させたあとに開く「ページ」。モーダルではないので暗幕は無い。
+   成否チップ（2択）→ 入力欄（任意）の2段。書かずに戻ってよい。
+
+   ★チップの絵は constants.js の OUTCOME_CHOICES.art（いまは絵文字・暫定）。
+     今後オリジナルイラストへ差し替えるので、**枠は正方形で固定**し、
+     絵文字の寸法に合わせたレイアウトにしないこと。content: で絵を書かないこと。
+   ★成否で演出の「量」に差をつけない。違うのは質（向き・速さ・色）だけ。
+     祝福されない側が無反応だと、正直な報告が損をして実態が集まらなくなる。
+   ★animate するのは transform と opacity だけ。粒は16個以内・1秒以内に消える。
+   ========================================================================== */
+
+.p-mission-reflect {
+  min-height: 100vh;
+  min-height: 100svh;   /* ★svh。100vh だけだと下端の操作が画面外に落ちる */
+  background-color: var(--color-bg);
+}
+
+.p-mission-reflect__header {
+  display: flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+}
+
+/* 戻る。★見た目はタスク詳細の丸ボタンに合わせる */
+.p-mission-reflect__round-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-mission-reflect__body {
+  max-width: 384px;
+  margin-inline: auto;
+  padding: var(--space-2) var(--space-6) var(--space-10);
+}
+
+/* 「完了！」。カードより遅れて弾む（同時だと何も印象に残らない） */
+.p-mission-reflect__done {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  text-align: center;
+  animation: popIn .42s cubic-bezier(.34, 1.56, .64, 1) .08s both;
+}
+
+.p-mission-reflect__title {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+  animation: slideUp .26s var(--ease) both;
+}
+
+/* ★問いかけを必ず置く。チップだけだと装飾に見えて素通りされる */
+.p-mission-reflect__question {
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  text-align: center;
+}
+
+.p-mission-reflect__chips {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* 2択。★第3の選択肢を足さないこと（逃げ道になり、そこに集中する）*/
+.p-mission-reflect__chip {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 112px;
+  padding: var(--space-4) var(--space-2);
+  border: 2px solid var(--bg-textbox);
+  border-radius: var(--radius-lg);
+  /* 枠線だけにしない。薄い塗り＋影で「押せる感」を出す */
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: opacity var(--duration-fast) var(--ease),
+              border-color var(--duration-fast) var(--ease),
+              background-color var(--duration-fast) var(--ease);
+  /* 1つ目 → 2つ目の順にわずかな時間差で出す（2つあることが認識されやすい）*/
+  animation: slideUp .24s var(--ease) both;
+}
+
+.p-mission-reflect__chip:nth-child(2) { animation-delay: .06s; }
+
+/* ★絵の枠は正方形で固定。イラストに差し替えてもレイアウトが崩れないようにするため、
+   中身（いまは絵文字）の寸法に合わせないこと。 */
+.p-mission-reflect__chip-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  aspect-ratio: 1 / 1;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.p-mission-reflect__chip-art > img,
+.p-mission-reflect__chip-art > svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.p-mission-reflect__chip-label {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* 選んだ方。★選ばれなかった方は薄く残す（消さない。押し間違いを直せる）*/
+.p-mission-reflect__chip.is-selected {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-wash);
+}
+
+.p-mission-reflect__chip.is-selected .p-mission-reflect__chip-label {
+  color: var(--color-primary);
+}
+
+.p-mission-reflect__chip.is-dimmed {
+  opacity: .45;
+}
+
+.p-mission-reflect__chip.is-pressed {
+  animation: pressDown .12s var(--ease) both;
+}
+
+/* --- 粒（受け止めの演出）--------------------------------------------------
+   ★どちらの選択肢にも出す。祝福されない側が無反応だと、正直な報告が損をする。
+     うまくいった＝上に弾ける（速い・明るい・数多め）
+     つまずいた  ＝ゆっくり立ちのぼる（遅い・淡い・少数）
+   ★keyframes は意気込み🔥と同じ fireSpark を流用する（向きは変数で渡す）。 */
+.p-mission-reflect__sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.p-mission-reflect__spark {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: var(--radius-full);
+  background-color: var(--create-yellow);
+  opacity: 0;
+}
+
+/* うまくいった：上へ弾ける。左右に散らしつつ、上向きに強く */
+.p-mission-reflect__chip.is-pressed[data-reflect-outcome="success"] .p-mission-reflect__spark {
+  animation: fireSpark .62s var(--ease) both;
+}
+
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(1) { --spark-tx: -46px; --spark-ty: -34px; }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(2) { --spark-tx: -30px; --spark-ty: -52px; background-color: var(--create-blue); }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(3) { --spark-tx: -12px; --spark-ty: -60px; }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(4) { --spark-tx:   6px; --spark-ty: -62px; background-color: var(--create-red); }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(5) { --spark-tx:  24px; --spark-ty: -54px; }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(6) { --spark-tx:  42px; --spark-ty: -36px; background-color: var(--create-blue); }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(7) { --spark-tx: -52px; --spark-ty: -12px; }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(8) { --spark-tx:  52px; --spark-ty: -14px; background-color: var(--create-red); }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(9) { --spark-tx: -20px; --spark-ty: -44px; }
+.p-mission-reflect__chip[data-reflect-outcome="success"] .p-mission-reflect__spark:nth-child(10){ --spark-tx:  16px; --spark-ty: -46px; }
+
+/* つまずいた：同じ粒を、ゆっくり・淡く・まっすぐ上へ。
+   ★「控えめ」にしすぎて無反応に見えないこと。 */
+.p-mission-reflect__chip.is-pressed[data-reflect-outcome="struggle"] .p-mission-reflect__spark {
+  animation: fireSpark .95s ease-out both;
+}
+
+.p-mission-reflect__chip[data-reflect-outcome="struggle"] .p-mission-reflect__spark {
+  background-color: var(--color-text-muted);
+  opacity: 0;
+}
+
+.p-mission-reflect__chip[data-reflect-outcome="struggle"] .p-mission-reflect__spark:nth-child(1) { --spark-tx: -26px; --spark-ty: -54px; }
+.p-mission-reflect__chip[data-reflect-outcome="struggle"] .p-mission-reflect__spark:nth-child(2) { --spark-tx: -10px; --spark-ty: -64px; animation-delay: .06s; }
+.p-mission-reflect__chip[data-reflect-outcome="struggle"] .p-mission-reflect__spark:nth-child(3) { --spark-tx:   6px; --spark-ty: -58px; animation-delay: .12s; }
+.p-mission-reflect__chip[data-reflect-outcome="struggle"] .p-mission-reflect__spark:nth-child(4) { --spark-tx:  24px; --spark-ty: -50px; animation-delay: .04s; }
+.p-mission-reflect__chip[data-reflect-outcome="struggle"] .p-mission-reflect__spark:nth-child(5) { --spark-tx: -34px; --spark-ty: -34px; animation-delay: .10s; }
+.p-mission-reflect__chip[data-reflect-outcome="struggle"] .p-mission-reflect__spark:nth-child(6) { --spark-tx:  34px; --spark-ty: -32px; animation-delay: .14s; }
+
+/* --- 受け止めの一言 ------------------------------------------------------
+   ★演出より効く。つまずいた側は「報告そのものが価値だ」と明言する文言にする
+     （文言は constants.js の OUTCOME_REPLIES）。 */
+.p-mission-reflect__reply {
+  min-height: 20px;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.p-mission-reflect__reply.is-shown {
+  animation: slideUp .22s var(--ease) both;
+}
+
+/* --- 入力欄（チップを押すと開く）------------------------------------------
+   ★height:auto へのトランジションは効かない。max-height + opacity で開く。
+   ★開いたときに textarea へ自動フォーカスしないこと（モバイルでキーボードが飛び出す）。 */
+.p-mission-reflect__fields {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height .22s var(--ease), opacity .22s var(--ease);
+}
+
+.p-mission-reflect__fields.is-open {
+  max-height: 640px;
+  opacity: 1;
+}
+
+.p-mission-reflect__label {
+  display: block;
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+/* ★入力欄の文字は 16px 未満にしない（iOS がタップでズームする。落とし穴 0-8-3）。
+   c-input が --font-size-lg(16px) を持っているので、ここでは上書きしない。 */
+.p-mission-reflect__input {
+  padding: var(--space-3) var(--space-4);
+  line-height: 1.6;
+}
+
+.p-mission-reflect__share {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-mission-reflect__save {
+  width: 100%;
+  margin-top: var(--space-5);
+  padding-block: var(--space-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* ★「スキップ」という専用ボタンは置かない（選択肢として提示されると押される）。
+   戻るボタンで抜けられ、あとからアーカイブでも書けることだけ伝える。 */
+.p-mission-reflect__note {
+  margin-top: var(--space-6);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ★動きを減らす設定を尊重する（粒・弾み・開閉はすべて止める）*/
+@media (prefers-reduced-motion: reduce) {
+  .p-mission-reflect__done,
+  .p-mission-reflect__title,
+  .p-mission-reflect__chip,
+  .p-mission-reflect__chip.is-pressed,
+  .p-mission-reflect__reply.is-shown,
+  .p-mission-reflect__spark {
+    animation: none;
+  }
+
+  .p-mission-reflect__fields {
+    transition: none;
+  }
+}

@@ -128,10 +128,14 @@ export const api = {
   // 振り返りだけを後から編集する。★completeMission を再送しないこと
   //   （山のオブジェクトが引き直され、完了通知と push も再送される）。
   //   個別完了のときサーバーは自分ぶんを対象にする。管理者は targetUserId で他人ぶんも直せる。
-  async updateReflection(eventId, missionId,
-    { struggle = '', solution = '', shareable = false, targetUserId } = {}) {
-    const { json } = await _send('PATCH', `/api/events/${eventId}/missions/${missionId}/reflection`,
-      { struggle, solution, shareable, ...(targetUserId ? { targetUserId } : {}) });
+  //   ★送るのは「渡された項目だけ」。サーバーも送られた項目だけを書くので、
+  //     振り返りページのように「成否だけ先に保存」ができる（本文を空で潰さない）。
+  async updateReflection(eventId, missionId, patch = {}) {
+    const body = {};
+    for (const k of ['struggle', 'solution', 'shareable', 'outcome', 'targetUserId']) {
+      if (patch[k] !== undefined) body[k] = patch[k];
+    }
+    const { json } = await _send('PATCH', `/api/events/${eventId}/missions/${missionId}/reflection`, body);
     return json || { ok: false };
   },
 

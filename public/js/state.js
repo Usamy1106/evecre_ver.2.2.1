@@ -118,6 +118,10 @@ export const state = {
 
   // --- タスク詳細ページ ---
   selectedMissionId: null,     // MISSION_DETAIL で表示中のタスクID
+  // 完了直後の振り返りページ（MISSION_REFLECT）
+  reflectMissionId: null,      // 振り返り中のタスクID
+  reflectReturn: null,         // 戻り先 { tab }（view は常に MAIN_BOARD）
+  reflectDraft: null,          // { outcome, struggle, solution, shareable }
   missionDetailReturn: null,   // 戻り先 { tab, calendarSheetView } （view は常に MAIN_BOARD）
   missionChat: null,           // { missionId, messages, loading } チャットのキャッシュ
   pendingMissionLink: null,    // ディープリンク /m/<eventId>/<missionId> の保留分
@@ -717,6 +721,35 @@ export const state = {
     window.scrollTo(0, 0);
   },
 
+  // --- 完了直後の振り返りページへ遷移 ---
+  // ★完了は既に確定している。このページは完全な任意で、書かずに戻ってよい。
+  // ★入力欄が無いタスク（noInput）では呼ばない（書くことが無いので。アーカイブからは書ける）。
+  // ★モーダルではなくページなので、自動表示モーダル（「はじめての完了」など）と
+  //   重なる心配がない。modalGuard には登録しない。
+  openMissionReflect(missionId, opts = {}) {
+    document.getElementById('clear-mission-modal')?.remove();
+    this.reflectMissionId = missionId;
+    this.reflectReturn = { tab: opts.tab ?? this.mainBoardTab };
+    this.reflectDraft = { outcome: null, struggle: '', solution: '', shareable: false };
+    logEvent('view_changed', { from: this.currentView, to: 'MISSION_REFLECT' });
+    this.currentView = 'MISSION_REFLECT';
+    this.render();
+    window.scrollTo(0, 0);
+  },
+
+  // --- 振り返りページから戻る（書いていなくても完了は取り消さない）---
+  closeMissionReflect() {
+    const ret = this.reflectReturn || {};
+    this.reflectMissionId = null;
+    this.reflectReturn = null;
+    this.reflectDraft = null;
+    logEvent('view_changed', { from: 'MISSION_REFLECT', to: 'MAIN_BOARD' });
+    this.currentView = 'MAIN_BOARD';
+    this.mainBoardTab = ret.tab || 'MAIN';
+    this.render();
+    window.scrollTo(0, 0);
+  },
+
   // --- タスク詳細ページから戻る ---
   closeMissionDetail() {
     const ret = this.missionDetailReturn || {};
@@ -778,8 +811,8 @@ export const state = {
     //     どこから書いても表示が食い違わない。
     //   ★ヒント文は constants.js の MISSION_DESCRIPTIONS['def-1'] / ['def-3']。
     const defaultMissions = [
-      { id: 'def-1', title: 'イベントの目的を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
-      { id: 'def-3', title: 'イベントの概要を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
+      { id: 'def-1', title: 'このイベントの目的を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
+      { id: 'def-3', title: 'このイベントの概要を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
     ];
 
     const newProject = {

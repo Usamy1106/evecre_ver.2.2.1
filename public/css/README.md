@@ -90,6 +90,7 @@
 | アカウント設定（プロフィール・通知・退会） | `object/project/_account.css` |
 | イベント作成フロー（STEP 1〜7・開催日カレンダー） | `object/project/_create-event.css` |
 | ミッション詳細（完了入力・チャット・吹き出し） | `object/project/_mission-detail.css` |
+| 完了後の振り返りページ（成否チップ・粒の演出） | `object/project/_mission-reflect.css` |
 | ミッションの作成・編集モーダル | `object/project/_mission-form.css` |
 | 担当者の選択・おすすめ | `object/project/_assignee.css` |
 | 新しいタグを作るシート | `object/project/_tag-creator.css` |
@@ -288,6 +289,7 @@ public/css/
 │  ├─ _account.css              ✅ アカウント設定
 │  ├─ _create-event.css         ✅ イベント作成フロー
 │  ├─ _mission-detail.css       ✅ ミッション詳細
+│  ├─ _mission-reflect.css      ✅ 完了後の振り返りページ
 │  ├─ _mission-form.css         ✅ ミッションの作成・編集モーダル
 │  ├─ _assignee.css             ✅ 担当者の選択・おすすめ
 │  ├─ _tag-creator.css          ✅ 新しいタグを作るシート

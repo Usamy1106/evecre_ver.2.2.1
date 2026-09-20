@@ -22,6 +22,7 @@ import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
 import { renderLegal } from './views/legal.js';
 import { startPushSetupFlow, refreshPushSubscribed } from './modals/pushSetupModal.js';
+import { renderMissionReflect, saveMissionReflect } from './views/missionReflect.js';
 import {
   renderMissionDetail,
   sendChatMessage, deleteChatMessage, toggleChatReaction, openChatEmojiPicker,
@@ -103,6 +104,7 @@ registerRenderer('MAIN_BOARD',            renderMainBoard);
 registerRenderer('EVENT_SETTINGS',      renderEventSettings);
 registerRenderer('PROJECT_DETAIL',      renderProjectDetail);
 registerRenderer('MISSION_DETAIL',      renderMissionDetail);
+registerRenderer('MISSION_REFLECT',     renderMissionReflect);
 registerRenderer('ARCHIVE_ANSWERS',     renderArchiveAnswers);
 registerRenderer('ARCHIVE_STATS',       renderArchiveStats);
 
@@ -776,6 +778,9 @@ window._app = {
   // --- タスク詳細ページ ---
   openMissionDetail:  (mid) => state.openMissionDetail(mid),
   closeMissionDetail: ()    => state.closeMissionDetail(),
+  // 完了直後の振り返りページ（views/missionReflect.js）
+  closeMissionReflect: ()   => state.closeMissionReflect(),
+  saveMissionReflect: ()    => saveMissionReflect(),
   copyMissionLink:    (mid) => copyMissionLink(mid),
   sendChatMessage:    ()    => sendChatMessage(),
   deleteChatMessage:  (msgId) => deleteChatMessage(msgId),
@@ -1742,6 +1747,8 @@ const _LOG_LABELS = {
   chat_message_sent:      'チャットを送信した',
   mission_link_copied:    'タスクリンクをコピー',
   reflection_edited:       '振り返りを編集した',
+  reflect_outcome_picked:  '振り返りで成否を選んだ',
+  reflect_saved:           '振り返りを書いた（完了直後）',
   archive_answers_open:    'アーカイブから参加時の回答を開いた',
   archive_stats_open:      'アーカイブからみんなの活躍を開いた',
   // Web Push（iOS はホーム画面追加が必須なので、どこで脱落するかを追う）

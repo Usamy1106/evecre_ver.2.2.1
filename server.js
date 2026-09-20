@@ -702,16 +702,34 @@ async function _rollMissionObject(m) {
 }
 
 const REFLECTION_MAX = 200;
-function _sanitizeReflection(body) {
+// 振り返りの成否（どうだったか）。★これ以外の値は null に落とす
+const REFLECTION_OUTCOMES = ['success', 'struggle'];
+
+/**
+ * 振り返り（困った／どう乗り越えた／公開可否／成否）を正規化する。
+ *
+ * ★`partial: true` のときは**送られてきた項目だけ**を返す（PATCH 用）。
+ *   振り返りページは「チップを押した時点で outcome だけ保存 → あとで本文を保存」と
+ *   2段階で書くので、毎回3項目を返すと**本文が空で上書きされる**。
+ * ★`shareable` は本文とセットでしか動かさない（本文が無いのに公開可だけ立つ状態を作らない）。
+ * @param {object} body
+ * @param {{partial?: boolean}} opts
+ */
+function _sanitizeReflection(body, opts = {}) {
   const trim = (v) => String(v ?? '').trim().slice(0, REFLECTION_MAX);
-  const struggle = trim(body?.struggle);
-  const solution = trim(body?.solution);
-  return {
-    struggle,
-    solution,
+  const has  = (k) => Object.prototype.hasOwnProperty.call(body || {}, k);
+  const out = {};
+
+  if (!opts.partial || has('struggle') || has('solution') || has('shareable')) {
+    out.struggle = trim(body?.struggle);
+    out.solution = trim(body?.solution);
     // 何も書いていないのに「公開してよい」だけ立つ状態を作らない
-    shareable: body?.shareable === true && !!(struggle || solution),
-  };
+    out.shareable = body?.shareable === true && !!(out.struggle || out.solution);
+  }
+  if (!opts.partial || has('outcome')) {
+    out.outcome = REFLECTION_OUTCOMES.includes(body?.outcome) ? body.outcome : null;
+  }
+  return out;
 }
 
 function _validateSubmissionImage(content, format) {
@@ -2907,8 +2925,13 @@ app.patch('/api/events/:id/missions/:mid/reflection', requireAuth, async (req, r
       return res.status(403).json({ ok: false, error: '編集できるのは提出した本人と管理者だけです' });
     }
 
-    // ★検証は完了時と同じ関数を通す（200字で切る／shareable は本文があるときだけ true）
-    const reflection = _sanitizeReflection(req.body);
+    // ★検証は完了時と同じ関数を通す（200字で切る／shareable は本文があるときだけ true）。
+    //   ★partial：送られてきた項目だけを書く。振り返りページは outcome だけを先に保存するので、
+    //     ここで3項目を毎回書くと本文が空で上書きされる。
+    const reflection = _sanitizeReflection(req.body, { partial: true });
+    if (Object.keys(reflection).length === 0) {
+      return res.status(400).json({ ok: false, error: '更新する項目がありません' });
+    }
     const ok = await submissionStore.updateReflection(p.id, key, reflection);
     if (!ok) return res.status(404).json({ ok: false, error: '提出物が見つかりません' });
 
@@ -2995,7 +3018,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         content, format, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
-      // ★初期ミッション「イベントの概要を定めよう」(def-3) を完了したら、
+      // ★初期タスク「このイベントの概要を定めよう」(def-3) を完了したら、
       //   イベントの description にも同じ内容を入れる。
       //   イベント設定・アーカイブのペンから書いたときは utils.js の
       //   setArchiveSummary が両方に書くのに、ミッションを完了した経路だけ
