@@ -87,7 +87,11 @@
        HTML のパースを止めていた。defer にしてもモジュールスクリプト（main.js）との
        実行順はドキュメント順のまま保たれるので、main.js より先に window.lottie が入る。
        ★CDN に戻さないこと／type="module" を付けないこと（UMD ビルド）。 -->
-  <script defer src="/js/vendor/lottie-web/lottie_light.min.js"></script>
+  <!-- ★パスにバージョンを入れてある（/js/vendor/<名前>/<バージョン>/）。server.js が
+       /js/vendor/ 配下だけを immutable で配信するので、2回目以降は確認の通信ごと消える。
+       ★更新するときは必ずパスのバージョンを変えること。同じパスのまま中身を差し替えると、
+       古いものが配信され続ける（images/bg と同じ約束）。 -->
+  <script defer src="/js/vendor/lottie-web/5.13.0/lottie_light.min.js"></script>
   <script type="module" src="/js/main.js"></script>
 </body>
 </html>

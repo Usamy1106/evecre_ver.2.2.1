@@ -250,9 +250,20 @@ section('[B] 実機で見つかった不具合');
     const html = R('public/index.html');
     const srcs = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m => m[1]);
     const lottieSrcs = srcs.filter(s => /lottie/i.test(s));
+    // ★パスにバージョンが入っていること（/js/vendor/<名前>/<バージョン>/…）。
+    //   server.js が /js/vendor/ 配下を immutable で配信するので、バージョンを
+    //   入れずに同じパスで差し替えると古いものが配信され続ける。
     ok('★lottie-web を自ドメインから読んでいる（CDN を参照しない）',
-      lottieSrcs.length === 1 && lottieSrcs[0] === '/js/vendor/lottie-web/lottie_light.min.js',
+      lottieSrcs.length === 1 && /^\/js\/vendor\/lottie-web\/\d+\.\d+\.\d+\/lottie_light\.min\.js$/.test(lottieSrcs[0]),
       lottieSrcs.join(', '));
+    // ★vendor の immutable 配信（.js の no-cache 判定より前に置く必要がある）
+    {
+      const sv = R('server.js');
+      const vendorIdx = sv.indexOf("js[\\\\/]vendor");
+      const jsIdx     = sv.indexOf("/\\.(js|html|css|md)$/.test(filePath)");
+      ok('★/js/vendor/ を immutable で配信している（判定は .js の no-cache より前）',
+        vendorIdx > 0 && jsIdx > 0 && vendorIdx < jsIdx);
+    }
     // ★意気込みが無いイベントには出さない（空の箱を見せない）という設計。
     //   代償として、意気込みが未入力のイベントでは🔥が一度も出ない。
     //   ★2026-09-11、これは**このままでよい**と判断済み。モーダル側の条件を

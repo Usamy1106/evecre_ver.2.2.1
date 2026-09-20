@@ -187,7 +187,15 @@ app.use(require('express').static(require('path').join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     // .md は法務ドキュメント（public/legal/）の実体。改訂したら即座に反映させたいので
     // JS/HTML/CSS と同じ no-cache 扱いにする（古い規約が配信され続けるのを防ぐ）。
-    if (/\.(js|html|css|md)$/.test(filePath)) {
+    // ★同梱のサードパーティ製ライブラリ（public/js/vendor/<名前>/<バージョン>/）は
+    //   パスにバージョンが入っているので長期キャッシュにする。2回目以降は
+    //   ETag の確認通信ごと消える（lottie は 165KB で、毎回1往復していた）。
+    //   ★.js の no-cache 判定より**前**に置くこと（後ろだと先にそちらが当たる）。
+    //   ★代償：更新するときは必ずパスのバージョンを変えること。同じパスのまま
+    //     中身を差し替えると古いものが配信され続ける（images/bg と同じ約束）。
+    if (/[\\/]js[\\/]vendor[\\/]/.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (/\.(js|html|css|md)$/.test(filePath)) {
       if (IS_DEV) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
