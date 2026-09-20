@@ -1206,6 +1206,14 @@ export const state = {
     if (!this.canManageCurrentEvent()) return;
     const p = this.events.find(x => x.id === this.selectedEventId);
     if (!p || !Array.isArray(p.proposals)) return;
+    // ★枠は3つ（キャラクター3体）。何らかの経路で増えていたら詰め直して保存する。
+    //   保存時に PUT /api/data の削除判定が余分な提案に tombstone を立てるので、
+    //   一度通せば直る（開発DBに6件のイベントが実在した。本番は3件以内）。
+    //   ★_proposalsAllowed の判定より**前**に置くこと。開催が終わったイベントでも直したい。
+    if (p.proposals.length > 3) {
+      p.proposals = p.proposals.slice(0, 3);
+      this.save();
+    }
     // ★開催が終わったイベントと完了したイベントでは提案しない。
     //   やることを増やす提案は、片付ける段階に入ったチームには邪魔でしかなく、
     //   Cloudflare Workers AI のクレジットも無駄に消費する。

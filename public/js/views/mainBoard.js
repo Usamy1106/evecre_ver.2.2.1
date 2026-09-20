@@ -537,10 +537,15 @@ function _renderMainTab(p) {
     const i = PROPOSAL_CHARACTERS.findIndex(c => c.domains.includes(tag));
     return i < 0 ? PROPOSAL_CHARACTERS.length : i;
   };
+  // ★出すのは**キャラクターの数（3体）まで**。4件目以降は描かない。
+  //   以前は p.proposals の件数ぶん描いており、溢れたぶんが最後のキャラ（岩・黄）の色で
+  //   下の段に並んでいた（本番は3件以内だが、開発DBに6件のイベントが実在した）。
+  //   データ側も state.js の _checkProposalCycle が3件に詰め直す。
   const orderedProposals = [...p.proposals]
     .map((pr, i) => ({ pr, i }))
     .sort((a, b) => (_domainRank(a.pr.tag) - _domainRank(b.pr.tag)) || (a.i - b.i))
-    .map(x => x.pr);
+    .map(x => x.pr)
+    .slice(0, PROPOSAL_CHARACTERS.length);
 
   const proposalCards = orderedProposals.map((pr, i) => {
     const ch = PROPOSAL_CHARACTERS[i] || PROPOSAL_CHARACTERS[PROPOSAL_CHARACTERS.length - 1];
@@ -739,7 +744,10 @@ function _renderMainTab(p) {
   // ★提案キャラクターの行は「スクロールする本文」から出して、パネルの直下に置く。
   //   キャラは波の装飾に重なるようパネルの上端より上へはみ出すので、
   //   overflow-y:auto の中に入れたままだと上側が切り取られる。
-  const proposalsRow = `
+  // ★提案しないイベント（開催日を過ぎた・完了・フェーズが振り返り/完了）では、
+  //   キャラクターごと出さない。やることを増やす提案は、片付ける段階のチームには邪魔で、
+  //   「N時間後に新しい提案が届きます」と待たせるのも嘘になる（判定は state._proposalsAllowed）。
+  const proposalsRow = !state._proposalsAllowed(p) ? '' : `
       <!-- 提案カード（管理者権限のあるユーザーのみ表示）-->
       ${canMgr ? `
         <div class="p-main-board__proposals${state.charactersIntro ? ' is-intro' : ''}${state.proposalsRevealed ? ' is-revealing' : ''}" data-coach="proposals">
@@ -747,7 +755,7 @@ function _renderMainTab(p) {
           ${(() => {
             // ★空きスロットもキャラクターで埋める（枠は常に3つ・位置固定）。
             //   生成中＝会議している見た目、更新待ち＝寝ている見た目。
-            const missing = 3 - p.proposals.length;
+            const missing = PROPOSAL_CHARACTERS.length - orderedProposals.length;
             if (missing <= 0) return '';
             const generating = !p.lastProposalGeneratedAt || state._proposalFetching;
             const nextAt = (p.lastProposalGeneratedAt || 0) + 12 * 60 * 60 * 1000;
@@ -755,8 +763,8 @@ function _renderMainTab(p) {
             const label  = generating
               ? 'AIが提案を<br>生成中'
               : (remHr <= 0 ? '準備中...' : `${remHr}時間後に<br>新しい提案が<br>届きます`);
-            return PROPOSAL_CHARACTERS.slice(p.proposals.length).map((ch, k) =>
-              _characterBoxHtml(ch, p.proposals.length + k, {
+            return PROPOSAL_CHARACTERS.slice(orderedProposals.length).map((ch, k) =>
+              _characterBoxHtml(ch, orderedProposals.length + k, {
                 state: generating ? 'meeting' : 'sleeping',
                 badge: false,
                 inner: `<p class="p-main-board__proposal-wait-text">${label}</p>`,
