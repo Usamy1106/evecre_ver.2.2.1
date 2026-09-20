@@ -154,6 +154,35 @@ export const Components = {
   },
 
   /**
+   * 通知バッジの数字だけを、いまある DOM に当てて更新する。
+   *
+   * ★全画面 render() の代わり。SSE でチャットが届くたびに画面を丸ごと作り直していたのを
+   *   やめるために足した（realtime.js の chatMessage）。
+   * ★未読数の式は Tabs() と**同一にすること**。ずれると、バッジの数字と
+   *   タブを踏んだあとの表示が食い違う（表示中のイベントの未読だけを数える）。
+   * ★バッジ要素は unread > 0 のときしか存在しない。無ければ作り、0 になったら消す。
+   * ★タブが画面に無い（ホーム・設定など）ときは何もしない。
+   */
+  refreshNotifBadge() {
+    const item = document.querySelector('.l-tabs__item--notifications');
+    if (!item) return;
+
+    const evId = window.state?.selectedEventId;
+    const unread = Array.isArray(window.state?.notifications)
+      ? window.state.notifications.filter(n => !n.read && n.eventId === evId).length
+      : 0;
+
+    let badge = item.querySelector('.l-tabs__badge');
+    if (unread <= 0) { badge?.remove(); return; }
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'l-tabs__badge';
+      item.appendChild(badge);
+    }
+    badge.textContent = unread > 99 ? '99+' : String(unread);
+  },
+
+  /**
    * ラベルタグ
    * @param {string} text
    */

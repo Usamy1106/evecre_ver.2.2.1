@@ -13,6 +13,7 @@
 //   - エコーバック抑止: X-Client-Id を保存に乗せる（main.js 側で fetch をラップ）
 
 import { state } from './state.js';
+import { Components } from './components.js';
 import { openMemberApprovedModal } from './modals/memberApprovedModal.js';
 import { clientId } from './clientId.js';
 
@@ -97,7 +98,7 @@ export function syncRealtime() {
     });
   });
 
-  // タスクチャット：開いているタスク詳細ページに即時反映 + 通知タブ更新
+  // タスクチャット：開いているタスク詳細ページに即時反映 + 通知バッジ更新
   _es.addEventListener('chatMessage', (e) => {
     try {
       const { missionId, message } = JSON.parse(e.data);
@@ -108,8 +109,20 @@ export function syncRealtime() {
         state.render();
       }
     } catch (_) {}
-    // チャット通知（chat_message）をバッジ・通知タブへ反映
-    state.loadNotifications?.().then(() => state.render());
+
+    // ★以前はここで loadNotifications().then(() => state.render()) を**無条件**に呼んでいた。
+    //   チャットを開いていなくても、どのタスクのメッセージでも「API 1本 + 全画面の作り直し」が
+    //   走り、上の state.render() と合わせてメッセージ1通につき全画面再構築が2回起きていた。
+    // ★必要なのは通知バッジの数字だけ。通知タブを**見ている**ときだけ全体を描き直し、
+    //   それ以外はバッジの DOM だけ差し替える。
+    // ★バッジの更新は、チャットを開いていた場合（上で描き直した直後）にも必ず当て直すこと。
+    //   上の render() は loadNotifications() より**前**に走っているので、数字が古いまま。
+    state.loadNotifications?.().then(() => {
+      const onNotifTab = state.currentView === 'MAIN_BOARD'
+                      && state.mainBoardTab === 'NOTIFICATIONS';
+      if (onNotifTab) state.render();
+      else Components.refreshNotifBadge();
+    });
   });
   _es.addEventListener('chatDeleted', (e) => {
     try {
