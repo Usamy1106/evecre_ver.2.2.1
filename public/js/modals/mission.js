@@ -1,6 +1,7 @@
 // ===== タスクモーダル =====
 import { state } from '../state.js';
 import { startMissionFormTour, onMissionFormClosed } from '../onboardingIntro.js';
+import { isTooltipTourOpen } from './tooltipTour.js';
 import { api } from '../api.js';
 import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
 import { suggestAssignees } from '../assigneeSuggest.js';
@@ -118,13 +119,36 @@ export function openMissionModal(missionId = null, prefill = null) {
   const panel = document.getElementById('mission-panel');
   if (panel) {
     let started = false;
-    const start = () => { if (started) return; started = true; startMissionFormTour(); };
+    const start = () => { if (started) return; started = true; startMissionFormTour(); _focusTitle(); };
     panel.addEventListener('transitionend', start, { once: true });
     // transition が走らない環境（動きを抑える設定など）でも必ず始める
     setTimeout(start, 400);
   } else {
-    requestAnimationFrame(() => startMissionFormTour());
+    requestAnimationFrame(() => { startMissionFormTour(); _focusTitle(); });
   }
+}
+
+/**
+ * 開いた直後にタスク名へカーソルを置く（作成・編集とも）。
+ *
+ * ★呼ぶのは openMissionModal の1回だけ。renderMissionModalContent() は
+ *   タブの切り替えや担当者の選択のたびに走るので、そこに置くと**入力中に
+ *   カーソルが先頭へ飛ぶ**。
+ * ★スライドイン（150ms）が終わってから。途中で当てると、せり上がる途中の
+ *   入力欄にキーボードが重なって位置が定まらない。
+ * ★ツールチップ・ツアー（初期オンボーディング③）が出ているときは当てない。
+ *   キーボードが出ると画面の高さが変わり、吹き出しの位置が実測とずれる。
+ * ★編集のときはカーソルを末尾に置く（全選択にしない。うっかり上書きさせない）。
+ * ★iOS はユーザー操作の外でキーボードを出さないので、端末によっては
+ *   「枠が光るだけ」になる。それでよい（タップ1回ぶんは確実に減る）。
+ */
+function _focusTitle() {
+  if (isTooltipTourOpen()) return;
+  const el = document.getElementById('mission-title-input');
+  if (!el) return;
+  el.focus({ preventScroll: true });
+  const n = el.value.length;
+  try { el.setSelectionRange(n, n); } catch (_) {}
 }
 
 /**
