@@ -113,6 +113,17 @@ const THEME_RUN = 8;
 //   ここを上げると通信量とメモリが素直に増える。実際に必要な枚数は
 //   キャンバスの高さから決まり、たいていこの上限には届かない。
 const MAX_PARTS = 60;
+// ★地形の絵は「見えるぶんだけ」敷く（2026-09-20）。**追加のみ。一度敷いたら外さない。**
+//   ここは3回作り直して background-image に戻ってきた箇所なので、経緯を読んでから触ること
+//   （失敗1: lazy が発火せず絵が出ない／2: <img> を解放せずタブごと落ちる／
+//     3: 解放したら白く抜ける）。今回は <img> にせず、外しもしないので、どれにも当たらない。
+//   代わりに増える失敗は「敷く処理が動かず背景が出ない」なので、保険を3つ持つ：
+//     (a) いちばん下の LF_EAGER 枚は描画時から敷いておく
+//     (b) スクロールのあるタブ（paint）と、背景だけのタブ（syncMountainBackdrop）の両方で敷く
+//     (c) LF_FALLBACK_MS たっても一度も敷かれていなければ、残り全部を敷く
+const LF_EAGER       = 6;      // 描画時から絵を入れておく枚数（下＝手前から）
+const LF_LOAD_MARGIN = 1.5;    // 画面の何倍先まで先に敷くか（素早いスクロールで白く見せない）
+const LF_FALLBACK_MS = 2000;   // 保険(c)。これを過ぎても敷かれていなければ全部敷く
 // ★植物を植えるのは「実際に見えている地形」だけ。手前の地形に隠れて
 //   ほとんど出ていない地形に植えても、正しく隠れて見えないまま DOM だけ増える。
 const PLANT_MIN_STRIP = 200;   // 見えている帯がこれ未満（素材px）の地形には植えない
@@ -436,6 +447,39 @@ function _artHeight(a) {
 /** 設定と素材が両方そろっているテーマだけを使う（片方だけのものは黙って飛ばす） */
 function _usableThemes() {
   return BG_THEMES.filter(t => (BG_ASSETS[t.id]?.landform || []).length > 0);
+}
+
+// 保険(c)用。描画のたびに false に戻し、一度でも敷いたら true にする
+let _lfRevealed = false;
+let _lfFallbackTimer = null;
+
+/** 1枚に絵を敷く（追加のみ。**外す処理を足さないこと**）*/
+function _revealLandform(el) {
+  const url = el.dataset.lfImg;
+  if (!url) return;
+  el.style.setProperty('--lf-img', `url('${url}')`);
+  el.dataset.lfLoaded = '1';
+  _lfRevealed = true;
+}
+
+/** 残り全部を敷く（保険(c)と、幅が測れないなどで判定できないときの逃げ道）*/
+function _revealAllLandforms(root = document) {
+  root.querySelectorAll('.p-mountain__lf[data-lf-img]:not([data-lf-loaded])')
+    .forEach(_revealLandform);
+}
+
+/**
+ * 背景だけのタブ（アーカイブ・通知）で、見えているぶんを敷く。
+ * ★こちらは rAF の中ではないので getBoundingClientRect を読んでよい。
+ *   スクロールのあるタブは paint() が算術だけで判定する（DOM を読まない）。
+ */
+function _revealLandformsByRect(bg) {
+  const viewH = window.innerHeight || 640;
+  const margin = viewH * LF_LOAD_MARGIN;
+  bg.querySelectorAll('.p-mountain__lf[data-lf-img]:not([data-lf-loaded])').forEach(el => {
+    const r = el.getBoundingClientRect();
+    if (r.top < viewH + margin && r.bottom > -margin) _revealLandform(el);
+  });
 }
 
 /**
@@ -842,9 +886,17 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
     // ★地形の絵はこの <div> の background-image。<img> にしないこと（上の経緯を参照）。
     //   位置と大きさを持つこの入れ物が、そのまま植物の親にもなる
     //   （入れ物ごと動くので、植物が稜線からずれることが原理的に起きない）。
+    // ★絵は「見えるぶんだけ」敷く（上の LF_EAGER のコメントを参照）。
+    //   下（手前）から LF_EAGER 枚は描画時から入れておく＝保険(a)。
+    //   残りは data-lf-img に URL だけ持たせ、paint() / syncMountainBackdrop が敷く。
+    // ★data-lf-y / data-lf-h は paint() が読む（毎フレーム DOM を読まずに済ませるため、
+    //   マスの data-node-y と同じ考え方）。
+    const url   = bgUrl(pt.theme, 'landform', pt.file, pt.v);
+    const eager = k < LF_EAGER;
     return `
-      <div class="p-mountain__lf"
-        style="--lf-y:${pt.y};--lf-h:${pt.h};--lf-img:url('${bgUrl(pt.theme, 'landform', pt.file, pt.v)}');z-index:${2 * (n - k)}">
+      <div class="p-mountain__lf" data-lf-y="${pt.y}" data-lf-h="${pt.h}"
+        data-lf-img="${url}"${eager ? ' data-lf-loaded="1"' : ''}
+        style="--lf-y:${pt.y};--lf-h:${pt.h};${eager ? `--lf-img:url('${url}');` : ''}z-index:${2 * (n - k)}">
         ${plantHtml}
       </div>`;
   }).join('');
@@ -928,6 +980,16 @@ export function renderMountainBg(p, opts = {}) {
   const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
   const isSummit = _isSummit(p);
   const bg = _renderBgLayer(p, canvasH, isSummit, clearedCount);
+
+  // ★保険(c)：描画から LF_FALLBACK_MS たっても一度も絵が敷かれていなければ、残り全部を敷く。
+  //   配線（initMountainPathSync / syncMountainBackdrop）が呼ばれない画面や、
+  //   例外で途中まで進んだ場合に、背景が丸ごと出ないのを防ぐ。
+  //   ★ここを消さないこと。消すと「絵が1枚も出ない」という過去の失敗1と同じ見え方に戻りうる。
+  _lfRevealed = false;
+  if (typeof window !== 'undefined') {
+    clearTimeout(_lfFallbackTimer);
+    _lfFallbackTimer = setTimeout(() => { if (!_lfRevealed) _revealAllLandforms(); }, LF_FALLBACK_MS);
+  }
 
   // ★タスク完了の演出。完了すると clearedCount が 1 増えるので、
   //   「今しがた色がついたマス」＝ clearedCount - 1、「新しく現れた灰色のマス」＝ n - 1。
@@ -1056,6 +1118,10 @@ export function syncMountainBackdrop() {
   //   （--layout-max-width が 100% から 448px に切り替わる境目）。実測で上書きする。
   const w = bg.getBoundingClientRect().width || canvas.clientWidth || 0;
   if (w > 0) canvas.style.setProperty('--art-unit', `${w / ART_W}px`);
+
+  // ★背景だけのタブでも絵を敷く＝保険(b)。ここを外すと、アーカイブ・通知タブで
+  //   下の LF_EAGER 枚しか出ない（＝背景がほとんど無い画面になる）。
+  _revealLandformsByRect(bg);
 }
 
 export function initMountainPathSync(restoreTop = null) {
@@ -1151,6 +1217,12 @@ export function initMountainPathSync(restoreTop = null) {
   // ── 1フレーム1回だけ書く ─────────────────────────────────
   // ★scroll ハンドラから直接 DOM を触らない。iOS の慣性スクロールは
   //   1フレームに何度も scroll を発火させるため、そのまま書くと確実に落ちる。
+  // ★絵をまだ敷いていない地形。位置は描画時に持たせた data-lf-y / data-lf-h から読む
+  //   （paint の中で getBoundingClientRect を呼ばないため。マスの data-node-y と同じ考え方）。
+  //   敷いたら配列から外すので、ループは進むほど短くなる。
+  let lfPending = [...bg.querySelectorAll('.p-mountain__lf[data-lf-img]:not([data-lf-loaded])')]
+    .map(el => ({ el, y: +el.dataset.lfY || 0, h: +el.dataset.lfH || 0 }));
+
   let scheduled = false;
   const paint = () => {
     scheduled = false;
@@ -1158,6 +1230,26 @@ export function initMountainPathSync(restoreTop = null) {
 
     // 道全体を動かすのは transform だけ（レイアウトを起こさない）
     canvas.style.transform = `translateY(${-top}px)`;
+
+    // ★見えるぶん（±LF_LOAD_MARGIN 画面）の地形に絵を敷く。**追加のみ・外さない。**
+    //   ★幅が測れていないときは判定できないので、残り全部を敷いて逃がす
+    //     （背景が出ないより、多めに読むほうが軽傷。フェールセーフの向きを守る）。
+    if (lfPending.length > 0) {
+      const unit = canvasW > 0 ? canvasW / ART_W : 0;
+      if (unit <= 0) {
+        lfPending.forEach(o => _revealLandform(o.el));
+        lfPending = [];
+      } else {
+        const lfMargin = viewH * LF_LOAD_MARGIN;
+        const base = bgTop + headroom + canvasH - top;   // キャンバス下端の画面Y
+        lfPending = lfPending.filter(o => {
+          const bottom = base - o.y * unit;
+          const elTop  = bottom - o.h * unit;
+          if (elTop < viewH + lfMargin && bottom > -lfMargin) { _revealLandform(o.el); return false; }
+          return true;
+        });
+      }
+    }
 
     // マスの遠近。画面下端からの距離で倍率を決める
     const margin = viewH * CULL_MARGIN;

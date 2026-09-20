@@ -83,7 +83,15 @@ function mkEl() {
     addEventListener(t, fn) { (el.listeners[t] ||= []).push(fn); },
     removeEventListener(t, fn) { el.listeners[t] = (el.listeners[t] || []).filter(f => f !== fn); },
     getBoundingClientRect: () => ({ top: el._top, width: 448 }),
-    querySelectorAll: (s) => (s === '[data-node-y]' ? el.children : []),
+    // ★地形（.p-mountain__lf）は「見えるぶんだけ敷く」判定の対象。実装が使う
+    //   セレクタをそのまま受けて、まだ敷いていないものだけ返す。
+    querySelectorAll: (s) => {
+      if (s === '[data-node-y]') return el.children;
+      if (s.startsWith('.p-mountain__lf')) {
+        return (el._lfs || []).filter(x => !x.dataset.lfLoaded);
+      }
+      return [];
+    },
     querySelector: (s) => (s === '[data-mtn-spacer]' ? el._spacer : null),
     scrollTop: 0, clientHeight: PANEL_TOP - HEADER, clientWidth: 448, offsetHeight: 0,
   };
@@ -120,7 +128,9 @@ function build(done, eventId = 'ev1', dates = [], opts = {}) {
     // 地形パーツ。★JS が渡すのは素材px の数値だけ（位置と大きさの計算は CSS）
     // 地形の入れ物 <div> ごとに切り出し、その中の地形の絵と植物を読む
     parts: html.split('<div class="p-mountain__lf"').slice(1).map(chunk => {
-      const box = /--lf-y:(\d+);--lf-h:(\d+);--lf-img:url\('\/images\/bg\/([^/]+)\/landform\/([^'?]+)(?:\?v=[0-9a-f]+)?'\);z-index:(\d+)/.exec(chunk);
+      // ★絵の URL は data-lf-img（描画時は下から LF_EAGER 枚だけ --lf-img も入る）。
+      //   2026-09-20 に「見えるぶんだけ敷く」へ変えたので、style からは読めない。
+      const box = /data-lf-y="(\d+)" data-lf-h="(\d+)"\s+data-lf-img="\/images\/bg\/([^/]+)\/landform\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?z-index:(\d+)/.exec(chunk);
       const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/WorldSpawnedObjects\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
         .map(m => ({ theme: m[1], file: m[2], x: +m[3], y: +m[4], w: +m[5], h: +m[6] }));
       return { y: +box[1], h: +box[2], theme: box[3], file: box[4], z: +box[5], plants };
@@ -143,6 +153,13 @@ function wire(done, scrollTop = 0) {
   const win = mkEl(); const spacer = mkEl(); win._spacer = spacer;
   const panel = mkEl(); panel._top = PANEL_TOP;
   canvas.children = b.nodes.map(y => { const e = mkEl(); e.dataset.nodeY = String(y); e.dataset.nodeDx = '26'; return e; });
+  // ★地形。描画時に下から LF_EAGER 枚だけ絵が入っている状態を再現する
+  bg._lfs = b.parts.map((pt, k) => {
+    const e = mkEl();
+    e.dataset.lfY = String(pt.y); e.dataset.lfH = String(pt.h); e.dataset.lfImg = `/images/bg/x/landform/${pt.file}`;
+    if (k < K('LF_EAGER')) { e.dataset.lfLoaded = '1'; e._props['--lf-img'] = `url('x')`; }
+    return e;
+  });
   Object.defineProperty(win, 'scrollHeight', { get: () => parseFloat(spacer.style.height) || b.canvasH });
   global.document = {
     getElementById: (id) => ({
@@ -166,7 +183,7 @@ function wire(done, scrollTop = 0) {
   };
   const n = canvas.children.length;
   return {
-    ...b, headroom, canvas, win, spacer, at,
+    ...b, headroom, canvas, win, spacer, at, bgLfs: bg._lfs,
     newest: n - 1,                        // いちばん上＝次にやる灰色の1マス（未完了）
     lastCleared: n >= 2 ? n - 2 : n - 1,  // ★スクロールで手前まで来てほしいのはこちら
   };
@@ -882,26 +899,73 @@ section('[M] 素材の書き出し解像度を変えても景色が変わらな�
 //   3. 枚数に上限を付けて解放      … 解放したところが白く抜ける
 //   → background-image に戻した。ブラウザが描画時にだけラスタライズし、
 //     画面外のデコード結果は自分で捨てる。JS 側の管理は持たない。
-section('[J] 地形は background-image（読み込み管理を JS に持たない）');
+section('[J] 地形は background-image ＋「見えるぶんだけ敷く」（追加のみ）');
 {
   const html = build(48).html;
+  const src48 = srcCode;
 
   ok('★地形を <img> で出していない（上の1〜3を踏み直さないため）',
     !/class="p-mountain__lf-img"/.test(html));
+  // ★絵は background-image（--lf-img）。URL は data-lf-img が持ち、敷くときに変数へ入れる
   ok('地形の絵を --lf-img（background-image）で渡している',
-    /--lf-img:url\('\/images\/bg\/[^']+'\)/.test(html));
+    /style\.setProperty\('--lf-img', `url\('\$\{url\}'\)`\)/.test(src48) &&
+    /data-lf-img="\/images\/bg\/[^"]+"/.test(html));
   // ★immutable 配信なので、これが無いと差し替えても古い絵が出続ける
   ok('★素材の URL にキャッシュ更新用のハッシュが付く',
-    /--lf-img:url\('[^']+\?v=[0-9a-f]{8}'\)/.test(html) &&
+    /data-lf-img="[^"]+\?v=[0-9a-f]{8}"/.test(html) &&
     /class="p-mountain__plant" src="[^"]+\?v=[0-9a-f]{8}"/.test(html) &&
     /class="p-mountain__cloud" src="[^"]+\?v=[0-9a-f]{8}"/.test(html));
 
-  // ★JS 側に読み込み管理を持たないこと。持つと必ず上の2か3に落ちる
-  const banned = ['MAX_LOADED', 'EAGER_COUNT', '_lfEls', 'loadVisible', '_loadAround', '_loadRange'];
-  const alive = banned.filter(w => new RegExp(`\\b${w}\\b`).test(srcCode));
-  ok('★JS に読み込み管理の残骸が無い', alive.length === 0, alive.join(', '));
+  // ★「見えるぶんだけ敷く」は**追加のみ**。外す処理を足すと、過去の失敗3
+  //   （解放したところが白く抜ける）に戻る
+  ok('★敷いた絵を外していない（追加のみ）',
+    !/removeProperty\('--lf-img'\)/.test(src48) && !/--lf-img'\s*,\s*''/.test(src48));
+  // ★保険(a)：下から LF_EAGER 枚は描画時から絵が入っている（配線が動かなくても何か出る）
+  {
+    const eagerCount = (html.match(/--lf-img:url\('/g) || []).length;
+    const LF_EAGER = K('LF_EAGER');
+    ok(`★下から ${LF_EAGER} 枚は描画時から絵が入っている（配線が動かないときの保険）`,
+      eagerCount === LF_EAGER, `${eagerCount} 枚`);
+  }
+  // ★保険(b)：背景だけのタブ（アーカイブ・通知）でも敷く
+  ok('★背景だけのタブでも絵を敷く（syncMountainBackdrop）',
+    /_revealLandformsByRect\(bg\)/.test(src48.slice(src48.indexOf('export function syncMountainBackdrop'))));
+  // ★保険(c)：一度も敷かれなければ全部敷く（背景が丸ごと出ないのを防ぐ）
+  ok('★時間切れの保険がある（一度も敷かれなければ全部敷く）',
+    /_lfFallbackTimer = setTimeout\(\(\) => \{ if \(!_lfRevealed\) _revealAllLandforms\(\); \}/.test(src48));
+  // ★paint() の中で DOM を読まない（位置は data-lf-y / data-lf-h から）
+  {
+    const paintBody = src48.slice(src48.indexOf('const paint = () => {'), src48.indexOf('const request = () =>'));
+    ok('★paint() の中で getBoundingClientRect を読んでいない',
+      !/getBoundingClientRect/.test(paintBody));
+    ok('★地形の位置は描画時の data-lf-y / data-lf-h から読む',
+      /dataset\.lfY/.test(src48) && /dataset\.lfH/.test(src48));
+  }
 
   ok("★loading 属性で地形を出し分けていない", !/loading="\$\{eager/.test(src));
+
+  // ★挙動の検査：配線して実際に敷かれるか。ここが動かないと背景が出ない
+  {
+    const LF_EAGER = K('LF_EAGER');
+    const w = wire(48, 0);                       // 完了48件＝地形が多いイベント、いちばん下から
+    const lfs = w.bgLfs;
+    const loaded = () => lfs.filter(e => e.dataset.lfLoaded).length;
+    const first = loaded();
+    ok('★見えているぶんの地形に絵が敷かれる（描画時の枚数より増える）',
+      first > LF_EAGER, `${first} / ${lfs.length} 枚`);
+    ok('★見えていないぶんはまだ敷かれていない（全部は読まない）',
+      first < lfs.length, `${first} / ${lfs.length} 枚`);
+
+    // 上まで送ると、通り道のぶんが順に敷かれる
+    w.win.scrollTop = Math.max(0, (parseFloat(w.spacer.style.height) || 0) - VIEW_H);
+    (w.win.listeners.scroll || []).forEach(fn => fn());
+    flush();
+    const after = loaded();
+    ok('★スクロールすると先のぶんも敷かれる', after > first, `${first} → ${after} 枚`);
+    // ★一度敷いたら外さない（外すと過去の失敗3＝白く抜ける に戻る）
+    const kept = lfs.filter(e => e.dataset.lfLoaded && e.style.getPropertyValue('--lf-img')).length;
+    ok('★敷いた絵が外れていない', kept === after, `${kept} / ${after} 枚`);
+  }
 
   // ★植物と雲に loading="lazy" を付けないこと。**一部が永久に出なくなる。**
   //   キャンバスは position:fixed の中で transform で動かしているため、端末に
