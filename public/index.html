@@ -29,8 +29,10 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/icon/evecre-icon-180.png">
   <meta name="theme-color" content="#209DDB">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <!-- ミッションチャットのリアクション用絵文字ピッカー（読めない場合は固定セットにフォールバック） -->
-  <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
+  <!-- ★絵文字ピッカー（emoji-picker-element）はここで読まない（2026-09-20）。
+       使うのは views/missionDetail.js の openChatEmojiPicker だけなのに、
+       ページを開くたびに jsDelivr へ往復していた（リアクションを一度も開かない人にも）。
+       「ピッカーを開くときに読む」形へ移した。読めない場合は固定の絵文字グリッドに落ちる。 -->
   <!-- ===== Web フォント（山頂の看板でのみ使う）=====
        ★用途を限っている。本文には使わないこと（読み込みが重く、日本語は特に大きい）。
          Yuji Syuku … 看板のタイトル（筆文字）

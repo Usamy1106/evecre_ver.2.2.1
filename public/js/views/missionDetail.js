@@ -740,8 +740,35 @@ export async function toggleChatReaction(messageId, emoji) {
   state.render();
 }
 
-// 絵文字ピッカー（emoji-picker-element。CDN が読めない場合は固定セットにフォールバック）
-export function openChatEmojiPicker(messageId) {
+// ===== 絵文字ピッカー（emoji-picker-element）=====
+// ★index.html の <script type="module"> から「開くときに読む」形へ移した（2026-09-20）。
+//   ページを開くたびに jsDelivr へ往復していたが、使うのはこの関数だけで、
+//   リアクションを一度も開かないユーザーにも読ませていた。
+// ★URL は index.html にあったものと同一にすること（バージョン指定を含む）。
+const EMOJI_PICKER_URL = 'https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js';
+
+// 読み込みは1回だけ。成功しても失敗しても同じ Promise を使い回す
+// （連続で開いたときに何度も取りに行かせない）。
+let _emojiPickerLoad = null;
+function _loadEmojiPicker() {
+  if (_emojiPickerLoad) return _emojiPickerLoad;
+  // すでに定義済みなら何もしない（将来 index.html に戻した場合の保険）
+  if (customElements.get('emoji-picker')) {
+    _emojiPickerLoad = Promise.resolve(true);
+    return _emojiPickerLoad;
+  }
+  // ★import() は CDN が落ちている・ブロックされていると reject する。
+  //   必ず catch して false を返すこと。投げっぱなしにするとピッカーが開かないままになる
+  //   （固定グリッドのフォールバックにも落ちない）。
+  _emojiPickerLoad = import(EMOJI_PICKER_URL)
+    .then(() => !!customElements.get('emoji-picker'))
+    .catch(() => false);
+  return _emojiPickerLoad;
+}
+
+// 絵文字ピッカーを開く（CDN が読めない場合は固定セットにフォールバック）。
+// ★async だが呼び出し側は await しなくてよい（オーバーレイは即座に出る）。
+export async function openChatEmojiPicker(messageId) {
   document.getElementById('chat-emoji-overlay')?.remove();
 
   const overlay = document.createElement('div');
@@ -753,7 +780,17 @@ export function openChatEmojiPicker(messageId) {
   // スタイル: public/css/object/component/_emoji-picker.css
   wrap.className = 'c-emoji-picker';
 
-  if (customElements.get('emoji-picker')) {
+  // ★オーバーレイは先に出す。CDN の到着を待ってから出すと、タップしても
+  //   何も起きない時間ができて「壊れている」ように見える。
+  overlay.appendChild(wrap);
+  document.body.appendChild(overlay);
+
+  const ok = await _loadEmojiPicker();
+
+  // ★待っている間にユーザーが閉じている可能性がある。DOM から外れていたら何もしない
+  if (!overlay.isConnected) return;
+
+  if (ok) {
     const picker = document.createElement('emoji-picker');
     picker.style.width = '100%';
     picker.style.setProperty('--num-columns', '8');
@@ -764,7 +801,7 @@ export function openChatEmojiPicker(messageId) {
     });
     wrap.appendChild(picker);
   } else {
-    // フォールバック：よく使う絵文字グリッド
+    // フォールバック：よく使う絵文字グリッド（従来と同一）
     const grid = document.createElement('div');
     grid.className = 'c-emoji-picker__grid';
     grid.innerHTML = FALLBACK_EMOJIS.map(e =>
@@ -777,7 +814,4 @@ export function openChatEmojiPicker(messageId) {
     });
     wrap.appendChild(grid);
   }
-
-  overlay.appendChild(wrap);
-  document.body.appendChild(overlay);
 }
