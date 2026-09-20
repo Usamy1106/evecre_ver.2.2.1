@@ -1747,6 +1747,8 @@ const _LOG_LABELS = {
   chat_message_sent:      'チャットを送信した',
   mission_link_copied:    'タスクリンクをコピー',
   reflection_edited:       '振り返りを編集した',
+  leader_motivation_skipped: '★意気込みモーダルを出さなかった（理由つき）',
+  leader_motivation_failed:  '★意気込みモーダルの表示に失敗した',
   reflect_outcome_picked:  '振り返りで成否を選んだ',
   reflect_saved:           '振り返りを書いた（完了直後）',
   archive_answers_open:    'アーカイブから参加時の回答を開いた',

@@ -26,3 +26,12 @@
 .u-animate-fade-up-out {
   animation: fadeUpOut var(--duration-normal) ease-in forwards;
 }
+
+/* 退場：縮みながら上へ抜ける（リーダーの意気込みモーダル）。
+   ★u-animate-fade-up-out との違いは縮みの有無だけ。動きの「質」を変えたいときは
+     keyframes（foundation/_animation.css の shrinkUpOut）を直す。
+   ★出現時の u-animate-fade より**後ろ**に書くこと（同じ animation を奪い合い、
+     勝敗は記述順で決まる。前に書くと退場しない）。 */
+.u-animate-shrink-up {
+  animation: shrinkUpOut var(--duration-normal) ease-in forwards;
+}

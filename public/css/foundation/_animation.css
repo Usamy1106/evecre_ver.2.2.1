@@ -80,6 +80,15 @@
   to   { transform: translateY(-28px); opacity: 0; }
 }
 
+/* 使用: object/utility/_transition.css（.u-animate-shrink-up）
+   退場：**縮みながら**上へ抜けて消える（2026-09-21）。fadeUpOut に縮みを足した版。
+   ★縮みと移動と透過を1つの keyframes にまとめること。別々のアニメーションに
+     分けると transform を奪い合い、どちらか片方しか効かない。 */
+@keyframes shrinkUpOut {
+  from { transform: translateY(0)     scale(1);   opacity: 1; }
+  to   { transform: translateY(-28px) scale(.88); opacity: 0; }
+}
+
 /* 使用: object/component/_overlay.css（.c-overlay.is-leaving）
    汎用：暗幕のフェードアウト（fadeIn の逆）。 */
 @keyframes fadeOut {

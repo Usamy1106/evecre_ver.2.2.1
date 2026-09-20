@@ -62,20 +62,45 @@ export function isLeaderMotivationPending(p, userId) {
  */
 export function checkLeaderMotivationModal() {
   const p = state.events.find(x => x.id === state.selectedEventId);
-  if (!p || !state.currentUser) return;
+  if (!p || !state.currentUser) return _skip(null, 'no_event');
 
   // 他の自動表示モーダルが開いていたら、フラグを立てずに持ち越す（次の render() で再判定）。
   // ★列挙は modalGuard.js に集約してある。ここに個別のIDを書き足さないこと
-  if (isAnyAutoModalOpen()) return;
+  if (isAnyAutoModalOpen()) return _skip(p.id, 'other_modal');
 
-  if (!_hasMotivation(p)) return;                       // 意気込みが無ければ出さない
-  if (p.ownerId === state.currentUser.id) return;       // 書いた本人には見せない
+  if (!_hasMotivation(p)) return _skip(p.id, 'no_motivation');       // 意気込みが無ければ出さない
+  if (p.ownerId === state.currentUser.id) return _skip(p.id, 'owner'); // 書いた本人には見せない
 
   const key = _storageKey(state.currentUser.id, p.id);
-  if (localStorage.getItem(key)) return;                // 既に見た
-  localStorage.setItem(key, '1');
+  // ★localStorage は private ブラウズなどで例外を投げる。素で触ると setTimeout の中で
+  //   例外になり、🔥が永久に出ない（原因も残らない）。読めないときは「未読」として進める。
+  let seen = false;
+  try { seen = !!localStorage.getItem(key); } catch (_) {}
+  if (seen) return _skip(p.id, 'seen');
 
-  _openModal(p);
+  // ★既読フラグは**モーダルを出せてから**立てる。先に立てると、描画で例外が起きたときに
+  //   「見ていないのに既読」になり、そのイベントでは二度と出なくなる
+  //   （🔥が出ないという報告があり、この経路を潰した。2026-09-21）。
+  try {
+    _openModal(p);
+  } catch (e) {
+    console.error('[leaderMotivation] 表示に失敗:', e);
+    logEvent('leader_motivation_failed', { eventId: p.id });
+    return;
+  }
+  if (!document.getElementById(OVERLAY_ID)) return _skip(p.id, 'not_rendered');
+  try { localStorage.setItem(key, '1'); } catch (_) {}
+}
+
+// 出さなかった理由を1イベントにつきセッション1回だけ記録する。
+// ★「出るはずなのに出ない」を次に調べられるようにするための計測。原因が分かって
+//   直ったら、この関数と leader_motivation_skipped ごと消してよい。
+const _skipLogged = new Set();
+function _skip(eventId, reason) {
+  const key = `${eventId}:${reason}`;
+  if (_skipLogged.has(key)) return;
+  _skipLogged.add(key);
+  logEvent('leader_motivation_skipped', { eventId, reason });
 }
 
 /** 設定画面などから手動で開くとき用（既読でも出す） */
@@ -120,7 +145,14 @@ function _openModal(p) {
   };
 
   /**
-   * 退場アニメーション（暗幕フェード＋白い箱が上へ抜ける）を見せてから閉じる。
+   * 退場アニメーション（暗幕フェード＋白い箱が**縮みながら**上へ抜ける）を見せてから閉じる。
+   *
+   * ★動きの定義は CSS 側にある：
+   *   - 箱の動き   … object/utility/_transition.css の .u-animate-shrink-up
+   *                   （keyframes は foundation/_animation.css の shrinkUpOut）
+   *   - 暗幕       … object/component/_overlay.css の .c-overlay.is-leaving（fadeOut）
+   *   - 🔥ボタンの縮み … object/project/_invite.css の .p-invite__fire.is-launching
+   *                     （尺は JS が --fire-launch-dur に Lottie の実尺を入れる）
    *
    * ★animationend は**バブリングする**。火の粉やボタンのバウンドは子要素で
    *   0.5秒動いているので、target を見ずに拾うと退場が始まる前に閉じてしまう。
@@ -131,7 +163,9 @@ function _openModal(p) {
   const closeWithExit = () => {
     if (closed) return;
     overlay.classList.add('is-leaving');
-    overlay.querySelector('.c-modal')?.classList.add('u-animate-fade-up-out');
+    // ★縮みと上へのフェードアウトは**同時**（1つの keyframes にまとめてある）。
+    //   別々のクラスに分けると transform を奪い合い、片方しか効かない。
+    overlay.querySelector('.c-modal')?.classList.add('u-animate-shrink-up');
     overlay.addEventListener('animationend', (e) => {
       if (e.target === overlay) close();
     });

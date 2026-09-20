@@ -68,7 +68,10 @@ export function openOnboardingModal(o) {
         ${o.body ? `<p class="c-modal__lead">${_esc(o.body)}</p>` : ''}
       </div>
       <button type="button" data-ob="primary" class="c-button c-button--primary c-modal__button c-modal__button--roomy">${_esc(o.primary)}</button>
-      <button type="button" data-ob="close" class="c-modal__button--quiet">あとで</button>
+      <!-- ★dismissible: false のステップでは「あとで」を出さない。
+           主ボタンを押しても閉じるだけ（action 無し）の案内で、選択肢が2つあると
+           「どちらを押すべきか」を考えさせるだけになるため（L1 がこれ）。 -->
+      ${o.dismissible === false ? '' : '<button type="button" data-ob="close" class="c-modal__button--quiet">あとで</button>'}
     </div>`;
   document.body.appendChild(overlay);
 
@@ -79,7 +82,7 @@ export function openOnboardingModal(o) {
     overlay.remove();
   }
 
-  overlay.querySelector('[data-ob="close"]').onclick = _dismiss;
+  overlay.querySelector('[data-ob="close"]')?.addEventListener('click', _dismiss);
   overlay.querySelector('[data-ob="primary"]').onclick = () => {
     logEvent('onboarding_action', { stepId: o.stepId });
     overlay.remove();
