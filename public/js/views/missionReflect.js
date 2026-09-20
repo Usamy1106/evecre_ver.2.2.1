@@ -13,6 +13,11 @@
 //   正直な報告が損をすると、実態と違う側が押され、集めたい失敗事例が集まらない。
 // ★絵（🎉 / 🤔）は constants.js の OUTCOME_CHOICES.art にしか書かない（イラスト差し替え前提）。
 // ★入力欄を開いたときに textarea へ自動フォーカスしないこと（モバイルでキーボードが飛び出す）。
+// ★「今はしない」を置く（2026-09-21）。以前は「選択肢として見せると押される」として
+//   専用のスキップを置かず、戻る矢印と注記だけで抜けてもらっていた。だが戻る矢印は
+//   「スキップしてよい」とは読めず、答えなければいけない画面に見える。
+//   出口が分かる状態のほうが、次に完了するときの心理的な負担が軽い。
+//   ★押されても完了は確定済みで、何も失われない（あとからアーカイブで書ける）。
 
 import { state } from '../state.js';
 import { api } from '../api.js';
@@ -111,6 +116,8 @@ export function renderMissionReflect(appEl) {
             class="c-button c-button--primary p-mission-reflect__save">保存して戻る</button>
         </div>
 
+        <button type="button" onclick="window._app.skipMissionReflect()" data-log="reflect_skip"
+          class="p-mission-reflect__skip">今はしない</button>
         <p class="p-mission-reflect__note">あとからアーカイブで書き足せます</p>
       </div>
     </div>`;
@@ -189,6 +196,16 @@ function _applyLocal(p, missionId, reflection) {
   if (!reflection) return;
   const cd = p.clearedData?.[missionId];
   if (cd) Object.assign(cd, reflection);
+}
+
+/**
+ * 「今はしない」。何も保存せずに戻る。
+ * ★成否だけ先に押してある場合、それは既に保存済みなので取り消さない
+ *   （押した事実は本人の入力で、スキップは「これ以上書かない」の意味）。
+ */
+export function skipMissionReflect() {
+  logEvent('reflect_skipped', { outcome: state.reflectDraft?.outcome || null });
+  state.closeMissionReflect();
 }
 
 /** 「保存して戻る」。本文が空でも押せる（そのまま戻る）*/

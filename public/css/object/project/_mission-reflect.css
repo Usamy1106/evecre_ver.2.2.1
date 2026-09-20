@@ -266,8 +266,22 @@
   font-weight: var(--font-weight-heavy);
 }
 
-/* ★「スキップ」という専用ボタンは置かない（選択肢として提示されると押される）。
-   戻るボタンで抜けられ、あとからアーカイブでも書けることだけ伝える。 */
+/* 「今はしない」。★2026-09-21 に方針を変えた（それまでは専用のスキップを置かず、
+   戻る矢印と注記だけで抜けてもらっていた）。戻る矢印は「スキップしてよい」とは
+   読めず、答えなければいけない画面に見えるため。
+   ★ただし主役にはしない。塗りも枠も持たせず、保存ボタンより小さい文字で下に置く。 */
+.p-mission-reflect__skip {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-5);
+  padding-block: var(--space-2);
+  background: none;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 注記（あとから書ける、の一言） */
 .p-mission-reflect__note {
   margin-top: var(--space-6);
   font-size: 11px;

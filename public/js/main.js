@@ -22,7 +22,7 @@ import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
 import { renderLegal } from './views/legal.js';
 import { startPushSetupFlow, refreshPushSubscribed } from './modals/pushSetupModal.js';
-import { renderMissionReflect, saveMissionReflect } from './views/missionReflect.js';
+import { renderMissionReflect, saveMissionReflect, skipMissionReflect } from './views/missionReflect.js';
 import {
   renderMissionDetail,
   sendChatMessage, deleteChatMessage, toggleChatReaction, openChatEmojiPicker,
@@ -786,6 +786,7 @@ window._app = {
   // 完了直後の振り返りページ（views/missionReflect.js）
   closeMissionReflect: ()   => state.closeMissionReflect(),
   saveMissionReflect: ()    => saveMissionReflect(),
+  skipMissionReflect: ()    => skipMissionReflect(),
   copyMissionLink:    (mid) => copyMissionLink(mid),
   sendChatMessage:    ()    => sendChatMessage(),
   deleteChatMessage:  (msgId) => deleteChatMessage(msgId),
@@ -1756,6 +1757,7 @@ const _LOG_LABELS = {
   leader_motivation_failed:  '★意気込みモーダルの表示に失敗した',
   reflect_outcome_picked:  '振り返りで成否を選んだ',
   reflect_saved:           '振り返りを書いた（完了直後）',
+  reflect_skipped:         '振り返りを「今はしない」で閉じた',
   notif_filter_unread:     '通知を未読だけに絞った',
   notif_filter_all:        '通知をすべて表示した',
   notif_group_toggled:     '同じタスクの通知のまとめを開閉した',
