@@ -235,14 +235,18 @@ for (const done of [0, 7, 8, 16, 48]) {
     ok('逃げを削りすぎていない（上端に空の帯が出る）', A >= 0.25, `TOP_ALLOWANCE=${A}`);
   }
 
-  // ★山頂は**すでに積んだ地形のてっぺん**に立てる。山頂のために地形を足さないこと
-  //   （足すと、完了が少ないイベントほど山頂が遠のく）。
+  // ★山頂は**すでに積んだ地形のてっぺん**に立てる。山頂のために地形を足さないこと。
+  // ★終わったイベントでは逆に**減る**（SUMMIT_TOP_ALLOWANCE=0＝逃げを積まない）。
+  //   看板を道の天井の近くに保ち、その上は空にするため（2026-09-23）。
   {
     const before = build(4, 'ev1', ['2099-01-01']);   // 開催前＝山頂なし
     const after  = build(4, 'ev1', ['2020-01-01']);   // 開催後＝山頂あり
     ok('★山頂を出すために地形を増やしていない',
-      before.parts.length === after.parts.length && after.summit !== null,
+      after.parts.length <= before.parts.length && after.summit !== null,
       `${before.parts.length} vs ${after.parts.length}`);
+    ok('★終わったイベントでは逃げの地形を積まない（上は空にする）',
+      K('SUMMIT_TOP_ALLOWANCE') === 0 && after.parts.length < before.parts.length,
+      `${before.parts.length} → ${after.parts.length}`);
   }
 
   // 覆いきれているか：塗り潰しの余白の上端が、必要な高さに届いていること
@@ -259,31 +263,44 @@ for (const done of [0, 7, 8, 16, 48]) {
   ok('★開催の最終日以降は山頂の看板を立てる', past.summit !== null);
   if (past.summit) {
     const sy = +past.summit[1];
-    // ★立てるのは「いちばん上」ではなく**上から2枚目**の地形。いちばん上に立てると
-    //   看板の背後に何も無く、宙に浮いて見える（そのために1枚下へ移した）。
-    const top = past.parts.at(-2);
-    // ★その地形の上端から少し下げて立てる。下げないと稜線の上に浮いて見える
-    const SUMMIT_SINK = K('SUMMIT_SINK');
-    const SUMMIT_W = K('SUMMIT_W'), SUMMIT_REACH = K('SUMMIT_REACH');
-    // ★ただし上げすぎない。看板の上端が「道の天井＋SUMMIT_REACH」を超えないところまで
-    //   下げる（measure() がそのぶん headroom を足すので、抑えないと山頂が遠のく）。
-    //   検査側で px→art を組み直さないよう、実装と同じ式をここでも定数から作る。
-    const pxToArt = (px) => px * K('ART_W') / 400;   // スタブの window.innerWidth 相当
-    const ceil = Math.max(0, Math.round(pxToArt(past.canvasH + SUMMIT_REACH)) - SUMMIT_W);
-    const anchorBased = Math.max(0, top.y + top.h - SUMMIT_SINK);
-    ok('★看板は上から2枚目の地形の稜線（ただし手が届く高さまで下げる）',
-      sy === Math.min(anchorBased, ceil), `${sy} vs min(${anchorBased}, ${ceil})`);
-    ok('★看板をいちばん上の地形に戻していない',
-      sy <= Math.max(0, past.parts.at(-1).y + past.parts.at(-1).h - SUMMIT_SINK));
+    const SUMMIT_SINK = K('SUMMIT_SINK'), SUMMIT_W = K('SUMMIT_W');
+    // ★立てるのは**いちばん上の地形の底面**。看板の上に残るのはその1枚だけで、
+    //   そこから上は空になる（2026-09-23。それまでは「上から2枚目の稜線」だったが、
+    //   実際には上限に頭を押さえられて届かず、看板の上に地形が 1500〜2200 素材px 残っていた）。
+    const top = past.parts.at(-1);
+    ok('★看板はいちばん上の地形の底面に立つ',
+      sy === Math.max(0, top.y - SUMMIT_SINK), `${sy} vs ${Math.max(0, top.y - SUMMIT_SINK)}`);
+    // ★いちばん上の地形の**上端**には戻さないこと（背後に何も無く、宙に浮いて見える）
+    ok('★看板をいちばん上の地形の上端に置いていない', sy < top.y + top.h);
+    // ★看板の上に残るのは最後の稜線の先だけ。ここが厚いと「まだ山が続く」に見える
+    for (const done of [0, 3, 10, 40]) {
+      const r = build(done, 'ev1', ['2020-01-01']);
+      const peak = Math.max(...r.parts.map(pt => pt.y + pt.h));
+      const left = peak - (+r.summit[1] + SUMMIT_W);
+      ok(`★完了${done}件：看板の上に残る地形が1枚ぶん未満`, left < 1481, `${left}素材px`);
+    }
 
     // ★「少し送ればすぐ看板が出る」こと。完了が少ないイベントほど遠のいていた
-    //   （完了0件で 477px 送らないと見えなかった。報告を受けて上限を入れた）。
+    //   （完了0件で 477px 送らないと見えなかった。報告を受けて上限を入れたが、
+    //   いまは上限ではなく「逃げを積まない」ことで抑えている）。
+    const REACH_MAX = 200;   // 画面px。上限の定数ではなく、結果として収まることを見る
     for (const done of [0, 1, 3, 10, 40]) {
       const r = build(done, 'ev1', ['2020-01-01']);
       const extra = Math.round((+r.summit[1] + SUMMIT_W) * 400 / K('ART_W')) - r.canvasH;
-      ok(`★完了${done}件でも看板まで送る距離が ${SUMMIT_REACH}px 以内`,
-        extra <= SUMMIT_REACH, `${extra}px`);
+      ok(`★完了${done}件でも看板まで送る距離が ${REACH_MAX}px 以内`,
+        extra <= REACH_MAX, `${extra}px`);
     }
+    // ★逃げを積まないぶん、道（canvasH）だけは必ず覆えていること。
+    //   ここが割れると、スクロールの途中に空の帯が出る（上端に出るのは狙いどおりだが、
+    //   道の途中に出るのは不具合）。
+    for (const done of [0, 3, 10, 40]) {
+      const r = build(done, 'ev1', ['2020-01-01']);
+      const peak = Math.max(...r.parts.map(pt => pt.y + pt.h));
+      const needArt = r.canvasH * K('ART_W') / 400;   // スタブの画面幅での素材px
+      ok(`★完了${done}件：終わったイベントでも道は地形で覆えている`,
+        peak >= needArt, `最高点${peak} < 必要${Math.round(needArt)}`);
+    }
+
     // ★看板は地形より手前。地形の裏に回ると読めない
     ok('★看板は地形より手前にある', +past.summit[3] > Math.max(...past.parts.map(pt => pt.z)));
     // ★絵は CSS 変数で参照する（ファイル名を手書きの JS に書かないため）

@@ -173,10 +173,13 @@ const MAX_DRIFT = 6;
 
 // ── 山頂の看板 ────────────────────────────────────────────
 // 開催の最終日以降だけ立てる。
-// ★立てるのは「いちばん上の地形」ではなく、その**1枚下**の地形の上端。
-//   いちばん上は空へ抜けていく一番奥の帯なので、そこに立てると看板の背後に
-//   何も無く、宙に浮いて見える。1枚下の稜線に立てると奥にもう一段の山が残り、
-//   「その頂に立っている」ように見える。
+// ★立てるのは**いちばん上の地形の底面**（2026-09-23）。看板の上に残るのは
+//   その1枚だけ＝最後の山頂の先で、そこから上は空になる。
+//   ★以前は「上から2枚目の稜線」に立てていたが、実際には頭を押さえる上限に
+//     引っかかって**そこまで届いておらず**、看板の上に地形が 1500〜2200 素材px
+//     残っていた（「まだまだ地形の続きがあるように見える」という報告を受けた）。
+//   ★「いちばん上の地形の**上端**」には戻さないこと。そこに立てると看板の背後に
+//     何も無く、宙に浮いて見える（底面なら、その1枚がまるごと背後に残る）。
 // ★横位置は中央固定（抽選しない）。山頂は1つしかない目印なので、
 //   イベントごとに左右へ動くと「頂上に着いた」感じが薄れる。
 // ★絵そのものは CSS 変数（foundation/_variables.css の --summit-board-N）。
@@ -187,25 +190,24 @@ const SUMMIT_BOARD_COUNT = 2;
 //   SUMMIT_W    … 看板の大きさ。素材が正方形なので幅＝高さ。
 //                  大きくすると文字も一緒に大きくなる（CSS が幅から算出している）。
 //                  ★変えたら _mountain.css の --summit-w も同じ値にすること。
-//   SUMMIT_SINK … 立てる地形（上から2枚目）の**上端から下へ**どれだけ沈めるか。
-//                  大きくするほど看板が下がり、山に深く刺さって見える。
-//                  0 に近づけると稜線の上に浮く。
+//   SUMMIT_SINK … いちばん上の地形の**底面から下へ**どれだけ沈めるか。
+//                  大きくするほど看板が下がる。0 なら底面ちょうど。
 //
 // 位置関係（数字は素材px）：
 //
-//        ┌──────────┐  ← 看板の上端 = 稜線 + (SUMMIT_W - SUMMIT_SINK)
+//           ／＼            ← 最後の山頂の先。この上は空
+//        ┌──────────┐  ← 看板の上端 = 底面 + SUMMIT_W - SUMMIT_SINK
 //        │   看板    │     SUMMIT_W = 1100
-//        └──────────┘  ← 看板の下端 = 稜線 - SUMMIT_SINK
-//   ～～～～稜線～～～～     ＝ 上から2枚目の地形の上端
+//        └──────────┘  ← 看板の下端 = いちばん上の地形の底面 - SUMMIT_SINK
+//   ～～～～～～～～～～     ＝ 1枚下の地形の斜面（看板の背後に残る）
 //
 const SUMMIT_W = 1100;
-const SUMMIT_SINK = 700;
-// 看板の上端を「道の天井」から上へどれだけまで許すか（画面px）。
-// ★measure() はこのぶんだけ headroom を足してスクロールを伸ばす。つまり
-//   **「山頂を見るために余分に送る距離」そのもの**。小さいほどすぐ看板に着く。
-// ★0 にしないこと。看板が道の天井にぴったり張り付き、下部パネルの裏に
-//   潜り込んで読めなくなる。
-const SUMMIT_REACH = 120;
+const SUMMIT_SINK = 0;
+// ★かつてここに SUMMIT_REACH（看板の頭を「道の天井＋120px」で押さえる上限）があった。
+//   **復活させないこと。** 上限が常に効いてしまい、看板は一度も本来の位置に立てず、
+//   上に地形が 1500〜2200 素材px 残っていた（2026-09-23 に削除）。
+//   「山頂が遠い」を防ぐのは上限ではなく **SUMMIT_TOP_ALLOWANCE**（終わったイベントでは
+//   逃げの地形を積まない）の役目。余分に積まなければ看板は自然と道の天井の近くに来る。
 // 標高＝完了タスク数 × これ。マスの数と一致させてある
 const METERS_PER_CLEAR = 100;
 
@@ -323,6 +325,12 @@ function _isSummit(p) {
 //   山頂まで 1300px 以上スクロールさせられていた**（実際にその報告を受けた）。
 // ★下げすぎると上端に空の帯が出る。0.3 未満にするときは実機で上まで送って確かめること。
 const TOP_ALLOWANCE = 0.35;
+// ★開催が終わったイベント（山頂あり）だけは**逃げを積まない**（2026-09-23）。
+//   終わった山は「ここで終わり」が見えているほうがよく、上端に空が出るのは
+//   不具合ではなく**狙い**だから。逃げを積んだままだと、いちばん上の地形の底面に
+//   立てた看板が道の天井からどんどん遠のき、山頂に着くまで余分に送ることになる。
+// ★0 にすること（＝道を覆うところで止める）。値を戻すと看板が遠のく。
+const SUMMIT_TOP_ALLOWANCE = 0;
 
 /**
  * 画面px → 素材px。
@@ -335,11 +343,18 @@ function _pxToArt(px, viewW) {
   return px * ART_W / w;
 }
 
-/** viewW / viewH を省略すると実際の画面。草木の判定では基準の画面（PLANT_REF_*）を渡す */
-function _needTopArt(canvasH, viewW, viewH) {
+/**
+ * viewW / viewH を省略すると実際の画面。草木の判定では基準の画面（PLANT_REF_*）を渡す。
+ * ★isSummit のときは逃げを積まない（SUMMIT_TOP_ALLOWANCE）。
+ * ★**草木の抽選（refParts）には isSummit を渡さないこと。** 渡すと、開催が
+ *   終わった瞬間に草木の計画そのものが変わる。いまは計画は変えず、その端末で
+ *   見えてはいけないものだけを hiddenHere が隠している（天井を超える・看板に重なる）。
+ */
+function _needTopArt(canvasH, viewW, viewH, isSummit) {
   const vh = viewH ?? ((typeof window !== 'undefined' ? window.innerHeight : 640) || 640);
   // キャンバスぶん＋逃げ（headroom で下へずらす量ぶん）
-  return _pxToArt(canvasH + vh * TOP_ALLOWANCE, viewW);
+  const allowance = isSummit ? SUMMIT_TOP_ALLOWANCE : TOP_ALLOWANCE;
+  return _pxToArt(canvasH + vh * allowance, viewW);
 }
 
 /**
@@ -819,23 +834,23 @@ export function restoreBgLayer() {
  *   --lf-y:3566.5975 のような値になる（他のパーツはすべて整数）。
  * 横は中央固定（CSS が left:50% + translateX(-50%)）。
  */
-function _summitRect(parts, canvasH, viewW) {
-  const n = parts.length;
-  const anchor = parts[n - 2] || parts[n - 1] || null;
-  const anchorTop = anchor ? anchor.y + anchor.h : 0;
-  const summitCeil = Math.max(0, Math.round(_pxToArt(canvasH + SUMMIT_REACH, viewW)) - SUMMIT_W);
-  const y0 = Math.min(Math.max(0, anchorTop - SUMMIT_SINK), summitCeil);
+function _summitRect(parts) {
+  // いちばん上の地形の**底面**。その1枚だけが看板の上に残り、そこから上は空になる。
+  const top = parts.at(-1);
+  const y0 = Math.max(0, (top ? top.y : 0) - SUMMIT_SINK);
   return { x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2, y0, y1: y0 + SUMMIT_W };
 }
 
 function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
-  const parts = _landformPlan(String(p?.id || ''), _needTopArt(canvasH));
+  // ★終わったイベントは逃げを積まない（看板を道の天井の近くに保つため）。
+  //   代わりに、いちばん上の地形より上は空になる。これは狙いどおり。
+  const parts = _landformPlan(String(p?.id || ''), _needTopArt(canvasH, undefined, undefined, isSummit));
   const n = parts.length;
 
   const eventId = String(p?.id || '');
 
   // この端末での看板の位置（実際に看板を立てる場所）
-  const board = _summitRect(parts, canvasH);
+  const board = _summitRect(parts);
   const summitY = board.y0;
 
   // ★草木は**基準の画面（PLANT_REF_*）で**決める。全メンバー・全端末で同じ草木にするため。
@@ -903,24 +918,20 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
 
   // ★山頂。開催の最終日以降だけ**看板**を立てる。
   //   ★地形はそのまま（専用の1枚絵は使わない）。
-  //   ★立てるのは「いちばん上の地形」ではなく、その1枚下の地形の上端。
-  //     いちばん上の帯は空へ抜けていくので、そこに立てると看板の背後に何も無く
-  //     宙に浮いて見える。1枚下なら奥にもう一段の山が残って「頂」に見える。
+  //   ★立てるのは**いちばん上の地形の底面**。看板の上に残るのはその1枚だけで、
+  //     そこから上は空になる。「いちばん上の地形の上端」には戻さないこと
+  //     （背後に何も無くなり、宙に浮いて見える）。
   //   ★横位置は中央固定。ここだけは抽選しない（山頂は1つしかない目印なので、
   //     イベントごとに左右へ動くと「頂上に着いた」感じが薄れる）。
   //   ★どちらの看板が出るかはイベントIDから決定的に決める。全メンバーが同じ絵を見る。
   //   ★ここまでスクロールで登れるよう、initMountainPathSync が上端の余白（headroom）
   //     を広げている。片方だけ直すと看板が永久に画面へ入らない。
-  // ★上から2枚目の地形に立てる。1枚しか無いときだけ、その1枚にフォールバックする
-  //   （地形0枚は素材が読めていないときだけ起きる）。
   // ★位置（summitY）と矩形（board）は**この関数の先頭で先に決めてある**。
   //   草木を植える前に知っている必要があるため（看板と重なる場所には生やさない）。
-  // ★上げすぎない。看板の**上端**が「道の天井＋SUMMIT_REACH」を超えないところまで下げる。
-  //   measure() は (看板の上端 − canvasH) ぶん headroom を足してスクロールを伸ばすので、
-  //   ここを抑えないと完了が少ないイベントほど山頂が遠のく
-  //   （完了0件で 477px 送らないと見えなかった。報告を受けて追加）。
-  //   ★地形の稜線より下がることもあるが、それでよい。山の中腹に立つ看板は
-  //     不自然ではなく、遠くて永久に見えないほうが害が大きい。
+  // ★「山頂が遠い」を防ぐのは上限（旧 SUMMIT_REACH）ではなく、終わったイベントで
+  //   逃げの地形を積まないこと（SUMMIT_TOP_ALLOWANCE）。余分に積まなければ、
+  //   いちばん上の地形の底面はもともと道の天井の近くにある。
+  //   measure() は (看板の上端 − canvasH) ぶん headroom を足してスクロールを伸ばす。
   let summitHtml = '';
   if (isSummit) {
     const boardImg = _pickSummitBoard(eventId);
