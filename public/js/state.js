@@ -257,6 +257,14 @@ export const state = {
     // ログイン状態確認（サーバーは me() の応答に pendingEventId を含めることがある）
     try {
       const meResp = await api.meRaw();  // 生のレスポンスを取得
+      // ★通信できなかった（api.js が合成した code:'network'）。これは「未ログイン」ではない。
+      //   ここを素通りさせると user が null になり、ログイン済みの人が
+      //   ようこそ画面に落ちて「ログアウトさせられた」ように見える。
+      if (meResp?.code === 'network') {
+        console.error('[init] セッション確認に失敗（通信）');
+        this.showConnectionError();
+        return;
+      }
       const user = meResp?.user || null;
       if (user) {
         this.currentUser = user;
@@ -291,6 +299,9 @@ export const state = {
       }
     } catch (e) {
       console.error('[init] エラー:', e);
+      // ★ここを無条件 WELCOME に戻さないこと。通信失敗と未ログインは別物で、
+      //   とくにログイン済みの人を WELCOME に落とすのがいちばん悪い見え方になる。
+      if (e?.code === 'network' || this.currentUser) { this.showConnectionError(); return; }
       this.currentView = 'WELCOME';
     }
     this.render();
@@ -303,6 +314,33 @@ export const state = {
       loading.classList.add('is-hidden');
       setTimeout(() => loading.remove(), 400);
     }
+  },
+
+  // --- 接続エラー画面 ---
+  // ★入口はこの1つだけ。init() / loadAfterAuth() / main.js の起動保険がここを通る。
+  //   経路を増やすと、片方だけ直す事故になる。
+  retryingConnection: false,
+
+  showConnectionError() {
+    // ★計測しておくこと。無言で壊れていた頃は「本番で何回起きているか」を
+    //   誰も知らなかった（それが原因の特定を遅らせた）。
+    if (this.currentView !== 'CONNECTION_ERROR') logEvent('connection_error_shown');
+    // ★setView を使わないこと。mainBoardTab などを毎回潰すので、
+    //   再試行が成功したときに元の画面へ戻れなくなる。
+    this.currentView = 'CONNECTION_ERROR';
+    this.render();
+    this._hideLoading();
+  },
+
+  // 再試行は init() の再実行。副作用は洗ってあり冪等
+  // （URL は replaceState 済み／招待は Cookie から読み直し／pendingMissionLink は
+  //   持ち越されて再試行の成功時に消費される）。★専用の再試行経路を作らないこと。
+  async retryStartup() {
+    if (this.retryingConnection) return;   // 連打防止
+    this.retryingConnection = true;
+    this.render();                         // ボタンを「接続中…」にする
+    try { await this.init(); }
+    finally { this.retryingConnection = false; }
   },
 
   // --- 招待イベントに入る共通処理 ---
@@ -364,8 +402,8 @@ export const state = {
       ]);
     } catch (e) {
       console.error('[loadAfterAuth] イベント読み込みエラー:', e);
-      this.events = [];
       if (e?.code === 'unauthorized') {
+        this.events = [];
         // loadAfterAuth は「直前に認証が成立したユーザー」に対してのみ呼ばれる
         // （init は meRaw でユーザー確認後、login/register/google は ok レスポンス後）。
         // リトライ後もここで 401 になるのは Cookie のタイミング等が原因で、
@@ -379,6 +417,12 @@ export const state = {
         if (!skipRender) this.render();
         return;
       }
+      // ★通信の失敗はここで止める。HOME へ進ませないこと
+      //   （events が空のまま進むと「ログイン済みなのにイベント0件のホーム」になり、
+      //     データが消えたように見える）。
+      // ★events は潰さない。再試行が成功するまで手元の内容を残す。
+      this.showConnectionError();
+      return;
     }
 
     // 招待リンクから来た場合：確認モーダルを表示してから参加申請

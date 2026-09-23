@@ -21,6 +21,7 @@ import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
 import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
 import { renderLegal } from './views/legal.js';
+import { renderConnectionError } from './views/connectionError.js';
 import { startPushSetupFlow, refreshPushSubscribed } from './modals/pushSetupModal.js';
 import { renderMissionReflect, saveMissionReflect, skipMissionReflect } from './views/missionReflect.js';
 import { checkMissionBeforeCreate } from './modals/missionCheckModal.js';
@@ -86,6 +87,9 @@ registerRenderer('LOGIN',                 renderLogin);
 registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);
 registerRenderer('LEGAL',                 renderLegal);
+// ★ビューを足したらこの登録も同じコミットで足すこと。未登録のビュー名は例外を出さず
+//   #app が前の内容のまま残る＝原因の分からない白画面になる。
+registerRenderer('CONNECTION_ERROR',      renderConnectionError);
 
 // オンボーディング再開のフックを state に渡す（state.js から views を import すると
 // 循環依存になるため、registerRenderer と同じ方式で注入する）。
@@ -1433,19 +1437,34 @@ initPushNavigation((url) => state.handlePushNavigation(url));
 initSheetDragClose(); // ボトムシートの下スワイプで閉じる（data-sheet / data-sheet-handle）
 state.init().catch(e => {
   console.error('init() で例外:', e);
-  // 何が起きてもローディング画面は強制的に消す
-  const loading = document.getElementById('loading-screen');
-  if (loading) loading.remove();
+  // ★ここで loading.remove() だけして終わらせないこと。#app が空のまま
+  //   ローディングだけ消えると**真っ白な画面**になる（原因が分からなくなる）。
+  state.showConnectionError();
 });
 
-// 念のため5秒後にもローディングを強制非表示（サーバー応答遅延への保険）
+// 5秒：まだ読み込み中なら**文言だけ**差し替える。画面は消さない
 setTimeout(() => {
   const loading = document.getElementById('loading-screen');
-  if (loading && !loading.classList.contains('is-hidden')) {
-    console.warn('ローディング画面を強制非表示（タイムアウト）');
-    loading.remove();
-  }
+  if (!loading || loading.classList.contains('is-hidden')) return;
+  const t = loading.querySelector('.l-loading__text');   // index.html の #loading-screen
+  if (t) t.textContent = '接続を確認しています…';
 }, 5000);
+
+// 20秒：一度も描画されていなければ接続エラーを出す（起動の最終保険）。
+// ★20秒は api.js の予算（GET 8秒 × 最大2回 ＋ 待ち ≒ 17秒）が直列で走る
+//   最悪ケースを覆う数字。api.js の TIMEOUT_MS を変えたらここも見直すこと。
+setTimeout(() => {
+  if (document.getElementById('app')?.innerHTML === '') {
+    console.warn('起動がタイムアウト → 接続エラー画面');
+    state.showConnectionError();
+  }
+}, 20000);
+
+// 圏外から戻ったら、接続エラーを出している場合だけ自動で再試行する
+// （realtime.js の online ハンドラと同じ作法）
+window.addEventListener('online', () => {
+  if (state.currentView === 'CONNECTION_ERROR') state.retryStartup();
+});
 
 // ===== ヘルパ =====
 /** チェック項目の空白除去・空文字除外 */
@@ -1795,6 +1814,8 @@ const _LOG_LABELS = {
   view_changed:           '画面を移動',
   chat_message_sent:      'チャットを送信した',
   mission_link_copied:    'タスクリンクをコピー',
+  connection_error_shown: '接続エラー画面が出た',
+  connection_retry_tapped:'接続エラーで再試行した',
   reflection_edited:       '振り返りを編集した',
   leader_motivation_skipped: '★意気込みモーダルを出さなかった（理由つき）',
   leader_motivation_failed:  '★意気込みモーダルの表示に失敗した',
