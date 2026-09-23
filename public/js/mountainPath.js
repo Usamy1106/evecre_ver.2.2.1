@@ -203,6 +203,16 @@ const SUMMIT_BOARD_COUNT = 2;
 //
 const SUMMIT_W = 1100;
 const SUMMIT_SINK = 0;
+// 看板の**上端**より上に残してよい地形の厚み（素材px）。
+// ★地形の高さは3種（1481 / 1781 / 2241）ある。底面に立てるだけだと、背の高い1枚に
+//   当たったときに看板の上へ 1141 素材px（約250画面px）も地形が残り、
+//   「まだ山が続く」に戻ってしまう。厚い回だけ看板を持ち上げて揃える。
+// ★大きくしすぎないこと（山頂の先が無くなり、看板が空に浮いて見える）。
+const SUMMIT_TIP = 300;
+// スクロールを送りきったとき、山の最高点の上に見せる空の高さ（見えている帯に対する割合）。
+// ★0 にしないこと。地形が画面のてっぺんまで詰まり、「ここで終わり」が伝わらない
+//   （「まだ地形が画面一番上まであり空が見えない」という報告を受けて追加。2026-09-23）。
+const SUMMIT_SKY = 0.15;
 // ★かつてここに SUMMIT_REACH（看板の頭を「道の天井＋120px」で押さえる上限）があった。
 //   **復活させないこと。** 上限が常に効いてしまい、看板は一度も本来の位置に立てず、
 //   上に地形が 1500〜2200 素材px 残っていた（2026-09-23 に削除）。
@@ -837,8 +847,13 @@ export function restoreBgLayer() {
 function _summitRect(parts) {
   // いちばん上の地形の**底面**。その1枚だけが看板の上に残り、そこから上は空になる。
   const top = parts.at(-1);
-  const y0 = Math.max(0, (top ? top.y : 0) - SUMMIT_SINK);
-  return { x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2, y0, y1: y0 + SUMMIT_W };
+  const base = Math.max(0, (top ? top.y : 0) - SUMMIT_SINK);
+  // ★背の高い1枚に当たった回は、看板の上に残る厚みを SUMMIT_TIP に揃えるため持ち上げる。
+  //   持ち上げても看板の背後にはその1枚が残るので、空に浮いて見えることはない。
+  const peak = parts.length ? Math.max(...parts.map(q => q.y + q.h)) : 0;
+  const y0 = Math.max(base, Math.min(peak - SUMMIT_W - SUMMIT_TIP, peak));
+  return { x0: (ART_W - SUMMIT_W) / 2, x1: (ART_W + SUMMIT_W) / 2, y0: Math.max(0, Math.round(y0)),
+    y1: Math.max(0, Math.round(y0)) + SUMMIT_W };
 }
 
 function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
@@ -960,6 +975,8 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   return {
     html: `<div class="p-mountain__bg-layer" data-bg-sig="${sig}">${lf}${clouds}${summit}</div>`,
     summitY,
+    // 山のシルエットの最高点（素材px）。measure() が「その上に空を見せる」ために読む
+    peakY: parts.length ? Math.max(...parts.map(q => q.y + q.h)) : 0,
   };
 }
 
@@ -1071,7 +1088,7 @@ export function renderMountainBg(p, opts = {}) {
     <!-- ★data-summit は initMountainPathSync が読む（山頂までスクロールできるよう
          上端の余白を広げるため）。JS から再判定せず、描画時の結果を渡す。 -->
     <div id="mountain-bg" class="p-mountain${backdrop ? ' p-mountain--backdrop' : ''}" style="top:110px"
-      data-summit="${isSummit ? '1' : '0'}" data-summit-y="${bg.summitY}">
+      data-summit="${isSummit ? '1' : '0'}" data-summit-y="${bg.summitY}" data-peak-y="${bg.peakY}">
       <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
         ${bg.html}
         ${nodes}
@@ -1197,19 +1214,26 @@ export function initMountainPathSync(restoreTop = null) {
     headroom = Math.max(0, Math.round((depthBottom - NEAR_MARGIN) - bgTop - targetY));
 
     // ★山頂が出ているときは、そこまでスクロールで登れるように上端の余白を広げる。
-    //   山頂の絵はキャンバス上端より「送り（画像高の77.8%）」ぶん上に立っている。
     //   この余白が足りないと、絵は敷かれているのに永久に画面へ入らない。
     //   ★幅は実測（canvasW）を使う。素材は幅いっぱいに伸縮されるので、
     //     端末ごとに必要な余白が変わる。
-    // ★山頂の絵はキャンバス上端より上へはみ出す。その分だけ余白を足さないと、
-    //   絵は敷かれているのに永久に画面へ入らない。
-    //   高さは実測する（素材の縦横比を JS に書かないため）。背景画像＋aspect-ratio
+    // ★送りきったときに「山の最高点＋空の帯」まで見えるところまで広げる（2026-09-23）。
+    //   看板の**上端**までしか送れなかったため、地形が画面のてっぺんまで詰まったままで
+    //   「ここで終わり」が伝わらなかった（報告を受けて変更）。最高点は看板より上に
+    //   あるので、この式は従来より必ず大きい＝看板は必ず画面に入る。
+    // ★高さは実測する（素材の縦横比を JS に書かないため）。背景画像＋aspect-ratio
     //   なので、画像の読み込みを待たずにレイアウトは確定している。
     const summitEl = bg.querySelector('.p-mountain__summit');
     if (summitEl && canvasW > 0) {
       const unit = canvasW / ART_W;
       const summitTop = (+bg.dataset.summitY || 0) * unit + summitEl.getBoundingClientRect().height;
-      headroom += Math.max(0, Math.round(summitTop - canvasH));
+      const peakTop   = (+bg.dataset.peakY || 0) * unit;
+      // 空の帯は「見えている帯」に対する割合（端末の大きさに合わせる）
+      const sky = Math.round((depthBottom - bgTop) * SUMMIT_SKY);
+      // ★足さずに**下限として使う**（`+=` にしないこと）。足すと道のぶんの余白と
+      //   二重になり、送りきったときの空の帯が端末や完了数でばらつく。
+      //   ここで決めたいのは「送りきったとき、最高点が帯の上端から sky 下に来る」だけ。
+      headroom = Math.max(headroom, Math.round(Math.max(summitTop, peakTop + sky) - canvasH));
     }
 
     // ★素材px → 画面px の換算はこの1変数に集約する。**ここ（初回と resize）でだけ書く。**

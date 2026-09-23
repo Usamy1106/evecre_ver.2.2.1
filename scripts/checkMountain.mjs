@@ -82,7 +82,7 @@ function mkEl() {
     },
     addEventListener(t, fn) { (el.listeners[t] ||= []).push(fn); },
     removeEventListener(t, fn) { el.listeners[t] = (el.listeners[t] || []).filter(f => f !== fn); },
-    getBoundingClientRect: () => ({ top: el._top, width: 448 }),
+    getBoundingClientRect: () => ({ top: el._top, width: 448, height: el._h || 0 }),
     // ★地形（.p-mountain__lf）は「見えるぶんだけ敷く」判定の対象。実装が使う
     //   セレクタをそのまま受けて、まだ敷いていないものだけ返す。
     querySelectorAll: (s) => {
@@ -146,9 +146,18 @@ function build(done, eventId = 'ev1', dates = [], opts = {}) {
 }
 
 /** 実際に配線し、scrollTop の位置での画面上の値を取り出す */
-function wire(done, scrollTop = 0) {
-  const b = build(done);
+function wire(done, scrollTop = 0, dates = []) {
+  const b = build(done, 'ev1', dates);
   const bg = mkEl(); bg._top = HEADER;
+  // ★山頂が出ている回は、measure() が読むものを一式そろえる
+  //   （看板の高さは実測なので、スタブにも高さを持たせる）。
+  if (b.summit) {
+    bg.dataset.summitY = b.summit[1];
+    bg.dataset.peakY = String(Math.max(...b.parts.map(pt => pt.y + pt.h)));
+    const sEl = mkEl();
+    sEl._h = K('SUMMIT_W') * (448 / ART_W);      // 幅は下の getBoundingClientRect と揃える
+    bg.querySelector = (sel) => (sel === '.p-mountain__summit' ? sEl : null);
+  }
   const canvas = mkEl(); canvas.style.height = `${b.canvasH}px`;
   const win = mkEl(); const spacer = mkEl(); win._spacer = spacer;
   const panel = mkEl(); panel._top = PANEL_TOP;
@@ -268,27 +277,42 @@ for (const done of [0, 7, 8, 16, 48]) {
     //   そこから上は空になる（2026-09-23。それまでは「上から2枚目の稜線」だったが、
     //   実際には上限に頭を押さえられて届かず、看板の上に地形が 1500〜2200 素材px 残っていた）。
     const top = past.parts.at(-1);
-    ok('★看板はいちばん上の地形の底面に立つ',
-      sy === Math.max(0, top.y - SUMMIT_SINK), `${sy} vs ${Math.max(0, top.y - SUMMIT_SINK)}`);
+    const SUMMIT_TIP = K('SUMMIT_TIP');
+    const peakOf = (r) => Math.max(...r.parts.map(pt => pt.y + pt.h));
+    // ★底面に立てる。ただし背の高い1枚に当たった回は、看板の上に残る厚みを
+    //   SUMMIT_TIP に揃えるため持ち上げる（持ち上げてもその1枚が背後に残る）。
+    const want = Math.round(Math.max(Math.max(0, top.y - SUMMIT_SINK),
+      Math.min(peakOf(past) - SUMMIT_W - SUMMIT_TIP, peakOf(past))));
+    ok('★看板はいちばん上の地形の底面（厚い回は SUMMIT_TIP まで持ち上げる）',
+      sy === want, `${sy} vs ${want}`);
     // ★いちばん上の地形の**上端**には戻さないこと（背後に何も無く、宙に浮いて見える）
     ok('★看板をいちばん上の地形の上端に置いていない', sy < top.y + top.h);
-    // ★看板の上に残るのは最後の稜線の先だけ。ここが厚いと「まだ山が続く」に見える
+    // ★看板の上に残るのは山頂の先だけ。ここが厚いと「まだ山が続く」に見える
     for (const done of [0, 3, 10, 40]) {
       const r = build(done, 'ev1', ['2020-01-01']);
-      const peak = Math.max(...r.parts.map(pt => pt.y + pt.h));
-      const left = peak - (+r.summit[1] + SUMMIT_W);
-      ok(`★完了${done}件：看板の上に残る地形が1枚ぶん未満`, left < 1481, `${left}素材px`);
+      const left = peakOf(r) - (+r.summit[1] + SUMMIT_W);
+      ok(`★完了${done}件：看板の上に残る地形が ${SUMMIT_TIP} 素材px 以内`,
+        left <= SUMMIT_TIP + 1, `${left}素材px`);
     }
 
-    // ★「少し送ればすぐ看板が出る」こと。完了が少ないイベントほど遠のいていた
-    //   （完了0件で 477px 送らないと見えなかった。報告を受けて上限を入れたが、
-    //   いまは上限ではなく「逃げを積まない」ことで抑えている）。
-    const REACH_MAX = 200;   // 画面px。上限の定数ではなく、結果として収まることを見る
-    for (const done of [0, 1, 3, 10, 40]) {
-      const r = build(done, 'ev1', ['2020-01-01']);
-      const extra = Math.round((+r.summit[1] + SUMMIT_W) * 400 / K('ART_W')) - r.canvasH;
-      ok(`★完了${done}件でも看板まで送る距離が ${REACH_MAX}px 以内`,
-        extra <= REACH_MAX, `${extra}px`);
+    // ★送りきったときに「山頂の先 → 空」まで見えること。
+    //   看板の上端までしか送れず、地形が画面のてっぺんまで詰まっていた（報告を受けて変更）。
+    // ★向きに注意：**scrollTop 0 がいちばん上（山頂側）**。キャンバスは
+    //   translateY(-scrollTop) で動くので、送るほど下（ふもと）が見える。
+    for (const done of [0, 3, 40]) {
+      const r2 = wire(done, 0, ['2020-01-01']);
+      const unit = 448 / ART_W;
+      const bandTop = HEADER, bandBottom = PANEL_TOP;
+      // 画面 y ＝ ヘッダー + headroom + canvasH − (素材px × unit)（素材の高さは下端から）
+      const yOf = (art) => HEADER + r2.headroom + r2.canvasH - art * unit;
+      const peakScreenY = yOf(peakOf(r2));
+      const boardTopY   = yOf(+r2.summit[1] + SUMMIT_W);
+      const boardBotY   = yOf(+r2.summit[1]);
+      ok(`★完了${done}件：いちばん上まで送ると最高点の上に空が見える`,
+        peakScreenY > bandTop, `最高点 y=${Math.round(peakScreenY)} / 帯の上端 ${bandTop}`);
+      ok(`★完了${done}件：そのとき看板が帯に収まっている`,
+        boardTopY > bandTop && boardBotY <= bandBottom,
+        `看板 ${Math.round(boardTopY)}〜${Math.round(boardBotY)} / 帯 ${bandTop}〜${bandBottom}`);
     }
     // ★逃げを積まないぶん、道（canvasH）だけは必ず覆えていること。
     //   ここが割れると、スクロールの途中に空の帯が出る（上端に出るのは狙いどおりだが、
