@@ -67,6 +67,7 @@ const { BG_ASSETS, BG_SHARED } = await import(pathToFileURL(path.join(ROOT, 'pub
 const { BG_THEMES } = await import(pathToFileURL(path.join(ROOT, 'public/js/mountainThemes.js')).href);
 const themeCfg = (id) => BG_THEMES.find(t => t.id === id);
 const colorOf = (pt) => { const a = BG_ASSETS[pt.theme].landform.find(x => x.f === pt.file); return a.c || a.n; };
+const slopeOf = (pt) => BG_ASSETS[pt.theme].landform.find(x => x.f === pt.file)?.s || null;
 
 // ── 最小 DOM スタブ ───────────────────────────────────────
 const VIEW_H = 800, HEADER = 110, PANEL_TOP = 496;
@@ -422,12 +423,14 @@ section('[D] ★背景は保存せず決定的に導出する');
   ok('別イベントでは並びが変わる', a1 !== sig(40, 'evB'));
 
   const events = ['e1', 'e2', 'e3', 'x9', 'zz', '1782432300147'];
-  const dupTheme = [], dupFile = [], dupColor = [];
+  const dupTheme = [], dupFile = [], dupColor = [], dupSlope = [];
   for (const ev of events) {
     const v = build(48, ev).parts;
     for (let i = 1; i < v.length; i++) {
       if (v[i].file === v[i - 1].file && v[i].theme === v[i - 1].theme) dupFile.push(`${ev}[${i}]`);
       if (colorOf(v[i]) === colorOf(v[i - 1]) && v[i].theme === v[i - 1].theme) dupColor.push(`${ev}[${i}]:${colorOf(v[i])}`);
+      // ★傾きはテーマをまたいでも見る（「右肩上がり」はどのテーマでも同じ意味）
+      if (slopeOf(v[i]) && slopeOf(v[i]) === slopeOf(v[i - 1])) dupSlope.push(`${ev}[${i}]:${slopeOf(v[i])}`);
     }
     // テーマは THEME_RUN 枚ごとの帯で替わる。隣り合う帯に同じテーマが入らないこと
     const bands = [];
@@ -437,6 +440,8 @@ section('[D] ★背景は保存せず決定的に導出する');
   ok('★同じ地形が2回続けて出ない', dupFile.length === 0, dupFile.join(' '));
   // ★色が続くと「登ったのに景色が変わらない」ように見える。色の無いテーマは通し番号で代用
   ok('★同じ色が2回続けて出ない', dupColor.length === 0, dupColor.slice(0, 5).join(' '));
+  // ★傾きが続くと稜線が一方向に流れて見える（右肩上がりばかりが3枚続く等）
+  ok('★同じ傾き（r / l / o）が2回続けて出ない', dupSlope.length === 0, dupSlope.slice(0, 5).join(' '));
   ok('★隣り合う帯に同じテーマが入らない', dupTheme.length === 0, dupTheme.join(' '));
 
   // 帯が実際に切り替わっている（THEME_RUN が効いていて1テーマに固まっていない）
@@ -1141,17 +1146,22 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   //   一括改名から漏れた `<テーマ>-landform-38-MintGreen.webp`。
   //   ★色は**全テーマ共通の1文字**（a / b / c …）で分類する取り決め。
   //     `[A-Za-z]+` まで許すと旧来の色名が素通りするので、1文字だけを通す。
-  //   ★命名は **`<テーマ>-<番号>-<色>.webp`**。層の名前（landform）は入れない
-  //     ―― フォルダが層を表しているので冗長。ゼロ埋めも不要（番号は識別子として
-  //     しか使わず、並びは番号順に取っている）。
+  //   ★命名は **`<テーマ>-<番号>-<色>-<傾き>.webp`**（傾きは 2026-09-23 に追加）。
+  //     層の名前（landform）は入れない ―― フォルダが層を表しているので冗長。
+  //     ゼロ埋めも不要（番号は識別子としてしか使わず、並びは番号順に取っている）。
+  //   ★傾きは r（右肩上がり）/ l（左肩上がり）/ o（その他）の1文字。
+  //     色と同じく「続けない」ために使うので、1枚でも外れると静かに漏れる
+  //     （実際に `MorningMeadow-9-bl.webp` とハイフンが1つ足りない1枚があった）。
   //   ★組み立てた名前と完全一致で見る。部分一致だと `-landform-` が混ざっても
   //     素通りし、テーマごとに命名が割れる（実際に1テーマだけ割れた）。
-  const lfNamed = landforms.filter(a => a.f !== `${a.theme}-${Number(a.n)}-${a.c}.webp`);
-  ok('★landform の名前が <テーマ>-<番号>-<a|b|c…>.webp になっている',
+  const lfNamed = landforms.filter(a => a.f !== `${a.theme}-${Number(a.n)}-${a.c}-${a.s}.webp`);
+  ok('★landform の名前が <テーマ>-<番号>-<a|b|c…>-<r|l|o>.webp になっている',
     lfNamed.length === 0,
-    lfNamed.map(a => `${a.f} → ${a.theme}-${Number(a.n)}-${a.c}.webp`).slice(0, 3).join(', '));
+    lfNamed.map(a => `${a.f} → ${a.theme}-${Number(a.n)}-${a.c}-${a.s}.webp`).slice(0, 3).join(', '));
   ok('★全 landform に色が読めている（色の連続判定から漏れない）',
     landforms.every(a => a.c), landforms.filter(a => !a.c).map(a => a.f).join(', '));
+  ok('★全 landform に傾きが読めている（傾きの連続判定から漏れない）',
+    landforms.every(a => /^[rlo]$/.test(a.s || '')), landforms.filter(a => !a.s).map(a => a.f).join(', '));
 
   // ★WorldSpawnedObjects も landform と同じ **`<テーマ>-<番号>`** に揃える。
   //   以前は全テーマ共通で `plant-01.svg` と名乗っていて、ファイル名だけ見ても

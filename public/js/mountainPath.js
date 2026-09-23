@@ -428,6 +428,19 @@ function _rndIntMix(seed, min, max) {
  * @param {(c:any)=>string} keyOf 「同じ」とみなす基準（テーマIDや色）
  * @param {string|null} prevKey 直前に出たキー（帯をまたいで続けるときに渡す）
  */
+/**
+ * 直前のカードと「ぶつかる」か。
+ *
+ * ★キーは `\u0000` 区切りの**多段**にできる（色だけでなく傾きも見るため）。
+ *   どれか1段でも直前と同じならぶつかりとみなす。空の段は制約なし。
+ * ★1段だけのキーを渡す既存の使い方（テーマ・通し番号）は挙動が変わらない。
+ */
+function _deckClash(a, b) {
+  if (a == null || b == null) return false;
+  const x = String(a).split('\u0000'), y = String(b).split('\u0000');
+  return x.some((v, i) => v !== '' && v === y[i]);
+}
+
 function _dealDeck(cards, seedBase, count, keyOf, prevKey = null) {
   const out = [];
   if (!Array.isArray(cards) || cards.length === 0) return out;
@@ -439,12 +452,12 @@ function _dealDeck(cards, seedBase, count, keyOf, prevKey = null) {
     // ★山札が尽きたら切り直す。1巡で全部が必ず1回ずつ出るので出番が偏らない。
     if (deck.length === 0) deck = draw();
 
-    let idx = deck.findIndex(c => keyOf(c) !== prevKey);
+    let idx = deck.findIndex(c => !_deckClash(keyOf(c), prevKey));
     if (idx < 0) {
       // ★山札の残りが全部「直前と同じキー」だった場合。ここを手当てしないと、
       //   1巡の切れ目でだけ同じものが2回続く（実測で発生した）。
       deck = deck.concat(draw());
-      idx = deck.findIndex(c => keyOf(c) !== prevKey);
+      idx = deck.findIndex(c => !_deckClash(keyOf(c), prevKey));
       if (idx < 0) idx = 0;   // 候補が1種類しか無いときだけ
     }
     const pick = deck.splice(idx, 1)[0];
@@ -539,7 +552,7 @@ function _landformPlan(eventId, needTopArt) {
 
   const parts = [];
   let y = 0;
-  let prevKey = null;   // ★色の連続を帯をまたいで避ける（色が無いテーマは通し番号で代用）
+  let prevKey = null;   // ★色と傾きの連続を帯をまたいで避ける（色が無いテーマは通し番号で代用）
 
   for (let b = 0; b < bands.length; b++) {
     const theme = bands[b];
@@ -549,7 +562,12 @@ function _landformPlan(eventId, needTopArt) {
     // ★「同じ色」はテーマの中でだけ意味を持つ。色サフィックスは全テーマ共通の
     //   a / b / c なので、テーマ名で修飾しないと「MorningMeadow の b」と
     //   「WindyMeadow の b」が同じ色とみなされ、帯の境目で無関係に候補が弾かれる。
-    const colorKey = (a) => `${theme.id}:${a.c || a.n}`;
+    // ★1段目＝色（テーマで修飾する）／2段目＝傾き（r / l / o）。
+    //   傾きは**テーマで修飾しない**。色と違って「右肩上がり」はどのテーマでも
+    //   同じ意味なので、帯の境目でも続けたくない。
+    //   ★傾きが読めない素材は2段目を空にして制約なしにする（判定から静かに
+    //     漏れるのを防ぐため、名前は check:mountain が4つ組を強制している）。
+    const colorKey = (a) => `${theme.id}:${a.c || a.n}\u0000${a.s || ''}`;
     const picks = _dealDeck(list, `${eventId}:lf:${b}`, THEME_RUN, colorKey, prevKey);
 
     for (const a of picks) {

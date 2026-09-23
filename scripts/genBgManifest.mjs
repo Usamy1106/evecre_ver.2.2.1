@@ -79,15 +79,20 @@ function sizeOf(file) {
   return null;
 }
 
-/** 通し番号と色をファイル名から取る。'<テーマ>-landform-07-b.webp' → { n:'07', c:'b' }
- *  ★ゼロ埋めは任意（'-7-b' でも読める）。n は識別子としてしか使わないので、
+/** 通し番号・色・傾きをファイル名から取る。
+ *  '<テーマ>-<番号>-<色>-<傾き>.webp' → { n:'7', c:'b', s:'l' }
+ *  ★ゼロ埋めは任意（'-7-b-l' でも読める）。n は識別子としてしか使わないので、
  *    数値としての桁揃えは要らない。並びは listDir が番号順にしている。
- *  ★色は全テーマ共通の1文字（a / b / c …）で分類する取り決め。
- *    ここは後方互換のため長い色名も読めるが、check:mountain が1文字を強制する。 */
+ *  ★色は全テーマ共通の1文字（a / b / c …）。
+ *  ★傾きは r（右肩上がり）/ l（左肩上がり）/ o（その他）の1文字。
+ *    地形が同じ向きに続くと稜線が一方向に流れて見えるので、mountainPath.js が
+ *    色と同じように「同じ傾きを続けない」ように配る。
+ *  ★傾きの無い名前も読めるが（WorldSpawnedObjects は色も傾きも持たない）、
+ *    landform については check:mountain が4つ組を強制する。 */
 function parseName(name) {
   const base = name.replace(/\.(webp|svg)$/, '');
-  const m = /-(\d+)(?:-([A-Za-z]+))?$/.exec(base);
-  return { n: m ? m[1] : base, c: m && m[2] ? m[2] : null };
+  const m = /-(\d+)(?:-([A-Za-z]+))?(?:-([rlo]))?$/.exec(base);
+  return { n: m ? m[1] : base, c: m && m[2] ? m[2] : null, s: m && m[3] ? m[3] : null };
 }
 
 function listDir(dir) {
@@ -124,8 +129,8 @@ function collect(dir) {
     const full = path.join(dir, f);
     const size = sizeOf(full);
     if (!size) { console.warn(`  ⚠ 寸法が読めない: ${f}`); continue; }
-    const { n, c } = parseName(f);
-    out.push({ n, ...(c ? { c } : {}), w: size.w, h: size.h, f, v: contentHash(full) });
+    const { n, c, s } = parseName(f);
+    out.push({ n, ...(c ? { c } : {}), ...(s ? { s } : {}), w: size.w, h: size.h, f, v: contentHash(full) });
   }
   return out;
 }
@@ -159,8 +164,9 @@ let body = `// ===== 山の背景素材のマニフェスト（自動生成）==
 //   素材を足す・差し替えるときは public/images/bg/ に置いてから
 //   \`npm run bg:manifest\` を流し直す。
 //
-// 1エントリ = { n: 通し番号, c: 色（a / b / c … の1文字）, w: 幅, h: 高さ,
-//              f: ファイル名, v: 中身のハッシュ（キャッシュ更新用） }
+// 1エントリ = { n: 通し番号, c: 色（a / b / c … の1文字）, s: 傾き（r / l / o）,
+//              w: 幅, h: 高さ, f: ファイル名, v: 中身のハッシュ（キャッシュ更新用） }
+//   ★傾き … r=右肩上がり / l=左肩上がり / o=その他。landform だけが持つ。
 //   ★w / h は**素材のピクセル**。画面px ではない。配置の計算はこの単位で行い、
 //     実寸への変換は CSS の --art-unit が担う（端末幅で景色を変えないため）。
 //   ★層が空配列のテーマは「その層を使わない」という意味。
