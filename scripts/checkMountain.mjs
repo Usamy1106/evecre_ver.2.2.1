@@ -55,11 +55,11 @@ const OPACITY_MIN = K('OPACITY_MIN'), OPACITY_RANGE = K('OPACITY_RANGE');
 const ART_W = K('ART_W'), LF_OVERLAP = K('LF_OVERLAP');
 const THEME_RUN = K('THEME_RUN'), MAX_PARTS = K('MAX_PARTS');
 const PLANT_MIN_STRIP = K('PLANT_MIN_STRIP'), MAX_PLANTS = K('MAX_PLANTS');
-const PLANT_GAP = K('PLANT_GAP'), PLANT_ROW_RATIO = K('PLANT_ROW_RATIO'), PLANT_MIN_BAND = K('PLANT_MIN_BAND');
-// ★mountainPath.js の _plantsCollide と同じ条件（横にすき間込みで重なり、かつ根元の高さが近い）
+const PLANT_GAP = K('PLANT_GAP'), PLANT_MIN_BAND = K('PLANT_MIN_BAND');
+// ★mountainPath.js の _plantsCollide と同じ条件（絵の箱どうしが縦横とも重なる）
 const plantsCollide = (a, b) =>
   a.x < b.x + b.w + PLANT_GAP && b.x < a.x + a.w + PLANT_GAP &&
-  Math.abs(a.y - b.y) < PLANT_ROW_RATIO * Math.min(a.h, b.h);
+  a.y < b.y + b.h && b.y < a.y + a.h;
 const MAX_DRIFT = K('MAX_DRIFT');
 
 // 素材の一覧と調整値。★テスト側に複製せず、実装と同じものを読む
@@ -503,7 +503,7 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
   const events = ['e1', 'e2', 'e3', 'x9', 'zz'];
   const overlap = [], outRange = [], outBox = [], hiddenPlanted = [], outBand = [];
   let total = 0, planted = 0, plantable = 0;
-  const spreads = [];
+  const bandPos = [];
 
   for (const ev of events) {
     const parts = build(48, ev).parts;
@@ -533,29 +533,39 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
         const bandBot = Math.max(0, Math.min(pt.h - strip, pt.h - cfg.sinkMin - PLANT_MIN_BAND));
         if (cfg && (pl.y < bandBot || pl.y > pt.h - cfg.sinkMin)) outBand.push(`${ev}[${k}] y=${pl.y} 帯=${bandBot}〜${pt.h - cfg.sinkMin}`);
       }
-      // ★同じ地形の植物どうしが重ならない（縦横の2次元。根元の高さが十分違えば横に重なってよい）
+      // ★同じ地形の植物どうしが重ならない（絵の箱どうし）
       for (let i = 0; i < pt.plants.length; i++) {
         for (let j = i + 1; j < pt.plants.length; j++) {
           if (plantsCollide(pt.plants[i], pt.plants[j])) overlap.push(`${ev}[${k}] ${pt.plants[i].x},${pt.plants[i].y}∩${pt.plants[j].x},${pt.plants[j].y}`);
         }
       }
-      if (pt.plants.length >= 3) {
-        const ys = pt.plants.map(pl => pl.y);
-        spreads.push(Math.max(...ys) - Math.min(...ys));
+      // ★根元が帯のどのあたりか（0＝見えている斜面の下端 / 1＝稜線側）。
+      //   「稜線沿いの1列」に戻っていないことを、1枚ごとではなく**全体の散らばり**で見る。
+      //   ★1枚あたりの本数で判定しないこと。重なりを厳しくしたぶん1〜2本の地形が
+      //     ほとんどで、「3本以上ある地形」を数える形だと対象が無くなる（実際になった）。
+      if (cfg) {
+        for (const pl of pt.plants) {
+          const top = pt.h - cfg.sinkMin;
+          const bot = Math.max(0, Math.min(pt.h - strip, top - PLANT_MIN_BAND));
+          if (top > bot) bandPos.push((pl.y - bot) / (top - bot));
+        }
       }
     }
   }
 
-  ok(`★同じ地形の植物どうしが重ならない（横 ${PLANT_GAP}px のすき間込み・根元の高さの差が高さ×${PLANT_ROW_RATIO} 未満のとき）`,
+  ok(`★同じ地形の植物どうしが重ならない（絵の箱どうし・横 ${PLANT_GAP}px のすき間込み）`,
     overlap.length === 0, overlap.slice(0, 3).join(' '));
   ok('★根元が見えている斜面の中にある（手前の地形に隠れない・稜線から浮かない）',
     outBand.length === 0, outBand.slice(0, 3).join(' '));
-  // ★縦にも散っていること（稜線沿いの1列に戻っていない）。3本以上ある地形の大半で
-  //   根元の高さに 150 素材px 以上の幅がある
+  // ★縦にも散っていること（稜線沿いの1列に戻っていない）。
+  //   帯の上半分・下半分のどちらにも、それなりの割合で根元がある
   {
-    const wide = spreads.filter(d => d >= 150).length;
+    const upper = bandPos.filter(v => v >= 0.5).length;
+    const lower = bandPos.length - upper;
+    const share = Math.min(upper, lower) / Math.max(1, bandPos.length);
     ok('★斜面の上下にも散っている（稜線沿いの1列に戻っていない）',
-      spreads.length > 0 && wide / spreads.length >= 0.6, `${wide}/${spreads.length} 枚`);
+      bandPos.length > 0 && share >= 0.25,
+      `上 ${upper} / 下 ${lower}（少ない側 ${(share * 100).toFixed(0)}%）`);
   }
   ok(`★ほとんど隠れている地形（見える帯 ${PLANT_MIN_STRIP} 未満）には植えない`,
     hiddenPlanted.length === 0, hiddenPlanted.slice(0, 3).join(' '));
