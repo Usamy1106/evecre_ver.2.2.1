@@ -235,6 +235,13 @@ function _openApproveModal(uid, username, roles, onSuccess) {
   };
 }
 
+// タップでアーカイブへ送る通知の種類（openNotification で使う）。
+// ★どちらも「そのタスクが完了した」報せ。完了したタスクは詳細ページでは
+//   「完了しました」の一文しか出せないので、記録の並び（アーカイブ）で見せる。
+// ★差し戻し（leader_rejected）と未完了に戻した（mission_reverted）は入れないこと。
+//   どちらもタスクは未完了に戻っており、アーカイブには並ばない。
+const _NOTIF_TO_ARCHIVE = new Set(['mission_cleared', 'leader_approved']);
+
 // タップしてもタスク詳細へ送らない通知の種類（openNotification で使う）。
 // ★詳細ページには承認・差し戻し・選定のボタンが無い。これらは通知タブの
 //   カードとインフォメーションモーダルにしかないので、送ると行き止まりになる。
@@ -651,10 +658,10 @@ window._app = {
     const n = state.notifications.find(x => x.id === notifId);
     if (n) n.read = true;
 
-    // ★完了の通知はアーカイブへ（2026-09-23）。完了したタスクは「これから
+    // ★完了の報せはアーカイブへ（2026-09-23）。完了したタスクは「これから
     //   やること」ではなく**記録**なので、詳細ページより記録の並びで見せる。
     //   該当の記録まで自動で送る（mainBoard.js の _focusArchiveMission）。
-    if (n?.type === 'mission_cleared' && missionId) {
+    if (missionId && _NOTIF_TO_ARCHIVE.has(n?.type)) {
       state.mainBoardTab = 'ARCHIVE';
       state.archiveFocusMissionId = missionId;
       state.render();
