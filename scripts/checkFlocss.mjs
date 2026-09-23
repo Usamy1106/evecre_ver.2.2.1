@@ -530,6 +530,29 @@ section('[B] 実機で見つかった不具合');
       !/完了しました|minLength|trim\(\)\.length\s*[<>]=?\s*\d/.test(fn.slice(0, 2000)));
   }
 
+  // ★タスク名の自動フォーカスは「タップのハンドラの中」で当てること。
+  //   スマホはユーザー操作の外で呼ばれた focus() を無視する（PC だけ効いていた）。
+  {
+    const mi = codeOnly(R('public/js/modals/mission.js'));
+    const open = mi.slice(mi.indexOf('export function openMissionModal'));
+    const body = open.slice(0, open.indexOf('\n}\n'));
+    // ★見るのは「関数の本体に直接書いてあるか」。コールバックの中に入っていると、
+    //   呼ばれるのはタップが終わったあと＝スマホでは無視される。
+    //   ★位置の前後だけで判定しないこと（コールバックの定義自体は手前にあるので
+    //     素通りする。実際にこの書き方で見逃した）。
+    //   見方は**字下げ**。関数の本体に直接書いた行は2つ空き、コールバックの中なら
+    //   もっと深いか `=> {` と同じ行に来る。★「_focusTitle が現れる位置が
+    //   transitionend より前か」で判定しないこと（コールバックの**定義**は手前に
+    //   あるので素通りする。実際にこの書き方で見逃した）。
+    const calls = [...body.matchAll(/^([ \t]*)_focusTitle\(\);/gm)].map(m => m[1].length);
+    ok('★タスク名のフォーカスはタップの中で当てる（コールバックに入れない）',
+      calls.length === 1 && calls[0] === 2, `字下げ ${calls.join(',') || 'なし'}`);
+    // ★ツアーが**これから**走るときは当てない（DOM の有無では判定できない）
+    ok('★ツアーが走る回は isMissionFormTourPending で避ける',
+      /isMissionFormTourPending\(\)/.test(mi) &&
+      /isMissionFormTourPending/.test(codeOnly(R('public/js/onboardingIntro.js'))));
+  }
+
   // ★メインボードのミッションの並び。既定は締切順で、締切順のときだけ月の見出しが付く。
   {
     const mi = R('public/js/modals/mission.js');

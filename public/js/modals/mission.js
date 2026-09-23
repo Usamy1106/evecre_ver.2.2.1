@@ -1,6 +1,6 @@
 // ===== タスクモーダル =====
 import { state } from '../state.js';
-import { startMissionFormTour, onMissionFormClosed } from '../onboardingIntro.js';
+import { startMissionFormTour, onMissionFormClosed, isMissionFormTourPending } from '../onboardingIntro.js';
 import { isTooltipTourOpen } from './tooltipTour.js';
 import { api } from '../api.js';
 import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
@@ -111,6 +111,14 @@ export function openMissionModal(missionId = null, prefill = null) {
   });
   renderMissionModalContent();
 
+  // ★タスク名へのカーソルは**ここで当てる**（2026-09-23）。
+  //   openMissionModal はタップのハンドラから同期で呼ばれるので、この時点なら
+  //   まだ「ユーザー操作の中」にいる。**スマホはユーザー操作の外で focus() を
+  //   呼んでもキーボードが出ない**（無視される端末もある）。以前はスライドインの
+  //   transitionend まで待っていたため、PC では効くのにスマホでは効かなかった。
+  //   ★await / setTimeout をこの手前に挟まないこと（挟んだ瞬間に効かなくなる）。
+  _focusTitle();
+
   // ★初期オンボーディング③：作成モーダルが開いた直後にツールチップを出す（初回のみ）。
   //   条件（イントロ対象・②を済ませた直後か）は onboardingIntro 側が判定する。
   //   ★スライドイン（.c-sheet の transform、150ms）が終わってから始めること。
@@ -119,31 +127,35 @@ export function openMissionModal(missionId = null, prefill = null) {
   const panel = document.getElementById('mission-panel');
   if (panel) {
     let started = false;
-    const start = () => { if (started) return; started = true; startMissionFormTour(); _focusTitle(); };
+    // ★スライドインのあとは**ツアーだけ**。カーソルは上で当て済み
+    //   （ここで当て直すと、ユーザー操作の外になってスマホで効かない）。
+    const start = () => { if (started) return; started = true; startMissionFormTour(); };
     panel.addEventListener('transitionend', start, { once: true });
     // transition が走らない環境（動きを抑える設定など）でも必ず始める
     setTimeout(start, 400);
   } else {
-    requestAnimationFrame(() => { startMissionFormTour(); _focusTitle(); });
+    requestAnimationFrame(() => startMissionFormTour());
   }
 }
 
 /**
  * 開いた直後にタスク名へカーソルを置く（作成・編集とも）。
  *
+ * ★★**タップのハンドラから同期で呼ぶこと。** スマホ（iOS / Android とも）は
+ *   ユーザー操作の外で呼ばれた `focus()` でキーボードを出さず、端末によっては
+ *   フォーカス自体を無視する。手前に `await` / `setTimeout` / `transitionend` を
+ *   挟むと、**PC では効くのにスマホでは効かない**という状態になる（実際になった）。
  * ★呼ぶのは openMissionModal の1回だけ。renderMissionModalContent() は
  *   タブの切り替えや担当者の選択のたびに走るので、そこに置くと**入力中に
  *   カーソルが先頭へ飛ぶ**。
- * ★スライドイン（150ms）が終わってから。途中で当てると、せり上がる途中の
- *   入力欄にキーボードが重なって位置が定まらない。
- * ★ツールチップ・ツアー（初期オンボーディング③）が出ているときは当てない。
- *   キーボードが出ると画面の高さが変わり、吹き出しの位置が実測とずれる。
+ * ★ツールチップ・ツアー（初期オンボーディング③）が**これから走るとき**は当てない。
+ *   キーボードで画面の高さが変わり、吹き出しの位置が実測とずれる。
+ *   ツアーはスライドインのあとに始まるので、DOM の有無（isTooltipTourOpen）では
+ *   まだ分からない。`isMissionFormTourPending()` で先に判定する。
  * ★編集のときはカーソルを末尾に置く（全選択にしない。うっかり上書きさせない）。
- * ★iOS はユーザー操作の外でキーボードを出さないので、端末によっては
- *   「枠が光るだけ」になる。それでよい（タップ1回ぶんは確実に減る）。
  */
 function _focusTitle() {
-  if (isTooltipTourOpen()) return;
+  if (isTooltipTourOpen() || isMissionFormTourPending()) return;
   const el = document.getElementById('mission-title-input');
   if (!el) return;
   el.focus({ preventScroll: true });

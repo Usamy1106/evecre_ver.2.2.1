@@ -280,6 +280,19 @@ function _formTourSeen(userId) {
   try { return localStorage.getItem(FORM_TOUR_KEY(userId)) === 'done'; } catch (_) { return false; }
 }
 
+/**
+ * これから③のツアーが走るか（副作用なしの判定）。
+ *
+ * ★タスク名の自動フォーカス（mission.js の _focusTitle）が**モーダルを開いた
+ *   その場**で判断するために要る。ツアーはスライドインのあとに始まるので、
+ *   DOM の有無（isTooltipTourOpen）ではまだ分からない。
+ * ★`startMissionFormTour` の早期 return と同じ条件を保つこと。
+ */
+export function isMissionFormTourPending() {
+  const u = state.currentUser;
+  return !!u && !_formTourSeen(u.id);
+}
+
 export function startMissionFormTour() {
   const u = state.currentUser;
   if (!u) return;
