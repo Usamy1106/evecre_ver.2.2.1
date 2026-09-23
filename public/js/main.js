@@ -58,7 +58,7 @@ import { checkPurposeReminderModal } from './modals/purposeReminderModal.js';
 import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/leaderMotivationModal.js';
 import { openJoinFormModal } from './modals/joinFormModal.js';
 import { SKILL_TAGS } from './constants.js';
-import { Components } from './components.js';
+import { Components, initImageFallback } from './components.js';
 import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
@@ -1139,7 +1139,7 @@ window._app = {
       let previewHtml = '';
       if (cd?.content) {
         if (cd.format === 'image') {
-          previewHtml = `<img src="${_escH(cd.content)}" class="c-list-sheet__preview-image" loading="lazy">`;
+          previewHtml = `<img src="${_escH(cd.content)}" class="c-list-sheet__preview-image" loading="lazy" data-fallback="submission">`;
         } else {
           previewHtml = `<p class="c-list-sheet__preview-text">${_escH(cd.content)}</p>`;
         }
@@ -1435,6 +1435,7 @@ initPushNavigation((url) => state.handlePushNavigation(url));
 
 // ===== アプリ起動 =====
 initSheetDragClose(); // ボトムシートの下スワイプで閉じる（data-sheet / data-sheet-handle）
+initImageFallback();  // data-fallback を付けた画像の読み込み失敗を代替表示に差し替える
 state.init().catch(e => {
   console.error('init() で例外:', e);
   // ★ここで loading.remove() だけして終わらせないこと。#app が空のまま

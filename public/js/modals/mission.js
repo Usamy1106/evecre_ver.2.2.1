@@ -807,7 +807,7 @@ export function showMissionListModal() {
               ${cleared.timestamp ? `<p class="p-main-board__list-meta">${_formatClearedAt(cleared.timestamp)} に完了</p>` : ''}
             </div>
             ${cleared.format === 'image'
-              ? `<img src="${_escAttr(cleared.content)}" class="p-main-board__list-image">`
+              ? `<img src="${_escAttr(cleared.content)}" class="p-main-board__list-image" data-fallback="submission">`
               : `<p class="text-rs p-main-board__list-text">${_esc(cleared.content)}</p>`
             }
           </div>` : '<p class="p-main-board__list-meta">未提出</p>'}

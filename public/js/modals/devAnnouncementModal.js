@@ -127,7 +127,7 @@ function _renderPage(overlay, pages, index, opts = {}) {
 
   const image = page.imageUrl ? `
     <div class="p-announcement__figure" style="max-height:45vh">
-      <img src="${_esc(page.imageUrl)}" alt=""
+      <img src="${_esc(page.imageUrl)}" alt="" data-fallback="announcement"
         class="p-announcement__image" style="max-height:45vh">
     </div>` : '';
 

@@ -1,0 +1,39 @@
+/* ==========================================================================
+   Object / Component / broken-image — 読み込めなかった画像の代わり
+   使用箇所: public/js/components.js（initImageFallback が差し込む）
+
+   ★画像が落ちても今までは何も出なかった（alt="" なので壊れアイコンすら出ない）。
+     回線が細いときに「サムネイルだけ出ない」が無言で起き、次に何が起きているのか
+     誰にも分からなかったため、枠と文言と再読み込みを出す。
+   ★代替画像だけにしないこと。「画像が設定されていない」と区別がつかず、無言と大差ない。
+   ★付けるのはユーザー投稿画像と表紙だけ（data-fallback のオプトイン）。
+     同梱アイコン・山の素材・アバターには付けない。全部に付けると画面が箱だらけになり、
+     本当の失敗が埋もれる。
+   ========================================================================== */
+
+.c-broken-image {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 72px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background-color: var(--button-secondary);
+}
+
+.c-broken-image__text {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.c-broken-image__retry {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  text-decoration: underline;
+}

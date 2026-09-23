@@ -420,7 +420,7 @@ function _fmtClearedContent(cd) {
   if (!cd?.content) return '';
   // ★src / href もエスケープする（提出物はユーザーが入力した文字列で、
   //   属性を閉じられると任意の HTML を差し込める）
-  if (cd.format === 'image') return `<img src="${_esc(cd.content)}" class="p-mission-detail__cleared-image" alt="提出画像" loading="lazy">`;
+  if (cd.format === 'image') return `<img src="${_esc(cd.content)}" class="p-mission-detail__cleared-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
   if (cd.format === 'link' || cd.format === 'url') return `<a href="${_esc(cd.content)}" target="_blank" rel="noopener noreferrer" class="p-mission-detail__cleared-link">${_esc(cd.content)}</a>`;
   return `<p class="p-mission-detail__cleared-text">${_esc(cd.content)}</p>`;
 }

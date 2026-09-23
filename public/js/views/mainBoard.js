@@ -1119,7 +1119,7 @@ function _renderArchiveTab(p) {
       <!-- Layer 1: メインビジュアル（3:2。ホームのサムネイルと同じ比率に揃える）-->
       <div class="p-archive__visual">
         ${mainVisual
-          ? `<img src="${_esc(mainVisual)}" class="p-archive__visual-image" alt="">`
+          ? `<img src="${_esc(mainVisual)}" class="p-archive__visual-image" alt="" data-fallback="archive-visual">`
           // 未設定時はホームのサムネイルと同じエンプティーステート画像
           : Components.ThumbnailEmptyState()}
         ${canMgr ? `<div class="p-archive__visual-edit">${_pen('image')}</div>` : ''}
@@ -1242,7 +1242,7 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
   let contentHtml = '';
   if (cd?.content) {
     if (cd.format === 'image') {
-      contentHtml = `<img src="${_esc(cd.content)}" class="p-archive__content-image" alt="提出画像" loading="lazy">`;
+      contentHtml = `<img src="${_esc(cd.content)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
     } else if (cd.format === 'link') {
       contentHtml = `
         <div class="p-archive__content-link">
@@ -1394,7 +1394,7 @@ function _renderNotificationsTab(p) {
               <div class="p-notification__detail">
                 <p class="p-notification__detail-label">提出内容</p>
                 ${cleared.format === 'image'
-                  ? `<img src="${_esc(cleared.content)}" class="p-notification__detail-image" alt="提出画像">`
+                  ? `<img src="${_esc(cleared.content)}" class="p-notification__detail-image" alt="提出画像" data-fallback="submission">`
                   : `<p class="p-notification__detail-content">${_esc(cleared.content)}</p>`}
               </div>` : ''}
             <div class="p-notification__actions">

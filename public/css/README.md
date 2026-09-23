@@ -60,6 +60,7 @@
 | ラベルタグの色・形（`c-tag`） | `object/component/_tag.css` |
 | ユーザーアイコン（`c-avatar`） | `object/component/_avatar.css` |
 | イベントのサムネイル（`c-thumbnail`） | `object/component/_thumbnail.css` |
+| 読み込めなかった画像の代わり（`c-broken-image`） | `object/component/_broken-image.css` |
 | ペンなどアイコンだけのボタン | `object/component/_icon-button.css` |
 | 進捗のドット（`c-step-indicator`） | `object/component/_step-indicator.css` |
 | メール未認証などの告知バナー | `object/component/_banner.css` |
@@ -253,6 +254,7 @@ public/css/
 │  ├─ _tag.css                  ✅ c-tag（色は --tag-color）
 │  ├─ _avatar.css               ✅ c-avatar（大きさは --avatar-size）
 │  ├─ _thumbnail.css            ✅ c-thumbnail
+│  ├─ _broken-image.css         ✅ c-broken-image
 │  ├─ _icon-button.css          ✅ c-icon-button（PenIcon）
 │  ├─ _step-indicator.css       ✅ c-step-indicator（.is-active / .is-done）
 │  ├─ _banner.css               ✅ c-banner（VerifyBanner）

@@ -365,7 +365,7 @@ export const Components = {
       <picture class="c-thumbnail__picture">
         <source srcset="${THUMB_EMPTY_BASE}.avif" type="image/avif">
         <source srcset="${THUMB_EMPTY_BASE}.webp" type="image/webp">
-        <img src="${THUMB_EMPTY_BASE}.png" alt="" class="c-thumbnail__image" loading="lazy">
+        <img src="${THUMB_EMPTY_BASE}.png" alt="" class="c-thumbnail__image" loading="lazy" data-fallback="thumb">
       </picture>`;
   },
 
@@ -381,7 +381,7 @@ export const Components = {
     const rounded = opts.rounded ?? '';
     const visual  = getEventMainVisual(project);
     const inner = visual
-      ? `<img src="${visual}" alt="" class="c-thumbnail__image" loading="lazy">`
+      ? `<img src="${visual}" alt="" class="c-thumbnail__image" loading="lazy" data-fallback="thumb">`
       : this.ThumbnailEmptyState();
     // ★未読バッジ（ホーム・フォルダ詳細）。イベントページへ入る前に「動きがあった」ことが
     //   分かるように、サムネイルの右上へ重ねる。opts.unread が true のときだけ出す
@@ -463,3 +463,54 @@ export const Components = {
       aria-label="${_escText(username)} のプロフィール">${inner}</button>`;
   },
 };
+
+/**
+ * 画像の読み込み失敗を、無言にしない。
+ *
+ * ★配線は document への**キャプチャ**リスナー1本。`error` はバブルしないので
+ *   第3引数を false にすると一切動かない。
+ * ★委譲にしているのは、この画面が innerHTML を丸ごと作り直す作りだから。
+ *   個々の <img> に onerror を書くと、再描画のたびに文字列が増え、
+ *   <picture> では兄弟要素への差し替え（アバターの方式）が破綻する。
+ * ★対象は `data-fallback` を付けた <img> だけ（オプトイン）。
+ *   同梱アイコン・山の素材（100枚超）・アバターには付けないこと。
+ *   全部に付けると画面が箱だらけになり、本当の失敗が埋もれる。
+ *   アバターは頭文字のフォールバックが既にあり、そちらのほうが良い代替になる。
+ *
+ * main.js の起動部から1回だけ呼ぶ。
+ */
+export function initImageFallback() {
+  document.addEventListener('error', (e) => {
+    const img = e.target;
+    if (!img || img.tagName !== 'IMG') return;
+    if (img.dataset.fallback === undefined) return;
+    if (img.dataset.fallbackDone) return;
+    img.dataset.fallbackDone = '1';
+
+    // ★<picture> ごと差し替える。<img> だけ抜くと <source> が残って何も描かれない。
+    //   avif→webp→png の選択は type によるリクエスト前の選択なので、
+    //   落ちた候補の代わりに別の <source> を試し直すブラウザは無い
+    //   （＝ここへ来た時点で「全部ダメ」と判断してよい）。
+    const target = img.closest('picture') || img;
+
+    // スタイル: public/css/object/component/_broken-image.css
+    const box = document.createElement('div');
+    box.className = 'c-broken-image';
+    box.innerHTML =
+      `<span class="c-broken-image__text">画像を読み込めませんでした</span>` +
+      `<button type="button" class="c-broken-image__retry">再読み込み</button>`;
+
+    box.querySelector('.c-broken-image__retry').addEventListener('click', (ev) => {
+      // ★カードのタップ（イベントを開く等）と競合させない
+      ev.stopPropagation();
+      ev.preventDefault();
+      const src = img.getAttribute('src') || '';
+      img.dataset.fallbackDone = '';
+      box.replaceWith(target);
+      // キャッシュされた失敗を避けるため毎回違う URL にする
+      img.src = src.split('#')[0] + (src.includes('?') ? '&' : '?') + '_r=' + Date.now();
+    });
+
+    target.replaceWith(box);
+  }, true);   // ★capture。error はバブルしないので false にすると動かない
+}
