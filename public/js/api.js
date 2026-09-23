@@ -5,17 +5,86 @@ import { clientId } from './clientId.js';
 
 const HEADERS_JSON = { 'Content-Type': 'application/json' };
 
-async function _send(method, url, body) {
-  const opts = {
+// 1リクエストあたりの上限。これを過ぎたら中断する。
+// ★タイムアウトが無いと、「繋がるが応答が返らない」回線（家庭回線のポート枯渇など）で
+//   iOS は 75 秒前後まで待つ。その間アプリは「読み込み中」のまま固まって見える。
+const TIMEOUT_MS = 8000;
+const RETRY_BACKOFF_MS = 600;
+
+/**
+ * 通信できなかったときに合成して返す JSON。
+ *
+ * ★ネットワーク由来の失敗コードは 'network' の1語に統一する。増やさないこと
+ *   （state.js の起動処理と _onSaveError がこの1語だけを見ている）。
+ */
+function _networkJson(reason) {
+  return {
+    ok:     false,
+    code:   'network',
+    reason,                 // 'timeout' | 'offline'
+    error:  '通信できませんでした。電波状況をご確認ください',
+  };
+}
+
+async function _fetchOnce(url, init, timeoutMs) {
+  const ac    = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  // ★AbortSignal.timeout() を使わないこと。iOS 16.0 以降にしか無く、
+  //   救おうとしている古い端末で TypeError になって逆効果。
+  try     { return await fetch(url, { ...init, signal: ac.signal }); }
+  finally { clearTimeout(timer); }   // ★必ず消す（放置するとタブが起き続ける）
+}
+
+/**
+ * 全 API（69メソッド）の共通経路。
+ *
+ * ★この関数は throw しない。通信できなかったときは
+ *   { ok:false, status:0, json:_networkJson(...) } を返す。
+ *   これで戻り値の2系統が同時に正しくなる（呼び出し側 87 箇所は無改修）：
+ *     - json フォールバック型 … `return json || {...}` の json に合成結果が入る
+ *     - throw 型（load / save / savePartial）… !ok で従来どおり throw し、code に 'network' が付く
+ *   ★素の `await fetch(...)` に戻さないこと。回線断で TypeError が飛び、
+ *     catch していない呼び出し側（タスク完了・メール認証・アカウント設定など）が
+ *     無言で壊れる（unhandledrejection の受け皿もこのアプリには無い）。
+ *
+ * @param {{timeout?: number, retry?: number}} opts
+ */
+async function _send(method, url, body, opts = {}) {
+  const init = {
     method,
     credentials: 'include',
     headers: { ...HEADERS_JSON, 'X-Client-Id': clientId },
   };
-  if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
-  let json = null;
-  try { json = await res.json(); } catch (_) {}
-  return { ok: res.ok, status: res.status, json };
+  if (body !== undefined) init.body = JSON.stringify(body);
+
+  const timeout = opts.timeout ?? TIMEOUT_MS;
+  // ★再試行するのは GET だけ。POST/PUT/PATCH/DELETE を既定で再送しないこと
+  //   （/complete・招待の発行・チャット送信が二重実行される。退会 DELETE は
+  //     2回目が 401 を返すので「成功したのに失敗表示」になる）。
+  const maxRetry = opts.retry ?? (method === 'GET' ? 1 : 0);
+
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await _fetchOnce(url, init, timeout);
+    } catch (e) {
+      const reason = (e?.name === 'AbortError') ? 'timeout' : 'offline';
+      // 圏外がはっきりしているときは待たずに諦める（再試行しても結果は同じ）
+      if (!(attempt < maxRetry && navigator.onLine !== false)) {
+        return { ok: false, status: 0, json: _networkJson(reason) };
+      }
+      await new Promise(r => setTimeout(r, RETRY_BACKOFF_MS));
+      continue;
+    }
+    // 502/503/504 は一過性のことが多い（Render の再起動中など）。GET だけ1回引き直す
+    if (attempt < maxRetry && (res.status === 502 || res.status === 503 || res.status === 504)) {
+      await new Promise(r => setTimeout(r, RETRY_BACKOFF_MS));
+      continue;
+    }
+    let json = null;
+    try { json = await res.json(); } catch (_) {}
+    return { ok: res.ok, status: res.status, json };
+  }
 }
 
 export const api = {
@@ -77,6 +146,8 @@ export const api = {
     const { ok, status, json } = await _send('GET', '/api/data');
     if (!ok) {
       const err = new Error('データの読み込みに失敗しました');
+      // ★status 0 は '応答が返ってこなかった'（_send が合成した失敗）。401 とは別物なので先に見る
+      if (status === 0)   err.code = 'network';
       if (status === 401) err.code = 'unauthorized';
       throw err;
     }
@@ -89,6 +160,8 @@ export const api = {
     const { ok, status, json } = await _send('PUT', path, data);
     if (!ok) {
       const err = new Error(json?.error || 'データの保存に失敗しました');
+      // ★status 0 は '応答が返ってこなかった'（_send が合成した失敗）。401 とは別物なので先に見る
+      if (status === 0)   err.code = 'network';
       if (status === 401) err.code = 'unauthorized';
       if (json?.code === 'verification_required') err.code = 'verification_required';
       if (json?.code === 'no_manage_permission')  err.code = 'no_manage_permission';
@@ -107,6 +180,8 @@ export const api = {
     const { ok, status, json } = await _send('PATCH', '/api/data', { events });
     if (!ok) {
       const err = new Error(json?.error || 'データの保存に失敗しました');
+      // ★status 0 は '応答が返ってこなかった'（_send が合成した失敗）。401 とは別物なので先に見る
+      if (status === 0)   err.code = 'network';
       if (status === 401) err.code = 'unauthorized';
       if (json?.code === 'verification_required') err.code = 'verification_required';
       if (json?.code === 'no_manage_permission')  err.code = 'no_manage_permission';

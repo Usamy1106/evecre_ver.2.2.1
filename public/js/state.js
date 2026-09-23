@@ -601,6 +601,10 @@ export const state = {
       this.setView('ACCOUNT');
     } else if (e?.code === 'no_manage_permission') {
       window._app?.showToast('このイベントを編集する権限がありません。ロール設定をご確認ください。', 'error');
+    } else if (e?.code === 'network') {
+      // ★通信の失敗を無言にしないこと。保存は楽観的更新＋デバウンスなので、
+      //   黙っていると「保存できたように見えたまま変更が消える」。
+      window._app?.showToast('保存できませんでした。通信状況をご確認ください');
     }
   },
 
