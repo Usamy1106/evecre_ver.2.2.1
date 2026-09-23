@@ -281,14 +281,6 @@
   color: var(--color-text-muted);
 }
 
-/* 注記（あとから書ける、の一言） */
-.p-mission-reflect__note {
-  margin-top: var(--space-6);
-  font-size: 11px;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
 /* ★動きを減らす設定を尊重する（粒・弾み・開閉はすべて止める）*/
 @media (prefers-reduced-motion: reduce) {
   .p-mission-reflect__done,

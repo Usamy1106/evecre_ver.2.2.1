@@ -118,7 +118,6 @@ export function renderMissionReflect(appEl) {
 
         <button type="button" onclick="window._app.skipMissionReflect()" data-log="reflect_skip"
           class="p-mission-reflect__skip">今はしない</button>
-        <p class="p-mission-reflect__note">あとからアーカイブで書き足せます</p>
       </div>
     </div>`;
 
