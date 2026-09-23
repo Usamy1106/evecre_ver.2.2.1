@@ -651,6 +651,16 @@ window._app = {
     const n = state.notifications.find(x => x.id === notifId);
     if (n) n.read = true;
 
+    // ★完了の通知はアーカイブへ（2026-09-23）。完了したタスクは「これから
+    //   やること」ではなく**記録**なので、詳細ページより記録の並びで見せる。
+    //   該当の記録まで自動で送る（mainBoard.js の _focusArchiveMission）。
+    if (n?.type === 'mission_cleared' && missionId) {
+      state.mainBoardTab = 'ARCHIVE';
+      state.archiveFocusMissionId = missionId;
+      state.render();
+      return;
+    }
+
     // ★タスクに紐づく通知は、そのタスクの詳細ページへ直行する（2026-09-23）。
     //   以前はチャットだけが詳細へ飛び、ほかは MAIN タブに戻すだけだったので、
     //   「作成されました」を押しても一覧のどれの話か自分で探す必要があった。

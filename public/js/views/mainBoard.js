@@ -199,6 +199,8 @@ export function renderMainBoard(container) {
     syncMountainBackdrop();
   }
 
+  if (state.mainBoardTab === 'ARCHIVE') _focusArchiveMission();
+
   if (state.mainBoardTab === 'MAIN') {
     // ★パネルの配線を先に行う。パネルの top はこの中で確定するので、
     //   逆順にすると山側が「まだ初期値のままのパネル位置」で遠近の基準帯を
@@ -219,6 +221,32 @@ export function renderMainBoard(container) {
     // タスクカード：タップ＝完了モーダル（inline onclick）、管理者長押し＝編集/削除メニュー
     bindMissionInteractions(container, p, { useInlineTap: true });
   }
+}
+
+/**
+ * 完了の通知から来たとき、アーカイブのそのタスクの記録まで送って光らせる。
+ *
+ * ★一度きり。`state.archiveFocusMissionId` を**ここで消費する**。
+ *   消さないと SSE の再描画のたびにスクロールが飛ぶ。
+ * ★見つからないときは何もしない（未完了に戻された／削除された／概要欄のタスクは
+ *   ブロックとして並ばない）。アーカイブを開いた状態で止まれば十分。
+ * ★`document.querySelectorAll` から探す。タスクIDは数字で始まるものがあり、
+ *   セレクタに直接埋めると escape の扱いが面倒になる（通知のまとめと同じ方式）。
+ */
+function _focusArchiveMission() {
+  const id = state.archiveFocusMissionId;
+  if (!id) return;
+  state.archiveFocusMissionId = null;
+
+  const el = [...document.querySelectorAll('.p-archive__block')]
+    .find(x => x.dataset.missionId === id);
+  if (!el) return;
+
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+  // どれの話か分かるように少しだけ光らせる（2秒で戻す）
+  el.classList.add('is-focused');
+  setTimeout(() => el.classList.remove('is-focused'), 2000);
 }
 
 // 下部パネル（提案＋やること一覧）の開閉状態。再レンダリングをまたいで保持する。
@@ -1266,7 +1294,7 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
     </div>`;
 
   return `
-    <div ${archiveClick} class="p-archive__block">
+    <div ${archiveClick} data-mission-id="${m.id}" class="p-archive__block">
       <div class="p-archive__block-head">
         <div class="p-archive__block-tags">
           ${tagNames.map(t => Components.Tag(t)).join('')}

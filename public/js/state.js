@@ -78,6 +78,10 @@ export const state = {
   legalDoc: null,                      // LEGAL ビューで表示中の文書 'terms' | 'privacy'
   legalReturnView: null,               // LEGAL を閉じたときに戻るビュー
   mainBoardTab: 'MAIN',
+  // 完了の通知から飛んできたとき、アーカイブのどの記録まで送るか。
+  // ★mainBoard.js の _focusArchiveMission が**一度だけ**消費する
+  //   （消さないと SSE の再描画のたびにスクロールが飛ぶ）
+  archiveFocusMissionId: null,
   // 通知タブの絞り込み。null＝自動（未読があれば「未読」、無ければ「すべて」）。
   // ★イベントを移ったら null に戻すこと（setView が面倒を見る）。前のイベントで
   //   「すべて」にしていた状態を引き継ぐと、未読があるのに気づけない
@@ -736,6 +740,7 @@ export const state = {
     this.mainBoardTab = 'MAIN';
     this.missionFilterTag = null;
     this.notifFilter = null;   // 通知の絞り込みは自動（未読優先）に戻す
+    this.archiveFocusMissionId = null;
     this.render();
     window.scrollTo(0, 0);
   },

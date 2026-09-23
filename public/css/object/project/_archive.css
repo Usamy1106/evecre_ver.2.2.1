@@ -436,6 +436,14 @@
   background-color: var(--color-bg);
 }
 
+/* 完了の通知から飛んできたときに、その記録だけを2秒だけ光らせる
+   （mainBoard.js の _focusArchiveMission が付け外しする）。
+   ★枠線ではなく box-shadow で描く。枠線だと幅が増えてレイアウトがずれ、
+     スクロールで合わせた位置から動いてしまう。 */
+.p-archive__block.is-focused {
+  box-shadow: 0 0 0 2px var(--color-primary), var(--shadow-sm);
+}
+
 .p-archive__block-head {
   display: flex;
   align-items: center;
