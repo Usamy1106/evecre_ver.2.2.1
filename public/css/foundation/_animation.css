@@ -113,3 +113,11 @@
   35%  { transform: scale(.96); }
   100% { transform: scale(1); }
 }
+
+/* タスク作成の確認モーダルから「設定する」で戻ったとき、該当の欄を光らせる。
+   ★使う側: object/project/_mission-check.css（[data-field].is-attention）
+   ★枠線ではなく box-shadow。枠線だと幅が増えてレイアウトがずれる。 */
+@keyframes missionFieldAttention {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  10%, 70% { box-shadow: 0 0 0 3px var(--color-primary-half); }
+}

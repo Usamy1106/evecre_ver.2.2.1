@@ -327,22 +327,24 @@ function _renderBasicTab(isEdit, dateDisplay) {
             oninput="state.draftMission.description=this.value"
             class="c-input p-mission-form__textarea">${_esc(state.draftMission.description || '')}</textarea>
         </div>
-        <div>
+        <!-- ★data-field は確認モーダル（missionCheckModal）が目立たせる目印。
+             4項目（ラベル / 優先度 / 担当者 / 実施期間）にだけ付ける。 -->
+        <div data-field="labels">
           <div class="p-mission-form__label-row">
             <label class="heading-rs p-mission-form__label">ラベル</label>
             <span class="p-mission-form__hint">（複数選択可）</span>
           </div>
           <div class="p-mission-form__tags">${labelButtons}${addTagBtn}</div>
         </div>
-        <div>
+        <div data-field="priority">
           <label class="heading-rs p-mission-form__label">優先度</label>
           <div class="p-mission-form__stars">${starButtons}</div>
         </div>
-        <div data-coach="assignee">
+        <div data-coach="assignee" data-field="assignee">
           <label class="heading-rs p-mission-form__label">担当者</label>
           ${_renderAssigneeSelect()}
         </div>
-        <div data-coach="schedule">
+        <div data-coach="schedule" data-field="dates">
           <label class="heading-rs p-mission-form__label">タスクの実施期間</label>
           <p class="p-mission-form__note">タスクを行う期間を設定します。</p>
           <div class="p-mission-form__date" onclick="window._app.openCalendarModal('mission')">
@@ -353,7 +355,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
       </div>
       <button onclick="window._app.createOrUpdateMission()"
         class="c-button c-button--primary p-mission-form__submit">
-        ${isEdit ? '保存する' : 'する'}
+        ${isEdit ? '保存する' : '作成する'}
       </button>
     </div>`;
 }

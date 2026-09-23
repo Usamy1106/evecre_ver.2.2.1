@@ -23,6 +23,7 @@ import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/
 import { renderLegal } from './views/legal.js';
 import { startPushSetupFlow, refreshPushSubscribed } from './modals/pushSetupModal.js';
 import { renderMissionReflect, saveMissionReflect, skipMissionReflect } from './views/missionReflect.js';
+import { checkMissionBeforeCreate } from './modals/missionCheckModal.js';
 import {
   renderMissionDetail,
   sendChatMessage, deleteChatMessage, toggleChatReaction, openChatEmojiPicker,
@@ -272,6 +273,8 @@ window._app = {
 
   // --- タスクモーダル：担当者選択 ---
   openAssigneeSheet:  () => openAssigneeSheet(),
+  // 確認モーダルの「期間を設定する」から呼ぶ（呼び先を1つに固定しておく）
+  openMissionCalendar: () => openCalendarModal('mission'),
   // --- イベント設定ページへの遷移（歯車アイコン）---
   toggleProjectMenu: (e) => {
     e.stopPropagation();
@@ -704,13 +707,22 @@ window._app = {
     state.notifications = (state.notifications || []).filter(n => n.id !== notifId);
     state.render();
   },
-  createOrUpdateMission: () => {
+  createOrUpdateMission: (opts = {}) => {
     const titleInput = document.getElementById('mission-title-input');
     const errorText  = document.getElementById('error-title');
 
     if (!state.draftMission.title) {
       if (titleInput) titleInput.style.borderColor = '#e8383d';
       if (errorText)  errorText.classList.remove('u-hidden');
+      return;
+    }
+
+    // ★担当者・実施期間・優先度・ラベルが空なら、作る前に一度だけ知らせる。
+    //   ★新規作成のときだけ（編集で毎回言われるのは邪魔なだけ）。
+    //   ★止めるのではなく気づかせるだけ。モーダルの「このまま作成する」は
+    //     skipCheck: true で同じ処理へ戻ってくる。
+    if (!state.editingMissionId && !opts.skipCheck &&
+        checkMissionBeforeCreate(() => window._app.createOrUpdateMission({ skipCheck: true }))) {
       return;
     }
 
@@ -1789,6 +1801,9 @@ const _LOG_LABELS = {
   reflect_outcome_picked:  '振り返りで成否を選んだ',
   reflect_saved:           '振り返りを書いた（完了直後）',
   reflect_skipped:         '振り返りを「今はしない」で閉じた',
+  mission_check_shown:     'タスク作成の確認モーダルが出た',
+  mission_check_set:       '確認モーダルから設定へ進んだ',
+  mission_check_skipped:   '確認モーダルからそのまま作成した',
   notif_open:              '通知を開いた（日付チップの行のベル）',
   notif_filter_unread:     '通知を未読だけに絞った',
   notif_filter_all:        '通知をすべて表示した',

@@ -1,0 +1,84 @@
+/* ==========================================================================
+   Object / Project / mission-check — タスク作成の確認モーダル
+   使用箇所: public/js/modals/missionCheckModal.js
+
+   ★「止める」ための画面ではない。設定へ進むボタンを主役にしつつ、
+     「このまま作成する」を必ず読める形で残すこと（塗りは無いが薄くしない）。
+   ★目立たせる（is-attention）はフォーム側の欄に付く。ここに一緒に置いてある
+     のは、出どころが同じで追いやすいため。
+   ========================================================================== */
+
+.p-mission-check {
+  display: flex;
+  width: 100%;
+  max-width: 320px;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+}
+
+.p-mission-check__lead {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.5;
+  color: var(--color-text);
+  text-align: center;
+}
+
+/* 複数のときの箇条書き。★並びはフォームの上から下と同じ */
+.p-mission-check__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+}
+
+.p-mission-check__item {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-mission-check__item::before {
+  content: "・";
+}
+
+.p-mission-check__hide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.p-mission-check__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.p-mission-check__button {
+  width: 100%;
+  padding-block: var(--space-3);
+}
+
+/* 「このまま作成する」。主役にはしないが、読めない薄さにもしない */
+.p-mission-check__quiet {
+  padding-block: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* --- フォーム側で目立たせる ----------------------------------------------
+   ★設定していない欄へスクロールしてから光らせる（missionCheckModal.js）。
+   ★枠線ではなく box-shadow で描く。枠線だと幅が増えてレイアウトがずれ、
+     スクロールで合わせた位置から動く。 */
+.p-mission-form__fields [data-field].is-attention {
+  border-radius: var(--radius-md);
+  animation: missionFieldAttention 2.4s var(--ease);
+}

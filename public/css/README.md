@@ -93,6 +93,7 @@
 | ミッション詳細（完了入力・チャット・吹き出し） | `object/project/_mission-detail.css` |
 | 完了後の振り返りページ（成否チップ・粒の演出） | `object/project/_mission-reflect.css` |
 | ミッションの作成・編集モーダル | `object/project/_mission-form.css` |
+| タスク作成の確認モーダル（未設定の項目を知らせる） | `object/project/_mission-check.css` |
 | 担当者の選択・おすすめ | `object/project/_assignee.css` |
 | 新しいタグを作るシート | `object/project/_tag-creator.css` |
 | メンバーの承認・ロール付与 | `object/project/_member-manage.css` |
@@ -293,6 +294,7 @@ public/css/
 │  ├─ _mission-detail.css       ✅ ミッション詳細
 │  ├─ _mission-reflect.css      ✅ 完了後の振り返りページ
 │  ├─ _mission-form.css         ✅ ミッションの作成・編集モーダル
+│  ├─ _mission-check.css        ✅ p-mission-check
 │  ├─ _assignee.css             ✅ 担当者の選択・おすすめ
 │  ├─ _tag-creator.css          ✅ 新しいタグを作るシート
 │  ├─ _member-manage.css        ✅ メンバーの承認・ロール付与
