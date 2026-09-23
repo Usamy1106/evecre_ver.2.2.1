@@ -235,6 +235,13 @@ function _openApproveModal(uid, username, roles, onSuccess) {
   };
 }
 
+// タップしてもタスク詳細へ送らない通知の種類（openNotification で使う）。
+// ★詳細ページには承認・差し戻し・選定のボタンが無い。これらは通知タブの
+//   カードとインフォメーションモーダルにしかないので、送ると行き止まりになる。
+// ★ここに並べるのは「タスクの話だが、やることが詳細ページに無い」ものだけ。
+//   新しい通知タイプは既定で詳細ページへ行く（そのほうが正しいことが多い）。
+const _NOTIF_STAY_ON_BOARD = new Set(['pending_leader_check', 'someone_claimed']);
+
 // ===== window._app : インラインイベントハンドラーから呼び出されるAPI =====
 // HTMLテンプレート内の onclick="window._app.xxx()" から参照される
 window._app = {
@@ -643,9 +650,18 @@ window._app = {
     api.markNotificationRead(notifId);
     const n = state.notifications.find(x => x.id === notifId);
     if (n) n.read = true;
-    // チャット通知はタスク詳細ページへ（戻るで通知タブに復帰）
-    if (n?.type === 'chat_message' && missionId) {
+
+    // ★タスクに紐づく通知は、そのタスクの詳細ページへ直行する（2026-09-23）。
+    //   以前はチャットだけが詳細へ飛び、ほかは MAIN タブに戻すだけだったので、
+    //   「作成されました」を押しても一覧のどれの話か自分で探す必要があった。
+    //   戻るボタンは通知タブへ帰る（openMissionDetail が今のタブを覚える）。
+    // ★_NOTIF_STAY_ON_BOARD は**詳細ページでは何もできない**通知。詳細ページの
+    //   pending_leader_check 表示は「リーダー確認待ちです」の一文だけで、
+    //   承認・差し戻し・選定のボタンは通知タブのカードとインフォメーションモーダルにしかない。
+    //   ここへ送ると行き止まりになるので、従来どおりボードへ戻す。
+    if (missionId && !_NOTIF_STAY_ON_BOARD.has(n?.type)) {
       const p = state.events.find(x => x.id === state.selectedEventId);
+      // 削除済みのタスクは開けない（レンダラーが弾く前にここで落とす）
       if (p?.missions?.some(m => m.id === missionId)) {
         state.openMissionDetail(missionId);
         return;
