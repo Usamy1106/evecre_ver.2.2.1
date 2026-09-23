@@ -12,6 +12,12 @@
    ========================================================================== */
 
 .c-sheet {
+  /* ★せり上がりの速さはここ1か所。他のトークンを直接使わないこと
+     （--duration-fast はボタンの反応などにも効くので、シートだけ変えられなくなる）。
+     ★変えたら modals/mission.js の「スライドインのあと」の保険（setTimeout 400ms）が
+     まだ足りているか確かめること。 */
+  --sheet-duration: var(--duration-slow);
+
   position: absolute;
   right: 0;
   bottom: 0;
@@ -20,7 +26,7 @@
   background-color: var(--white);
   box-shadow: var(--shadow-2xl);
   transform: translateY(100%);
-  transition: transform var(--duration-fast) var(--ease);
+  transition: transform var(--sheet-duration) var(--ease);
 }
 
 .c-sheet.is-open {

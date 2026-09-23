@@ -1,0 +1,73 @@
+/* ==========================================================================
+   Object / Component / segmented — セグメンテッドコントロール
+   使用箇所: public/js/components.js（Components.Segmented）
+     - タスクの作成・編集（基本設定 / 詳細設定）
+     - 通知タブの絞り込み（未読 / すべて）… c-segmented--round
+
+   ★選ばれている側は**つまみ（__thumb）が滑って**示す。文字色だけで示さない。
+   ★つまみは絶対配置で、幅は「1 ÷ 個数」。位置は --seg-index（0 始まり）。
+     どちらも JS がインラインで渡す（個数が場所ごとに違うため）。
+   ★つまみが動くのは transform だけ（width / left を書き換えない）。
+   ========================================================================== */
+
+.c-segmented {
+  position: relative;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background-color: var(--button-secondary);
+}
+
+/* 選ばれている側を示す白いつまみ。★左右へ滑らせる */
+.c-segmented__thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--seg-count, 2));
+  border-radius: calc(var(--radius-md) - 2px);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transform: translateX(calc(var(--seg-index, 0) * 100%));
+  transition: transform var(--duration-normal) var(--ease);
+}
+
+.c-segmented__item {
+  position: relative;      /* つまみより手前に文字を出す */
+  z-index: 1;
+  padding-block: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.c-segmented__item.is-active {
+  color: var(--color-text);
+}
+
+/* 丸い形（通知の絞り込み）。つまみも同じだけ丸める */
+.c-segmented--round,
+.c-segmented--round .c-segmented__thumb {
+  border-radius: var(--radius-full);
+}
+
+/* 通知の絞り込みは横幅いっぱいにしない（見出しの下に小さく置く） */
+.c-segmented--compact {
+  justify-self: start;
+  width: fit-content;
+}
+
+.c-segmented--compact .c-segmented__item {
+  padding-inline: var(--space-5);
+  font-size: var(--font-size-xs);
+}
+
+/* ★動きを減らす設定を尊重する（位置は変わるが、滑らせない） */
+@media (prefers-reduced-motion: reduce) {
+  .c-segmented__thumb {
+    transition: none;
+  }
+}

@@ -46,7 +46,6 @@ import {
 import {
   editArchiveItem, openEditModal,
   submitMissionClear, handleImageSelect, clearImagePreview,
-  handleGoodClick,
   updateDraftInfo,
   copyMissionLink,
 } from './modals/helpers.js';
@@ -1221,7 +1220,6 @@ window._app = {
   },
 
   // --- いいね ---
-  handleGoodClick: (e) => handleGoodClick(e),
 
   // --- イベント作成フォーム ---
   updateDraftInfo: (field, value) => updateDraftInfo(field, value),

@@ -65,48 +65,6 @@
   font-size: 15px;
 }
 
-/* 押すと色が変わる。数字も増えるので色だけの情報にはなっていない */
-.p-archive__like {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-  transition: all var(--duration-fast) var(--ease);
-}
-
-.p-archive__like:active {
-  transform: scale(.9);
-}
-
-.p-archive__like.is-liked {
-  border-color: var(--color-danger);
-  background-color: var(--color-danger-wash);
-}
-
-.p-archive__like-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.p-archive__like-count {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.p-archive__like.is-liked .p-archive__like-count {
-  color: var(--color-danger);
-}
-
-/* --- Layer 1：メインビジュアル -------------------------------------------
-   ★3:2。ホームのサムネイル（c-thumbnail）と同じ比率に揃えてある。
-     未設定のときは同じエンプティーステート画像を出す。 */
-
 .p-archive__visual {
   position: relative;
   display: flex;

@@ -471,24 +471,6 @@ export function handleImageSelect(input) {
   reader.readAsDataURL(file);
 }
 
-// ===== いいね =====
-
-/**
- * いいねボタンを押す
- * @param {Event} e
- */
-export function handleGoodClick(e) {
-  if (e) e.stopPropagation();
-  const p = state.events.find(x => x.id === state.selectedEventId);
-  if (p && !p.hasLiked) {
-    logEvent('like_given');
-    p.likes = (p.likes || 0) + 1;
-    p.hasLiked = true;
-    state.save();
-    state.render();
-  }
-}
-
 // ===== 招待機能 =====
 
 /**

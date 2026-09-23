@@ -58,26 +58,13 @@
   flex-direction: column;
 }
 
-/* --- タブ ----------------------------------------------------------------- */
+/* --- 基本設定 / 詳細設定の切り替え ----------------------------------------
+   ★中身は共通のセグメンテッドコントロール（object/component/_segmented.css）。
+     以前は下線タブで、選択中の色をタブごとに変えていた（基本=青 / 詳細=緑）が、
+     つまみが滑る形に変えたので色分けはやめた。 */
 
-.p-mission-form__tabs {
-  display: flex;
-  justify-content: center;
+.p-mission-form__inner > .c-segmented {
   margin-bottom: var(--space-6);
-  gap: var(--space-10);
-}
-
-.p-mission-form__tab {
-  padding-bottom: var(--space-1);
-  border-bottom: 2px solid transparent;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.p-mission-form__tab.is-active {
-  border-bottom-color: var(--color-primary);
-  color: var(--color-primary);
 }
 
 /* --- 入力欄 --------------------------------------------------------------- */
@@ -243,15 +230,6 @@
   box-shadow: var(--shadow-primary);
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
-}
-
-/* --- 詳細設定タブ --------------------------------------------------------
-   ★詳細設定の見出しは緑（基本設定は青）。タブごとに色が違うのは元からの
-     仕様なので、揃えずそのまま残してある。 */
-
-.p-mission-form__tab--detail.is-active {
-  border-bottom-color: var(--color-success);
-  color: var(--color-success);
 }
 
 /* 詳細設定は項目ごとの塊が大きいので間隔を広く取る */

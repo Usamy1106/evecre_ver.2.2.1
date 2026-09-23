@@ -338,28 +338,13 @@
   margin-top: 0;
 }
 
-/* --- 未読 / すべて の絞り込み --------------------------------------------- */
+/* --- 未読 / すべて の絞り込み ---------------------------------------------
+   ★中身は共通のセグメンテッドコントロール（c-segmented--round --compact）。
+     ここは置き場所だけを持つ。見た目は object/component/_segmented.css。 */
 
 .p-notification__filter {
   display: flex;
-  gap: var(--space-2);
   margin-bottom: var(--space-3);
-}
-
-.p-notification__filter-chip {
-  padding: var(--space-1) var(--space-4);
-  border: 1px solid var(--bg-textbox);
-  border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.p-notification__filter-chip.is-active {
-  border-color: var(--color-primary);
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
 }
 
 /* --- 同じタスクの通知のまとめ ---------------------------------------------

@@ -75,6 +75,7 @@
 | ワンタイムコードのマス目入力 | `object/component/_otp-input.css` |
 | 1問ずつ聞くモーダル・スキルタグ | `object/component/_step-modal.css` |
 | ツールチップ・ツアー（③作成モーダル） | `object/component/_tooltip.css` |
+| セグメンテッドコントロール（`c-segmented`。つまみが左右に滑る） | `object/component/_segmented.css` |
 | 設定の1項目（カード型・一覧型どちらも） | `object/component/_settings-card.css` |
 | 長押し・右クリックのメニュー | `object/component/_context-menu.css` |
 | リアクションの絵文字を選ぶシート | `object/component/_emoji-picker.css` |
@@ -266,6 +267,7 @@ public/css/
 │  ├─ _otp-input.css            ✅ c-otp（[data-otp-box]）
 │  ├─ _step-modal.css           ✅ c-step-modal / c-skill-tag
 │  ├─ _tooltip.css              ✅ c-tooltip
+│  ├─ _segmented.css            ✅ c-segmented（__thumb が滑る）
 │  ├─ _settings-card.css        ✅ c-settings-card / c-settings-list
 │  ├─ _action-sheet.css         ✅ 操作を選ばせるボトムシート
 │  ├─ _toggle.css               ✅ オン・オフのスイッチ

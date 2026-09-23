@@ -200,6 +200,8 @@ export function renderMainBoard(container) {
   }
 
   if (state.mainBoardTab === 'ARCHIVE') _focusArchiveMission();
+  // ★セグメンテッドコントロールのつまみを滑らせる（通知タブの絞り込み）
+  Components.segmentedSettle();
 
   if (state.mainBoardTab === 'MAIN') {
     // ★パネルの配線を先に行う。パネルの top はこの中で確定するので、
@@ -1094,11 +1096,6 @@ function _renderArchiveTab(p) {
             ? `<span class="p-archive__days-text">残り <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
             : `<span class="p-archive__days-text p-archive__days-text--muted">未設定</span>`}
         </div>
-        <button type="button" onclick="window._app.handleGoodClick(event)"
-          class="p-archive__like${p.hasLiked ? ' is-liked' : ''}">
-          <img src="/images/icon/icon-Good${p.hasLiked ? '-pressed' : ''}.svg" class="p-archive__like-icon" alt="">
-          <span class="p-archive__like-count">${p.likes || 0}</span>
-        </button>
       </div>
 
       <!-- Layer 1: メインビジュアル（3:2。ホームのサムネイルと同じ比率に揃える）-->
@@ -1405,15 +1402,13 @@ function _renderNotificationsTab(p) {
   const shown = filter === 'unread' ? notifs.filter(n => !n.read) : notifs;
 
   const filterHtml = notifs.length === 0 ? '' : `
-    <div class="p-notification__filter" role="tablist">
-      <button type="button" role="tab" aria-selected="${filter === 'unread'}"
-        onclick="window._app.setNotifFilter('unread')" data-log="notif_filter_unread"
-        class="p-notification__filter-chip${filter === 'unread' ? ' is-active' : ''}">
-        未読${unreadCount > 0 ? ` ${Components.badgeText(unreadCount)}` : ''}
-      </button>
-      <button type="button" role="tab" aria-selected="${filter === 'all'}"
-        onclick="window._app.setNotifFilter('all')" data-log="notif_filter_all"
-        class="p-notification__filter-chip${filter === 'all' ? ' is-active' : ''}">すべて</button>
+    <div class="p-notification__filter">
+      ${Components.Segmented('notif-filter', [
+        { id: 'unread', label: `未読${unreadCount > 0 ? ` ${Components.badgeText(unreadCount)}` : ''}`,
+          onclick: "window._app.setNotifFilter('unread')", log: 'notif_filter_unread' },
+        { id: 'all', label: 'すべて',
+          onclick: "window._app.setNotifFilter('all')", log: 'notif_filter_all' },
+      ], { active: filter, round: true, compact: true })}
     </div>`;
 
   const notifsHtml = shown.length === 0

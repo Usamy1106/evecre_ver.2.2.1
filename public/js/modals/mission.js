@@ -252,6 +252,21 @@ export function renderMissionModalContent() {
   } else {
     container.innerHTML = _renderDetailTab(isEdit);
   }
+  // ★つまみを滑らせる（描き直しても前回の位置から動かすため）
+  Components.segmentedSettle();
+}
+
+/**
+ * 基本設定 / 詳細設定の切り替え。
+ * ★見た目は共通のセグメンテッドコントロール（Components.Segmented）。
+ *   つまみを滑らせるため、描いたあとに Components.segmentedSettle() を呼ぶこと
+ *   （renderMissionModalContent の末尾で呼んでいる）。
+ */
+function _missionTabs(active) {
+  return Components.Segmented('mission-tab', [
+    { id: 'BASIC',  label: '基本設定', onclick: "window._app.setMissionTab('BASIC')" },
+    { id: 'DETAIL', label: '詳細設定', onclick: "window._app.setMissionTab('DETAIL')" },
+  ], { active });
 }
 
 function _renderBasicTab(isEdit, dateDisplay) {
@@ -295,12 +310,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
 
   return `
     <div class="p-mission-form__inner">
-      <div class="p-mission-form__tabs">
-        <button onclick="window._app.setMissionTab('BASIC')"
-          class="p-mission-form__tab is-active">基本設定</button>
-        <button onclick="window._app.setMissionTab('DETAIL')"
-          class="p-mission-form__tab">詳細設定</button>
-      </div>
+      ${_missionTabs('BASIC')}
       <div class="p-mission-form__fields">
         <div>
           <label class="heading-rs p-mission-form__label">タスク名</label>
@@ -333,8 +343,8 @@ function _renderBasicTab(isEdit, dateDisplay) {
           ${_renderAssigneeSelect()}
         </div>
         <div data-coach="schedule">
-          <label class="heading-rs p-mission-form__label">スケジュール</label>
-          <p class="p-mission-form__note">行う期間を設定します。</p>
+          <label class="heading-rs p-mission-form__label">タスクの実施期間</label>
+          <p class="p-mission-form__note">タスクを行う期間を設定します。</p>
           <div class="p-mission-form__date" onclick="window._app.openCalendarModal('mission')">
             <img src="/images/icon/icon-Calender.svg" class="p-mission-form__date-icon">
             <span class="p-mission-form__date-text">${dateDisplay}</span>
@@ -343,7 +353,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
       </div>
       <button onclick="window._app.createOrUpdateMission()"
         class="c-button c-button--primary p-mission-form__submit">
-        ${isEdit ? '保存' : '作成'}
+        ${isEdit ? '保存する' : 'する'}
       </button>
     </div>`;
 }
@@ -377,12 +387,7 @@ function _renderDetailTab(isEdit) {
 
   return `
     <div class="p-mission-form__inner">
-      <div class="p-mission-form__tabs">
-        <button onclick="window._app.setMissionTab('BASIC')"
-          class="p-mission-form__tab">基本設定</button>
-        <button onclick="window._app.setMissionTab('DETAIL')"
-          class="p-mission-form__tab p-mission-form__tab--detail is-active">詳細設定</button>
-      </div>
+      ${_missionTabs('DETAIL')}
       <div class="p-mission-form__fields p-mission-form__fields--roomy">
 
         <!-- チェック項目 -->
@@ -504,7 +509,7 @@ function _renderDetailTab(isEdit) {
       </div>
       <button onclick="window._app.createOrUpdateMission()"
         class="c-button c-button--primary p-mission-form__submit">
-        ${isEdit ? '保存' : '作成'}
+        ${isEdit ? '保存する' : '作成する'}
       </button>
     </div>`;
 }
@@ -1158,7 +1163,7 @@ export function openTagCreator() {
     <div id="tag-creator-panel" data-sheet
       class="c-sheet c-sheet--padded p-tag-creator__sheet">
       <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
-      <h3 class="p-tag-creator__title">新しいタグを作成</h3>
+      <h3 class="p-tag-creator__title">新しいタグを作成する</h3>
 
       <div class="p-tag-creator__field">
         <label class="p-tag-creator__label">タグ名</label>
@@ -1178,7 +1183,7 @@ export function openTagCreator() {
           class="c-button c-button--muted">キャンセル</button>
         <button id="tag-create-btn"
           class="c-button c-button--primary"
-          disabled>作成</button>
+          disabled>作成する</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -1309,7 +1314,7 @@ export function getSortedMissions(missions) {
   return [...missions].sort((a, b) => {
     if (state.missionSortMode === 'priority') return (b.priority || 0) - (a.priority || 0);
     if (state.missionSortMode === 'deadline') {
-      // 締切 = スケジュール期間の最終日基準（_missionDeadlineText の表示と揃える。
+      // 締切 = タスクの実施期間の最終日基準（_missionDeadlineText の表示と揃える。
       //  m.dates は未ソート保存なのでソートしてから最終日を取る）
       const dateA = a.dates?.length > 0 ? new Date([...a.dates].sort().at(-1)).getTime() : Infinity;
       const dateB = b.dates?.length > 0 ? new Date([...b.dates].sort().at(-1)).getTime() : Infinity;

@@ -389,7 +389,7 @@ export function motivationBlockHtml(ctx) {
   if (!labels.length && !text) return '';
   return `
     <div class="c-invite-motivation">
-      <p class="c-invite-motivation__label">この人たちの想い</p>
+      <p class="c-invite-motivation__label">リーダーの意気込み</p>
       <div class="c-invite-motivation__tags">
         ${labels.map(l => `<span class="c-invite-motivation__tag">${_esc(l)}</span>`).join('')}
       </div>

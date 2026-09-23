@@ -23,6 +23,10 @@ export function getEventMainVisual(project) {
 // ブラウザが対応する最も軽い形式を選ぶ（avif 2.7KB / webp 7KB / png 26KB）。
 const THUMB_EMPTY_BASE = '/images/emptystate/thumbnail-image-emptystate';
 
+// セグメンテッドコントロールのつまみが「前回どこにいたか」。
+// ★描き直しをまたいで滑らせるために要る（Components.Segmented の説明を参照）。
+const _segAt = new Map();
+
 export const Components = {
   /**
    * メール認証バナー（未認証ユーザーのみ表示。HOMEとイベント画面の両方で使う）
@@ -174,6 +178,53 @@ export const Components = {
       item.appendChild(badge);
     }
     badge.textContent = Components.badgeText(unread);
+  },
+
+  /**
+   * セグメンテッドコントロール（基本設定 / 詳細設定、未読 / すべて）。
+   * スタイル: public/css/object/component/_segmented.css
+   *
+   * ★つまみを**滑らせる**ために、描き直しても「直前の位置」から始める。
+   *   この画面は選択のたびに innerHTML を丸ごと作り直すので、素直に新しい位置で
+   *   描くと transition が走らず、つまみが瞬間移動する。
+   *   描くときは前回の位置を入れておき、`segmentedSettle()` が次のフレームで
+   *   目的の位置へ動かす（そこで初めて transition が効く）。
+   * ★`id` は場所ごとに固定の文字列（位置を覚えるキー）。
+   *
+   * @param {string} id       位置を覚えるキー（'mission-tab' など）
+   * @param {Array}  items    [{ id, label, onclick, log }]
+   * @param {object} opts     active … 選択中の id / round / compact / className
+   */
+  Segmented(id, items, opts = {}) {
+    const to = Math.max(0, items.findIndex(x => x.id === opts.active));
+    const from = _segAt.has(id) ? _segAt.get(id) : to;
+    const cls = ['c-segmented',
+      opts.round ? 'c-segmented--round' : '',
+      opts.compact ? 'c-segmented--compact' : '',
+      opts.className || ''].filter(Boolean).join(' ');
+    return `
+      <div class="${cls}" role="tablist" data-seg="${id}" data-seg-to="${to}"
+        style="--seg-count:${items.length};--seg-index:${from}">
+        <span class="c-segmented__thumb" aria-hidden="true"></span>
+        ${items.map(it => `
+          <button type="button" role="tab" aria-selected="${it.id === opts.active}"
+            onclick="${it.onclick}"${it.log ? ` data-log="${it.log}"` : ''}
+            class="c-segmented__item${it.id === opts.active ? ' is-active' : ''}">${it.label}</button>`).join('')}
+      </div>`;
+  },
+
+  /**
+   * 描き終わったセグメンテッドコントロールを目的の位置へ滑らせる。
+   * ★描画した直後に呼ぶこと（呼ばないとつまみが前回の位置に取り残される）。
+   * ★次のフレームで書く。同じフレームで書くと「前回の位置」が一度も
+   *   反映されないまま上書きされ、transition が走らない。
+   */
+  segmentedSettle() {
+    document.querySelectorAll('[data-seg-to]').forEach(el => {
+      const to = +el.dataset.segTo || 0;
+      _segAt.set(el.dataset.seg, to);
+      requestAnimationFrame(() => el.style.setProperty('--seg-index', String(to)));
+    });
   },
 
   /**
