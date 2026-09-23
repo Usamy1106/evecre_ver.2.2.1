@@ -229,7 +229,7 @@ function _renderCalendarInner(target) {
     : 'タップまたはスライドで複数日選択';
 
   const sheetTitle = target === 'claimDeadline' ? '応募期限を設定'
-                   : target === 'mission'        ? 'スケジュールを設定'
+                   : target === 'mission'        ? 'タスクの実施期間'
                    : `${year}年 ${month + 1}月`;
 
   // ★ボトムシート形式では見出しが「スケジュールを設定」なので、月がどこにも出ない。
@@ -264,8 +264,7 @@ function _renderCalendarInner(target) {
         </div>
         ${target === 'mission' ? `
           <!-- ★タスクモーダルの基本設定と同じ説明を出す（同じことを2箇所で伝える）-->
-          <p class="p-date-picker__lead">やることを行う期間を設定します。</p>
-          <p class="p-date-picker__note">日付をなぞってスワイプすると、期間をまとめて選べます。</p>
+          <p class="p-date-picker__lead">日付をなぞると、やる期間を設定できます。</p>
         ` : `
           <p class="p-date-picker__note">${helperText}</p>
         `}

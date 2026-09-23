@@ -1789,6 +1789,7 @@ const _LOG_LABELS = {
   reflect_outcome_picked:  '振り返りで成否を選んだ',
   reflect_saved:           '振り返りを書いた（完了直後）',
   reflect_skipped:         '振り返りを「今はしない」で閉じた',
+  notif_open:              '通知を開いた（日付チップの行のベル）',
   notif_filter_unread:     '通知を未読だけに絞った',
   notif_filter_all:        '通知をすべて表示した',
   notif_group_toggled:     '同じタスクの通知のまとめを開閉した',

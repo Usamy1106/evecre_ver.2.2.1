@@ -54,18 +54,6 @@
   color: var(--color-primary);
 }
 
-.l-tabs__item--notifications {
-  position: relative;
-}
-
-.l-tabs__item--notifications.is-active {
-  border-bottom-color: var(--color-danger);
-}
-
-.l-tabs__item--notifications.is-active .l-tabs__label {
-  color: var(--color-danger);
-}
-
 .l-tabs__item--archive.is-active {
   border-bottom-color: var(--color-warning);
 }
@@ -74,27 +62,5 @@
   color: var(--color-warning);
 }
 
-/* --- 未読バッジ ----------------------------------------------------------
-   表示中のイベントに紐づく未読だけを数える（件数の算出は components.js）。 */
-
-/* 未読通知の数。★1桁は真円、2桁以上は横に伸びるピルになる
-   （min-width と radius-full の組み合わせ）。上限は「99+」の3文字。
-   ★width を固定しないこと。固定すると 99+ が入らず切れる。 */
-.l-tabs__badge {
-  position: absolute;
-  top: var(--space-2);
-  right: 25%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 16px;
-  height: 16px;
-  padding-inline: var(--space-1);
-  border-radius: var(--radius-full);
-  background-color: var(--color-danger);
-  font-size: 9px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-inverse);
-  /* 3文字でも折り返させない（折り返すと高さ 16px からはみ出して形が崩れる）*/
-  white-space: nowrap;
-}
+/* ★未読バッジはここには無い（2026-09-23）。通知をタブバーから外し、
+   日付チップの行の右端のベル（p-main-board__notif-badge）へ移した。 */

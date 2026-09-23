@@ -122,8 +122,8 @@ export const Components = {
    * @param {'MAIN'|'NOTIFICATIONS'|'ARCHIVE'} active
    */
   Tabs(active) {
-    // 未読通知数（表示中のイベントに紐づくものだけ。他イベントの通知は数えない）
-    const unread = Components.unreadCountFor(window.state?.selectedEventId);
+    // ★通知はここには無い（2026-09-23）。入口は日付チップの行の右端のベル
+    //   （views/mainBoard.js の [data-notif-entry]）1か所だけ。戻さないこと。
     // ★アクティブ表示は is-active に集約してある（色はタブごとのモディファイアが持つ）。
     //   スタイル: public/css/layout/_tabs.css
     const on = (id) => active === id ? ' is-active' : '';
@@ -133,18 +133,6 @@ export const Components = {
           class="l-tabs__item l-tabs__item--main${on('MAIN')}">
           <img src="/images/icon/icon-MainBoard${active === 'MAIN' ? '-pressed' : ''}.svg" class="l-tabs__icon" alt="">
           <span class="l-tabs__label">メインボード</span>
-        </div>
-        <div onclick="window._app.setTab('NOTIFICATIONS')"
-          class="l-tabs__item l-tabs__item--notifications${on('NOTIFICATIONS')}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${active === 'NOTIFICATIONS' ? '#EE3E12' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
-          <span class="l-tabs__label">通知</span>
-          <!-- ★上限は 99+。9+ で頭打ちにしていた頃は「10件も200件も同じ見た目」で、
-               溜まり具合が伝わらなかった。桁が増えても丸バッジは横に伸びる
-               （min-width + radius-full のピル）ので、そのまま入る。 -->
-          ${unread > 0 ? `<span class="l-tabs__badge">${Components.badgeText(unread)}</span>` : ''}
         </div>
         <div onclick="window._app.setTab('ARCHIVE')"
           class="l-tabs__item l-tabs__item--archive${on('ARCHIVE')}">
@@ -159,22 +147,23 @@ export const Components = {
    *
    * ★全画面 render() の代わり。SSE でチャットが届くたびに画面を丸ごと作り直していたのを
    *   やめるために足した（realtime.js の chatMessage）。
-   * ★未読数の式は Tabs() と**同一にすること**。ずれると、バッジの数字と
-   *   タブを踏んだあとの表示が食い違う（表示中のイベントの未読だけを数える）。
+   * ★当てる先は**日付チップの行のベル**（[data-notif-entry]）。
+   *   2026-09-23 に通知をタブバーから外したので、l-tabs は見ない。
+   * ★数え方は unreadCountFor に集約（表示中のイベントの未読だけ）。
    * ★バッジ要素は unread > 0 のときしか存在しない。無ければ作り、0 になったら消す。
-   * ★タブが画面に無い（ホーム・設定など）ときは何もしない。
+   * ★ベルが画面に無い（ホーム・設定など）ときは何もしない。
    */
   refreshNotifBadge() {
-    const item = document.querySelector('.l-tabs__item--notifications');
+    const item = document.querySelector('[data-notif-entry]');
     if (!item) return;
 
     const unread = Components.unreadCountFor(window.state?.selectedEventId);
 
-    let badge = item.querySelector('.l-tabs__badge');
+    let badge = item.querySelector('.p-main-board__notif-badge');
     if (unread <= 0) { badge?.remove(); return; }
     if (!badge) {
       badge = document.createElement('span');
-      badge.className = 'l-tabs__badge';
+      badge.className = 'p-main-board__notif-badge';
       item.appendChild(badge);
     }
     badge.textContent = Components.badgeText(unread);

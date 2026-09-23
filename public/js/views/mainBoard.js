@@ -752,10 +752,28 @@ function _renderMainTab(p) {
   // 上部固定領域：日付チップ・お知らせ・各バナー（スクロールしない）
   const pinnedAux = `
     <div class="p-main-board__pinned">
-      <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
-        class="p-main-board__date-chip">
-        <img src="/images/icon/icon-Calender.svg" class="p-main-board__date-icon" alt="">
-        ${_dateChip}
+      <!-- ★日付チップの行。通知への入口（ベル）はこの行の右端に置く。
+           下のタブバーからは外してあるので、**ここが唯一の入口**。消さないこと。
+           ★チップは行の中で中央に置きたいので、左端にベルと同じ幅の空きを作る
+           （justify-content: space-between だとチップが左へ寄る）。 -->
+      <div class="p-main-board__date-row">
+        <span class="p-main-board__date-spacer" aria-hidden="true"></span>
+        <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
+          class="p-main-board__date-chip">
+          <img src="/images/icon/icon-Calender.svg" class="p-main-board__date-icon" alt="">
+          ${_dateChip}
+        </div>
+        <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
+          data-log="notif_open" class="p-main-board__notif" aria-label="通知">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          ${Components.unreadCountFor(p.id) > 0
+            ? `<span class="p-main-board__notif-badge">${Components.badgeText(Components.unreadCountFor(p.id))}</span>`
+            : ''}
+        </button>
       </div>
 
       <!-- アナウンスカード -->

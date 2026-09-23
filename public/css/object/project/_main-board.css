@@ -56,6 +56,58 @@
    ★5通りに出し分ける（開催前／Day1／中間日／最終日／終了後）。
      押すとカレンダー・ガントのシートが開く。 */
 
+/* 日付チップの行。★通知への入口（ベル）が右端にある。
+   ★チップを行の中央に置くため、左端に同じ幅の空き（__date-spacer）を作る。
+     space-between だけだとチップが左へ寄る。 */
+.p-main-board__date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.p-main-board__date-spacer,
+.p-main-board__notif {
+  flex: none;
+  width: 40px;
+}
+
+/* 通知への入口。★下のタブバーから外したので、ここが唯一の入口 */
+.p-main-board__notif {
+  position: relative;
+  display: flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--color-text);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-main-board__notif:active {
+  transform: scale(.9);
+}
+
+/* 未読の数。★上限は 99+（数え方も文字も components.js に集約）。
+   ★width を固定しないこと。固定すると 99+ が入らず切れる。 */
+.p-main-board__notif-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+  font-size: 9px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+  white-space: nowrap;
+}
+
 .p-main-board__date-chip {
   display: flex;
   align-items: center;
