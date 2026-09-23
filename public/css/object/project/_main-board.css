@@ -79,6 +79,7 @@
   height: 40px;
   align-items: center;
   justify-content: center;
+  background-color: var(--color-bg);
   border-radius: var(--radius-full);
   color: var(--color-text);
   transition: transform var(--duration-fast) var(--ease);
