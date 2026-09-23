@@ -256,6 +256,32 @@ section('[B] 実機で見つかった不具合');
     ok('★lottie-web を自ドメインから読んでいる（CDN を参照しない）',
       lottieSrcs.length === 1 && /^\/js\/vendor\/lottie-web\/\d+\.\d+\.\d+\/lottie_light\.min\.js$/.test(lottieSrcs[0]),
       lottieSrcs.join(', '));
+    // ★第三者ドメインは初回描画の経路に置かない（2026-09-24）。
+    //   接続先ドメインの数は、回線の細い環境（家庭回線のポート枯渇など）で効いてくる。
+    {
+      const html = R('public/index.html');
+      // noscript の中だけは残す（JS 無効時のフォールバック）。それ以外に出てこないこと。
+      // ★HTML コメントも必ず剥がす。剥がさないと「ここで読まないこと」という
+      //   注意書きそのものがテストを落とす（codeOnly は // と /* */ しか見ない）。
+      const htmlBody = html
+        .replace(/<!--[\s\S]*?-->/g, ' ')
+        .replace(/<noscript>[\s\S]*?<\/noscript>/g, ' ');
+      ok('★GSI（accounts.google.com）を index.html から読まない（ログイン画面で読む）',
+        !htmlBody.includes('accounts.google.com'));
+      ok('★Google Fonts を index.html から読まない（山頂の看板を描くときに読む）',
+        !htmlBody.includes('fonts.googleapis.com') && !htmlBody.includes('fonts.gstatic.com'));
+      ok('GSI はログイン画面から動的に読む（views/auth.js の _loadGoogleScript）',
+        /const GSI_SRC = 'https:\/\/accounts\.google\.com\/gsi\/client'/.test(R('public/js/views/auth.js')) &&
+        /await _loadGoogleScript\(\)/.test(R('public/js/views/auth.js')));
+      ok('山頂のフォントは看板を描くときに読む（mountainPath.js の _loadSummitFonts）',
+        /_loadSummitFonts\(\);\s*\/\/ ★看板を描くときだけ/.test(R('public/js/mountainPath.js')));
+      // ★URL は1文字も変えないこと。noscript 側と JS 側がずれると、JS 無効の人だけ
+      //   別のフォントを取りに行く（Google 側のキャッシュキーも変わる）
+      const nos = /<noscript>[\s\S]*?href="([^"]+)"[\s\S]*?<\/noscript>/.exec(html)?.[1] || '';
+      const js  = /const SUMMIT_FONT_HREF =\s*'([^']+)'/.exec(R('public/js/mountainPath.js'))?.[1] || '';
+      ok('★noscript のフォント URL と SUMMIT_FONT_HREF が完全に一致している',
+        nos.length > 0 && nos.replace(/&amp;/g, '&') === js, `noscript=${nos}\n     js=${js}`);
+    }
     // ★vendor の immutable 配信（.js の no-cache 判定より前に置く必要がある）
     {
       const sv = R('server.js');

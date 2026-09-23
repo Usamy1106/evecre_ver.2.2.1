@@ -470,7 +470,10 @@ export async function _setupGoogleSignIn(mode, opts = {}) {
     return;
   }
 
-  // GIS の読み込みを待つ（accounts.google.com/gsi/client は async defer）
+  // GIS をここで初めて読み込む（index.html からは外した）。
+  // ★onload の直後にはまだ window.google.accounts.id が無いことがあるので、
+  //   読み込み完了を待ったうえで、従来どおりポーリングでも待つ。
+  await _loadGoogleScript();
   const ready = await _waitForGoogleAccountsId(5000);
   if (!ready) return;
 
@@ -560,6 +563,35 @@ export async function _setupGoogleSignIn(mode, opts = {}) {
   } catch (e) {
     console.warn('[google-signin] GIS 初期化失敗:', e);
   }
+}
+
+// Google Identity Services を「ログイン／アカウント作成の画面に入ったときだけ」読む。
+//
+// ★以前は index.html から無条件に読んでいた（async defer）。ログイン済みの人にも
+//   毎回 accounts.google.com への接続が走り、GIS はさらに内部で追加の取得を行う。
+//   接続先ドメインの数は、回線の細い環境（家庭回線のポート枯渇など）で効いてくる。
+// ★呼ぶのは googleEnabled を確認したあとだけ（未設定の環境では1本も出さない）。
+// ★Promise は使い回す。画面を行き来しても取りに行くのは1回。
+// ★失敗しても reject しない。呼び出し側は _waitForGoogleAccountsId で
+//   タイムアウトし、メール/パスワードのログインはそのまま使える。
+const GSI_SRC = 'https://accounts.google.com/gsi/client';
+let _gsiPromise = null;
+
+function _loadGoogleScript() {
+  if (_gsiPromise) return _gsiPromise;
+  _gsiPromise = new Promise(resolve => {
+    try {
+      if (document.querySelector(`script[src="${GSI_SRC}"]`)) return resolve(true);
+      const sc = document.createElement('script');
+      sc.src   = GSI_SRC;
+      sc.async = true;
+      sc.defer = true;
+      sc.onload  = () => resolve(true);
+      sc.onerror = () => resolve(false);
+      document.head.appendChild(sc);
+    } catch (_) { resolve(false); }
+  });
+  return _gsiPromise;
 }
 
 function _waitForGoogleAccountsId(timeoutMs) {

@@ -222,6 +222,32 @@ function _pickSummitBoard(eventId) {
   return `var(--summit-board-${i})`;
 }
 
+// 看板の Web フォントは「看板を描くときだけ」読む。
+//
+// ★以前は index.html から常に読んでいた。使い先は _mountain.css の
+//   .p-mountain__summit-title / __summit-alt の2箇所だけで、看板は開催最終日を
+//   過ぎたイベントにしか出ない（_isSummit）。ほぼ全員が、自分には出ない要素のために
+//   fonts.googleapis.com と fonts.gstatic.com への接続を2つ払っていた。
+//   接続先ドメインの数は、回線の細い環境（家庭回線のポート枯渇など）で効いてくる。
+// ★URL は1文字も変えないこと（family の順序・display=swap を含む。
+//   変えると Google 側のキャッシュキーが変わる）。
+// ★display=swap なので、読めなくても代替フォントで看板は出る（空にならない）。
+// ★index.html の <noscript> は残してある（JS 無効ならこの関数は走らないため）。
+const SUMMIT_FONT_HREF =
+  'https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Noto+Serif+Georgian:wght@700&display=swap';
+let _summitFontRequested = false;
+
+function _loadSummitFonts() {
+  if (_summitFontRequested) return;   // 1回だけ
+  _summitFontRequested = true;
+  try {
+    const link = document.createElement('link');
+    link.rel  = 'stylesheet';
+    link.href = SUMMIT_FONT_HREF;
+    document.head.appendChild(link);
+  } catch (_) { /* 読めなくても代替フォントで出る */ }
+}
+
 // ★マス間の縦間隔。狭めるほど手前に多くのマスが並ぶ。
 //   マスの見た目の高さ（--node-size × --node-squash ＝ 約64px）より
 //   小さくすると重なるので、下げすぎないこと。
@@ -969,6 +995,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   //   measure() は (看板の上端 − canvasH) ぶん headroom を足してスクロールを伸ばす。
   let summitHtml = '';
   if (isSummit) {
+    _loadSummitFonts();   // ★看板を描くときだけ Web フォントを取りに行く
     const boardImg = _pickSummitBoard(eventId);
     // 標高＝完了タスク数 × 100m。マスの数と一致するので「ここまで登ってきた」が伝わる
     const meters = clearedCount * METERS_PER_CLEAR;

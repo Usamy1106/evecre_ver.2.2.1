@@ -28,7 +28,11 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/images/icon/evecre-icon-192.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/images/icon/evecre-icon-180.png">
   <meta name="theme-color" content="#209DDB">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- ★Google Identity Services（accounts.google.com/gsi/client）はここで読まない（2026-09-24）。
+       ログイン済みの人にも毎回 accounts.google.com への接続が走り、GIS は内部でさらに
+       取得を行っていた。使うのはログイン／アカウント作成の画面だけなので、
+       views/auth.js の _loadGoogleScript() が必要になった時点で読む。
+       ★戻さないこと。接続先ドメインの数は、回線の細い環境で効いてくる。 -->
   <!-- ★絵文字ピッカー（emoji-picker-element）はここで読まない（2026-09-20）。
        使うのは views/missionDetail.js の openChatEmojiPicker だけなのに、
        ページを開くたびに jsDelivr へ往復していた（リアクションを一度も開かない人にも）。
@@ -38,24 +42,17 @@
          Yuji Syuku … 看板のタイトル（筆文字）
          Noto Serif Georgian … 標高の数字（欧文数字だけなので軽い）
        ★display=swap。読めなくても代替フォントで表示だけは出る（看板が空にならない）。
-       ★2026-09-20: 描画ブロックから外した。
-         この <link> は同期読み込みで、初回描画の前に fonts.googleapis.com への
-         DNS + TLS + 往復が入っていた。ところが使い先は _mountain.css の
-         .p-mountain__summit-title / __summit-alt の2箇所だけで、山頂の看板は
-         開催最終日を過ぎたイベントにしか出ない（mountainPath.js の _isSummit）。
-         ほぼ全員が、自分には出ない要素のために往復を1回払っていた。
-       ★media="print" → onload で all に戻す形。ブラウザは print 用のスタイルシートを
-         描画の待ち対象にしないので、取得は走るが描画は待たない。
-         onload は1回だけ発火するので this.onload=null で自分を外す。
-       ★<noscript> のフォールバックを必ず残すこと。JS が無効だと onload が走らず、
-         看板のフォントが永久に当たらない。
-       ★preconnect の2行は残すこと（この形ではむしろ効く）。
+       ★2026-09-24: ここからは読まなくなった（2026-09-20 の media トリックの続き）。
+         使い先は _mountain.css の .p-mountain__summit-title / __summit-alt の2箇所だけで、
+         山頂の看板は開催最終日を過ぎたイベントにしか出ない（mountainPath.js の _isSummit）。
+         media トリックでも取得そのものは走るため、ほぼ全員が自分には出ない要素のために
+         fonts.googleapis.com と fonts.gstatic.com への接続を2つ払っていた。
+         いまは mountainPath.js の _loadSummitFonts() が**看板を描くときだけ**読む。
+       ★<noscript> のフォールバックは残すこと。JS が無効だと _loadSummitFonts() が
+         走らず、看板のフォントが永久に当たらない。
        ★URL は1文字も変えないこと（family の順序・display=swap を含む。
-         変えると Google 側のキャッシュキーが変わる）。 -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" media="print" onload="this.onload=null;this.media='all'"
-        href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Noto+Serif+Georgian:wght@700&display=swap">
+         変えると Google 側のキャッシュキーが変わる）。mountainPath.js の
+         SUMMIT_FONT_HREF と**必ず同じ文字列に保つこと**。 -->
   <noscript>
     <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Noto+Serif+Georgian:wght@700&display=swap">
