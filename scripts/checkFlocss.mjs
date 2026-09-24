@@ -301,15 +301,13 @@ section('[B] 実機で見つかった不具合');
       const jsIdx2 = sv2.indexOf("/\\.(js|html|css|md)$/.test(filePath)");
       ok('★版つき JS を immutable で配信している（判定は .js の no-cache より前）',
         preIdx > 0 && setIdx > 0 && jsIdx2 > 0 && setIdx < jsIdx2);
-      // 背景以外の画像は immutable にしないこと（URL に版が無いので差し替えが効かなくなる）。
-      // ★codeOnly を通すこと。通さないと「immutable にはしないこと」という
-      //   注意書きそのものが検査を落とす。
+      // ★背景以外の画像にキャッシュを持たせないこと（URL に版が無い）。
+      //   一度 max-age=86400 にして「アイコンが古いまま出る」を起こし、戻した経緯がある。
+      //   ★codeOnly を通すこと（注意書き自体が検査を落とすため）。
       {
         const code = codeOnly(sv2);
-        const i = code.indexOf('png|jpe?g|gif|svg|webp|avif|ico');
-        const branch = i > 0 ? code.slice(i, i + 400) : '';
-        ok('背景以外の画像は immutable ではなく max-age で持たせている',
-          branch.includes('max-age=86400') && !branch.includes('immutable'));
+        ok('背景以外の画像にキャッシュを持たせていない（毎回 ETag で再検証する）',
+          !/png\|jpe\?g\|gif\|svg\|webp\|avif\|ico/.test(code));
       }
     }
     // ★連結 CSS の鮮度（2026-09-24）。生成物が分割ファイルの中身と一致していること。
