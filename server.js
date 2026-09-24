@@ -187,13 +187,32 @@ app.get('/healthz', async (_req, res) => {
 // ★古い版のパスもここで剥がれて現在のファイルが返る（404 にしない）。
 //   index.html 自体は no-cache なので、次の読み込みで新しいパスに切り替わる。
 const JS_VERSION_PREFIX = /^\/js\/v[0-9a-f]{8}\//;
+// 連結した CSS（style.bundle.css）は ?v=<ハッシュ> 付きで来る。
+// ★ファイル名は固定でハッシュはクエリに置いている（名前に入れると、CSS を直すたびに
+//   git 上でファイルが増減して履歴が荒れる）。生成は scripts/buildCss.mjs。
+const CSS_VERSIONED = /^\/css\/style\.bundle\.css\?v=[0-9a-f]{8}$/;
 app.use((req, res, next) => {
   if (JS_VERSION_PREFIX.test(req.url)) {
     req.url = req.url.replace(JS_VERSION_PREFIX, '/js/');
     res.locals.immutableJs = !IS_DEV;
+  } else if (CSS_VERSIONED.test(req.url)) {
+    res.locals.immutableJs = !IS_DEV;
   }
   next();
 });
+
+// 開発中だけ、連結 CSS を要求のたびに作り直す。
+// ★CSS を直すたびに npm run css:build を流す手間を無くすため。本番では一切走らない。
+// ★index.html の ?v= は開発中は古いままになりうるが、開発では immutable にしていないので害は無い。
+if (IS_DEV) {
+  app.use((req, res, next) => {
+    if (!req.path.startsWith('/css/style.bundle.css')) return next();
+    import('./scripts/buildCss.mjs')
+      .then(m => m.writeBundleFile())
+      .catch(e => console.warn('[css] 作り直しに失敗:', e.message))
+      .finally(() => next());
+  });
+}
 
 // 静的配信。JS/HTML/CSS のキャッシュは setHeaders で権威的に制御する
 // （express.static はデフォルトで Cache-Control: public, max-age=0 を自分でセットするため、

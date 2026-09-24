@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { computeJsVersion, JS_ENTRY_RE } from './genJsVersion.mjs';
+import { buildBundle, cssHash, CSS_LINK_RE, BUNDLE_REL } from './buildCss.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const R = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -310,6 +311,35 @@ section('[B] 実機で見つかった不具合');
         ok('背景以外の画像は immutable ではなく max-age で持たせている',
           branch.includes('max-age=86400') && !branch.includes('immutable'));
       }
+    }
+    // ★連結 CSS の鮮度（2026-09-24）。生成物が分割ファイルの中身と一致していること。
+    //   古いまま出ると、CSS の変更が反映されない（本番は ?v= で immutable なので長く残る）。
+    //   直し方：npm run css:build
+    {
+      const html = R('public/index.html');
+      const want = buildBundle();
+      const have = fs.existsSync(path.join(ROOT, BUNDLE_REL))
+        ? fs.readFileSync(path.join(ROOT, BUNDLE_REL), 'utf8') : '';
+      ok('★style.bundle.css が分割ファイルの中身と一致している（npm run css:build）',
+        have === want);
+      const baked = /style\.bundle\.css\?v=([0-9a-f]{8})/.exec(html)?.[1] || '(版なし)';
+      ok('★index.html の CSS の版が中身と一致している（npm run css:build）',
+        baked === cssHash(want), `焼き込み=${baked} / 実際=${cssHash(want)}`);
+      ok('index.html は連結した CSS を読んでいる（分割の style.css ではない）',
+        CSS_LINK_RE.test(html) && /style\.bundle\.css/.test(html));
+      // ★url() は絶対パスだけ。相対パスがあると連結でベースがずれて画像が出なくなる
+      const rel = [];
+      for (const d of ['foundation', 'layout', 'object/component', 'object/project', 'object/utility']) {
+        for (const f of ls(`public/css/${d}`)) {
+          if (/url\(["']?\.{1,2}\//.test(strip(R(`public/css/${d}/${f}`)))) rel.push(`${d}/${f}`);
+        }
+      }
+      ok('★CSS の url() が全部絶対パス（連結してもパスが壊れない）', rel.length === 0, rel.join(', '));
+      // 開発中は要求のたびに作り直す（css:build の流し忘れで詰まらないように）
+      ok('開発中は連結 CSS を要求のたびに作り直す',
+        /if \(IS_DEV\)[\s\S]{0,400}?style\.bundle\.css[\s\S]{0,300}?writeBundleFile/.test(codeOnly(R('server.js'))));
+      ok('★版つきの連結 CSS を immutable で配信している',
+        /CSS_VERSIONED[\s\S]{0,200}?res\.locals\.immutableJs = !IS_DEV/.test(codeOnly(R('server.js'))));
     }
     // ★SSE の再接続は指数バックオフ（2026-09-24）。
     //   「繋がるが失敗する」回線で15秒ごとに永久に試み続けると、
