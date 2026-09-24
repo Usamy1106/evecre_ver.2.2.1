@@ -39,6 +39,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // ★ページの遷移以外には触らない。respondWith を呼ばなければブラウザが普通に処理する
   if (event.request.mode !== 'navigate') return;
+  // ★GET 以外の遷移には絶対に触らないこと。iOS の Google サインインは
+  //   トップレベルの**フォーム POST**（CLAUDE.md 落とし穴17）で、これも mode==='navigate' になる。
+  //   ここを通すと、このアプリでいちばん壊れやすい経路を SW 越しに再送することになる。
+  //   失敗した POST を代替ページに差し替えたいわけでもないので、素通しでよい。
+  if (event.request.method !== 'GET') return;
 
   event.respondWith((async () => {
     try {

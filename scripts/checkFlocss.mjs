@@ -367,6 +367,10 @@ section('[B] 実機で見つかった不具合');
         /addEventListener\('fetch'/.test(swCode));
       ok("★ページの遷移以外には触らない（mode !== 'navigate' で return）",
         /if \(event\.request\.mode !== 'navigate'\) return;/.test(swCode));
+      // ★iOS の Google サインインはトップレベルのフォーム POST（落とし穴17）。
+      //   これも navigate なので、GET 以外は素通しにして絶対に触らない
+      ok('★GET 以外の遷移には触らない（iOS の Google サインインを守る）',
+        /if \(event\.request\.method !== 'GET'\) return;/.test(swCode));
       ok('★必ずネットワークを先に試す（失敗したときだけ代替ページ）',
         /return await fetch\(event\.request\);[\s\S]{0,400}?catch[\s\S]{0,300}?caches\.match\(OFFLINE_URL/.test(swCode));
       // ★アプリの JS/CSS/HTML をキャッシュしないこと。持つのは代替ページ1枚だけ
