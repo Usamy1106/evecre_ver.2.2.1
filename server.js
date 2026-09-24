@@ -175,6 +175,26 @@ app.get('/healthz', async (_req, res) => {
   }
 });
 
+// ===== /js/v<ハッシュ>/… を /js/… に読み替える =====
+// ★ファイルは1つも動かさない。index.html の module スクリプトのパスにだけ版が入っており、
+//   ES Modules の相対 import はその接頭辞の下に解決されるので、この読み替え1つで
+//   起動時に読む 62 本すべてが immutable 配信になる（2回目以降は 304 の往復ごと消える）。
+// ★版は scripts/genJsVersion.mjs が public/js の中身から計算して index.html に焼く。
+//   **手で上げないこと**（上げ忘れると immutable なので古い JS が永久に配信される）。
+//   check:flocss が再計算して不一致なら落とす。
+// ★開発中（IS_DEV）は immutable にしない。JS を直すたびに版を振り直さないと
+//   反映されない、という手触りにしないため。
+// ★古い版のパスもここで剥がれて現在のファイルが返る（404 にしない）。
+//   index.html 自体は no-cache なので、次の読み込みで新しいパスに切り替わる。
+const JS_VERSION_PREFIX = /^\/js\/v[0-9a-f]{8}\//;
+app.use((req, res, next) => {
+  if (JS_VERSION_PREFIX.test(req.url)) {
+    req.url = req.url.replace(JS_VERSION_PREFIX, '/js/');
+    res.locals.immutableJs = !IS_DEV;
+  }
+  next();
+});
+
 // 静的配信。JS/HTML/CSS のキャッシュは setHeaders で権威的に制御する
 // （express.static はデフォルトで Cache-Control: public, max-age=0 を自分でセットするため、
 //  別ミドルウェアで設定しても上書きされうる。ここで一元管理する）。
@@ -185,6 +205,18 @@ app.use(require('express').static(require('path').join(__dirname, 'public'), {
   etag: true,
   lastModified: true,
   setHeaders: (res, filePath) => {
+    // この express/mime のバージョンは avif を知らず application/octet-stream になる。
+    // <picture> の type 属性で表示はできるが、正しい MIME を明示しておく。
+    // ★キャッシュの分岐より前に置く（どの分岐に落ちても型は正しくする）。
+    if (/\.avif$/i.test(filePath)) res.setHeader('Content-Type', 'image/avif');
+
+    // 版つきパス（/js/v<ハッシュ>/…）で来た JS。中身が変われば版が変わるので長期キャッシュ。
+    // ★.js の no-cache 判定より**前**に置くこと（後ろだと先にそちらが当たる）。
+    if (res.locals && res.locals.immutableJs) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return;
+    }
+
     // .md は法務ドキュメント（public/legal/）の実体。改訂したら即座に反映させたいので
     // JS/HTML/CSS と同じ no-cache 扱いにする（古い規約が配信され続けるのを防ぐ）。
     // ★同梱のサードパーティ製ライブラリ（public/js/vendor/<名前>/<バージョン>/）は
@@ -210,10 +242,14 @@ app.use(require('express').static(require('path').join(__dirname, 'public'), {
       // ★代償：**素材を差し替えるときは必ずファイル名を変えること**。
       //   同じ名前で中身だけ差し替えても、immutable なので古い絵が出続ける。
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    } else if (/\.avif$/.test(filePath)) {
-      // この express/mime のバージョンは avif を知らず application/octet-stream になる。
-      // <picture> の type 属性で表示はできるが、正しい MIME を明示しておく。
-      res.setHeader('Content-Type', 'image/avif');
+    } else if (/\.(png|jpe?g|gif|svg|webp|avif|ico)$/i.test(filePath)) {
+      // 背景以外の画像（アイコン・キャラクター・エンプティステート・プリセットアバター）。
+      // ★既定（max-age=0 + ETag）のままだと、画面を開くたびに枚数ぶんの 304 往復が起きる。
+      //   中身はめったに変わらないので1日だけ持たせる。
+      // ★immutable にはしないこと。URL に版を持っていないので、差し替えたときに
+      //   古い絵が永久に出続ける（/images/bg/ は ?v=<ハッシュ> を持っているので別扱い）。
+      //   1日なら、差し替え（npm run icons）の反映が最大で翌日にずれるだけで済む。
+      res.setHeader('Cache-Control', 'public, max-age=86400');
     }
   },
 }));

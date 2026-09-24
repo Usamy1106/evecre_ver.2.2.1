@@ -7,13 +7,14 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node scripts/genJsVersion.mjs && node server.js",
     "dev": "nodemon server.js",
     "migrate": "node scripts/migrate-fs-to-atlas.js",
     "bg:manifest": "node scripts/genBgManifest.mjs",
     "icons": "node scripts/genIcons.mjs",
     "check:mountain": "node scripts/checkMountain.mjs",
-    "check:flocss": "node scripts/checkFlocss.mjs"
+    "check:flocss": "node scripts/checkFlocss.mjs",
+    "js:version": "node scripts/genJsVersion.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1054.0",

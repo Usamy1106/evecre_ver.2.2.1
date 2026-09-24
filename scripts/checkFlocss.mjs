@@ -15,6 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { computeJsVersion, JS_ENTRY_RE } from './genJsVersion.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const R = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
@@ -281,6 +282,34 @@ section('[B] 実機で見つかった不具合');
       const js  = /const SUMMIT_FONT_HREF =\s*'([^']+)'/.exec(R('public/js/mountainPath.js'))?.[1] || '';
       ok('★noscript のフォント URL と SUMMIT_FONT_HREF が完全に一致している',
         nos.length > 0 && nos.replace(/&amp;/g, '&') === js, `noscript=${nos}\n     js=${js}`);
+    }
+    // ★版つき JS の鮮度（2026-09-24）。焼き込んだ版が public/js の中身と一致していること。
+    //   ここが古いまま本番へ出ると、immutable なので**古い JS が永久に配信される**。
+    //   直し方：npm run js:version
+    {
+      const html = R('public/index.html');
+      const cur  = JS_ENTRY_RE.exec(html);
+      const baked = /\/js\/(v[0-9a-f]{8})\/main\.js/.exec(html)?.[1] || '(版なし)';
+      const want  = 'v' + computeJsVersion();
+      ok('★index.html の JS の版が public/js の中身と一致している（npm run js:version）',
+        !!cur && baked === want, `焼き込み=${baked} / 実際=${want}`);
+      // 版つきパスの読み替えが、.js の no-cache 判定より前にあること
+      const sv2 = R('server.js');
+      const preIdx = sv2.indexOf('res.locals.immutableJs');
+      const setIdx = sv2.indexOf('res.locals && res.locals.immutableJs');
+      const jsIdx2 = sv2.indexOf("/\\.(js|html|css|md)$/.test(filePath)");
+      ok('★版つき JS を immutable で配信している（判定は .js の no-cache より前）',
+        preIdx > 0 && setIdx > 0 && jsIdx2 > 0 && setIdx < jsIdx2);
+      // 背景以外の画像は immutable にしないこと（URL に版が無いので差し替えが効かなくなる）。
+      // ★codeOnly を通すこと。通さないと「immutable にはしないこと」という
+      //   注意書きそのものが検査を落とす。
+      {
+        const code = codeOnly(sv2);
+        const i = code.indexOf('png|jpe?g|gif|svg|webp|avif|ico');
+        const branch = i > 0 ? code.slice(i, i + 400) : '';
+        ok('背景以外の画像は immutable ではなく max-age で持たせている',
+          branch.includes('max-age=86400') && !branch.includes('immutable'));
+      }
     }
     // ★vendor の immutable 配信（.js の no-cache 判定より前に置く必要がある）
     {
