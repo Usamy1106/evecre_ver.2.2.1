@@ -7,7 +7,9 @@
 //   - 接続: state.currentUser がいる時だけ
 //   - 購読対象: state.events 全部の id
 //   - メッセージ受信: eventUpdated → state.events を置換、メンバー変更 → loadAfterAuth で再取得
-//   - 自動再接続: EventSource 内蔵（待ち時間はサーバーが retry で指示する。server.js の SSE_RETRY_MS）
+//   - 自動再接続: このファイルが持つ（15→30→60→120→300秒の指数バックオフ）。
+//     サーバーの retry（SSE_RETRY_MS）は初回の待ち時間と同じ値にしてある。
+//     寿命切れ（server.js が送る bye）だけは待たずに張り直す
 //   - 隠れている間は切る: タブが見えていない間・圏外の間は接続を閉じ、戻ったら張り直して
 //     取りこぼしを silentReloadEvents で取り直す（下の「接続を持つのは見えている間だけ」を参照）
 //   - エコーバック抑止: X-Client-Id を保存に乗せる（main.js 側で fetch をラップ）
@@ -19,6 +21,46 @@ import { clientId } from './clientId.js';
 
 let _es = null;
 let _subscribedIds = '';
+
+// ===== 再接続の間隔（指数バックオフ）=====
+//
+// ★以前はサーバーの retry（15秒）固定で、EventSource 内蔵の再接続に任せていた。
+//   圏外は offline イベントで止まるが、「繋がるが失敗する」状態（家庭回線の
+//   ポート枯渇など）では**15秒ごとに永久に試み続ける**ため、枯渇に油を注いでいた。
+// ★最初の1回はサーバーの指示（15秒）と同じにしてある。そこから倍にしていく。
+// ★寿命切れ（server.js の SSE_MAX_LIFETIME_MS）は**計画的な張り直し**なので
+//   バックオフの対象にしない。サーバーが閉じる直前に bye を送ってくるので、
+//   それを見たら段階をリセットしてすぐ繋ぎ直す。
+const RECONNECT_DELAYS = [15_000, 30_000, 60_000, 120_000, 300_000];
+let _retryStep     = 0;
+let _retryTimer    = null;
+let _plannedByeSeen = false;
+
+function _clearRetryTimer() {
+  if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
+}
+
+function _scheduleReconnect() {
+  if (_retryTimer) return;
+  // 見えていない／圏外のあいだは繋ぎ直さない（visibility と offline の配線に任せる）
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  let delay;
+  if (_plannedByeSeen) {
+    _plannedByeSeen = false;
+    _retryStep = 0;
+    delay = 0;                 // 寿命切れ。待たずに繋ぎ直す
+  } else {
+    delay = RECONNECT_DELAYS[Math.min(_retryStep, RECONNECT_DELAYS.length - 1)];
+    _retryStep++;
+  }
+  _retryTimer = setTimeout(() => {
+    _retryTimer = null;
+    if (!state.currentUser) return;
+    syncRealtime();
+  }, delay);
+}
 
 // 後方互換性のため再エクスポート
 export { clientId };
@@ -41,7 +83,13 @@ export function syncRealtime() {
   const url = `/api/events?cid=${encodeURIComponent(clientId)}&eventIds=${encodeURIComponent(ids)}`;
   _es = new EventSource(url);
 
-  _es.addEventListener('ready', () => {});
+  // 繋がったら段階をリセットする（次に落ちたときはまた15秒から）
+  _es.onopen = () => { _retryStep = 0; };
+
+  _es.addEventListener('ready', () => { _retryStep = 0; });
+
+  // サーバーが寿命で閉じる合図。★障害と区別するために必要
+  _es.addEventListener('bye', () => { _plannedByeSeen = true; });
 
   _es.addEventListener('eventUpdated', (e) => {
     try {
@@ -145,11 +193,18 @@ export function syncRealtime() {
     } catch (_) {}
   });
   _es.onerror = () => {
-    // EventSource は自動で再接続するので何もしない
+    // ★内蔵の再接続に任せず、こちらで閉じて間隔を空けて張り直す。
+    //   任せると retry（15秒）固定で永久に試み続ける。
+    if (_es) { try { _es.close(); } catch (_) {} _es = null; }
+    _subscribedIds = '';
+    _scheduleReconnect();
   };
 }
 
 function _disconnect() {
+  // ★予約した再接続も消すこと。残すと、意図的に切ったあと（タブが隠れた・
+  //   ログアウトした）に勝手に繋ぎ直る。
+  _clearRetryTimer();
   if (_es) {
     try { _es.close(); } catch (_) {}
     _es = null;
@@ -261,6 +316,9 @@ let _hideTimer = null;
 
 function _resume() {
   if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
+  // 戻ってきたら待ち時間は最初から（前回の失敗を引きずらない）
+  _clearRetryTimer();
+  _retryStep = 0;
   if (!state.currentUser) return;
   // まず接続を戻す（取り直しが失敗しても、以降の更新は受け取れる）
   syncRealtime();

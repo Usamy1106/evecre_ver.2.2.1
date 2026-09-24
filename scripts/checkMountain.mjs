@@ -989,6 +989,22 @@ section('[J] 地形は background-image ＋「見えるぶんだけ敷く」（�
   // ★保険(c)：一度も敷かれなければ全部敷く（背景が丸ごと出ないのを防ぐ）
   ok('★時間切れの保険がある（一度も敷かれなければ全部敷く）',
     /_lfFallbackTimer = setTimeout\(\(\) => \{ if \(!_lfRevealed\) _revealAllLandforms\(\); \}/.test(src48));
+  // ★保険(c)は**束に分けて**敷く（一度に最大60枚・数MB が同時に走らないように）。
+  //   時間に散らすだけで、最終的に全部敷かれる点は変えていない。
+  {
+    const body = src48.slice(src48.indexOf('function _revealAllLandforms'),
+                             src48.indexOf('function _revealLandformsByRect'));
+    const code = codeOnly(body);
+    ok('★保険(c)は束に分けて敷く（LF_BATCH 枚ずつ）',
+      /splice\(0, LF_BATCH\)/.test(code) && /setTimeout\(step, LF_BATCH_MS\)/.test(code));
+    ok('★最初の束は同期で敷く（1枚も出ない時間を作らない）',
+      /\n  step\(\);\n\}/.test(code));
+    ok('★残りがあるかぎり続ける（途中で打ち切らない＝最終的に全部敷かれる）',
+      /if \(rest\.length/.test(code));
+    const B = K('LF_BATCH'), M = K('LF_BATCH_MS');
+    ok('LF_BATCH / LF_BATCH_MS が現実的な範囲にある',
+      B >= 4 && B <= 16 && M >= 100 && M <= 500, `LF_BATCH=${B} LF_BATCH_MS=${M}`);
+  }
   // ★paint() の中で DOM を読まない（位置は data-lf-y / data-lf-h から）
   {
     const paintBody = src48.slice(src48.indexOf('const paint = () => {'), src48.indexOf('const request = () =>'));

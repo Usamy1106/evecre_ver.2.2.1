@@ -124,6 +124,13 @@ const MAX_PARTS = 60;
 const LF_EAGER       = 6;      // 描画時から絵を入れておく枚数（下＝手前から）
 const LF_LOAD_MARGIN = 1.5;    // 画面の何倍先まで先に敷くか（素早いスクロールで白く見せない）
 const LF_FALLBACK_MS = 2000;   // 保険(c)。これを過ぎても敷かれていなければ全部敷く
+// ★保険(c)が発火したときは**束に分けて**敷く。一度に全部だと、完了の多いイベントで
+//   最大 MAX_PARTS(60) 枚・数MB が同時に走り、初回の同時接続のピークになる。
+//   回線が細い環境（家庭回線のポート枯渇など）では、ここで接続ごと落ちうる。
+//   ★枚数を減らすのではなく、**時間に散らす**だけ。最終的には全部敷かれるので
+//     「背景が丸ごと出ない」という保険の役目は変わらない。
+const LF_BATCH    = 8;         // 一度に敷く枚数
+const LF_BATCH_MS = 200;       // 次の束までの間隔
 // ★植物を植えるのは「実際に見えている地形」だけ。手前の地形に隠れて
 //   ほとんど出ていない地形に植えても、正しく隠れて見えないまま DOM だけ増える。
 const PLANT_MIN_STRIP = 200;   // 見えている帯がこれ未満（素材px）の地形には植えない
@@ -521,10 +528,19 @@ function _revealLandform(el) {
   _lfRevealed = true;
 }
 
-/** 残り全部を敷く（保険(c)と、幅が測れないなどで判定できないときの逃げ道）*/
+/** 残り全部を敷く（保険(c)と、幅が測れないなどで判定できないときの逃げ道）。
+ *  ★一度に全部ではなく LF_BATCH 枚ずつ LF_BATCH_MS おきに敷く。
+ *    最終的に全部敷かれる点は変わらない（保険の役目は保たれる）。
+ *  ★最初の束だけは同期で敷く。非同期にすると「1枚も出ない時間」ができる。 */
 function _revealAllLandforms(root = document) {
-  root.querySelectorAll('.p-mountain__lf[data-lf-img]:not([data-lf-loaded])')
-    .forEach(_revealLandform);
+  const rest = Array.from(
+    root.querySelectorAll('.p-mountain__lf[data-lf-img]:not([data-lf-loaded])'),
+  );
+  const step = () => {
+    rest.splice(0, LF_BATCH).forEach(_revealLandform);
+    if (rest.length && typeof window !== 'undefined') setTimeout(step, LF_BATCH_MS);
+  };
+  step();
 }
 
 /**

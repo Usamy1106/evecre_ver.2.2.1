@@ -4067,7 +4067,13 @@ app.get('/api/events', requireAuth, async (req, res) => {
     //   つなぎっぱなしの接続は、途中で死んでも双方が気づきにくく、ルーターやプロキシに
     //   古い通信路が残り続ける。こちらから切れば EventSource が retry の間隔でつなぎ直すので、
     //   ユーザーから見た挙動は変わらない（クライアントは再接続後に取りこぼしを取り直す）。
-    const lifeTimer = setTimeout(() => { try { res.end(); } catch (_) {} }, SSE_MAX_LIFETIME_MS);
+    //   ★閉じる直前に bye を1本送る。クライアント（realtime.js）はこれを見て
+    //     「計画的な張り直し」と判断し、**バックオフを挟まずに**すぐ繋ぎ直す。
+    //     これが無いと、寿命切れが障害と同じ扱いになって待たされる。
+    const lifeTimer = setTimeout(() => {
+      try { res.write('event: bye\ndata: {}\n\n'); } catch (_) {}
+      try { res.end(); } catch (_) {}
+    }, SSE_MAX_LIFETIME_MS);
 
     req.on('close', () => {
       clearTimeout(lifeTimer);

@@ -311,6 +311,26 @@ section('[B] 実機で見つかった不具合');
           branch.includes('max-age=86400') && !branch.includes('immutable'));
       }
     }
+    // ★SSE の再接続は指数バックオフ（2026-09-24）。
+    //   「繋がるが失敗する」回線で15秒ごとに永久に試み続けると、
+    //   ポート枯渇に油を注ぐ。寿命切れ（bye）だけは待たずに張り直す。
+    {
+      const rt = codeOnly(R('public/js/realtime.js'));
+      ok('★SSE の再接続に指数バックオフがある（15秒固定で試み続けない）',
+        /const RECONNECT_DELAYS = \[[^\]]*300_000\s*\]/.test(rt) && /_retryStep\+\+/.test(rt));
+      ok('★内蔵の再接続に任せていない（onerror で閉じて予約する）',
+        /_es\.onerror = \(\) => \{[\s\S]{0,400}?_scheduleReconnect\(\)/.test(rt));
+      ok('★寿命切れ（bye）はバックオフしない（計画的な張り直し）',
+        /addEventListener\('bye'/.test(rt) && /_plannedByeSeen/.test(rt) &&
+        /_plannedByeSeen[\s\S]{0,200}?delay = 0/.test(rt));
+      ok('サーバーは閉じる直前に bye を送る',
+        /event: bye/.test(codeOnly(R('server.js'))));
+      ok('★繋がったら段階をリセットする', /_es\.onopen = \(\) => \{ _retryStep = 0; \}/.test(rt));
+      ok('★_disconnect が予約も消す（意図的に切ったあと勝手に繋ぎ直らない）',
+        /function _disconnect\(\) \{[\s\S]{0,300}?_clearRetryTimer\(\)/.test(rt));
+      ok('★見えていない／圏外のあいだは予約しない（visibility と offline の配線に任せる）',
+        /visibilityState === 'hidden'\) return;/.test(rt) && /navigator\.onLine === false\) return;/.test(rt));
+    }
     // ★vendor の immutable 配信（.js の no-cache 判定より前に置く必要がある）
     {
       const sv = R('server.js');
