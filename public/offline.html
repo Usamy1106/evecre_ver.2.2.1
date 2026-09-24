@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>接続できません - イベクリ</title>
+<meta name="theme-color" content="#209DDB">
+<!--
+  ページそのものを読み込めなかったときに Service Worker が返す代替ページ。
+
+  ★ホーム画面に追加した PWA（standalone）は、通信に失敗してもブラウザのエラー画面を
+    出さない。アドレスバーも「接続できません」も無いので**真っ暗な画面**になり、
+    何が起きているのか分からなかった（本番で実際に起きた）。その受け皿。
+
+  ★ここに外部ファイルを参照しないこと（CSS も JS も画像もフォントも）。
+    このページが出るのは「通信できないとき」なので、参照したものは必ず読めない。
+    style を直接書いているのはそのため。色はトークン（foundation/_variables.css）の
+    実値を写してある。**見た目を揃えたいときは元のトークンも見ること。**
+
+  ★アプリ本体のデザインと揃えてあるが、これは views/connectionError.js とは**別物**：
+    - このページ … HTML そのものが読めなかった（JS は1行も動いていない）
+    - CONNECTION_ERROR … HTML は読めたが API が返らなかった
+    文面を変えるときは両方そろえること。
+-->
+<style>
+  :root {
+    --bg: #FDFBF8;
+    --text: #484545;
+    --muted: #A7AAAC;
+    --danger: #EE3E12;
+    --danger-pale: #FFEEEA;
+    --primary: #209DDB;
+  }
+  * { box-sizing: border-box; }
+  body {
+    display: flex;
+    min-height: 100vh;
+    min-height: 100svh;
+    margin: 0;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px 48px;
+    background-color: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                 Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+    color: var(--text);
+  }
+  main { width: 100%; max-width: 448px; text-align: center; }
+  h1 { margin: 0 0 32px; font-size: 28px; font-weight: 700; }
+  .notice {
+    padding: 20px;
+    border: 1px solid var(--danger);
+    border-radius: 16px;
+    background-color: var(--danger-pale);
+  }
+  .symbol { margin-bottom: 8px; font-size: 24px; }
+  .text { margin: 0; font-size: 13px; font-weight: 700; line-height: 1.625; }
+  .note { margin: 12px 0 0; font-size: 11px; font-weight: 700; color: var(--muted); }
+  button {
+    width: 100%;
+    margin-top: 32px;
+    padding: 14px;
+    border: none;
+    border-radius: 16px;
+    background-color: var(--primary);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>接続できません</h1>
+    <div class="notice">
+      <div class="symbol" aria-hidden="true">⚠️</div>
+      <p class="text">
+        サーバーに接続できませんでした。<br>
+        電波の良い場所でもう一度お試しください。
+      </p>
+      <p class="note">Wi-Fi とモバイル通信を切り替えると直ることがあります</p>
+    </div>
+    <button type="button" id="retry">再読み込み</button>
+  </main>
+  <script>
+    // ★このページの JS はこれだけ。アプリのコードは一切読まない
+    document.getElementById('retry').onclick = () => location.reload();
+    // 通信が戻ったら自動で開き直す（アプリ側の online ハンドラと同じ考え方）
+    window.addEventListener('online', () => location.reload());
+  </script>
+</body>
+</html>

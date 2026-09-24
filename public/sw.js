@@ -1,13 +1,57 @@
-// ===== Service Worker：push 受信と通知タップのみ =====
-// ★キャッシュ（fetch イベント）は一切実装しない。
-// server.js の静的配信は「JS/HTML/CSS に Cache-Control: no-cache を付けて ETag で
-// 必ず再検証させる」という意図的なキャッシュ戦略を採っている（iOS WebKit が古い JS を
-// 抱え込む事故の対策）。SW でキャッシュを噛ませるとこの設計と衝突し、デプロイ後も
-// 古い JS が配信され続ける不具合になるため、fetch には触らない。
-
+// ===== Service Worker：push 受信 / 通知タップ / ページが読めないときの代替 =====
+//
+// ★**アプリの JS・CSS・HTML をキャッシュしないこと。**
+//   server.js の静的配信は「no-cache ＋ ETag で必ず再検証させる」という意図的な戦略で
+//   （iOS WebKit が古い JS を抱え込む事故の対策）、SW でキャッシュを噛ませると
+//   デプロイ後も古い JS が配信され続ける不具合になる。
+//
+// ★fetch は**ページの遷移（navigate）だけ**を見る。しかも必ずネットワークを先に試し、
+//   失敗したときだけ /offline.html を返す。それ以外の要求には respondWith せず、
+//   ブラウザにそのまま任せる（＝配信の戦略に一切干渉しない）。
+//   - なぜ要るか：ホーム画面に追加した PWA（standalone）は、通信に失敗しても
+//     ブラウザのエラー画面を出さないので**真っ暗な画面**になる。本番で実際に起きた。
+//   - ここを「JS も CSS もキャッシュする」形に広げないこと。上の禁止に戻る。
+//
 // 新しい SW を即座に有効化する（古い SW を待たない）
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
+const OFFLINE_CACHE = 'evecre-offline-v1';
+const OFFLINE_URL   = '/offline.html';
+
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    // ★cache:'reload' を付けること。付けないと HTTP キャッシュの古い写しを取り込みうる
+    const cache = await caches.open(OFFLINE_CACHE);
+    await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
+  })());
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    // 古い版の代替ページを捨てる（持つキャッシュは常に1つだけ）
+    for (const key of await caches.keys()) {
+      if (key !== OFFLINE_CACHE) await caches.delete(key);
+    }
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', (event) => {
+  // ★ページの遷移以外には触らない。respondWith を呼ばなければブラウザが普通に処理する
+  if (event.request.mode !== 'navigate') return;
+
+  event.respondWith((async () => {
+    try {
+      // ★必ずネットワーク優先。成功したものは**キャッシュしない**
+      //   （アプリの HTML を持つと、古い版が出続ける事故に戻る）
+      return await fetch(event.request);
+    } catch (_) {
+      const cached = await caches.match(OFFLINE_URL, { cacheName: OFFLINE_CACHE });
+      // 代替ページも無ければ、SW が無いときと同じ挙動に落とす
+      return cached || Response.error();
+    }
+  })());
+});
 
 // 開いているページ全部にメッセージを送る（診断用）
 async function _postToClients(msg) {

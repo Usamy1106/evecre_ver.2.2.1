@@ -357,6 +357,39 @@ section('[B] 実機で見つかった不具合');
       ok('★再試行の失敗後にボタンが固まらない（finally で描き直す）',
         /finally \{[\s\S]{0,400}?retryingConnection = false;[\s\S]{0,400}?currentView === 'CONNECTION_ERROR'\) this\.render\(\)/.test(st));
     }
+    // ★Service Worker のナビゲーション代替（2026-09-24）。
+    //   PWA は通信に失敗してもブラウザのエラー画面を出さず真っ暗になるので、その受け皿。
+    //   ★ここを「JS も CSS もキャッシュする」形に広げないこと（古い JS が出続ける事故に戻る）。
+    {
+      const sw = R('public/sw.js');
+      const swCode = codeOnly(sw);
+      ok('SW にナビゲーション代替の fetch ハンドラがある',
+        /addEventListener\('fetch'/.test(swCode));
+      ok("★ページの遷移以外には触らない（mode !== 'navigate' で return）",
+        /if \(event\.request\.mode !== 'navigate'\) return;/.test(swCode));
+      ok('★必ずネットワークを先に試す（失敗したときだけ代替ページ）',
+        /return await fetch\(event\.request\);[\s\S]{0,400}?catch[\s\S]{0,300}?caches\.match\(OFFLINE_URL/.test(swCode));
+      // ★アプリの JS/CSS/HTML をキャッシュしないこと。持つのは代替ページ1枚だけ
+      ok('★アプリの資産をキャッシュしていない（cache.put を使わない）',
+        !/cache\.put\(/.test(swCode));
+      ok('★取り込むのは /offline.html の1枚だけ',
+        (swCode.match(/cache\.add\(/g) || []).length === 1 &&
+        /cache\.add\(new Request\(OFFLINE_URL, \{ cache: 'reload' \}\)\)/.test(swCode));
+      ok('古い版の代替ページを捨てる（持つキャッシュは常に1つ）',
+        /for \(const key of await caches\.keys\(\)\)[\s\S]{0,200}?caches\.delete\(key\)/.test(swCode));
+      // 代替ページは単体で成立していること（通信できないときに出るので外部参照が使えない）
+      const off = R('public/offline.html');
+      const ext = [...off.matchAll(/(?:src|href)="([^"]+)"/g)].map(m => m[1]);
+      ok('★代替ページが外部ファイルを参照していない（通信できないときに出るページ）',
+        ext.length === 0, ext.join(', '));
+      // ★文面は CONNECTION_ERROR と揃える（同じ事象なのに別の言い方をしない）
+      const ce = R('public/js/views/connectionError.js');
+      for (const phrase of ['接続できません', 'サーバーに接続できませんでした。',
+                            'Wi-Fi とモバイル通信を切り替えると直ることがあります']) {
+        ok(`★代替ページと CONNECTION_ERROR の文面が揃っている（${phrase.slice(0, 12)}…）`,
+          off.includes(phrase) && ce.includes(phrase));
+      }
+    }
     // ★SSE の再接続は指数バックオフ（2026-09-24）。
     //   「繋がるが失敗する」回線で15秒ごとに永久に試み続けると、
     //   ポート枯渇に油を注ぐ。寿命切れ（bye）だけは待たずに張り直す。
