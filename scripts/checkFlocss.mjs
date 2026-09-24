@@ -336,10 +336,20 @@ section('[B] 実機で見つかった不具合');
       }
       ok('★CSS の url() が全部絶対パス（連結してもパスが壊れない）', rel.length === 0, rel.join(', '));
       // 開発中は要求のたびに作り直す（css:build の流し忘れで詰まらないように）
-      ok('開発中は連結 CSS を要求のたびに作り直す',
-        /if \(IS_DEV\)[\s\S]{0,400}?style\.bundle\.css[\s\S]{0,300}?writeBundleFile/.test(codeOnly(R('server.js'))));
+      ok('ローカルからの要求では連結 CSS を毎回作り直す',
+        /style\.bundle\.css[\s\S]{0,300}?isLocalRequest\(req\)[\s\S]{0,300}?writeBundleFile/.test(codeOnly(R('server.js'))));
       ok('★版つきの連結 CSS を immutable で配信している',
-        /CSS_VERSIONED[\s\S]{0,200}?res\.locals\.immutableJs = !IS_DEV/.test(codeOnly(R('server.js'))));
+        /CSS_VERSIONED[\s\S]{0,200}?res\.locals\.immutableJs = !isLocalRequest\(req\)/.test(codeOnly(R('server.js'))));
+      // ★ここを IS_DEV で判定しないこと。ローカルの .env は NODE_ENV=production なので、
+      //   IS_DEV だと開発機でも immutable になり、直した JS/CSS が反映されない。
+      {
+        const code = codeOnly(R('server.js'));
+        ok('★長期キャッシュの判定に IS_DEV を使っていない（接続元のホストで見る）',
+          /const isLocalRequest = \(req\) => LOCAL_HOST_RE\.test/.test(code) &&
+          !/immutableJs = !IS_DEV/.test(code));
+        ok('ローカル判定が localhost と private な LAN を含む（同じ Wi-Fi のスマホで確認するため）',
+          /localhost\|127\\\.0\\\.0\\\.1/.test(code) && /192\\\.168/.test(code));
+      }
     }
     // ★SSE の再接続は指数バックオフ（2026-09-24）。
     //   「繋がるが失敗する」回線で15秒ごとに永久に試み続けると、

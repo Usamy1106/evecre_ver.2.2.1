@@ -186,6 +186,16 @@ app.get('/healthz', async (_req, res) => {
 //   反映されない、という手触りにしないため。
 // ★古い版のパスもここで剥がれて現在のファイルが返る（404 にしない）。
 //   index.html 自体は no-cache なので、次の読み込みで新しいパスに切り替わる。
+// ★長期キャッシュを付けてよいのは「本番として配信しているとき」だけ。
+//   この判定に IS_DEV を使わないこと。ローカルの .env は NODE_ENV=production に
+//   してある（Cookie の sameSite とメール送信を本番に揃えるため）ので、
+//   IS_DEV で判定すると**開発機でも immutable になり、直した JS/CSS が反映されない**。
+//   接続元のホスト名で見る：localhost と private な LAN（同じ Wi-Fi のスマホで
+//   確認するとき）は開発扱い、それ以外（Render の公開ドメイン）は本番扱い。
+const LOCAL_HOST_RE =
+  /^(localhost|127\.0\.0\.1|::1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/i;
+const isLocalRequest = (req) => LOCAL_HOST_RE.test(req.hostname || '');
+
 const JS_VERSION_PREFIX = /^\/js\/v[0-9a-f]{8}\//;
 // 連結した CSS（style.bundle.css）は ?v=<ハッシュ> 付きで来る。
 // ★ファイル名は固定でハッシュはクエリに置いている（名前に入れると、CSS を直すたびに
@@ -194,25 +204,26 @@ const CSS_VERSIONED = /^\/css\/style\.bundle\.css\?v=[0-9a-f]{8}$/;
 app.use((req, res, next) => {
   if (JS_VERSION_PREFIX.test(req.url)) {
     req.url = req.url.replace(JS_VERSION_PREFIX, '/js/');
-    res.locals.immutableJs = !IS_DEV;
+    res.locals.immutableJs = !isLocalRequest(req);
   } else if (CSS_VERSIONED.test(req.url)) {
-    res.locals.immutableJs = !IS_DEV;
+    res.locals.immutableJs = !isLocalRequest(req);
   }
   next();
 });
 
-// 開発中だけ、連結 CSS を要求のたびに作り直す。
+// ローカルからの要求のときだけ、連結 CSS を要求のたびに作り直す。
 // ★CSS を直すたびに npm run css:build を流す手間を無くすため。本番では一切走らない。
-// ★index.html の ?v= は開発中は古いままになりうるが、開発では immutable にしていないので害は無い。
-if (IS_DEV) {
-  app.use((req, res, next) => {
-    if (!req.path.startsWith('/css/style.bundle.css')) return next();
-    import('./scripts/buildCss.mjs')
-      .then(m => m.writeBundleFile())
-      .catch(e => console.warn('[css] 作り直しに失敗:', e.message))
-      .finally(() => next());
-  });
-}
+// ★index.html の ?v= はローカルでは古いままになりうるが、ローカルでは immutable に
+//   していないので害は無い。
+// ★判定に IS_DEV を使わないこと（上の isLocalRequest のコメントを参照）。
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/css/style.bundle.css')) return next();
+  if (!isLocalRequest(req)) return next();
+  import('./scripts/buildCss.mjs')
+    .then(m => m.writeBundleFile())
+    .catch(e => console.warn('[css] 作り直しに失敗:', e.message))
+    .finally(() => next());
+});
 
 // 静的配信。JS/HTML/CSS のキャッシュは setHeaders で権威的に制御する
 // （express.static はデフォルトで Cache-Control: public, max-age=0 を自分でセットするため、
