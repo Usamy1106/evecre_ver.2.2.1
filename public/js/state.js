@@ -340,7 +340,14 @@ export const state = {
     this.retryingConnection = true;
     this.render();                         // ボタンを「接続中…」にする
     try { await this.init(); }
-    finally { this.retryingConnection = false; }
+    finally {
+      this.retryingConnection = false;
+      // ★接続エラー画面に留まっているなら必ず描き直すこと。
+      //   showConnectionError() は retryingConnection が true のまま描くので、
+      //   ここで描き直さないとボタンが「接続中…」の無効状態で固まり、
+      //   **2回目の再試行が押せなくなる**（＝電波が戻っても自力で復帰できない）。
+      if (this.currentView === 'CONNECTION_ERROR') this.render();
+    }
   },
 
   // --- 招待イベントに入る共通処理 ---

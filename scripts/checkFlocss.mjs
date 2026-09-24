@@ -349,6 +349,14 @@ section('[B] 実機で見つかった不具合');
           /localhost\|127\\\.0\\\.0\\\.1/.test(code) && /192\\\.168/.test(code));
       }
     }
+    // ★再試行が失敗したあと、ボタンが「接続中…」で固まらないこと（2026-09-24）。
+    //   showConnectionError は retryingConnection が true のまま描くので、
+    //   finally で描き直さないと2回目の再試行が押せなくなる。
+    {
+      const st = codeOnly(R('public/js/state.js'));
+      ok('★再試行の失敗後にボタンが固まらない（finally で描き直す）',
+        /finally \{[\s\S]{0,400}?retryingConnection = false;[\s\S]{0,400}?currentView === 'CONNECTION_ERROR'\) this\.render\(\)/.test(st));
+    }
     // ★SSE の再接続は指数バックオフ（2026-09-24）。
     //   「繋がるが失敗する」回線で15秒ごとに永久に試み続けると、
     //   ポート枯渇に油を注ぐ。寿命切れ（bye）だけは待たずに張り直す。
