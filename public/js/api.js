@@ -160,6 +160,7 @@ export const api = {
     const { ok, status, json } = await _send('PUT', path, data);
     if (!ok) {
       const err = new Error(json?.error || 'データの保存に失敗しました');
+      err.status = status;   // state.saveNow が「再送すれば通りうるか（5xx）」の判定に使う
       // ★status 0 は '応答が返ってこなかった'（_send が合成した失敗）。401 とは別物なので先に見る
       if (status === 0)   err.code = 'network';
       if (status === 401) err.code = 'unauthorized';
@@ -180,6 +181,7 @@ export const api = {
     const { ok, status, json } = await _send('PATCH', '/api/data', { events });
     if (!ok) {
       const err = new Error(json?.error || 'データの保存に失敗しました');
+      err.status = status;   // state.saveNow が「再送すれば通りうるか（5xx）」の判定に使う
       // ★status 0 は '応答が返ってこなかった'（_send が合成した失敗）。401 とは別物なので先に見る
       if (status === 0)   err.code = 'network';
       if (status === 401) err.code = 'unauthorized';

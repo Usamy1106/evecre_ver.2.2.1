@@ -629,6 +629,11 @@ export const state = {
     }
 
     // 全件送信（削除の意味を持つ経路。★ここを部分送信に変えないこと）
+    // ★送る前に空にするのは、送信中に積まれた変更を「送信済み」と取り違えないため。
+    //   その代わり、送れなかったときは送ろうとしたぶんを必ず積み直す（下の catch）。
+    //   以前は積み直しが無く、失敗すると削除や変更が次の保存に乗らないまま消えていた
+    //   （次の保存が部分保存に流れ、削除したイベントが再読み込みで復活する）。
+    const sentIds = [...this._dirtyIds];
     this._dirtyIds.clear();
     this._forceFullSave = false;
     return api.save({ events: this.events })
@@ -636,7 +641,18 @@ export const state = {
         // 新規イベントが追加されている可能性 → 購読対象を更新
         syncRealtime();
       })
-      .catch(e => this._onSaveError(e));
+      .catch(e => {
+        // ★積み直すのは「もう一度送れば通りうる」失敗だけ（通信断・5xx）。
+        //   権限・認証・入力の誤りで積み直すと、以後の保存がすべて失敗する
+        //   全件送信に固定され、通るはずの部分保存まで道連れになる。
+        //   全件送信は手元の全状態を送り直すだけなので、再送しても二重にならない
+        //   （タイムアウトしたがサーバーでは完了していた、でも害は無い）。
+        if (e?.code === 'network' || e?.status >= 500) {
+          for (const id of sentIds) this._dirtyIds.add(id);
+          this._forceFullSave = true;
+        }
+        this._onSaveError(e);
+      });
   },
 
   // 保存の失敗をさばく。★全件送信（PUT）と部分保存（PATCH）で同じ扱いにする
