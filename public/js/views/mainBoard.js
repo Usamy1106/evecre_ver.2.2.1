@@ -5,7 +5,7 @@ import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText } from '../utils.js';
-import { bindArchiveInlineEditing, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
+import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 
@@ -200,11 +200,15 @@ export function renderMainBoard(container) {
   if (state.mainBoardTab !== 'MAIN') {
     // 背景として見せるだけ。スクロール窓もマスも無いので軽い配線で足りる
     syncMountainBackdrop();
+    // ★アーカイブ上部（.p-archive__head）を貼り付ける位置＝ヘッダー＋タブの高さ（safe-area 込み）
+    const stack = container.querySelector('.js-mountain-sticky');
+    if (stack) container.querySelector('.p-main-board')?.style.setProperty('--board-stack-h', `${stack.offsetHeight}px`);
   }
 
   if (state.mainBoardTab === 'ARCHIVE') {
     restoreInlineEdits();
     if (state.archiveEditing) bindArchiveInlineEditing(container);
+    else bindArchiveTapToEdit(container);
     _focusArchiveMission();
   }
   // ★セグメンテッドコントロールのつまみを滑らせる（通知タブの絞り込み）
@@ -1056,6 +1060,8 @@ function _renderArchiveTab(p) {
   const canMgr  = state.canManageCurrentEvent();
   // ★編集できるのは管理者だけ。権限が無いのに編集中のまま残っていたら閲覧に戻す
   const editing = canMgr && !!state.archiveEditing;
+  // ★閲覧中でも、管理者は欄をタップすればそこから編集に入れる（archiveInlineEdit.js の bindArchiveTapToEdit）
+  const tap = (target) => (canMgr && !editing ? ` data-archive-tap="${_esc(target)}"` : '');
 
   // ── 基礎情報（すべてイベント自身の項目。utils.js の getter が旧データも読み替える）──
   const title      = p.name || '未設定';
@@ -1094,7 +1100,7 @@ function _renderArchiveTab(p) {
         <ol class="p-archive__toc-list" start="${1 + sections.slice(0, si).reduce((n, x) => n + x.missions.length, 0)}">
           ${sec.missions.map(m => `
             <li><button type="button" class="p-archive__toc-item" data-log="archive_toc_jump"
-              onclick="window._app.jumpToArchiveEntry('${m.id}')">${_esc(m.title)}</button></li>`).join('')}
+              data-toc-mission="${_esc(m.id)}" onclick="window._app.jumpToArchiveEntry('${m.id}')">${_esc(m.title)}</button></li>`).join('')}
         </ol>`).join('')}
     </nav>`;
 
@@ -1115,7 +1121,7 @@ function _renderArchiveTab(p) {
 
   const hasDatesA = Array.isArray(p.dates) && p.dates.length > 0;
   return `
-    <div class="p-archive${editing ? ' p-archive--editing' : ''} u-page-transition">
+    <div class="p-archive${editing ? ' p-archive--editing' : ''}${canMgr && !editing ? ' p-archive--tap-edit' : ''} u-page-transition">
       <div class="p-archive__head">
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
           class="p-archive__days">
@@ -1144,7 +1150,7 @@ function _renderArchiveTab(p) {
       </div>
 
       <!-- ① ヘッダー画像（3:2。ホームのサムネイルと同じ比率）-->
-      <div class="p-archive__visual">
+      <div class="p-archive__visual"${tap('image')}>
         ${mainVisual
           ? `<img src="${_esc(mainVisual)}" class="p-archive__visual-image" alt="" data-fallback="archive-visual">`
           : Components.ThumbnailEmptyState()}
@@ -1158,7 +1164,7 @@ function _renderArchiveTab(p) {
             <h1 class="p-archive__title p-archive__inline" contenteditable="true" role="textbox" aria-label="タイトル"
               data-inline="title" data-inline-key="title" data-placeholder="タイトル">${_esc(p.name || '')}</h1>
             <span class="p-archive__save-status" data-save-status></span>`
-          : `<h1 class="p-archive__title">${_esc(title)}</h1>`}
+          : `<h1 class="p-archive__title"${tap('title')}>${_esc(title)}</h1>`}
         </div>
 
         <!-- ③ 概要と基礎情報 -->
@@ -1172,14 +1178,14 @@ function _renderArchiveTab(p) {
               <p class="p-archive__summary p-archive__inline${summary ? '' : ' is-empty'}" contenteditable="true" role="textbox"
                 aria-multiline="true" aria-label="概要" data-inline="summary" data-inline-key="summary"
                 data-placeholder="どんなイベントか、数行で">${_esc(summary)}</p>`
-              : `<p class="p-archive__summary${summary ? '' : ' is-empty'}">${summary ? linkifyText(summary) : '未設定'}</p>`}
+              : `<p class="p-archive__summary${summary ? '' : ' is-empty'}"${tap('summary')}>${summary ? linkifyText(summary) : '未設定'}</p>`}
           </div>
           <dl class="p-archive__facts">
             <dt class="p-archive__fact-label">期間</dt>
-            <dd class="p-archive__fact-value">${period || '未設定'}
+            <dd class="p-archive__fact-value"${tap('period')}>${period || '未設定'}
               ${editing ? `<button type="button" onclick="window._app.editArchiveItem('period')" class="p-archive__inline-button">変更</button>` : ''}</dd>
             <dt class="p-archive__fact-label">場所</dt>
-            <dd class="p-archive__fact-value" data-inline-block>
+            <dd class="p-archive__fact-value" data-inline-block${tap('venue')}>
               ${editing ? `
                 <span class="p-archive__inline p-archive__inline--line${venue ? '' : ' is-empty'}" contenteditable="true" role="textbox"
                   aria-label="場所" data-inline="venue" data-inline-key="venue" data-placeholder="例：大学ギャラリー">${_esc(venue)}</span>
@@ -1254,6 +1260,9 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
   if (!cd) return '';
   if (editing) return _archiveSubmissionEditHtml(p, m, cd, userId);
   const canMgr = state.canManageCurrentEvent();
+  // ★管理者はタップでその欄から編集に入れる（bindArchiveTapToEdit）。値は「sub|ref:タスク:人」
+  const tapKey = `${m.id}:${userId || ''}`;
+  const tap = (kind) => (canMgr ? ` data-archive-tap="${kind}:${_esc(tapKey)}"` : '');
   // ★画像・PDF は本文の途中にも入る。読み分けは utils.js の submissionSegments
   const contentHtml = submissionSegments(cd).map(seg => {
     if (seg.type === 'image') {
@@ -1280,7 +1289,7 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
   const hasReflect = struggle || solution;
   const uidArg = userId ? `, '${_esc(userId)}'` : '';
   const reflectHtml = skipReflect || (!hasReflect && !(editing && canEditReflection)) ? '' : `
-    <div class="p-archive__reflect">
+    <div class="p-archive__reflect"${tap('ref')}>
       ${hasReflect ? reflectRow(labels.struggle, struggle) + reflectRow(labels.solution, solution)
         : `<p class="p-archive__reflect-empty">振り返りは未記入です</p>`}
       ${canEditReflection && (editing || isMine) ? `
@@ -1288,7 +1297,7 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
           class="p-archive__reflect-edit">${hasReflect ? '編集' : '書く'}</button>` : ''}
     </div>`;
 
-  return contentHtml + reflectHtml;
+  return `<div class="p-archive__content"${tap('sub')}>${contentHtml}</div>` + reflectHtml;
 }
 
 // 編集モード：提出内容と振り返りをその場で直す（archiveInlineEdit.js が中身を入れて配線する）
@@ -1385,6 +1394,21 @@ function _archiveIndividualHtml(p, m, editing) {
 }
 
 // 1タスクぶんの記録（文書の1節）。★data-mission-id は目次・通知からのスクロール先の目印
+// タスク名。★編集モードではその場で書き換えられる（archiveInlineEdit.js の _saveBasic。
+//   空にはできない）。閲覧ではタップでタスク詳細へ（管理者も同じ。ここはタップで編集に入らない）
+function _archiveEntryTitleHtml(m, editing) {
+  if (!editing) {
+    return `<button type="button" onclick="window._app.openMissionDetail('${m.id}')" class="p-archive__entry-title">${_esc(m.title)}</button>`;
+  }
+  return `
+    <div class="p-archive__entry-title-row" data-inline-block>
+      <h3 class="p-archive__entry-title p-archive__inline" contenteditable="true" role="textbox" aria-label="タスク名"
+        data-inline="missionTitle" data-inline-mission="${_esc(m.id)}" data-inline-key="mtitle:${_esc(m.id)}"
+        data-placeholder="タスク名">${_esc(m.title)}</h3>
+      <span class="p-archive__save-status" data-save-status></span>
+    </div>`;
+}
+
 function _renderArchiveEntry(p, m, editing) {
   const cd          = p.clearedData?.[m.id];
   const tagNames    = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
@@ -1423,7 +1447,7 @@ function _renderArchiveEntry(p, m, editing) {
   return `
     <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
       <div class="p-archive__entry-head">
-        <button type="button" onclick="window._app.openMissionDetail('${m.id}')" class="p-archive__entry-title">${_esc(m.title)}</button>
+        ${_archiveEntryTitleHtml(m, editing)}
         ${actionBtn}
       </div>
       <div class="p-archive__entry-meta">
@@ -1443,7 +1467,7 @@ function _renderArchivePendingEntry(m, p) {
   return `
     <div data-mission-id="${_esc(m.id)}" class="p-archive__entry p-archive__entry--pending">
       <div class="p-archive__entry-head">
-        <button type="button" onclick="window._app.openMissionDetail('${m.id}')" class="p-archive__entry-title">${_esc(m.title)}</button>
+        ${_archiveEntryTitleHtml(m, true)}
       </div>
       <div class="p-archive__entry-meta">
         ${tagNames.map(t => Components.Tag(t)).join('')}

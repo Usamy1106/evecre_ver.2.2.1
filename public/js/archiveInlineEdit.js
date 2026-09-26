@@ -59,16 +59,25 @@ async function _saveBasic(node) {
   if (!p) return;
   const field = node.dataset.inline;
   const value = _plainText(node);
-  const before = field === 'title' ? (p.name || '') : field === 'summary' ? (p.description || '') : (p.venue ?? '');
+  // タスク名（missionTitle）はそのタスクの title。★CRDT の項目なので PATCH /api/data でそのまま保存できる
+  const mission = field === 'missionTitle' ? (p.missions || []).find(m => m.id === node.dataset.inlineMission) : null;
+  if (field === 'missionTitle' && !mission) { node._dirty = false; return; }
+  const before = field === 'title' ? (p.name || '') : field === 'summary' ? (p.description || '')
+    : field === 'missionTitle' ? (mission.title || '') : (p.venue ?? '');
   if (value === String(before).trim()) { node._dirty = false; return; }
-  if (field === 'title' && !value) {
-    // ★イベント名は空にできない。元に戻す
-    node.textContent = p.name || '';
-    _status(node, 'error', 'タイトルは空にできません');
+  if ((field === 'title' || field === 'missionTitle') && !value) {
+    // ★イベント名・タスク名は空にできない。元に戻す
+    node.textContent = before;
+    _status(node, 'error', field === 'title' ? 'タイトルは空にできません' : 'タスク名は空にできません');
     node._dirty = false;
     return;
   }
   if (field === 'title') p.name = value;
+  else if (field === 'missionTitle') {
+    mission.title = value;
+    // ★描き直さないので、目次の名前だけ手で差し替える
+    document.querySelectorAll('[data-toc-mission]').forEach(b => { if (b.dataset.tocMission === mission.id) b.textContent = value; });
+  }
   else if (field === 'summary') setArchiveSummary(p, value);
   else if (field === 'venue') setArchiveVenue(p, value);
   node._dirty = false;
@@ -234,8 +243,101 @@ function _bindReflection(node) {
 
 // ── 公開する関数 ───────────────────────────────────────────
 
+// ── 閲覧中のタップで編集に入る（管理者だけ）──────────────────────
+//
+// 閲覧中の欄（data-archive-tap）をタップすると、編集モードに入ってその欄にカーソルを置く。
+//   title / summary / venue … その場の入力欄
+//   sub:<タスク>:<人> … 提出内容の編集欄／ ref:<タスク>:<人> … 振り返りの1つ目の欄
+//   period / image … 選ぶ画面を直接開く（編集モードには入らない）
+// ★タスク名はここに入れない（閲覧ではタップでタスク詳細へ行く）。
+// ★リンク・ボタン・PDF のカード・個別完了の行の開閉・文字を選んでいるときは入らない（コピーを邪魔しない）。
+// ★focus() はタップのハンドラから同期で当てる（iOS は操作の外の focus を無視してキーボードが出ない）。
+//   state.render() は同期なので、描き直した直後にそのまま当てられる。
+
+const _TAP_IGNORE = 'a, button, summary, input, textarea, label, select, video, [role="button"], .c-file-card';
+
+export function bindArchiveTapToEdit(root = document) {
+  const doc = root.querySelector('.p-archive--tap-edit');
+  if (!doc || doc._tapBound) return;
+  doc._tapBound = true;
+  doc.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-archive-tap]');
+    if (!t || !doc.contains(t)) return;
+    if (e.target.closest(_TAP_IGNORE)) return;
+    const sel = window.getSelection?.();
+    if (sel && !sel.isCollapsed && t.contains(sel.anchorNode)) return;
+    startArchiveEditAt(t.dataset.archiveTap);
+  });
+}
+
+export function startArchiveEditAt(target) {
+  if (!state.canManageCurrentEvent()) return;
+  const [kind, missionId = '', userId = ''] = String(target).split(':');
+  logEvent('archive_tap_edit', { target: kind });
+  if (kind === 'period' || kind === 'image') { window._app?.editArchiveItem?.(kind); return; }
+  // 個別完了の行は開いたまま編集モードへ（編集モードでも同じ行が開いて出る）
+  if (userId) window._app?.rememberArchiveRow?.(`${missionId}:${userId}`, true);
+  state.archiveEditing = true;
+  state.render();
+  let el = null;
+  if (kind === 'sub') {
+    el = [...document.querySelectorAll('.c-editor[data-sub-mission]')]
+      .find(x => x.dataset.subMission === missionId && (x.dataset.subUser || '') === userId);
+  } else if (kind === 'ref') {
+    el = [...document.querySelectorAll('[data-reflect-field="struggle"]')]
+      .find(x => x.dataset.reflectMission === missionId && (x.dataset.reflectUser || '') === userId);
+  } else {
+    el = document.querySelector(`[data-inline="${kind}"]`);
+  }
+  if (!el) return;
+  el.closest('details')?.setAttribute('open', '');
+  el.focus({ preventScroll: true });
+  // カーソルは末尾へ（全選択にしない。うっかり上書きさせない）
+  if (el.tagName === 'TEXTAREA') {
+    el.setSelectionRange(el.value.length, el.value.length);
+  } else {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    r.collapse(false);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  }
+  el.scrollIntoView({ block: 'center' });
+}
+
+// ── 編集モードは、白い文書の外（周り）をタップしても抜けられる ──────────────
+//
+// 白い文書（.p-archive__doc）の外をタップしたら、「完了」と同じく
+// 保存待ちを保存してから閲覧に戻る（main.js の toggleArchiveEditing）。
+// ★白い文書の中では抜けない（2026-09-26 の要望。欄の押し損ねで抜けないように）。
+//   外側でも、ボタン・ヘッダー画像・上部・下の帯などの「触る場所」では抜けない。
+// ★文字を選んでいる途中（ドラッグが欄の外で終わった）では抜けない。
+// ★モーダル（期間・画像を選ぶ画面）は body 直下なので、ここには来ない。
+const _EXIT_IGNORE = [
+  '[contenteditable="true"]', 'textarea', 'input', 'select', 'button', 'a', 'label', 'summary',
+  '.c-editor-field', '.c-share-check', '.c-file-card',
+  '.p-archive__head', '.p-archive__editbar', '.p-archive__visual', '.p-archive__doc',
+].join(', ');
+
+function _bindTapToExit(root) {
+  const page = root.querySelector('.p-main-board__page');
+  if (!page || page._exitBound) return;
+  page._exitBound = true;
+  page.addEventListener('click', (e) => {
+    // ★白い文書の外なら、.p-archive の外（ページ下の余白）でも抜ける
+    if (!state.archiveEditing || state.mainBoardTab !== 'ARCHIVE') return;
+    if (e.target.closest(_EXIT_IGNORE)) return;
+    const sel = window.getSelection?.();
+    if (sel && !sel.isCollapsed) return;
+    logEvent('archive_edit_exit_tap');
+    window._app?.toggleArchiveEditing?.();
+  });
+}
+
 /** 編集モードの欄を配線する（renderMainBoard の最後に呼ぶ。二重には配線しない） */
 export function bindArchiveInlineEditing(root = document) {
+  _bindTapToExit(root);
   root.querySelectorAll('[data-inline]').forEach(_bindBasic);
   root.querySelectorAll('.c-editor[data-sub-mission]').forEach(_bindSubmission);
   root.querySelectorAll('[data-reflect-field]').forEach(_bindReflection);

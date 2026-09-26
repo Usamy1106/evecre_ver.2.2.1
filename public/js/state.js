@@ -776,6 +776,21 @@ export const state = {
 
   // --- ビュー遷移 ---
   setView(view, id = null) {
+    // ★アーカイブの編集モードのまま画面を離れるときは、保存待ちの欄を保存し終えてから移る。
+    //   先に描き直すと書きかけの欄が DOM から外れ、selectedEventId も変わるので保存できない
+    //   （保存は欄ごとに自動。archiveInlineEdit.js）。保存待ちが無ければすぐ移る
+    if (this.archiveEditing && this.currentView === 'MAIN_BOARD' && this.mainBoardTab === 'ARCHIVE') {
+      if (this._leavingArchiveEdit) return;   // 保存中の連打は無視する
+      this._leavingArchiveEdit = true;
+      Promise.resolve(window._app?.finishArchiveEditing?.())
+        .catch(() => {})
+        .finally(() => {
+          this._leavingArchiveEdit = false;
+          this.archiveEditing = false;
+          this.setView(view, id);
+        });
+      return;
+    }
     const prevView = this.currentView;
     // ★HOME のひとことは「HOME を開くたび」に引き直す。HOME から離れるときに
     //   捨てておき、次に HOME を描くときに引かせる（renderHome が null なら引く）。

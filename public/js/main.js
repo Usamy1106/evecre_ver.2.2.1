@@ -77,6 +77,16 @@ import {
   enablePush, disablePush, getPushState, hasSubscription,
 } from './push.js';
 
+// ★アーカイブの編集モードを終える：書きかけの欄を離れさせ、保存待ちを全部保存してから閲覧に戻す。
+//   「完了」ボタン・別のタブ・別の画面の3つの出口で共用する（描き直しは呼び出し側）
+async function finishArchiveEditing() {
+  document.activeElement?.blur?.();
+  // ★保存に失敗しても編集モードは抜ける（失敗した欄はその場に「保存できませんでした」が出ている）
+  try { await flushArchiveInlineEdits(); } catch (_) { /* 抜けるのを止めない */ }
+  state.archiveEditing = false;
+}
+let _leavingArchiveTab = false;
+
 // ===== ビューレンダラーの登録 =====
 // アカウント作成は STEP 0〜3 の段階フロー（views/signup.js）。
 // 旧1画面版 renderCreateAccountInfo は auth.js に残っているが未使用。
@@ -261,7 +271,13 @@ window._app = {
   setView: (view, id) => state.setView(view, id),
   // 通知セットアップ（ホーム画面追加 → 通知許可）。HOME のバナー・お知らせのボタンから呼ぶ
   startPushSetup: (source, silent) => startPushSetupFlow({ source, silent }),
-  setTab: (tab) => {
+  setTab: async (tab) => {
+    // ★アーカイブの編集モードは、別のタブへ移ったら解除する（保存待ちを保存し終えてから移る）
+    if (state.archiveEditing && state.mainBoardTab === 'ARCHIVE' && tab !== 'ARCHIVE') {
+      if (_leavingArchiveTab) return;
+      _leavingArchiveTab = true;
+      try { await finishArchiveEditing(); } finally { _leavingArchiveTab = false; }
+    }
     state.mainBoardTab = tab;
     logEvent('board_tab_switched', { tab });
     if (tab === 'ARCHIVE')       logEvent('archive_viewed');
@@ -1104,13 +1120,12 @@ window._app = {
   // ★終えるときは、保存待ちの欄を全部保存してから閲覧に戻す（保存は欄ごとに自動。archiveInlineEdit.js）
   toggleArchiveEditing: async () => {
     if (!state.canManageCurrentEvent()) return;
-    if (state.archiveEditing) {
-      document.activeElement?.blur?.();
-      await flushArchiveInlineEdits();
-    }
-    state.archiveEditing = !state.archiveEditing;
+    if (state.archiveEditing) await finishArchiveEditing();
+    else state.archiveEditing = true;
     state.render();
   },
+  // 画面・タブを離れるときに state.setView / setTab から呼ぶ（描き直しはしない）
+  finishArchiveEditing: () => finishArchiveEditing(),
 
   // --- いいね ---
 

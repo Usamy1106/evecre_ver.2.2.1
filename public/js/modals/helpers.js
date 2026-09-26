@@ -84,6 +84,8 @@ function _openArchiveImageDialog(p) {
         </div>
         <input type="file" id="arch-file-input" class="u-hidden" accept="image/*">
       </label>
+      <!-- ★表示は横長 3:2（アーカイブ・ホームのサムネイルとも）。表示幅は最大 448px なので、2倍の解像度で足りる大きさを案内する -->
+      <p class="p-archive__image-hint">おすすめ：横長 1200×800px（3:2）<br>枠に合わせて、上下または左右が切れることがあります</p>
       <div class="c-modal__actions c-modal__actions--spaced">
         <button data-action="cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
         <button data-action="save" class="c-button c-button--primary c-modal__button" disabled>保存</button>

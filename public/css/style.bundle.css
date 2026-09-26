@@ -231,6 +231,7 @@
        連番へ整理するのは、直書きが 0 件になる Phase 5 で行う。 */
   --z-base: 0;
   --z-sticky: 20;            /* HOME のヘッダー */
+  --z-archive-head: 25;      /* アーカイブ上部（残り日数・編集する）。スクロールしても上に残す */
   --z-header-stack: 30;      /* メインボードのヘッダー＋タブのラッパー */
   --z-fab: 40;               /* ラッパーより前に出す */
   --z-overlay: 100;          /* ミッション作成モーダル（全画面）*/
@@ -4394,11 +4395,14 @@ body {
 }
 
 /* アーカイブ／通知タブの本文 */
+/* ★overflow-y: auto にしないこと。高さを持たない箱なので自分はスクロールしない（window がする）のに、
+     スクロールの箱として扱われ、中の position: sticky（アーカイブ上部）が効かなくなる。
+     横だけ clip で切る（通知のスワイプ行がはみ出さないように。clip はスクロールの箱を作らない） */
 .p-main-board__page {
   position: relative;
   z-index: 10;
   flex: 1;
-  overflow-y: auto;
+  overflow-x: clip;
   padding-bottom: 128px;
 }
 
@@ -5177,7 +5181,7 @@ body {
    ★1本の文書として読ませる（2026-09-26。Phase 3）。
      ヘッダー画像 → タイトル → 概要・期間・場所 → 目次 → タスクごとの内容。
    ★閲覧は囲みを持たない（余白と見出しの階層で区切る。記録の間は細い罫線1本まで）。
-     編集モード（.p-archive--editing。管理者のみ）でだけ、記録に囲みを出す。
+     編集モード（.p-archive--editing。管理者のみ）でも囲みは出さない。書ける欄は白い地＋フォーカス中の青い線だけ。
    ★基礎情報の読み書きは utils.js の getter / setter に集約してあり、ここは表示だけ。
    ★ペンのアイコン（Components.PenIcon）は編集モードでだけ出る。
    ========================================================================== */
@@ -5192,13 +5196,22 @@ body {
 
 /* --- 上部：残り日数と「いいね」------------------------------------------- */
 
+/* ★スクロールしても上に残す（「編集する」「予定をコピー」をいつでも押せるように。2026-09-26）。
+     ページは window がスクロールするので、top はヘッダー＋タブの高さ（--board-stack-h。
+     mainBoard.js が描画のたびに実測して .p-main-board に書く）。
+   ★親の .p-main-board__page に overflow: auto / hidden を付けないこと（スクロールの箱になり sticky が効かない）
+   ★背景を持たせる（下を流れる文書が透けて文字が重なるため） */
 .p-archive__head {
+  position: sticky;
+  top: var(--board-stack-h, 0px);
+  z-index: var(--z-archive-head);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-6) var(--space-4) 0;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  background-color: var(--color-bg);
 }
 
 .p-archive__days {
@@ -5555,7 +5568,13 @@ body {
   gap: var(--space-2);
 }
 
-/* 記録の見出し（タップでタスク詳細へ） */
+/* 編集モードのタスク名（その場で書き換える）。メニュー（⋮）の左いっぱいに広げる */
+.p-archive__entry-title-row {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 記録の見出し（閲覧ではタップでタスク詳細へ／編集モードではその場で書き換える） */
 .p-archive__entry-title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
@@ -5606,16 +5625,8 @@ body {
 /* --- 編集モード（管理者のみ）：記録に囲みを出す ------------------------------
    ★閲覧＝文書、編集＝フォーム。見た目を揃える必要はない */
 
-.p-archive--editing .p-archive__entry {
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.p-archive--editing .p-archive__entry + .p-archive__entry {
-  margin-top: var(--space-3);
-}
+/* ★編集モードでも記録に囲み（枠・影）を付けない（2026-09-26 の要望）。閲覧と同じ罫線1本で区切り、
+     書ける欄は「白い地＋フォーカス中だけ青い線」だけで示す（下の「編集モードの欄」） */
 
 /* 編集中の帯。画面の下に常に出す（保存は欄ごとに自動。ここは「完了」だけ） */
 .p-archive--editing {
@@ -5656,12 +5667,69 @@ body {
   margin-inline: calc(var(--space-2) * -1);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  background-color: var(--color-bg);
-  outline: 1px dashed var(--color-border);
+  background-color: var(--color-surface);
   cursor: text;
 }
 
+/* 閲覧中でも管理者はタップで編集に入れる（archiveInlineEdit.js の bindArchiveTapToEdit）。
+   ★見た目は変えず、カーソルだけで「書ける」ことを示す（閲覧は読み物なので枠を出さない） */
+.p-archive--tap-edit [data-archive-tap] {
+  cursor: text;
+}
+
+.p-archive--tap-edit .p-archive__visual[data-archive-tap],
+.p-archive--tap-edit .p-archive__fact-value[data-archive-tap="period"] {
+  cursor: pointer;
+}
+
 .p-archive__inline:focus {
+  outline: 2px solid var(--color-primary);
+}
+
+/* --- 編集モードの欄（提出内容・振り返り）-------------------------------------
+   ★枠も地の色も出さない。白い地に、フォーカス中だけ青い線（2026-09-26 の要望）。
+   ★c-editor はタスク詳細の完了フォームと共用なので、ここ（.p-archive--editing の中）だけで上書きする。
+   ★文字の左端を閲覧と揃えるため、余白のぶん外へ広げる（margin-inline を負に） */
+.p-archive--editing .c-editor {
+  width: auto;
+  min-height: 96px;
+  margin-inline: calc((var(--space-2) + 2px) * -1);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+}
+
+.p-archive--editing .c-editor:focus {
+  border-color: var(--color-primary);
+}
+
+/* 画像・PDF を入れるアイコン。★欄に重ねず、欄の下に置く（文字に被らない） */
+.p-archive--editing .c-editor-field__pick {
+  position: static;
+  display: inline-flex;
+  margin-top: var(--space-2);
+  opacity: .5;
+}
+
+.p-archive--editing .c-editor-field__pick:hover {
+  opacity: .8;
+}
+
+.p-archive--editing .p-archive__reflect--editing {
+  padding: 0;
+  background-color: transparent;
+}
+
+.p-archive--editing .p-archive__reflect-input {
+  display: block;
+  width: calc(100% + var(--space-2) * 2);
+  margin-inline: calc(var(--space-2) * -1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+}
+
+.p-archive--editing .p-archive__reflect-input:focus {
   outline: 2px solid var(--color-primary);
 }
 
@@ -5746,10 +5814,7 @@ body {
 }
 
 .p-archive--editing .p-archive__entry--pending {
-  margin-top: var(--space-3);
-  border-style: dashed;
-  background-color: var(--color-bg);
-  box-shadow: none;
+  opacity: .8;
 }
 
 /* --- 個別完了：提出した人ごとに折りたためる行 -------------------------------
@@ -5946,6 +6011,14 @@ body {
 .p-archive__dropzone-text {
   font-size: 13px;
   font-weight: var(--font-weight-heavy);
+}
+
+/* ヘッダー画像の推奨サイズの案内（画像を選ぶ画面） */
+.p-archive__image-hint {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-text-muted);
 }
 
 /* --- 振り返り（アーカイブのミッションブロック内）--------------------------

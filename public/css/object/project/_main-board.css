@@ -44,11 +44,14 @@
 }
 
 /* アーカイブ／通知タブの本文 */
+/* ★overflow-y: auto にしないこと。高さを持たない箱なので自分はスクロールしない（window がする）のに、
+     スクロールの箱として扱われ、中の position: sticky（アーカイブ上部）が効かなくなる。
+     横だけ clip で切る（通知のスワイプ行がはみ出さないように。clip はスクロールの箱を作らない） */
 .p-main-board__page {
   position: relative;
   z-index: 10;
   flex: 1;
-  overflow-y: auto;
+  overflow-x: clip;
   padding-bottom: 128px;
 }
 
