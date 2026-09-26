@@ -118,21 +118,11 @@
   background-color: var(--color-surface);
 }
 
-.p-mission-detail__status--pending {
-  border-color: var(--color-warning-half);
-  background-color: var(--color-warning-pale2);
-}
-
 .p-mission-detail__status-label {
   margin-bottom: var(--space-1);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-heavy);
   color: var(--color-success-dark);
-}
-
-.p-mission-detail__status-label--waiting {
-  margin-bottom: 0;
-  color: var(--color-warning-dark);
 }
 
 .p-mission-detail__status-label--muted {

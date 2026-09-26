@@ -189,7 +189,7 @@ function _isAssigned(m) {
 /** 未完了で担当が空のタスク */
 function _unassigned(p) {
   return (p.missions || []).filter(m =>
-    m.status !== 'cleared' && m.status !== 'pending_leader_check' && !_isAssigned(m));
+    m.status !== 'cleared' && !_isAssigned(m));
 }
 
 /**
@@ -293,7 +293,7 @@ function _wantMatches(p, userId) {
 /** 自分が担当していて完了済みのタスク（M4 用） */
 function _myCompleted(p, userId) {
   return (p.missions || []).filter(m =>
-    (m.status === 'cleared' || m.status === 'pending_leader_check') && (
+    m.status === 'cleared' && (
       (Array.isArray(m.assignees) && m.assignees.includes(userId)) ||
       (m.assignee?.type === 'user' && m.assignee.userId === userId) ||
       (Array.isArray(m.individualClearedBy) && m.individualClearedBy.includes(userId))
@@ -610,15 +610,12 @@ const STEPS = [
     match: (ctx) => _myCompleted(ctx.p, ctx.userId).length > 0,
     build: (ctx) => {
       const done = _myCompleted(ctx.p, ctx.userId)[0];
-      const needsCheck = done?.status === 'pending_leader_check';
       return {
         emoji: '🎊',
         eyebrow: 'はじめての完了',
         title: 'おつかれさまでした！',
         body: (done?.title ? `「${done.title}」を提出しました。` : '提出しました。')
-          + (needsCheck
-              ? 'リーダーの確認待ちです。承認されるとアーカイブに残ります。'
-              : 'アーカイブに記録が残ります。'),
+          + 'アーカイブに記録が残ります。',
         primary: 'アーカイブを見る',
         action: 'openArchive',
       };

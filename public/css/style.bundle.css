@@ -244,7 +244,6 @@
   --z-frosted: 200;          /* メール認証・招待発行（白いすりガラス）*/
   --z-code: 200;             /* 招待コードの入力 */
   --z-approve: 200;          /* 参加申請の承認モーダル */
-  --z-reject: 220;           /* 差し戻しの確認（リーダーチェックのシートより前）*/
   --z-help: 200;             /* 提案のヒント */
   --z-action-sheet: 200;     /* イベントカードの長押しメニュー */
   --z-action-dialog: 210;    /* 名前の変更・削除確認（長押しメニューの上）*/
@@ -262,7 +261,7 @@
   --z-drag-caret: 410;       /* 差し込み先の線。分身の下に隠れないよう、さらに前 */
   --z-context-menu: 260;     /* 長押しメニュー。ピッカーより前 */
   /* ★プロフィールカード。**あらゆるシートより前**に出すこと。
-     担当者シート(210)・承認待ち(150)・リーダーチェック(150)などから開くので、
+     担当者シート(210)・承認待ち(150)などから開くので、
      既定の --z-overlay(100) のままだとシートの裏に隠れて見えない（実際に起きた）。 */
   --z-user-profile: 280;
   --z-modal: 300;            /* 確認ダイアログ。他のモーダルより前 */
@@ -1629,7 +1628,7 @@ body {
 }
 
 /* プロフィールカード。★シートの中のアバターから開くので、どのシートよりも前に出す。
-   既定の --z-overlay(100) のままだと担当者シート(210)やリーダーチェック(150)の
+   既定の --z-overlay(100) のままだと担当者シート(210)や承認待ち(150)の
    裏に隠れて見えない（実際にその報告を受けた）。 */
 .c-overlay--profile {
   z-index: var(--z-user-profile);
@@ -1729,15 +1728,6 @@ body {
 /* 参加申請の承認（ロール選択つき）*/
 .c-overlay--approve {
   z-index: var(--z-approve);
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-6);
-  background-color: rgba(0, 0, 0, .6);
-}
-
-/* 差し戻しの確認。リーダーチェックのシートより前に出す */
-.c-overlay--reject {
-  z-index: var(--z-reject);
   align-items: center;
   justify-content: center;
   padding: var(--space-6);
@@ -3455,7 +3445,7 @@ body {
 /* ==========================================================================
    Object / Component / list-sheet — 一覧を出すボトムシート
    使用箇所: public/js/main.js
-     - 承認待ちメンバー / リーダーチェック待ち / メンバーからの提案 / 操作履歴
+     - 承認待ちメンバー / 操作履歴（リーダーチェック・メンバーからの提案は廃止済み）
 
    ★c-action-sheet（操作を並べて選ばせる）とは別物。こちらは
      「見出し＋スクロールする一覧」で、1件ごとにカードと操作ボタンが付く。
@@ -3471,10 +3461,6 @@ body {
   background-color: var(--white);
   box-shadow: var(--shadow-2xl);
 }
-
-/* 件数が読めない一覧（リーダーチェック・操作履歴）は高さを固定する。
-   中身の量でシートの高さが変わると、開くたびに掴む位置がずれる。 */
-.c-list-sheet--tall { height: 85vh; }
 
 /* 数件で収まることが多い一覧（承認待ち）は中身なりに伸ばし、上限だけ決める */
 .c-list-sheet--capped { max-height: 70vh; }
@@ -3571,78 +3557,6 @@ body {
 
 .c-list-sheet__card-title--roomy {
   margin-bottom: var(--space-3);
-}
-
-.c-list-sheet__chips {
-  display: flex;
-  flex-wrap: wrap;
-  margin-bottom: var(--space-1);
-  gap: var(--space-1);
-}
-
-.c-list-sheet__chip {
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-full);
-  background-color: var(--button-secondary);
-  font-size: 10px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-/* 提出内容のプレビュー。画像は高さを固定して一覧の行がばらつかないようにする */
-.c-list-sheet__preview-image {
-  width: 100%;
-  height: 96px;
-  margin-top: var(--space-2);
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-}
-
-.c-list-sheet__preview-text {
-  overflow: hidden;
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg);
-  font-size: var(--font-size-xs);
-  color: var(--color-text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.c-list-sheet__card-actions {
-  display: flex;
-  margin-top: var(--space-3);
-  gap: var(--space-2);
-}
-
-.c-list-sheet__card-actions > button {
-  flex: 1;
-  padding-block: var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  transition: transform var(--duration-fast) var(--ease);
-}
-
-.c-list-sheet__card-actions > button:active {
-  transform: scale(.95);
-}
-
-/* 提出者（リーダーチェックのシート）。main.js の openLeaderCheckSheet。
-   ★以前は提出物だけが並び、誰のものか分からないまま承認/差し戻しを
-     判断させていた。アバターは userId 付きでプロフィールが開く。 */
-.c-list-sheet__submitter {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.c-list-sheet__submitter-name {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
 }
 
 /* ===== object/component/_file-card.css ===== */
@@ -5018,12 +4932,6 @@ body {
   color: var(--color-warning-dark);
 }
 
-.p-main-board__banner--check {
-  border-color: var(--color-danger-half2);
-  background-color: var(--color-danger-pale2);
-  color: var(--color-danger);
-}
-
 .p-main-board__banner-head {
   display: flex;
   align-items: center;
@@ -6259,10 +6167,6 @@ body {
   border-color: var(--color-warning-half2);
 }
 
-.p-notification__card--check {
-  border-color: var(--color-primary-half);
-}
-
 .p-notification__card-meta {
   display: flex;
   flex-wrap: wrap;
@@ -6283,11 +6187,6 @@ body {
   border-color: var(--color-warning);
   background-color: var(--color-warning-pale2);
   color: var(--color-warning-dark);
-}
-
-.p-notification__badge--check {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
 }
 
 .p-notification__card-sub {
@@ -6328,33 +6227,6 @@ body {
   color: var(--color-text);
 }
 
-.p-notification__detail-image {
-  width: 100%;
-  max-height: 160px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-}
-
-/* 本文のあと・画像どうしの間（本文と画像は同時にありうる） */
-.p-notification__detail-content + .p-notification__detail-image,
-.p-notification__detail-image + .p-notification__detail-image {
-  margin-top: var(--space-2);
-}
-
-.p-notification__detail-content {
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-  word-break: break-word;
-}
-
-.p-notification__actions {
-  display: flex;
-  gap: var(--space-2);
-}
-
 .p-notification__action {
   flex: 1;
   padding-block: var(--space-2);
@@ -6371,17 +6243,6 @@ body {
 .p-notification__action--full {
   width: 100%;
   flex: none;
-}
-
-.p-notification__action--approve {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
-}
-
-/* 差し戻しは取り消しに近い操作なので、承認と色を明確に分ける */
-.p-notification__action--reject {
-  background-color: var(--color-danger-pale);
-  color: var(--color-danger);
 }
 
 .p-notification__action--select {
@@ -7629,21 +7490,12 @@ body {
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
 }
 
-.p-mountain__node--cleared,
-.p-mountain__node--pending {
+.p-mountain__node--cleared {
   color: var(--color-text-inverse);
 }
 
 .p-mountain__node--cleared {
   filter: none;
-}
-
-/* ★現在この状態は使っていない。マスは「完了数 + 先の1マス」で構成され、
-   確認待ち（pending_leader_check）に対応するマスが無いため。
-   確認待ちをマスで表したくなったときのために定義だけ残してある。 */
-.p-mountain__node--pending {
-  border-color: var(--color-warning-quarter);
-  background-color: var(--color-warning);
 }
 
 /* --- 完了したマスの横に出るオブジェクト ----------------------------------
@@ -11246,21 +11098,11 @@ body {
   background-color: var(--color-surface);
 }
 
-.p-mission-detail__status--pending {
-  border-color: var(--color-warning-half);
-  background-color: var(--color-warning-pale2);
-}
-
 .p-mission-detail__status-label {
   margin-bottom: var(--space-1);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-heavy);
   color: var(--color-success-dark);
-}
-
-.p-mission-detail__status-label--waiting {
-  margin-bottom: 0;
-  color: var(--color-warning-dark);
 }
 
 .p-mission-detail__status-label--muted {

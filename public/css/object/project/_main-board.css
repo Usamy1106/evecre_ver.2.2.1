@@ -582,12 +582,6 @@
   color: var(--color-warning-dark);
 }
 
-.p-main-board__banner--check {
-  border-color: var(--color-danger-half2);
-  background-color: var(--color-danger-pale2);
-  color: var(--color-danger);
-}
-
 .p-main-board__banner-head {
   display: flex;
   align-items: center;

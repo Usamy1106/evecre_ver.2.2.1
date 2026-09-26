@@ -56,7 +56,7 @@
 }
 
 /* プロフィールカード。★シートの中のアバターから開くので、どのシートよりも前に出す。
-   既定の --z-overlay(100) のままだと担当者シート(210)やリーダーチェック(150)の
+   既定の --z-overlay(100) のままだと担当者シート(210)や承認待ち(150)の
    裏に隠れて見えない（実際にその報告を受けた）。 */
 .c-overlay--profile {
   z-index: var(--z-user-profile);
@@ -156,15 +156,6 @@
 /* 参加申請の承認（ロール選択つき）*/
 .c-overlay--approve {
   z-index: var(--z-approve);
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-6);
-  background-color: rgba(0, 0, 0, .6);
-}
-
-/* 差し戻しの確認。リーダーチェックのシートより前に出す */
-.c-overlay--reject {
-  z-index: var(--z-reject);
   align-items: center;
   justify-content: center;
   padding: var(--space-6);

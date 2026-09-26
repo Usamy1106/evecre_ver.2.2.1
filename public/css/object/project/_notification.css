@@ -80,10 +80,6 @@
   border-color: var(--color-warning-half2);
 }
 
-.p-notification__card--check {
-  border-color: var(--color-primary-half);
-}
-
 .p-notification__card-meta {
   display: flex;
   flex-wrap: wrap;
@@ -104,11 +100,6 @@
   border-color: var(--color-warning);
   background-color: var(--color-warning-pale2);
   color: var(--color-warning-dark);
-}
-
-.p-notification__badge--check {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
 }
 
 .p-notification__card-sub {
@@ -149,33 +140,6 @@
   color: var(--color-text);
 }
 
-.p-notification__detail-image {
-  width: 100%;
-  max-height: 160px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-}
-
-/* 本文のあと・画像どうしの間（本文と画像は同時にありうる） */
-.p-notification__detail-content + .p-notification__detail-image,
-.p-notification__detail-image + .p-notification__detail-image {
-  margin-top: var(--space-2);
-}
-
-.p-notification__detail-content {
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-  word-break: break-word;
-}
-
-.p-notification__actions {
-  display: flex;
-  gap: var(--space-2);
-}
-
 .p-notification__action {
   flex: 1;
   padding-block: var(--space-2);
@@ -192,17 +156,6 @@
 .p-notification__action--full {
   width: 100%;
   flex: none;
-}
-
-.p-notification__action--approve {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
-}
-
-/* 差し戻しは取り消しに近い操作なので、承認と色を明確に分ける */
-.p-notification__action--reject {
-  background-color: var(--color-danger-pale);
-  color: var(--color-danger);
 }
 
 .p-notification__action--select {

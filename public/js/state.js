@@ -93,8 +93,8 @@ export const state = {
   _skillCollectCheckedForEvent: null, // ★暫定：既存メンバーのスキル回収チェック済みか（回収後に削除）
   // タスク完了の演出を次の描画で1回だけ出す。submitMissionClear（helpers.js）が
   // status が 'cleared' になったときだけ立て、renderMainBoard が消費して倒す。
-  // ★leaderCheck（承認待ち）と individualClear の途中では立てないこと。
-  //   どちらも status が cleared にならない＝マスが増えないので、
+  // ★individualClear の途中では立てないこと。
+  //   status が cleared にならない＝マスが増えないので、
   //   増えていないのに祝う演出になってしまう。
   mountainCelebrate: false,
   // 提案キャラクターの一度きりの演出。どちらも renderMainBoard が消費して倒す。

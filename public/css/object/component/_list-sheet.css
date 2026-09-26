@@ -1,7 +1,7 @@
 /* ==========================================================================
    Object / Component / list-sheet — 一覧を出すボトムシート
    使用箇所: public/js/main.js
-     - 承認待ちメンバー / リーダーチェック待ち / メンバーからの提案 / 操作履歴
+     - 承認待ちメンバー / 操作履歴（リーダーチェック・メンバーからの提案は廃止済み）
 
    ★c-action-sheet（操作を並べて選ばせる）とは別物。こちらは
      「見出し＋スクロールする一覧」で、1件ごとにカードと操作ボタンが付く。
@@ -17,10 +17,6 @@
   background-color: var(--white);
   box-shadow: var(--shadow-2xl);
 }
-
-/* 件数が読めない一覧（リーダーチェック・操作履歴）は高さを固定する。
-   中身の量でシートの高さが変わると、開くたびに掴む位置がずれる。 */
-.c-list-sheet--tall { height: 85vh; }
 
 /* 数件で収まることが多い一覧（承認待ち）は中身なりに伸ばし、上限だけ決める */
 .c-list-sheet--capped { max-height: 70vh; }
@@ -119,74 +115,3 @@
   margin-bottom: var(--space-3);
 }
 
-.c-list-sheet__chips {
-  display: flex;
-  flex-wrap: wrap;
-  margin-bottom: var(--space-1);
-  gap: var(--space-1);
-}
-
-.c-list-sheet__chip {
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-full);
-  background-color: var(--button-secondary);
-  font-size: 10px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-/* 提出内容のプレビュー。画像は高さを固定して一覧の行がばらつかないようにする */
-.c-list-sheet__preview-image {
-  width: 100%;
-  height: 96px;
-  margin-top: var(--space-2);
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-}
-
-.c-list-sheet__preview-text {
-  overflow: hidden;
-  margin-top: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-bg);
-  font-size: var(--font-size-xs);
-  color: var(--color-text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.c-list-sheet__card-actions {
-  display: flex;
-  margin-top: var(--space-3);
-  gap: var(--space-2);
-}
-
-.c-list-sheet__card-actions > button {
-  flex: 1;
-  padding-block: var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  transition: transform var(--duration-fast) var(--ease);
-}
-
-.c-list-sheet__card-actions > button:active {
-  transform: scale(.95);
-}
-
-/* 提出者（リーダーチェックのシート）。main.js の openLeaderCheckSheet。
-   ★以前は提出物だけが並び、誰のものか分からないまま承認/差し戻しを
-     判断させていた。アバターは userId 付きでプロフィールが開く。 */
-.c-list-sheet__submitter {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.c-list-sheet__submitter-name {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}

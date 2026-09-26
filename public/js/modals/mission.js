@@ -35,7 +35,6 @@ export function openMissionModal(missionId = null, prefill = null) {
       checklist: Array.isArray(m.checklist) ? [...m.checklist] : [],
       description: m.description || '',
       selfClaim: !!m.selfClaim,
-      leaderCheck: !!m.leaderCheck,
       claimMode: m.claimMode || 'selection',
       claimDeadline: m.claimDeadline || null,
       announce: !!m.announce,
@@ -47,7 +46,7 @@ export function openMissionModal(missionId = null, prefill = null) {
     state.draftMission = {
       title: '', labels: [], priority: 0, dates: [],
       note: '', assignee: null, assignees: [], checklist: [],
-      description: '', selfClaim: false, leaderCheck: false,
+      description: '', selfClaim: false,
       claimMode: 'selection', claimDeadline: null,
       announce: false, announceText: '',
       noInput: false,
@@ -366,7 +365,6 @@ function _renderDetailTab(isEdit) {
   const selfClaim = !!state.draftMission.selfClaim;
   const claimMode = state.draftMission.claimMode || 'selection';
   const claimDeadline = state.draftMission.claimDeadline || null;
-  const leaderCheck = !!state.draftMission.leaderCheck;
   const announce = !!state.draftMission.announce;
   const noInput = !!state.draftMission.noInput;
   const individualClear = !!state.draftMission.individualClear;
@@ -484,18 +482,6 @@ function _renderDetailTab(isEdit) {
             </button>
           </div>
           <p class="p-mission-form__desc p-mission-form__desc--flush">ユーザーごとに個別に回答・完了できるようになります。</p>
-        </div>
-
-        <!-- リーダーによるチェック -->
-        <div>
-          <div class="p-mission-form__row">
-            <label class="heading-rs p-mission-form__label">リーダーによるチェック</label>
-            <button onclick="window._app.toggleMissionLeaderCheck()" type="button"
-              class="c-toggle${leaderCheck ? ' is-on' : ''}">
-              <span class="c-toggle__knob"></span>
-            </button>
-          </div>
-          <p class="p-mission-form__desc p-mission-form__desc--flush">完了だけではアーカイブ化されず、提出の確認ができるようになります。</p>
         </div>
 
         ${canDelete ? `

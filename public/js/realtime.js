@@ -224,8 +224,6 @@ function _applyEventUpdate(eventId, event) {
 
   const prev = state.events[idx];
 
-  const prevLeader  = (prev?.missions || []).filter(m => m.status === 'pending_leader_check').length;
-  const newLeader   = (event?.missions || []).filter(m => m.status === 'pending_leader_check').length;
   const prevClaims  = (prev?.missions || []).filter(m =>
     m.selfClaim && Array.isArray(m.claimApplicants) && m.claimApplicants.length > 0 &&
     !(Array.isArray(m.assignees) && m.assignees.length > 0)).length;
@@ -242,7 +240,7 @@ function _applyEventUpdate(eventId, event) {
     setTimeout(() => window._app?.openPendingMembersSheet?.(), 0);
   }
 
-  const needsReset = (newLeader > prevLeader) || (newClaims > prevClaims) ||
+  const needsReset = (newClaims > prevClaims) ||
                      (newPending > prevPending && !pendingSheetOpen);
   if (needsReset && state._infoModalShownForEvent === eventId) {
     state._infoModalShownForEvent = null;

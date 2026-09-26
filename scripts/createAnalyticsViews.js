@@ -61,7 +61,6 @@ const MISSION_PIPELINE = [
       individualClearedBy: { $ifNull: [ '$f.individualClearedBy.v', [] ] },
       // 詳細設定の使用状況フラグ
       hasChecklist:    { $gt: [ { $size: { $ifNull: [ '$f.checklist.v', [] ] } }, 0 ] },
-      leaderCheck:     { $eq: [ '$f.leaderCheck.v', true ] },
       selfClaim:       { $eq: [ '$f.selfClaim.v', true ] },
       claimMode:       '$f.claimMode.v',
       announce:        { $eq: [ '$f.announce.v', true ] },

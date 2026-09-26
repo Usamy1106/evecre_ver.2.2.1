@@ -63,7 +63,6 @@ import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
-import { submissionImages, submissionText, submissionFilesLabel } from './utils.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
 import { flushArchiveInlineEdits } from './archiveInlineEdit.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
@@ -245,16 +244,15 @@ function _openApproveModal(uid, username, roles, onSuccess) {
 // タップでアーカイブへ送る通知の種類（openNotification で使う）。
 // ★どちらも「そのタスクが完了した」報せ。完了したタスクは詳細ページでは
 //   「完了しました」の一文しか出せないので、記録の並び（アーカイブ）で見せる。
-// ★差し戻し（leader_rejected）と未完了に戻した（mission_reverted）は入れないこと。
-//   どちらもタスクは未完了に戻っており、アーカイブには並ばない。
-const _NOTIF_TO_ARCHIVE = new Set(['mission_cleared', 'leader_approved']);
+// ★未完了に戻した（mission_reverted）は入れないこと。タスクは未完了に戻っており、アーカイブには並ばない。
+const _NOTIF_TO_ARCHIVE = new Set(['mission_cleared']);
 
 // タップしてもタスク詳細へ送らない通知の種類（openNotification で使う）。
-// ★詳細ページには承認・差し戻し・選定のボタンが無い。これらは通知タブの
-//   カードとインフォメーションモーダルにしかないので、送ると行き止まりになる。
+// ★詳細ページには選定のボタンが無い。通知タブのカードとインフォメーションモーダルにしかないので、
+//   送ると行き止まりになる。
 // ★ここに並べるのは「タスクの話だが、やることが詳細ページに無い」ものだけ。
 //   新しい通知タイプは既定で詳細ページへ行く（そのほうが正しいことが多い）。
-const _NOTIF_STAY_ON_BOARD = new Set(['pending_leader_check', 'someone_claimed']);
+const _NOTIF_STAY_ON_BOARD = new Set(['someone_claimed']);
 
 // ===== window._app : インラインイベントハンドラーから呼び出されるAPI =====
 // HTMLテンプレート内の onclick="window._app.xxx()" から参照される
@@ -546,10 +544,6 @@ window._app = {
     }
     renderMissionModalContent();
   },
-  toggleMissionLeaderCheck: () => {
-    state.draftMission.leaderCheck = !state.draftMission.leaderCheck;
-    renderMissionModalContent();
-  },
   toggleMissionAnnounce: () => {
     state.draftMission.announce = !state.draftMission.announce;
     renderMissionModalContent();
@@ -617,55 +611,6 @@ window._app = {
     }
   },
 
-  // --- リーダーチェック：承認 / 差し戻し ---
-  approveMission: async (missionId) => {
-    const eventId = state.selectedEventId;
-    if (!eventId) return;
-    const r = await api.approveMission(eventId, missionId);
-    if (r.ok) {
-      const p = state.events.find(x => x.id === eventId);
-      const m = p?.missions.find(x => x.id === missionId);
-      if (m) m.status = 'cleared';
-      _showToast('タスク確認完了');
-      _removeLeaderCheckCard(missionId);
-    } else {
-      window._app?.showToast(r.error || '承認に失敗しました', 'error');
-    }
-  },
-  rejectMission: async (missionId) => {
-    const eventId = state.selectedEventId;
-    if (!eventId) return;
-    // confirm() → ダイアログ
-    const confirmOverlay = document.createElement('div');
-    confirmOverlay.className = 'c-overlay c-overlay--reject c-overlay--blur';
-    confirmOverlay.onclick = (e) => { if (e.target === confirmOverlay) confirmOverlay.remove(); };
-    confirmOverlay.innerHTML = `
-      <div class="c-modal u-animate-fade">
-        <h3 class="c-modal__title">差し戻しますか？</h3>
-        <p class="c-modal__text">提出内容は破棄されます。</p>
-        <div class="c-modal__actions">
-          <button data-action="cancel" class="c-button c-button--secondary c-modal__button">キャンセル</button>
-          <button data-action="confirm" class="c-button c-button--danger c-modal__button">差し戻す</button>
-        </div>
-      </div>`;
-    document.body.appendChild(confirmOverlay);
-    confirmOverlay.querySelector('[data-action="cancel"]').onclick = () => confirmOverlay.remove();
-    confirmOverlay.querySelector('[data-action="confirm"]').onclick = async () => {
-      confirmOverlay.remove();
-      const r = await api.rejectMission(eventId, missionId);
-      if (r.ok) {
-        const p = state.events.find(x => x.id === eventId);
-        const m = p?.missions.find(x => x.id === missionId);
-        if (m) m.status = 'yet';
-        if (p?.clearedData?.[missionId]) delete p.clearedData[missionId];
-        _showToast('差し戻しました');
-        _removeLeaderCheckCard(missionId);
-      } else {
-        window._app?.showToast(r.error || '差し戻しに失敗しました', 'error');
-      }
-    };
-  },
-
   // --- 通知 ---
   openNotification: async (notifId, missionId) => {
     // 既読化
@@ -687,10 +632,9 @@ window._app = {
     //   以前はチャットだけが詳細へ飛び、ほかは MAIN タブに戻すだけだったので、
     //   「作成されました」を押しても一覧のどれの話か自分で探す必要があった。
     //   戻るボタンは通知タブへ帰る（openMissionDetail が今のタブを覚える）。
-    // ★_NOTIF_STAY_ON_BOARD は**詳細ページでは何もできない**通知。詳細ページの
-    //   pending_leader_check 表示は「リーダー確認待ちです」の一文だけで、
-    //   承認・差し戻し・選定のボタンは通知タブのカードとインフォメーションモーダルにしかない。
-    //   ここへ送ると行き止まりになるので、従来どおりボードへ戻す。
+    // ★_NOTIF_STAY_ON_BOARD は**詳細ページでは何もできない**通知（選定のボタンは
+    //   通知タブのカードとインフォメーションモーダルにしかない）。送ると行き止まりになるので、
+    //   従来どおりボードへ戻す。
     if (missionId && !_NOTIF_STAY_ON_BOARD.has(n?.type)) {
       const p = state.events.find(x => x.id === state.selectedEventId);
       // 削除済みのタスクは開けない（レンダラーが弾く前にここで落とす）
@@ -756,7 +700,6 @@ window._app = {
           checklist: _cleanChecklist(state.draftMission.checklist),
           description: String(state.draftMission.description || ''),
           selfClaim: !!state.draftMission.selfClaim,
-          leaderCheck: !!state.draftMission.leaderCheck,
           claimMode: 'selection',
           claimDeadline: (state.draftMission.selfClaim && state.draftMission.claimDeadline) ? state.draftMission.claimDeadline : null,
           announce: !!state.draftMission.announce,
@@ -785,7 +728,6 @@ window._app = {
         checklist: _cleanChecklist(state.draftMission.checklist),
         description: String(state.draftMission.description || ''),
         selfClaim: !!state.draftMission.selfClaim,
-        leaderCheck: !!state.draftMission.leaderCheck,
         claimMode: 'selection',
         claimDeadline: (state.draftMission.selfClaim && state.draftMission.claimDeadline) ? state.draftMission.claimDeadline : null,
         claimApplicants: [],
@@ -1025,12 +967,11 @@ window._app = {
     // 優先度順に確認
     const pendingMembers = p.pendingMembers || [];
     const claimMissions  = (p.missions || []).filter(m =>
-      m.selfClaim && m.status !== 'cleared' && m.status !== 'pending_leader_check' &&
+      m.selfClaim && m.status !== 'cleared' &&
       Array.isArray(m.claimApplicants) && m.claimApplicants.length > 0 &&
       !(Array.isArray(m.assignees) && m.assignees.length > 0)
     );
-    const leaderMissions = (p.missions || []).filter(m => m.status === 'pending_leader_check');
-    // ★承認待ち・担当申請・リーダーチェックは開催日を過ぎても出し続けること。
+    // ★承認待ち・担当申請は開催日を過ぎても出し続けること。
     //   処理しないと相手が待たされたままになる。
 
     let config = null;
@@ -1051,15 +992,6 @@ window._app = {
         desc:  `${claimMissions.length}件のタスクに担当申請が届いています。`,
         action: '通知タブで確認する',
         onAction: () => { state.mainBoardTab = 'NOTIFICATIONS'; state.render(); },
-      };
-    } else if (leaderMissions.length > 0) {
-      config = {
-        icon: `<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>`,
-        color: '#EE3E12', bgColor: '#FFF0ED',
-        title: 'リーダーチェック待ちがあります',
-        desc:  `${leaderMissions.length}件のタスクが承認待ちです。`,
-        action: '確認リストを開く',
-        onAction: () => window._app.openLeaderCheckSheet(),
       };
     }
 
@@ -1133,86 +1065,6 @@ window._app = {
   checkDeveloperAnnouncementModal: () => checkDeveloperAnnouncementModal(),
   // ★暫定：既存メンバーのスキル回収。回収が済んだらこの行ごと削除する
   checkSkillCollectModal: () => checkSkillCollectModal(),
-
-  // --- リーダーチェック：確認ボトムシート（管理者）---
-  openLeaderCheckSheet: () => {
-    const p = state.events.find(x => x.id === state.selectedEventId);
-    if (!p) return;
-    const missions = (p.missions || []).filter(m => m.status === 'pending_leader_check');
-
-    const overlay = document.createElement('div');
-    overlay.id = 'leader-check-sheet';
-    overlay.className = 'c-overlay c-overlay--pending c-overlay--blur';
-    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-    const rows = missions.map(m => {
-      const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
-      const cd = p.clearedData?.[m.id];
-      // ★本文と画像は同時にありうる（utils.js の submissionText / submissionImages が後方互換も吸収）。
-      //   一覧なので画像は1枚目だけ出し、残りは枚数で伝える。
-      const cdText = submissionText(cd);
-      const cdImgs = submissionImages(cd);
-      const previewHtml =
-        (cdText ? `<p class="c-list-sheet__preview-text">${_escH(cdText)}</p>` : '')
-        + (cdImgs[0] ? `<img src="${_escH(cdImgs[0])}" class="c-list-sheet__preview-image" loading="lazy" data-fallback="submission">` : '')
-        + (cdImgs.length > 1 ? `<p class="c-list-sheet__preview-text">ほか画像${cdImgs.length - 1}枚</p>` : '')
-        + (submissionFilesLabel(cd) ? `<p class="c-list-sheet__preview-text">${_escH(submissionFilesLabel(cd))}</p>` : '');
-      // ★誰の提出かを出す。以前は提出物だけが並んでいて、**誰のものか分からない
-      //   まま承認/差し戻しを判断させていた**。submittedBy は submissions 由来で、
-      //   /api/data が clearedData に合成して返している（サーバー変更は不要）。
-      //   ★古い提出には submittedBy が無いので、その場合は行ごと出さない。
-      const submitter = cd?.submittedBy
-        ? (p.members || []).find(x => x.userId === cd.submittedBy)
-        : null;
-      const submitterHtml = cd?.submittedBy ? `
-        <div class="c-list-sheet__submitter">
-          ${Components.UserAvatar(
-            submitter || { username: '不明なユーザー' },
-            { size: 24, userId: cd.submittedBy })}
-          <span class="c-list-sheet__submitter-name">${
-            _escH(submitter?.username || '不明なユーザー')} が提出</span>
-        </div>` : '';
-      return `
-        <div data-leader-check-id="${_escH(m.id)}" class="c-list-sheet__card">
-          <div class="c-list-sheet__chips">${tagNames.map(t => `<span class="c-list-sheet__chip">${_escH(t)}</span>`).join('')}</div>
-          <p class="c-list-sheet__card-title">${_escH(m.title)}</p>
-          ${submitterHtml}
-          ${previewHtml}
-          <div class="c-list-sheet__card-actions">
-            <button data-lc-reject="${_escH(m.id)}" class="c-button c-button--muted">差し戻す</button>
-            <button data-lc-approve="${_escH(m.id)}" class="c-button c-button--danger">確認完了</button>
-          </div>
-        </div>`;
-    }).join('');
-
-    overlay.innerHTML = `
-      <div data-sheet class="c-list-sheet c-list-sheet--tall u-animate-fade">
-        <div data-sheet-handle class="c-list-sheet__head">
-          <div class="c-list-sheet__grip"></div>
-          <h3 id="leader-check-count" class="c-list-sheet__title">リーダーチェック（${missions.length}件）</h3>
-        </div>
-        <div id="leader-check-list" class="c-list-sheet__body">
-          ${rows || '<p class="c-list-sheet__empty text-rs">確認待ちはありません</p>'}
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-
-    // 確認完了
-    overlay.querySelectorAll('[data-lc-approve]').forEach(btn => {
-      btn.addEventListener('click', async (ev) => {
-        ev.stopPropagation();
-        await window._app.approveMission(btn.dataset.lcApprove);
-      });
-    });
-
-    // 差し戻し
-    overlay.querySelectorAll('[data-lc-reject]').forEach(btn => {
-      btn.addEventListener('click', async (ev) => {
-        ev.stopPropagation();
-        await window._app.rejectMission(btn.dataset.lcReject);
-      });
-    });
-  },
 
   // --- トースト公開（helpers.js など他モジュールから呼べるよう）---
   showToast: (msg) => _showToast(msg),
@@ -1401,22 +1253,6 @@ window._app = {
 // 後方互換性のため state も公開
 window.state = state;
 
-// ===== リーダーチェックシートのカード削除ヘルパー =====
-function _removeLeaderCheckCard(missionId) {
-  const sheet = document.getElementById('leader-check-sheet');
-  if (sheet) {
-    const card = sheet.querySelector(`[data-leader-check-id="${missionId}"]`);
-    if (card) card.remove();
-    const remaining = sheet.querySelectorAll('[data-leader-check-id]').length;
-    const countEl = sheet.querySelector('#leader-check-count');
-    if (remaining === 0) {
-      sheet.remove();
-    } else if (countEl) {
-      countEl.textContent = `リーダーチェック（${remaining}件）`;
-    }
-  }
-  state.render();
-}
 
 // ===== トーストヘルパー =====
 function _showToast(msg, durationMs = 2500) {
@@ -1894,8 +1730,6 @@ const _LOG_LABELS = {
   claim_applied:          '担当に応募した',
   claim_unapplied:        '応募を取り消した',
   claim_selected:         '担当を選定した',
-  leader_approved:        'リーダー承認した',
-  leader_rejected:        'リーダー差し戻し',
 };
 
 function _logLabel(ev) { return _LOG_LABELS[ev] || ev; }

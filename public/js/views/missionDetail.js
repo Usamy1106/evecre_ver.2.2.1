@@ -230,7 +230,7 @@ function _renderClearSection(p, m, canMgr) {
 
   // ★閲覧のみのロールは完了できない。完了済みの内容は読めるので、
   //   未完了のときだけ入力欄の代わりに理由を出す（担保はサーバー側）。
-  if (state.isViewOnlyCurrentEvent() && m.status !== 'cleared' && m.status !== 'pending_leader_check') {
+  if (state.isViewOnlyCurrentEvent() && m.status !== 'cleared') {
     return `
       <div class="p-mission-detail__status">
         <p class="p-mission-detail__status-label">閲覧のみのロールです</p>
@@ -245,12 +245,6 @@ function _renderClearSection(p, m, canMgr) {
         <p class="p-mission-detail__status-label">✓ 完了済み</p>
         ${_fmtClearedContent(cd)}
         ${_reflectionHtml(cd)}
-      </div>`;
-  }
-  if (m.status === 'pending_leader_check') {
-    return `
-      <div class="p-mission-detail__status p-mission-detail__status--pending">
-        <p class="p-mission-detail__status-label p-mission-detail__status-label--waiting">リーダー確認待ちです</p>
       </div>`;
   }
 

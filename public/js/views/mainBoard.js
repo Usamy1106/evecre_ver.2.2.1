@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, submissionFilesLabel, getEventMainVisual, linkifyText } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText } from '../utils.js';
 import { bindArchiveInlineEditing, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
@@ -517,7 +517,7 @@ function _renderMainTab(p) {
 
   // ── タスク表示モードの定義 ──────────────────────────────────
   // 'mine' : 自分が担当 / 未割当 /応募受付中のタスクのみ（★既定）
-  // 'all'  : cleared・pending_leader_check 以外を全件表示
+  // 'all'  : cleared 以外を全件表示
   // ★既定値は state.js の missionViewMode と揃えること（片方だけ変えると、
   //   未設定のときだけ別のタブが開くという分かりにくいずれ方をする）
   const viewMode = state.missionViewMode || 'mine';
@@ -537,7 +537,7 @@ function _renderMainTab(p) {
 
   const ongoingMissions = getSortedMissions(
     p.missions
-      .filter(m => m.status !== 'cleared' && m.status !== 'pending_leader_check')
+      .filter(m => m.status !== 'cleared')
       .filter(m => viewMode === 'all' ? true : _isMyOrOpen(m))
   );
 
@@ -739,17 +739,12 @@ function _renderMainTab(p) {
     ? p.missions.filter(m =>
         m.selfClaim &&
         m.status !== 'cleared' &&
-        m.status !== 'pending_leader_check' &&
-        m.selfClaim &&
         Array.isArray(m.claimApplicants) && m.claimApplicants.length > 0 &&
         !(Array.isArray(m.assignees) && m.assignees.length > 0)
       )
     : [];
 
   const pendingMembers    = canMgr ? (p.pendingMembers   || []) : [];
-  const leaderCheckMissions = canMgr
-    ? (p.missions || []).filter(m => m.status === 'pending_leader_check')
-    : [];
 
   const hasDates = Array.isArray(p.dates) && p.dates.length > 0;
   const _dateChip = (() => {
@@ -809,9 +804,6 @@ function _renderMainTab(p) {
 
       <!-- 承認待ちメンバーバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingMembers.length > 0 ? _renderPendingMembersBanner(pendingMembers) : ''}
-
-      <!-- リーダーチェック待ちバナー（管理者のみ・該当がある場合のみ表示）-->
-      ${leaderCheckMissions.length > 0 ? _renderLeaderCheckBanner(leaderCheckMissions) : ''}
 
       <!-- 応募待ちアナウンスバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}
@@ -881,21 +873,6 @@ function _renderPendingMembersBanner(members) {
           <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
         </svg>
         <p class="p-main-board__banner-text">参加申請が届いています（${members.length}件）</p>
-      </div>
-    </div>`;
-}
-
-// ===== リーダーチェック待ちバナー（管理者向け）=====
-function _renderLeaderCheckBanner(missions) {
-  return `
-    <div onclick="window._app.openLeaderCheckSheet()"
-      class="p-main-board__banner p-main-board__banner--check">
-      <div class="p-main-board__banner-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 11 12 14 22 4"/>
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-        </svg>
-        <p class="p-main-board__banner-text">リーダーチェック待ちがあります（${missions.length}件）</p>
       </div>
     </div>`;
 }
@@ -1462,7 +1439,7 @@ function _renderArchiveEntry(p, m, editing) {
 // ★個別完了で途中まで提出があるものは、提出した人ごとの行も出す（直せるように）
 function _renderArchivePendingEntry(m, p) {
   const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
-  const status = m.status === 'pending_leader_check' ? 'リーダー確認待ち' : '未完了';
+  const status = '未完了';
   return `
     <div data-mission-id="${_esc(m.id)}" class="p-archive__entry p-archive__entry--pending">
       <div class="p-archive__entry-head">
@@ -1480,18 +1457,11 @@ function _renderArchivePendingEntry(m, p) {
 function _renderNotificationsTab(p) {
   const canMgr = state.canManageCurrentEvent();
 
-  // リーダー確認待ちのタスク（管理者権限のあるユーザーのみ）
-  const pendingMissions = canMgr
-    ? p.missions.filter(m => m.status === 'pending_leader_check')
-    : [];
-
   // 応募待ちのタスク（管理者権限のあるユーザーのみ）
   const claimingMissions = canMgr
     ? p.missions.filter(m =>
         m.selfClaim &&
         m.status !== 'cleared' &&
-        m.status !== 'pending_leader_check' &&
-        m.selfClaim &&
         Array.isArray(m.claimApplicants) && m.claimApplicants.length > 0 &&
         !(Array.isArray(m.assignees) && m.assignees.length > 0)
       )
@@ -1528,39 +1498,6 @@ function _renderNotificationsTab(p) {
       </div>
     </section>`;
 
-  const pendingHtml = pendingMissions.length === 0 ? '' : `
-    <section class="p-notification__section">
-      <h2 class="p-notification__title">確認待ち（${pendingMissions.length}件）</h2>
-      <div class="p-notification__list">
-        ${pendingMissions.map(m => {
-          const submitter = (p.members || []).find(x => x.userId === m.assignee?.userId);
-          const cleared = p.clearedData?.[m.id];
-          return `
-          <div class="p-notification__card p-notification__card--check">
-            <div class="p-notification__card-meta">
-              <span class="p-notification__badge p-notification__badge--check">確認待ち</span>
-              <span class="p-notification__card-sub">${submitter ? '@' + _esc(submitter.username) + ' が提出' : '提出済み'}</span>
-            </div>
-            <h3 class="p-notification__card-title">${_esc(m.title)}</h3>
-            ${cleared ? `
-              <div class="p-notification__detail">
-                <p class="p-notification__detail-label">提出内容</p>
-                ${submissionText(cleared) ? `<p class="p-notification__detail-content">${_esc(submissionText(cleared))}</p>` : ''}
-                ${submissionImages(cleared).map(url =>
-                  `<img src="${_esc(url)}" class="p-notification__detail-image" alt="提出画像" data-fallback="submission">`).join('')}
-                ${submissionFilesLabel(cleared) ? `<p class="p-notification__detail-content">${_esc(submissionFilesLabel(cleared))}</p>` : ''}
-              </div>` : ''}
-            <div class="p-notification__actions">
-              <button type="button" onclick="window._app.rejectMission('${m.id}')"
-                class="p-notification__action p-notification__action--reject">差し戻す</button>
-              <button type="button" onclick="window._app.approveMission('${m.id}')"
-                class="p-notification__action p-notification__action--approve">承認する</button>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-    </section>`;
-
   // 通知一覧（このイベントに紐づく通知のみ。他イベントの通知は表示しない）
   const allNotifs = Array.isArray(state.notifications) ? state.notifications : [];
   const notifs = allNotifs.filter(n => n.eventId === p.id);
@@ -1591,7 +1528,6 @@ function _renderNotificationsTab(p) {
   return `
     <div class="p-notification u-page-transition">
       ${claimingHtml}
-      ${pendingHtml}
       <section class="p-notification__section p-notification__section--grow">
         <div class="p-notification__head">
           <h2 class="p-notification__title">通知</h2>
@@ -1748,15 +1684,12 @@ function _notifIconBg(type) {
   switch (type) {
     case 'mission_cleared':
     case 'assignment_decided':
-    case 'leader_approved':
     case 'member_joined':         return 'var(--color-success-tint)';
     case 'assigned_to_me':
     case 'role_assigned':         return 'var(--color-primary-tint)';
     case 'someone_claimed':
     case 'mission_reverted':
     case 'self_claimed':          return 'var(--color-warning-tint)';
-    case 'pending_leader_check':
-    case 'leader_rejected':
     case 'motivation_reaction':   return 'var(--color-danger-tint2)';
     case 'mission_created':
     case 'mission_updated':       return 'var(--color-violet-tint)';
@@ -1775,12 +1708,6 @@ function _notifIcon(type) {
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
     case 'assignment_decided':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>`;
-    case 'pending_leader_check':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#EE3E12" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-    case 'leader_approved':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
-    case 'leader_rejected':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#EE3E12" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
     case 'member_joined':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>`;
     case 'role_assigned':
@@ -1893,7 +1820,7 @@ function _checkMissionDeadlineNotifications(missions) {
 
   const toasts = [];
   for (const m of missions) {
-    if (m.status === 'cleared' || m.status === 'pending_leader_check') continue;
+    if (m.status === 'cleared') continue;
     if (!Array.isArray(m.dates) || m.dates.length === 0) continue;
     const sorted    = [...m.dates].sort();
     const startDate = sorted[0];

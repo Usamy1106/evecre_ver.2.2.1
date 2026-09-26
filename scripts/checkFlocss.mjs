@@ -513,13 +513,16 @@ section('[B] 実機で見つかった不具合');
     ok('★スキル回収は開催日を過ぎたら聞かない',
       /if \(isAfterEventDates\(p\)\) return;/.test(sc));
 
-    // ★承認待ち・担当申請・リーダーチェックは開催後でも処理しないと
-    //   相手が待たされたままになるので、止めないこと。
-    //   （メンバー提案は機能ごと廃止済み。2026-09-16）
+    // ★承認待ち・担当申請は開催後でも処理しないと相手が待たされたままになるので、止めないこと。
+    //   （メンバー提案は 2026-09-16、リーダーチェックは 2026-09-26 に機能ごと廃止済み）
     const mn = codeOnly(R('public/js/main.js'));
-    ok('★承認待ち・リーダーチェックは開催後も止めていない',
-      /const pendingMembers = p\.pendingMembers \|\| \[\];/.test(mn) &&
-      /const leaderMissions = \(p\.missions \|\| \[\]\)\.filter\(m => m\.status === 'pending_leader_check'\);/.test(mn));
+    ok('★承認待ちは開催後も止めていない',
+      /const pendingMembers = p\.pendingMembers \|\| \[\];/.test(mn));
+    // ★リーダーチェックは廃止した（2026-09-26）。戻さないこと
+    ok('★リーダーチェック（leaderCheck / pending_leader_check / 承認・差し戻し）が残っていない',
+      !/leaderCheck|pending_leader_check|approveMission|rejectMission|openLeaderCheckSheet/.test(
+        ['main.js', 'views/mainBoard.js', 'modals/mission.js', 'modals/helpers.js', 'views/missionDetail.js', 'api.js']
+          .map(f => codeOnly(R('public/js/' + f))).join('\n') + codeOnly(R('server.js'))));
 
   }
 
@@ -764,7 +767,6 @@ section('[B] 実機で見つかった不具合');
       ['担当者・応募者のチップ',   files['views/mainBoard.js'],     /size: 20, userId: uid/],
       ['選定モーダルの応募者',     files['modals/mission.js'],      /size: 36, userId: uid/],
       ['承認待ちメンバー',         files['main.js'],                /size: 36, userId: m\.userId/],
-      ['リーダーチェックの提出者', files['main.js'],                /size: 24, userId: cd\.submittedBy/],
     ];
     const noProfile = spots.filter(([, src, re]) => !re.test(src)).map(([n]) => n);
     ok('★人のアイコンはタップでプロフィールが開く（userId を渡している）',
@@ -778,10 +780,6 @@ section('[B] 実機で見つかった不具合');
     // ★承認待ちカードの HTML は2箇所で組み立てる。アバターも共通ヘルパに集約すること
     ok('★承認待ちのアバターが2箇所とも共通ヘルパを通る',
       (files['main.js'].match(/\$\{_pendingAvatarHtml\(m\)\}/g) || []).length === 2);
-
-    // ★リーダーチェックは「誰の提出か」を出す（以前は分からないまま判断させていた）
-    ok('★リーダーチェックに提出者を出している',
-      /c-list-sheet__submitter/.test(files['main.js']) && /cd\?\.submittedBy/.test(files['main.js']));
 
     // ★担当者シートの通常行にもアバターを出す（おすすめの行だけではない）
     ok('★担当者シートのメンバー行にアバターがある',

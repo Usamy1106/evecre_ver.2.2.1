@@ -32,7 +32,7 @@ function _md(ymd) {
 export function buildScheduleText(p) {
   const byDate = new Map();
   for (const m of (p?.missions || [])) {
-    if (m.status === 'cleared' || m.status === 'pending_leader_check') continue;
+    if (m.status === 'cleared') continue;
     const dates = Array.isArray(m.dates) ? [...m.dates].filter(Boolean).sort() : [];
     const due = dates.at(-1);
     if (!due) continue;                       // 締め切り未設定は出さない

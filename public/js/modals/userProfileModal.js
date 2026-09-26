@@ -119,7 +119,7 @@ export function openUserProfileModal(userId) {
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   // スタイル: public/css/object/project/_user-profile.css
-  // ★--profile を外さないこと。シート（担当者・承認待ち・リーダーチェック）の
+  // ★--profile を外さないこと。シート（担当者・承認待ち）の
   //   中のアバターから開くので、既定の z-index だと裏に隠れて見えない。
   overlay.className = 'c-overlay c-overlay--center c-overlay--profile';
   overlay.innerHTML = `

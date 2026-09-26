@@ -333,16 +333,6 @@ export const api = {
     return json || { ok: false };
   },
 
-  // ----- リーダーチェック承認 / 差し戻し -----
-  async approveMission(eventId, missionId) {
-    const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/approve`);
-    return json || { ok: false };
-  },
-  async rejectMission(eventId, missionId) {
-    const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/reject`);
-    return json || { ok: false };
-  },
-
   // ----- 通知 -----
   async listNotifications() {
     const { json } = await _send('GET', '/api/notifications');

@@ -1002,7 +1002,7 @@ async function _sendMemberAppliedPush(managerIds, eventId, eventName, applicantN
 // 自動・完了フロー・専用通知のある項目は除外して、変更通知の誤発火を防ぐ。
 const _MISSION_CONTENT_FIELDS = [
   'title', 'description', 'dates', 'tag', 'tags', 'priority', 'checklist',
-  'selfClaim', 'leaderCheck', 'claimMode', 'claimDeadline',
+  'selfClaim', 'claimMode', 'claimDeadline',
   'noInput', 'individualClear', 'announce', 'announceText',
 ];
 function _missionContentChanged(prev, m) {
@@ -2432,22 +2432,6 @@ async function _saveIncomingEvents(req, incoming, current, now) {
         });
       }
 
-      // (C) リーダー確認待ち
-      if (prevStatus !== 'pending_leader_check' && newStatus === 'pending_leader_check') {
-        const managerIds = _getManagerIds(existing).filter(uid => uid !== req.user.id);
-        notifications.push({
-          userIds: managerIds,
-          notif: {
-            type:      'pending_leader_check',
-            message:   `${req.user.username} さんが「${m.title}」を提出しました。確認をお願いします`,
-            eventId: incomingP.id,
-            missionId: m.id,
-            actorId:   req.user.id,
-            actorName: req.user.username,
-          },
-        });
-      }
-
       // (E) アーカイブから未完了に戻された（cleared → cleared 以外）→ 全メンバー（実行者除く）
       if (prevStatus === 'cleared' && newStatus !== 'cleared') {
         notifications.push({
@@ -3067,113 +3051,6 @@ app.post('/api/events/:id/missions/:mid/select-claims', requireAuth, async (req,
   }
 });
 
-// ===== リーダーチェック =====
-
-app.post('/api/events/:id/missions/:mid/approve', requireAuth, async (req, res) => {
-  try {
-    const p = await eventStore.loadEvent(req.params.id);
-    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
-    if (!eventStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: '管理者権限がありません' });
-
-    const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
-    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
-    if (m.status !== 'pending_leader_check') return res.status(400).json({ ok: false, error: '確認待ち状態ではありません' });
-
-    _setMissionField(p, req.params.mid, 'status', 'cleared');
-    await eventStore.saveEvent(p);
-    eventBus.broadcast(p.id, 'missionApproved', { eventId: p.id, missionId: req.params.mid });
-    logServerEvent(p.id, req.user.id, 'leader_approved', { missionId: req.params.mid, title: m.title });
-
-    // ★担当者は単数 assignee と複数 assignees の両方を見る（_resolveAssigneeIds）。
-    //   実データは配列側なので、単数だけ見ていると複数担当のミッションで
-    //   提出した本人に何も届かなかった。
-    const submitterIds = _resolveAssigneeIds(m).filter(uid => uid !== req.user.id);
-    if (submitterIds.length > 0) {
-      await notifStore.notifyAll(submitterIds, {
-        type:      'leader_approved',
-        message:   `${req.user.username} さんが「${m.title}」を承認しました`,
-        eventId: p.id, missionId: req.params.mid,
-        actorId:   req.user.id, actorName: req.user.username,
-      });
-    }
-
-    // ── push（宛先で文面を分ける。同じ人に2通は送らない）──
-    // ★提出した本人にとっては「自分の提出が通った」ことが要件なので、
-    //   管理者向けの「〜が完了しました」ではなく承認された旨を送る。
-    //   担当者が管理者を兼ねている場合は、こちらの個人宛だけを送る。
-    if (submitterIds.length > 0) {
-      _sendMissionPush(
-        submitterIds,
-        p.id, req.params.mid,
-        '提出が承認されました',
-        `「${m.title}」が承認されました！`,
-      );
-    }
-    // 承認＝完了確定なので、他の完了経路と同じく管理者へも push（承認した本人は除く）
-    const doneTargets = _getManagerIds(p)
-      .filter(uid => uid !== req.user.id && !submitterIds.includes(uid));
-    if (doneTargets.length > 0) {
-      _sendMissionPush(
-        doneTargets,
-        p.id, req.params.mid,
-        'ミッションが完了しました',
-        `「${m.title}」が完了しました！`,
-      );
-    }
-    res.json({ ok: true });
-  } catch (e) {
-    console.error('approve error:', e);
-    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
-  }
-});
-
-app.post('/api/events/:id/missions/:mid/reject', requireAuth, async (req, res) => {
-  try {
-    const p = await eventStore.loadEvent(req.params.id);
-    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
-    if (!eventStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: '管理者権限がありません' });
-
-    const m = _missionToFlat(p.missions?.[req.params.mid], req.params.mid);
-    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
-    if (m.status !== 'pending_leader_check') return res.status(400).json({ ok: false, error: '確認待ち状態ではありません' });
-
-    _setMissionField(p, req.params.mid, 'status', 'yet');
-    await eventStore.saveEvent(p);
-    // 提出物を削除（submissions コレクションで管理）
-    await submissionStore.deleteSubmission(req.params.id, req.params.mid);
-    eventBus.broadcast(p.id, 'missionRejected', { eventId: p.id, missionId: req.params.mid });
-    logServerEvent(p.id, req.user.id, 'leader_rejected', { missionId: req.params.mid, title: m.title });
-
-    // ★担当者は単数 assignee と複数 assignees の両方を見る（_resolveAssigneeIds）。
-    //   実データは配列側なので、単数だけ見ていると複数担当のミッションで
-    //   提出した本人に何も届かなかった（承認側と同じ取りこぼし）。
-    const submitterIds = _resolveAssigneeIds(m).filter(uid => uid !== req.user.id);
-    if (submitterIds.length > 0) {
-      await notifStore.notifyAll(submitterIds, {
-        type:      'leader_rejected',
-        message:   `${req.user.username} さんが「${m.title}」を差し戻しました。再度提出してください`,
-        eventId: p.id, missionId: req.params.mid,
-        actorId:   req.user.id, actorName: req.user.username,
-      });
-
-      // ★差し戻しは**提出した本人にだけ**送る。承認と違って管理者には送らない
-      //   （差し戻したのは管理者自身で、他の管理者の端末を鳴らす必要が無い）。
-      //   ★提出物はこの時点で削除済み。本人が気づかないと作業が止まるので、
-      //     承認だけ push があって差し戻しに無い状態にはしないこと。
-      _sendMissionPush(
-        submitterIds,
-        p.id, req.params.mid,
-        '提出が差し戻されました',
-        `「${m.title}」を修正して、もう一度提出してください`,
-      );
-    }
-    res.json({ ok: true });
-  } catch (e) {
-    console.error('reject error:', e);
-    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
-  }
-});
-
 // ミッション完了（メンバー可）
 // PUT /api/data は canManage 必須のため、一般メンバーが完了しても永続化されず
 // 再読み込みで未完了に戻る不具合があった。完了はメンバーの正当な操作なので専用化する。
@@ -3439,7 +3316,6 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     }
 
     let becameCleared        = false;
-    let becamePendingCheck   = false;
 
     if (m.individualClear) {
       // 個別完了：individualClearedBy に自分を追加し、composite key で提出を保存
@@ -3459,15 +3335,12 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         : (m.assignee?.type === 'user' ? [m.assignee.userId] : []);
       const allDone = assigneeIds.length > 0 && assigneeIds.every(id => clearedBy.includes(id));
       if (allDone) {
-        const next = m.leaderCheck ? 'pending_leader_check' : 'cleared';
-        _setMissionField(p, mid, 'status', next, now);
-        becameCleared      = next === 'cleared';
-        becamePendingCheck = next === 'pending_leader_check';
+        _setMissionField(p, mid, 'status', 'cleared', now);
+        becameCleared = true;
       }
     } else {
-      const next = m.leaderCheck ? 'pending_leader_check' : 'cleared';
       _setMissionField(p, mid, 'clearFormat', format, now);
-      _setMissionField(p, mid, 'status', next, now);
+      _setMissionField(p, mid, 'status', 'cleared', now);
       await submissionStore.saveSubmission(p.id, mid, {
         content, format, images, files, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
@@ -3475,8 +3348,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       // ★初期タスク def-3（どのようなイベントを行うか整理しよう）を完了しても、概要（description）には
       //   書き写さない（2026-09-26。アーカイブの概要はタスクから切り離した）。以前はここで写していた。
       //   AI の提案は proposals/generate が def-3 の提出内容を別の行で読むので、精度は落ちない。
-      becameCleared      = next === 'cleared';
-      becamePendingCheck = next === 'pending_leader_check';
+      becameCleared = true;
     }
 
     await eventStore.saveEvent(p);
@@ -3487,7 +3359,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       eventId: p.id, rev: p.rev, event: flat,
     }, req.get('X-Client-Id') || null);
 
-    // 通知（PUT /api/data の (B)(C) と同じ条件）
+    // 通知（PUT /api/data の (B) と同じ条件）
     if (becameCleared) {
       await notifStore.notifyAll(
         (p.members || []).map(x => x.userId).filter(uid => uid !== userId),
@@ -3505,17 +3377,6 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         `${req.user.username}さんが「${m.title}」を完了しました！`,
       );
     }
-    if (becamePendingCheck) {
-      await notifStore.notifyAll(
-        _getManagerIds(p).filter(uid => uid !== userId),
-        {
-          type: 'pending_leader_check',
-          message: `${req.user.username} さんが「${m.title}」を提出しました。確認をお願いします`,
-          eventId: p.id, missionId: mid,
-          actorId: userId, actorName: req.user.username,
-        });
-    }
-
     // ★引いたオブジェクトを返す。クライアントは完了トーストの文言に使う
     //   （アップグレードが起きたことが伝わらないと動機づけにならない）。
     res.json({ ok: true, mission: _missionToFlat(p.missions[mid], mid), object: rolled });
