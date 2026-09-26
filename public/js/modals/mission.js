@@ -207,7 +207,7 @@ export function deleteMission(e) {
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
       <h3 class="c-modal__title">タスクを削除しますか</h3>
-      <p class="c-modal__text c-modal__text--strong">一度削除すると元に戻せません。</p>
+      <p class="c-modal__text c-modal__text--strong">提出内容や振り返りも一緒に削除され、元に戻せません。</p>
       <div class="c-modal__actions">
         <button data-action="cancel" class="c-button c-button--secondary c-modal__button">戻る</button>
         <button data-action="confirm"
@@ -714,7 +714,7 @@ function _openMissionDeleteConfirm(missionId) {
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
       <h3 class="c-modal__title">タスクを削除しますか</h3>
-      <p class="c-modal__text c-modal__text--strong">一度削除すると元に戻せません。</p>
+      <p class="c-modal__text c-modal__text--strong">提出内容や振り返りも一緒に削除され、元に戻せません。</p>
       <div class="c-modal__actions">
         <button id="mdel-cancel" class="c-button c-button--secondary c-modal__button">戻る</button>
         <button id="mdel-confirm"

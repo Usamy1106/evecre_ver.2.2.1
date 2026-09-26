@@ -526,6 +526,22 @@ section('[B] 実機で見つかった不具合');
 
   }
 
+  // ★未完了に戻した・タスクを削除したとき、提出物と R2 のファイルをサーバーが消す（2026-09-26）。
+  //   以前はクライアントの手元から消すだけで、再読み込みで古い提出内容が戻り、ファイルも残っていた。
+  {
+    const sv = codeOnly(R('server.js'));
+    const loop = sv.slice(sv.indexOf('async function _saveIncomingEvents'), sv.indexOf("app.put('/api/data'"));
+    ok('★保存の差分で、戻した・削除したタスクの提出物を消している',
+      /_submissionKeysToPurge\(/.test(loop) && /_purgeSubmissions\(/.test(loop));
+    ok('★消すのはタスクの保存（applyPatch）が通ってから',
+      loop.indexOf('eventStore.applyPatch(') < loop.indexOf('await _purgeSubmissions('));
+    ok('★消すキーは clearedData から外してから書く（同じ保存で生き返らせない）',
+      loop.indexOf('delete patchFlat.clearedData[k]') > -1
+        && loop.indexOf('delete patchFlat.clearedData[k]') < loop.indexOf('await _extractClearedData('));
+    const purge = sv.slice(sv.indexOf('async function _purgeSubmissions'), sv.indexOf('function _submissionKeysToPurge'));
+    ok('★R2 から消すのはそのイベントの submissions/ の下だけ', /startsWith\(`submissions\/\$\{eventId\}\/`\)/.test(purge));
+  }
+
   // ★意気込みカードのトグルは、保存の往復を待たずにその場で見た目を切り替えること。
   //   以前は `await state.saveNow()` してから state.render() していたため、通信が
   //   終わるまでタップしても何も起きず、毎回ページ全体を描き直してスクロールも

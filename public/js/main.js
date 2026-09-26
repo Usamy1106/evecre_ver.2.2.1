@@ -380,7 +380,7 @@ window._app = {
 
   revertMissionToIncomplete: async (missionId) => {
     const ok = await showConfirmDialog({
-      message: 'このタスクを未完了に戻しますか？\n完了記録は削除されます。',
+      message: 'このタスクを未完了に戻しますか？\n提出内容（画像・PDF を含む）と振り返りも削除され、元に戻せません。',
       confirmLabel: '未完了に戻す',
       cancelLabel: 'キャンセル',
     });
@@ -402,7 +402,7 @@ window._app = {
 
   deleteMissionFromArchive: async (missionId) => {
     const ok = await showConfirmDialog({
-      message: 'このタスクを完全に削除しますか？\nこの操作は元に戻せません。',
+      message: 'このタスクを完全に削除しますか？\n提出内容（画像・PDF を含む）と振り返りも削除され、元に戻せません。',
       confirmLabel: '削除する',
       cancelLabel: 'キャンセル',
       destructive: true,

@@ -1091,6 +1091,53 @@ async function _extractClearedData(projectId, flat) {
  * @param {string} projectId
  * @param {object} flatProject  crdtToFlat() の結果（変更あり）
  */
+/**
+ * 提出物と、それが R2 に置いているファイルを消す（未完了に戻した・タスクを削除したとき）。
+ * ★消すのは記録が先、ファイルは fire-and-forget（R2 の失敗で保存を止めない）。
+ * ★消すファイルは `submissions/<eventId>/` の下だけ（ほかのイベントの物を消さない）。
+ * @param {Object} subs  getSubmissionsForProject の結果（呼び出し側で読んだもの）
+ * @param {string[]} keys  消す clearedData のキー
+ */
+async function _purgeSubmissions(eventId, subs, keys) {
+  const targets = keys.filter(k => subs[k]);
+  if (targets.length === 0) return;
+  await submissionStore.deleteSubmissions(eventId, targets);
+  for (const k of targets) {
+    for (const url of submissionStore.storedUrlsOf(subs[k])) {
+      const key = r2.urlToKey(url);
+      if (key && key.startsWith(`submissions/${eventId}/`)) {
+        r2.deleteObject(key).catch(e => console.warn('[r2] purged submission delete warn:', e.message));
+      }
+    }
+  }
+}
+
+/**
+ * 保存の差分から「提出物を消すべきキー」を集める。
+ *   - 完了 → 未完了に戻した：そのタスクの提出物
+ *   - 個別完了の完了者から外れた人：`<mid>_u_<userId>`
+ *   - タスクを削除した：そのタスクの提出物と、個別完了の全員分
+ * ★判定はサーバーの差分で行う（クライアントが clearedData を消したかどうかは見ない）。
+ *   以前はクライアントの手元から消すだけで、再読み込みすると古い提出内容が戻ってきていた。
+ */
+function _submissionKeysToPurge(prevMissionsMap, incomingMissions, missionDeletions, subs) {
+  const keys = new Set();
+  for (const m of incomingMissions || []) {
+    const prev = prevMissionsMap[m.id];
+    if (!prev) continue;
+    if (prev.status === 'cleared' && (m.status || 'yet') !== 'cleared') keys.add(m.id);
+    if (Array.isArray(prev.individualClearedBy) && Array.isArray(m.individualClearedBy)) {
+      const now = new Set(m.individualClearedBy);
+      for (const uid of prev.individualClearedBy) if (!now.has(uid)) keys.add(`${m.id}_u_${uid}`);
+    }
+  }
+  for (const mid of missionDeletions || []) {
+    keys.add(mid);
+    for (const k of Object.keys(subs)) if (k.startsWith(`${mid}_u_`)) keys.add(k);
+  }
+  return [...keys];
+}
+
 async function _mergeSubmissions(projectId, flatProject) {
   const submissions = await submissionStore.getSubmissionsForProject(projectId);
   flatProject.clearedData = submissions;
@@ -2509,8 +2556,24 @@ async function _saveIncomingEvents(req, incoming, current, now) {
     const missionDeletions   = existingMissionIds.filter(id  => !incomingMissionIds.has(id)  && !existing.missions[id].deletedAt);
     const proposalDeletions  = existingProposalIds.filter(id => !incomingProposalIds.has(id) && !existing.proposals[id].deletedAt);
 
+    // 未完了に戻した・完了者から外した・削除したタスクの提出物（R2 のファイルごと消す）
+    let purgeSubs = null, purgeKeys = [];
+    if (missionDeletions.length > 0 || (incomingP.missions || []).some(m => {
+      const prev = prevMissionsMap[m.id];
+      return prev && ((prev.status === 'cleared' && (m.status || 'yet') !== 'cleared')
+        || (Array.isArray(prev.individualClearedBy) && prev.individualClearedBy.length > 0));
+    })) {
+      purgeSubs = await submissionStore.getSubmissionsForProject(incomingP.id);
+      purgeKeys = _submissionKeysToPurge(prevMissionsMap, incomingP.missions, missionDeletions, purgeSubs);
+    }
+
     // clearedData を submissions コレクションに分離
     const patchFlat = { ...incomingP };
+    // ★消すキーは clearedData から外してから書く（同じ保存で書き戻して生き返らせない）
+    if (purgeKeys.length > 0 && patchFlat.clearedData && typeof patchFlat.clearedData === 'object') {
+      patchFlat.clearedData = { ...patchFlat.clearedData };
+      for (const k of purgeKeys) delete patchFlat.clearedData[k];
+    }
     _sanitizeEventFields(incomingP.id, patchFlat, existing.fields?.headerImage?.v || null);
     await _guardPublicKnowledge(incomingP.id, patchFlat, existing);
     await _extractClearedData(incomingP.id, patchFlat);
@@ -2518,6 +2581,8 @@ async function _saveIncomingEvents(req, incoming, current, now) {
     const merged = await eventStore.applyPatch(incomingP.id, patchFlat, {
       timestamp: now, missionDeletions, proposalDeletions,
     });
+    // ★消すのはタスクの保存が通ってから（保存に失敗したのに提出物だけ消えた、を起こさない）
+    if (purgeKeys.length > 0) await _purgeSubmissions(incomingP.id, purgeSubs, purgeKeys);
 
     const broadcastFlat = crdt.crdtToFlat(merged);
     await _mergeSubmissions(incomingP.id, broadcastFlat);
@@ -3316,6 +3381,10 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     }
 
     let becameCleared        = false;
+    // ★前の提出物が残っていたら、新しい提出に含まれないファイルを R2 から消す
+    //   （saveSubmission は記録を丸ごと差し替えるので、消さないとファイルだけが残る）
+    const subKey = m.individualClear ? `${mid}_u_${userId}` : mid;
+    const prevSub = await submissionStore.getSubmission(p.id, subKey);
 
     if (m.individualClear) {
       // 個別完了：individualClearedBy に自分を追加し、composite key で提出を保存
@@ -3352,6 +3421,17 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     }
 
     await eventStore.saveEvent(p);
+
+    if (prevSub) {
+      const keep = new Set(submissionStore.storedUrlsOf({ content, format, images, files }));
+      for (const url of submissionStore.storedUrlsOf(prevSub)) {
+        if (keep.has(url)) continue;
+        const k = r2.urlToKey(url);
+        if (k && k.startsWith(`submissions/${p.id}/`)) {
+          r2.deleteObject(k).catch(e => console.warn('[r2] replaced submission delete warn:', e.message));
+        }
+      }
+    }
 
     const flat = crdt.crdtToFlat(p);
     await _mergeSubmissions(p.id, flat);
