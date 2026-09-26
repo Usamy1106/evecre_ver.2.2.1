@@ -11,7 +11,7 @@
 import { state } from '../state.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
 import { isNewcomer } from '../onboarding.js';
-import { isAfterEventDates } from '../utils.js';
+import { isAfterEventDates, submissionText } from '../utils.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FALLBACK_TARGET_DAYS = 30; // 開催日未設定時の基準日数
@@ -113,7 +113,8 @@ export function checkPurposeReminderModal() {
 }
 
 function _openModal(p) {
-  const purposeContent = (p.clearedData?.['def-1']?.content || '').trim();
+  // ★本文の中の画像の印（{{image:N}}）は submissionText が外す
+  const purposeContent = submissionText(p.clearedData?.['def-1']);
   const hasPurpose = !!purposeContent;
 
   const overlay = document.createElement('div');

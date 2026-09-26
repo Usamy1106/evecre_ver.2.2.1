@@ -621,7 +621,9 @@ section('[B] 実機で見つかった不具合');
     ok('★タグ別の例文の選び方が utils.js に1本化されている',
       /export function placeholderFor\(table, mission\)/.test(ut) &&
       !/function _placeholderFor/.test(codeOnly(md)) &&
-      /import \{ placeholderFor \}/.test(md) && /import \{ placeholderFor \}/.test(mr));
+      // ★同じ import に他の名前が並んでもよい（utils.js から placeholderFor を取っていれば足りる）
+      /import \{[^}]*\bplaceholderFor\b[^}]*\} from '\.\.\/utils\.js'/.test(md) &&
+      /import \{[^}]*\bplaceholderFor\b[^}]*\} from '\.\.\/utils\.js'/.test(mr));
     // ★tag（単数）と tags（配列）は両方実在する。片方だけ見ると取りこぼす
     ok('★tag と tags の両方を集合にしてから数えている',
       /Array\.isArray\(mission\?\.tags\) \? mission\.tags : \[\]/.test(codeOnly(ut)) &&
@@ -915,7 +917,7 @@ for (const [f, hooks] of HOOKS) {
 
 // 同じ id が別ファイルで使われていないか（白画面バグの原因になった）。
 // 意図して共有しているものだけ除外する。
-const SHARED_OK = new Set(['clear-mission-modal', 'clear-input', 'img-chip', 'preview-img',
+const SHARED_OK = new Set(['clear-mission-modal', 'clear-input',
   'file-input', 'clear-checklist-error']);
 const idOwners = new Map();
 for (const f of JS_ALL) {

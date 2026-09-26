@@ -213,10 +213,20 @@ export const api = {
   // ----- タスク完了（メンバー可・サーバーで永続化）-----
   // struggle / solution / shareable は振り返り（任意）。サーバーが 200 字で切り、
   // submissions コレクションに保存する（★CRDT 対象外）。
+  // images は uploadSubmissionImage で先に送った R2 の URL の配列（本文と同時に持てる）。
   async completeMission(eventId, missionId,
-    { content = '', format = 'text', struggle = '', solution = '', shareable = false } = {}) {
+    { content = '', format = 'text', images = [], struggle = '', solution = '', shareable = false } = {}) {
     const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/complete`,
-      { content, format, struggle, solution, shareable });
+      { content, format, images, struggle, solution, shareable });
+    return json || { ok: false };
+  },
+
+  // 提出画像を1枚アップロードし、{ ok, url } を返す。
+  // ★1枚ずつ、順番に呼ぶこと（並列にしない。サーバーは 512MB / 0.5CPU）。
+  // ★タイムアウトは既定の8秒では足りない（2MB を細い回線で送る）。POST なので再試行はされない。
+  async uploadSubmissionImage(eventId, dataUrl) {
+    const { json } = await _send('POST', `/api/events/${eventId}/submission-images`,
+      { dataUrl }, { timeout: 60000 });
     return json || { ok: false };
   },
 

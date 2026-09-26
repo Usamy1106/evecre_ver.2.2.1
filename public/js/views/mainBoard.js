@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 
@@ -1239,23 +1239,24 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
   const tagNames    = (Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : [sectionTag]));
   const completedAt = cd?.timestamp ? _fmtDate(cd.timestamp) : '';
 
-  let contentHtml = '';
-  if (cd?.content) {
-    if (cd.format === 'image') {
-      contentHtml = `<img src="${_esc(cd.content)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
-    } else if (cd.format === 'link') {
-      contentHtml = `
+  // ★画像は本文の途中にも入る。読み分けは utils.js の submissionSegments
+  //   （旧形式 format:'image' の後方互換もそちら）。
+  const contentHtml = submissionSegments(cd).map(seg => {
+    if (seg.type === 'image') {
+      return `<img src="${_esc(seg.url)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
+    }
+    if (cd.format === 'link') {
+      return `
         <div class="p-archive__content-link">
           <svg class="p-archive__content-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
-          <span class="p-archive__content-link-text">${_esc(cd.content)}</span>
+          <span class="p-archive__content-link-text">${_esc(seg.text)}</span>
         </div>`;
-    } else {
-      contentHtml = `<p class="p-archive__content-text">${_esc(cd.content)}</p>`;
     }
-  }
+    return `<p class="p-archive__content-text">${_esc(seg.text)}</p>`;
+  }).join('');
 
   const clearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
   const totalAssignees = Array.isArray(m.assignees) && m.assignees.length > 0
@@ -1393,9 +1394,9 @@ function _renderNotificationsTab(p) {
             ${cleared ? `
               <div class="p-notification__detail">
                 <p class="p-notification__detail-label">提出内容</p>
-                ${cleared.format === 'image'
-                  ? `<img src="${_esc(cleared.content)}" class="p-notification__detail-image" alt="提出画像" data-fallback="submission">`
-                  : `<p class="p-notification__detail-content">${_esc(cleared.content)}</p>`}
+                ${submissionText(cleared) ? `<p class="p-notification__detail-content">${_esc(submissionText(cleared))}</p>` : ''}
+                ${submissionImages(cleared).map(url =>
+                  `<img src="${_esc(url)}" class="p-notification__detail-image" alt="提出画像" data-fallback="submission">`).join('')}
               </div>` : ''}
             <div class="p-notification__actions">
               <button type="button" onclick="window._app.rejectMission('${m.id}')"

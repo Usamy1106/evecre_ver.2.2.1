@@ -156,6 +156,12 @@
   object-fit: cover;
 }
 
+/* 本文のあと・画像どうしの間（本文と画像は同時にありうる） */
+.p-notification__detail-content + .p-notification__detail-image,
+.p-notification__detail-image + .p-notification__detail-image {
+  margin-top: var(--space-2);
+}
+
 .p-notification__detail-content {
   padding: var(--space-2);
   border-radius: var(--radius-sm);

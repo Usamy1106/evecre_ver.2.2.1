@@ -5,6 +5,10 @@ import { logEvent } from '../logger.js';
 import { openCalendarModal } from './calendar.js';
 import { getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue } from '../utils.js';
 import { REFLECT_SKIP_MISSION_IDS } from '../constants.js';
+import {
+  editorEl, readEditor, setEditorText, bindClearEditor, insertImageFiles,
+  itemsForKeys, resetEditorImages,
+} from '../clearEditor.js';
 
 // ===== アーカイブ直接編集 =====
 
@@ -192,24 +196,18 @@ export function openEditModal(title, currentVal, format, onSave) {
 
 export function initClearDraft(missionId, container) {
   const draft = _clearDraft.load(missionId);
-  const inputEl = document.getElementById('clear-input');
+  const inputEl = editorEl();
+  // ★編集欄は描き直しをまたいで同じノードが戻ってくる（missionDetail.js）。
+  //   配線済みなら中身は書きかけのまま＝下書きで上書きしない。
+  const fresh = inputEl && !inputEl._bound;
   if (draft) {
     // テキスト復元
-    if (inputEl && draft.content && !draft.content.startsWith('data:image')) {
-      inputEl.value = draft.content;
+    // ★下書きに残すのは文章とチェックだけ。画像は入れない（複数枚の dataURL は
+    //   localStorage の約5MBをすぐにあふれる）。旧形式の下書きに残っている画像は読まない。
+    if (fresh && draft.content && !draft.content.startsWith('data:image')) {
+      setEditorText(inputEl, draft.content);
     }
-    // 画像復元（imageData フィールド優先、旧フォーマット content も対応）
-    const imgData = draft.imageData || (draft.content?.startsWith('data:image') ? draft.content : null);
-    if (imgData) {
-      const chip    = document.getElementById('img-chip');
-      const preview = document.getElementById('preview-img');
-      if (chip && preview) {
-        preview.src = imgData;
-        preview.dataset.base64 = imgData;
-        chip.classList.remove('u-hidden');
-      }
-    }
-    // チェックボックス復元
+    // チェックボックス復元（チェックボックスは描き直しのたびに新しいノード）
     if (Array.isArray(draft.checked)) {
       document.querySelectorAll('[data-clear-checklist]').forEach(cb => {
         const idx = parseInt(cb.dataset.clearChecklist, 10);
@@ -219,31 +217,18 @@ export function initClearDraft(missionId, container) {
   }
 
   // === ドラフト自動保存 ===
+  // ★文章だけ。画像の印（{{image:N}}）は外す（画像は下書きに入らないので、印だけ残ると宙に浮く）
   const snapshot = () => {
-    const content   = document.getElementById('clear-input')?.value || '';
-    const imageData = document.getElementById('preview-img')?.dataset?.base64 || '';
-    const checked   = Array.from(document.querySelectorAll('[data-clear-checklist]')).map(cb => !!cb.checked);
-    _clearDraft.save(missionId, { content, imageData, checked });
+    const el      = editorEl();
+    const content = el ? readEditor(el).text.replace(/\{\{image:\d+\}\}/g, '') : '';
+    const checked = Array.from(document.querySelectorAll('[data-clear-checklist]')).map(cb => !!cb.checked);
+    _clearDraft.save(missionId, { content, checked });
   };
-  inputEl?.addEventListener('input', snapshot);
+  bindClearEditor(inputEl, { onChange: snapshot });
   document.querySelectorAll('[data-clear-checklist]').forEach(cb => {
     cb.addEventListener('change', snapshot);
   });
   if (container) container._snapshot = snapshot;
-}
-
-/**
- * 画像チップをクリアする（×ボタンから呼ばれる）
- */
-export function clearImagePreview() {
-  document.getElementById('img-chip')?.classList.add('u-hidden');
-  const preview = document.getElementById('preview-img');
-  if (preview) { preview.src = ''; preview.dataset.base64 = ''; }
-  const fi = document.getElementById('file-input');
-  if (fi) fi.value = '';
-  // スナップショット更新
-  const overlay = document.getElementById('clear-mission-modal');
-  overlay?._snapshot?.();
 }
 
 /**
@@ -268,28 +253,56 @@ export async function submitMissionClear(missionId) {
     if (errorEl) errorEl.classList.add('u-hidden');
   }
 
-  // ── フォーマット自動判別 ──────────────────────────────────
-  // 優先順: 画像 > URL（https?://で始まる） > テキスト
-  const previewEl  = document.getElementById('preview-img');
-  const inputEl    = document.getElementById('clear-input');
-  const imageData  = previewEl?.dataset?.base64 || '';
-  const textValue  = (inputEl?.value || '').trim();
+  // ── 本文と画像 ───────────────────────────────────────────
+  // ★本文の中に画像の位置（{{image:N}}）が入る（clearEditor.js の readEditor）。
+  //   format は本文の種類（URL だけ → link、それ以外 → text）。
+  //   画像だけのときは本文を空で送り 'image'（サーバーが旧形式の content にも1枚目を入れる）。
+  const read       = readEditor(editorEl());
+  const images     = itemsForKeys(read.keys);
+  const textValue  = read.plain ? read.text : '';
 
-  let content = '';
-  let detectedFormat = 'text';
+  const detectedFormat = (images.length > 0 && !read.plain) ? 'image'
+    : (images.length === 0 && /^https?:\/\/\S+$/i.test(read.plain)) ? 'link'
+    : 'text';
 
-  if (imageData) {
-    content         = imageData;
-    detectedFormat  = 'image';
-  } else if (/^https?:\/\//i.test(textValue)) {
-    content         = textValue;
-    detectedFormat  = 'link';
-  } else {
-    content         = textValue;
-    detectedFormat  = 'text';
+  if (!read.plain && images.length === 0 && !m.noInput) {
+    window._app?.showToast('入力を完了させてください', 'error');
+    return;
   }
 
-  if (!content && !m.noInput) { window._app?.showToast('入力を完了させてください', 'error'); return; }
+  // ── 画像を1枚ずつ送る ───────────────────────────────────
+  // ★Promise.all で並列に送らないこと（サーバーは 512MB / 0.5CPU。dataURL の展開が重なると詰まる）。
+  // ★1枚でも失敗したら完了しない。何枚目が失敗したかを伝える（黙って一部だけ保存しない）。
+  //   送れた分は url を覚えておき、もう一度押したときは残りだけを送る。
+  if (_clearSubmitting) return;
+  _clearSubmitting = true;
+  const buttons = [...document.querySelectorAll('[data-clear-submit]')];
+  const labels  = buttons.map(b => b.textContent);
+  const setBusy = (text) => buttons.forEach(b => { b.disabled = !!text; if (text) b.textContent = text; });
+  const restore = () => { buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; }); _clearSubmitting = false; };
+
+  try {
+    for (let i = 0; i < images.length; i++) {
+      const it = images[i];
+      if (it.url) continue;
+      setBusy(`画像を送信中… ${i + 1}/${images.length}`);
+      const up = await api.uploadSubmissionImage(project.id, it.dataUrl);
+      if (!up?.ok || !up.url) {
+        const why = up?.code === 'network' ? '通信状況を確認して、'
+          : up?.error === 'image_too_large' ? '画像が大きすぎます。別の画像にするか、'
+          : '';
+        window._app?.showToast(`${i + 1}枚目の画像を送れませんでした。${why}もう一度「完了する」を押してください`, 'error');
+        logEvent('submission_image_failed', { missionId, index: i, count: images.length, error: up?.code || up?.error || null });
+        restore();
+        return;
+      }
+      it.url = up.url;
+    }
+    setBusy('送信中…');
+  } catch (e) {
+    restore();
+    throw e;
+  }
 
   // ── サーバーで永続化 ─────────────────────────────────────
   // PUT /api/data は canManage 必須のため、一般メンバーの完了が保存されず
@@ -299,17 +312,21 @@ export async function submitMissionClear(missionId) {
   //   完了ボタンまでの道のりを軽くし、達成感がいちばん高い直後に聞くため。
   //   ★ここで struggle / solution を送らないこと。送ると空文字で上書きされる。
   const r = await api.completeMission(project.id, missionId, {
-    content, format: detectedFormat,
+    content: textValue, format: detectedFormat, images: images.map(it => it.url),
   });
+  restore();
   if (!r.ok) {
     window._app?.showToast(r.error || '完了の保存に失敗しました', 'error');
     return;
   }
+  // 送信済み → 選んだ画像を捨てる
+  resetEditorImages();
 
   logEvent('mission_completed', {
     missionId,
     tag:      m.tag || (Array.isArray(m.tags) ? m.tags[0] : null),
     format:   detectedFormat,
+    imageCount: images.length,
     priority: m.priority,
     // ★振り返りは完了後のページで書く。書かれたかどうかは reflect_saved で数える
   });
@@ -395,80 +412,22 @@ async function _announceMountainObject(rolled) {
   } catch (_) { /* 演出なので、失敗しても完了自体は成立している */ }
 }
 
+// ★縮小と 2MB 上限は clearEditor.js（_resizeImageDataUrl / SUBMISSION_MAX_BYTES）に移した
+
+// 完了の送信中か（二重送信を防ぐ）
+let _clearSubmitting = false;
+
 /**
- * 画像ファイル選択を処理する
+ * 画像ボタンで選んだとき（複数選択可）。カーソルがあった位置へ入れる。
+ * ★縮小・2MB 上限・枚数の上限は clearEditor.js の insertImageFiles が1枚ごとに通す。
  * @param {HTMLInputElement} input
  */
-// 提出物画像の上限。server.js の SUBMISSION_MAX_BYTES と揃えること（2MB）。
-const SUBMISSION_MAX_BYTES = 2 * 1024 * 1024;
-const RESIZE_MAX_EDGE      = 1600;  // 長辺の上限(px)
-const RESIZE_QUALITY       = 0.8;   // JPEG 品質
-
-/**
- * dataURL を canvas で縮小する。スマホの写真は 3〜8MB あり、そのままでは
- * サーバの上限（2MB）に引っかかるため送信前に必ず通す。
- * 既に上限内かつ小さい画像は再エンコードせず元のまま返す（無駄な劣化を避ける）。
- * @param {string} dataUrl
- * @returns {Promise<string>} 縮小後の dataURL（失敗時は元の dataURL）
- */
-function _resizeImageDataUrl(dataUrl) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const longEdge = Math.max(img.width, img.height);
-        // 十分小さく、かつ上限内ならそのまま使う
-        if (longEdge <= RESIZE_MAX_EDGE && dataUrl.length <= SUBMISSION_MAX_BYTES) {
-          return resolve(dataUrl);
-        }
-        const scale = Math.min(1, RESIZE_MAX_EDGE / longEdge);
-        const canvas = document.createElement('canvas');
-        canvas.width  = Math.round(img.width  * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext('2d');
-        // JPEG は透過を持てないので白で下地を塗る（PNG の透過部分が黒くなるのを防ぐ）
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        let out = canvas.toDataURL('image/jpeg', RESIZE_QUALITY);
-        // まだ大きい場合は品質を段階的に落とす
-        for (let q = 0.6; out.length > SUBMISSION_MAX_BYTES && q >= 0.4; q -= 0.2) {
-          out = canvas.toDataURL('image/jpeg', q);
-        }
-        resolve(out);
-      } catch (_) {
-        resolve(dataUrl);   // 失敗しても送信は止めない（サーバ側で弾かれる）
-      }
-    };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
-  });
-}
-
-export function handleImageSelect(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const resized = await _resizeImageDataUrl(e.target.result);
-    if (resized.length > SUBMISSION_MAX_BYTES) {
-      window._app?.showToast('画像サイズが大きすぎます。別の画像を選んでください', 'error');
-      input.value = '';
-      return;
-    }
-    const chip    = document.getElementById('img-chip');
-    const preview = document.getElementById('preview-img');
-    if (chip && preview) {
-      preview.src = resized;
-      preview.dataset.base64 = resized;
-      chip.classList.remove('u-hidden');
-    }
-    // ドラフト保存
-    const overlay = document.getElementById('clear-mission-modal');
-    overlay?._snapshot?.();
-  };
-  reader.readAsDataURL(file);
+export async function handleImageSelect(input) {
+  const files = [...(input.files || [])];
+  input.value = '';   // 同じ画像をもう一度選べるように
+  const el = editorEl();
+  if (!el || files.length === 0) return;
+  await insertImageFiles(el, files, null, el._onEditorChange);
 }
 
 // ===== 招待機能 =====

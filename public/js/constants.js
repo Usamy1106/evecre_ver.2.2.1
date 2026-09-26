@@ -219,6 +219,9 @@ export const REFLECT_SOLUTION_PLACEHOLDERS = {
 // ★この2つはアーカイブの概要カードの材料でもある（def-3＝概要 / def-1＝目的リマインドの引用元）。
 export const REFLECT_SKIP_MISSION_IDS = ['def-1', 'def-3'];
 
+// 1つの提出に添えられる画像の枚数。★server.js の SUBMISSION_MAX_IMAGES と揃えること
+export const SUBMISSION_MAX_IMAGES = 5;
+
 // ===== 完了後の振り返り：成否の選択肢 =====
 // ★絵（art）はここ1箇所だけに置く。モジュール側・CSS の content に直書きしないこと。
 //   いまの絵文字は**暫定**で、今後オリジナルイラストへ差し替える予定

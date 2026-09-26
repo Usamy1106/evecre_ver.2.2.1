@@ -72,6 +72,10 @@ const RESET_TTL_MS   = 30 * 60 * 1000; // 30分
 // クライアント側でも送信前にリサイズしている（modals/helpers.js の handleImageSelect）。
 const AVATAR_MAX_BYTES     = 600 * 1024;       // 600KB（従来からの値）
 const SUBMISSION_MAX_BYTES = 2 * 1024 * 1024;  // 2MB（ミッション提出物）
+// 1つの提出に添えられる画像の枚数。★public/js/constants.js の SUBMISSION_MAX_IMAGES と揃えること
+// ★画像は1枚ずつ POST /api/events/:id/submission-images で送る。完了にまとめて載せないこと
+//   （express.json の上限 5MB に 2MB の dataURL は2枚しか入らない）
+const SUBMISSION_MAX_IMAGES = 5;
 const IMAGE_DATA_URL_RE    = /^data:image\/(png|jpeg|jpg|webp);base64,/;
 
 // PUT /api/data の処理時間がこれを超えたら警告ログを出す（接続待ち・スロークエリの検知用）
@@ -143,6 +147,21 @@ const strictLimiter = rateLimit({
   legacyHeaders:  false,
   skip:           _skipInDev,
   message: { ok: false, error: 'リクエストが多すぎます。しばらく待ってから再試行してください。', code: 'rate_limited' },
+});
+
+/**
+ * 提出画像のアップロード：60回 / 15分 / **ユーザー**。
+ * ★IP 単位にしないこと（同じ学校の Wi-Fi から複数人が同時に提出すると潰し合う。otpLimiter と同じ理由）。
+ *   requireAuth の後ろに置くので req.user がある。
+ */
+const uploadLimiter = rateLimit({
+  windowMs:       15 * 60 * 1000,
+  max:            60,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  skip:           _skipInDev,
+  keyGenerator:   (req) => `u:${req.user?.id || 'anon'}`,
+  message: { ok: false, error: '画像の送信が多すぎます。しばらく待ってから再試行してください。', code: 'rate_limited' },
 });
 
 /**
@@ -826,9 +845,32 @@ function _validateIncomingSubmissions(incoming) {
     for (const sub of Object.values(p?.clearedData || {})) {
       const err = _validateSubmissionImage(sub?.content, sub?.format);
       if (err) return err;
+      if (sub?.images !== undefined && _sanitizeSubmissionImages(p.id, sub.images).error) return 'invalid_images';
     }
   }
   return null;
+}
+
+/**
+ * 提出物の images（R2 の URL の配列）を検証する。
+ * ★受け付けるのは「このイベントの提出画像として R2 に置いたもの」だけ
+ *   （キーが submissions/<eventId>/ で始まる URL）。dataURL・外部 URL・他イベントの画像は弾く。
+ *   dataURL を通すと events/submissions の文書が数MBに膨らむ。
+ * @returns {{ images: string[] } | { error: string }}
+ */
+function _sanitizeSubmissionImages(eventId, raw) {
+  if (raw === undefined || raw === null) return { images: [] };
+  if (!Array.isArray(raw)) return { error: 'invalid_images' };
+  if (raw.length > SUBMISSION_MAX_IMAGES) return { error: 'too_many_images' };
+  const prefix = `submissions/${eventId}/`;
+  const out = [];
+  for (const u of raw) {
+    if (typeof u !== 'string') return { error: 'invalid_images' };
+    const key = r2.urlToKey(u);
+    if (!key || !key.startsWith(prefix)) return { error: 'invalid_images' };
+    if (!out.includes(u)) out.push(u);
+  }
+  return { images: out };
 }
 
 // ===== ミッションの担当者・push ヘルパ =====
@@ -983,12 +1025,19 @@ async function _extractClearedData(projectId, flat) {
     const fields = {
       content,
       format:      submission.format,
+      // ★検証は _validateIncomingSubmissions が済ませている（不正なら保存前に 400）
+      images:      submission.images === undefined ? undefined
+                 : _sanitizeSubmissionImages(projectId, submission.images).images,
       title:       submission.title,
       timestamp:   submission.timestamp,
       submittedBy: submission.submittedBy,
     };
     const prev = current[missionId];
-    if (prev && Object.keys(fields).every(k => fields[k] === undefined || fields[k] === prev[k])) return;
+    // ★images は配列なので中身で比べる（=== だと毎回「変わった」になり全件書き直す）
+    const same = (k) => k === 'images'
+      ? JSON.stringify(fields.images) === JSON.stringify(prev.images || [])
+      : fields[k] === prev[k];
+    if (prev && Object.keys(fields).every(k => fields[k] === undefined || same(k))) return;
 
     await submissionStore.upsertSubmissionFields(projectId, missionId, fields);
   }));
@@ -1578,9 +1627,9 @@ app.delete('/api/account', requireAuth, async (req, res) => {
         try {
           const subs = await submissionStore.getSubmissionsForProject(p.id);
           for (const mid of Object.keys(subs)) {
-            const s = subs[mid];
-            if (s && s.format === 'image' && s.content) {
-              const key = r2.urlToKey(s.content);
+            // ★images と旧形式（format:'image' の content）の両方を消す（submissionStore.imageUrlsOf）
+            for (const url of submissionStore.imageUrlsOf(subs[mid])) {
+              const key = r2.urlToKey(url);
               if (key) r2.deleteObject(key).catch(e => console.warn('[r2] submission image delete warn:', e.message));
             }
           }
@@ -2433,9 +2482,9 @@ app.put('/api/data', requireAuth, async (req, res) => {
         try {
           const subs = await submissionStore.getSubmissionsForProject(p.id);
           for (const mid of Object.keys(subs)) {
-            const s = subs[mid];
-            if (s && s.format === 'image' && s.content) {
-              const key = r2.urlToKey(s.content);
+            // ★images と旧形式（format:'image' の content）の両方を消す（submissionStore.imageUrlsOf）
+            for (const url of submissionStore.imageUrlsOf(subs[mid])) {
+              const key = r2.urlToKey(url);
               if (key) r2.deleteObject(key).catch(e => console.warn('[r2] submission image delete warn:', e.message));
             }
           }
@@ -3091,6 +3140,36 @@ app.patch('/api/events/:id/missions/:mid/reflection', requireAuth, async (req, r
   }
 });
 
+// 提出画像を1枚アップロードして URL を返す（完了の前に、1枚ずつ呼ばれる）。
+// ★1回に1枚だけ受ける。複数枚をまとめて受けないこと（express.json の上限 5MB）。
+// ★クライアントは順番に送る（並列にしない）。512MB / 0.5CPU で dataURL の展開が重なると詰まる。
+// ★完了されなかった画像は R2 に残りうる（完了の直前に送るので、失敗して諦めたときだけ）。
+app.post('/api/events/:id/submission-images', requireAuth, uploadLimiter, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
+
+    const dataUrl = req.body?.dataUrl;
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:'))
+      return res.status(400).json({ ok: false, error: 'invalid_image' });
+    const imgErr = _validateSubmissionImage(dataUrl, 'image');
+    if (imgErr) return res.status(400).json({ ok: false, error: imgErr });
+    if (!r2.isConfigured())
+      return res.status(503).json({ ok: false, error: '画像を保存できませんでした', code: 'storage_unavailable' });
+
+    const ext = dataUrl.startsWith('data:image/png') ? 'png' : 'jpg';
+    const key = `submissions/${p.id}/img_${r2.randomSuffix()}.${ext}`;
+    const url = await r2.uploadDataUrl(dataUrl, key);
+    res.json({ ok: true, url });
+  } catch (e) {
+    console.error('[r2] submission image upload error:', e.message);
+    res.status(500).json({ ok: false, error: '画像を保存できませんでした' });
+  }
+});
+
 app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res) => {
   try {
     const p = await eventStore.loadEvent(req.params.id);
@@ -3107,7 +3186,14 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
 
     const userId = req.user.id;
     let content   = String(req.body?.content ?? '');
-    const format  = ['text', 'image', 'link'].includes(req.body?.format) ? req.body.format : 'text';
+    let format    = ['text', 'image', 'link'].includes(req.body?.format) ? req.body.format : 'text';
+    // 画像（R2 の URL。1枚ずつ POST /submission-images で送ったもの）。本文と同時に持てる
+    const imgs = _sanitizeSubmissionImages(p.id, req.body?.images);
+    if (imgs.error) return res.status(400).json({ ok: false, error: imgs.error });
+    const images = imgs.images;
+    // ★画像だけの提出は旧形式（format:'image' + content に1枚目）も埋めておく。
+    //   images を知らない表示（古いクライアント・他の画面）でも1枚目は見えるようにするため。
+    if (images.length > 0 && !content.trim()) { format = 'image'; content = images[0]; }
     const now     = Date.now();
     // 振り返り（任意）。★個別完了・通常完了のどちらでも受ける
     const reflection = _sanitizeReflection(req.body);
@@ -3140,7 +3226,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       _setMissionField(p, mid, 'individualClearedBy', clearedBy, now);
       _setMissionField(p, mid, 'clearFormat', format, now);
       await submissionStore.saveSubmission(p.id, `${mid}_u_${userId}`, {
-        content, format, title: m.title, timestamp: now, submittedBy: userId,
+        content, format, images, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
 
@@ -3160,7 +3246,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       _setMissionField(p, mid, 'clearFormat', format, now);
       _setMissionField(p, mid, 'status', next, now);
       await submissionStore.saveSubmission(p.id, mid, {
-        content, format, title: m.title, timestamp: now, submittedBy: userId,
+        content, format, images, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
       // ★初期タスク「このイベントの概要を定めよう」(def-3) を完了したら、
@@ -3171,7 +3257,8 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       //   description は proposalEngine の detectCategory と AI プロンプトが
       //   読むので、空だと提案の精度が落ちる（イベントの内容が伝わらない）。
       if (mid === 'def-3' && format === 'text') {
-        const summary = String(content || '').trim();
+        // ★本文の途中の画像の印（{{image:N}}）は説明文に持ち込まない
+        const summary = String(content || '').replace(/\{\{image:\d+\}\}/g, '').replace(/\n{3,}/g, '\n\n').trim();
         if (summary) _setEventField(p, 'description', summary, now);
       }
       becameCleared      = next === 'cleared';

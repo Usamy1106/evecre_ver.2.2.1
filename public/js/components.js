@@ -1,6 +1,7 @@
 // ===== UIコンポーネント =====
 import { state } from './state.js';
 import { LABEL_CONFIG } from './constants.js';
+import { submissionImages } from './utils.js';
 
 function _initial(name) {
   return String(name || '?').trim().charAt(0).toUpperCase() || '?';
@@ -16,7 +17,8 @@ export function getEventMainVisual(project) {
   const direct = project?.clearedData?.['archive-image']?.content;
   if (direct) return direct;
   const m = (project?.missions || []).find(x => x.originProposalId === 'p3' && x.status === 'cleared');
-  return m ? (project?.clearedData?.[m.id]?.content ?? null) : null;
+  // ★本文と画像を同時に持つ提出物もあるので、画像は submissionImages で取る（1枚目）
+  return m ? (submissionImages(project?.clearedData?.[m.id])[0] ?? null) : null;
 }
 
 // サムネイルのエンプティーステート。avif → webp → png の順に並べ、

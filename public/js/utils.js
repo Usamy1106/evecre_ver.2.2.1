@@ -130,6 +130,62 @@ export function isAfterEventDates(p) {
  * @param {object} table DEFAULT を必ず持つ例文テーブル（constants.js）
  * @param {object} mission
  */
+/**
+ * 提出物（clearedData の1件）の画像 URL を返す。
+ * ★後方互換はここ1か所だけで吸収する。描画箇所ごとに format を見直さないこと。
+ *   - images（新）があればそれを使う
+ *   - 無ければ、旧形式（format:'image' の content）を1枚目として扱う
+ * @returns {string[]}
+ */
+export function submissionImages(cd) {
+  if (!cd) return [];
+  if (Array.isArray(cd.images) && cd.images.length > 0) return cd.images.filter(Boolean);
+  return cd.format === 'image' && cd.content ? [cd.content] : [];
+}
+
+// 本文の中の画像の位置（1始まり。images の N 番目）。★clearEditor.js の MARK と同じ形に保つこと
+export const IMAGE_MARK_RE = /\{\{image:(\d+)\}\}/g;
+
+/**
+ * 提出物の本文（テキスト／リンク）を返す。**画像の印は取り除く**（一覧のプレビュー用）。
+ * format:'image' の content は画像なので本文に数えない。
+ * @returns {string}
+ */
+export function submissionText(cd) {
+  if (!cd || cd.format === 'image') return '';
+  return String(cd.content || '').replace(IMAGE_MARK_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
+ * 提出物を「文章」と「画像」の並びに分ける（本文の途中の画像を、その位置に出すため）。
+ * ★印の番号が images に無いものは捨てる。印で使われなかった画像は末尾に足す
+ *   （旧形式・印の無い提出物もこれで全部出る）。
+ * @returns {Array<{type:'text', text:string} | {type:'image', url:string}>}
+ */
+export function submissionSegments(cd) {
+  if (!cd) return [];
+  const imgs = submissionImages(cd);
+  const raw  = cd.format === 'image' ? '' : String(cd.content || '');
+  const out  = [];
+  const used = new Set();
+  const pushText = (t) => {
+    // 画像の前後の改行は画像そのものが区切りになるので落とす
+    const s = t.replace(/^\n+|\n+$/g, '');
+    if (s.trim()) out.push({ type: 'text', text: s });
+  };
+  let last = 0;
+  for (const mm of raw.matchAll(IMAGE_MARK_RE)) {
+    pushText(raw.slice(last, mm.index));
+    last = mm.index + mm[0].length;
+    const n = parseInt(mm[1], 10);
+    const url = imgs[n - 1];
+    if (url && !used.has(n)) { out.push({ type: 'image', url }); used.add(n); }
+  }
+  pushText(raw.slice(last));
+  imgs.forEach((url, i) => { if (!used.has(i + 1)) out.push({ type: 'image', url }); });
+  return out;
+}
+
 export function placeholderFor(table, mission) {
   const tags = new Set([
     ...(Array.isArray(mission?.tags) ? mission.tags : []),
@@ -167,7 +223,9 @@ export function bindTapToEdit(root = document) {
  *  ★タスクが無くても成立する（clearedData に直接書くため）。イベント設定と
  *    アーカイブのペンからも同じ場所を読み書きする。個別に clearedData を触らないこと。 */
 export function getArchiveSummary(project) {
-  return project?.clearedData?.['def-3']?.content ?? project?.description ?? '';
+  // ★本文の中の画像の印（{{image:N}}）は外す（submissionText）
+  const cd = project?.clearedData?.['def-3'];
+  return cd ? submissionText(cd) : (project?.description ?? '');
 }
 
 /**

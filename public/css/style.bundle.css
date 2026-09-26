@@ -257,6 +257,8 @@
   --z-mission-menu: 250;     /* ミッションのミートボール・長押しメニュー */
   --z-sort-menu: 60;         /* 並び替えのドロップダウン（ボード内） */
   --z-list-modal: 150;       /* ミッション一覧モーダル */
+  --z-drag-ghost: 400;       /* 掴んで動かしている画像の分身。何より前に出す */
+  --z-drag-caret: 410;       /* 差し込み先の線。分身の下に隠れないよう、さらに前 */
   --z-context-menu: 260;     /* 長押しメニュー。ピッカーより前 */
   /* ★プロフィールカード。**あらゆるシートより前**に出すこと。
      担当者シート(210)・承認待ち(150)・リーダーチェック(150)などから開くので、
@@ -5814,6 +5816,12 @@ body {
   object-fit: cover;
 }
 
+/* 本文のあと・画像どうしの間（本文と画像は同時にありうる） */
+.p-notification__detail-content + .p-notification__detail-image,
+.p-notification__detail-image + .p-notification__detail-image {
+  margin-top: var(--space-2);
+}
+
 .p-notification__detail-content {
   padding: var(--space-2);
   border-radius: var(--radius-sm);
@@ -10744,64 +10752,149 @@ body {
 }
 
 /* 選んだ画像のチップ */
-.p-mission-detail__image-chip {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  background-color: var(--button-secondary);
-}
-
-.p-mission-detail__image-thumb {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  object-fit: cover;
-}
-
-.p-mission-detail__image-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-.p-mission-detail__image-remove {
-  padding: var(--space-1);
-  color: var(--color-text-muted);
-  transition: color var(--duration-fast) var(--ease);
-}
-
-.p-mission-detail__image-remove:hover {
-  color: var(--color-text);
-}
-
 /* テキスト入力と画像ボタンを重ねる */
 .p-mission-detail__input-wrap {
   position: relative;
 }
 
-.p-mission-detail__textarea {
+/* 完了の編集欄（contenteditable）。文章の途中に画像を置ける（clearEditor.js）。
+   ★文字は 16px 未満にしない（iOS がタップでズームし、戻せなくなる） */
+.p-mission-detail__editor {
   width: 100%;
-  height: 128px;
+  min-height: 128px;
+  max-height: 60vh;
+  overflow-y: auto;
   padding: var(--space-4);
   padding-bottom: var(--space-10);
-  border: none;
+  border: 2px solid transparent;
   border-radius: var(--radius-lg);
   background-color: var(--button-secondary);
   font-size: var(--font-size-lg);
   line-height: 1.625;
-  resize: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  cursor: text;
+  transition: border-color var(--duration-fast) var(--ease);
 }
 
-.p-mission-detail__textarea:focus {
+.p-mission-detail__editor:focus {
   outline: none;
+}
+
+/* 空のときの例文（textarea の placeholder の代わり） */
+.p-mission-detail__editor.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+/* ファイルを重ねているあいだ */
+.p-mission-detail__editor.is-dragover {
+  border-color: var(--color-primary);
+}
+
+/* 文章の途中に置かれた画像1枚（編集できない塊。右上の×で外す） */
+.p-mission-detail__editor-image {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--space-2) 0;
+  /* 掴んで動かせる（_bindImageDrag）。長押しで iOS のメニュー・文字選択を出さない */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.p-mission-detail__editor-image-img {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+}
+
+.p-mission-detail__editor-image-remove {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  background-color: var(--color-text);
+  color: var(--color-text-inverse);
+  opacity: .85;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.p-mission-detail__editor-image-remove:hover {
+  opacity: 1;
+}
+
+/* ── 置いた画像を掴んで動かす（clearEditor.js の _bindImageDrag）── */
+
+/* 掴んでいる間、元の場所は薄く残す（どこから持ってきたか分かるように） */
+.p-mission-detail__editor-image.is-dragging {
+  opacity: .3;
+}
+
+.p-mission-detail__editor.is-reordering {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 指に付いてくる分身。位置は JS が transform で書く（top/left は触らない） */
+.p-mission-detail__editor-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-drag-ghost);
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  pointer-events: none;
+  will-change: transform;
+  transition: box-shadow var(--duration-fast) var(--ease), scale var(--duration-fast) var(--ease),
+    rotate var(--duration-fast) var(--ease), opacity var(--duration-fast) var(--ease);
+}
+
+/* 持ち上げた瞬間：少し大きく・少し傾けて・影を付ける。
+   ★少し透かす（落とす先の文字が分身の下に隠れて見えなくなるため） */
+.p-mission-detail__editor-ghost.is-lifted {
+  opacity: .85;
+  box-shadow: var(--shadow-2xl);
+  scale: 1.04;
+  rotate: -1.5deg;
+}
+
+/* 離したあと：落ちた先へ吸い込まれる */
+.p-mission-detail__editor-ghost.is-landing {
+  transition: transform var(--duration-quick) var(--ease), box-shadow var(--duration-quick) var(--ease),
+    scale var(--duration-quick) var(--ease), rotate var(--duration-quick) var(--ease);
+}
+
+/* 差し込み先を示す縦線 */
+.p-mission-detail__editor-caret {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-drag-caret);
+  width: 3px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-mission-detail__editor-ghost,
+  .p-mission-detail__editor-ghost.is-landing {
+    transition: none;
+  }
 }
 
 .p-mission-detail__image-pick {

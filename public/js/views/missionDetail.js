@@ -20,7 +20,7 @@ import {
   SUBMISSION_PLACEHOLDERS, REFLECT_LABELS,
 } from '../constants.js';
 import { initClearDraft } from '../modals/helpers.js';
-import { placeholderFor } from '../utils.js';
+import { placeholderFor, submissionSegments } from '../utils.js';
 import { showConfirmDialog } from '../dialog.js';
 import { logEvent } from '../logger.js';
 
@@ -63,8 +63,14 @@ export function renderMissionDetail(appEl) {
   // ===== 再レンダリングをまたいで入力値を保持 =====
   const prevChatInput  = document.getElementById('chat-input')?.value ?? null;
   const prevChatFocus  = document.activeElement?.id === 'chat-input';
-  const prevClearInput = document.getElementById('clear-input')?.value ?? null;
-  const prevImgData    = document.getElementById('preview-img')?.dataset?.base64 || '';
+  // ★完了の編集欄（contenteditable）は値ではなく**ノードごと**持ち越す。
+  //   中に画像が挟まっているので value では戻せない。配線（clearEditor.js）も付いたまま戻る。
+  const prevEditor     = document.getElementById('clear-input');
+  const prevEditorSel  = (() => {
+    if (!prevEditor || document.activeElement !== prevEditor) return null;
+    const sel = window.getSelection?.();
+    return sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
+  })();
   const prevChecked    = Array.from(document.querySelectorAll('[data-clear-checklist]')).map(cb => !!cb.checked);
   const prevScrollY    = window.scrollY;
   const prevChatScroll = document.getElementById('chat-messages')?.scrollTop ?? 0;
@@ -147,14 +153,12 @@ export function renderMissionDetail(appEl) {
   if (prevChatFocus) chatInput?.focus();
 
   const clearInput = document.getElementById('clear-input');
-  if (clearInput && prevClearInput) clearInput.value = prevClearInput;
-  if (prevImgData) {
-    const chip = document.getElementById('img-chip');
-    const preview = document.getElementById('preview-img');
-    if (chip && preview) {
-      preview.src = prevImgData;
-      preview.dataset.base64 = prevImgData;
-      chip.classList.remove('u-hidden');
+  if (clearInput && prevEditor && prevEditor !== clearInput && prevEditor.dataset.missionId === m.id) {
+    clearInput.replaceWith(prevEditor);
+    if (prevEditorSel) {
+      prevEditor.focus({ preventScroll: true });
+      const sel = window.getSelection?.();
+      if (sel) { sel.removeAllRanges(); sel.addRange(prevEditorSel); }
     }
   }
   document.querySelectorAll('[data-clear-checklist]').forEach(cb => {
@@ -264,7 +268,7 @@ function _renderClearSection(p, m, canMgr) {
   if (m.noInput) {
     return `
       <div class="p-mission-detail__clear">
-        <button type="button" onclick="window._app.submitMissionClear('${m.id}')"
+        <button type="button" onclick="window._app.submitMissionClear('${m.id}')" data-clear-submit
           class="c-button c-button--primary p-mission-detail__submit">完了する</button>
       </div>`;
   }
@@ -301,22 +305,13 @@ function _renderClearInput(m) {
     </div>`;
 
   return `
-    <div id="clear-mission-modal" class="p-mission-detail__clear">
-      <!-- 画像チップ（画像が選択されたら表示）。★hidden は JS が付け外しする -->
-      <div id="img-chip" class="u-hidden p-mission-detail__image-chip">
-        <img id="preview-img" src="" class="p-mission-detail__image-thumb" alt="">
-        <span class="p-mission-detail__image-name">画像</span>
-        <button type="button" onclick="window._app.clearImagePreview()" class="p-mission-detail__image-remove" aria-label="画像を外す">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      <!-- 統合テキスト入力 + 画像ボタン -->
+    <div id="clear-mission-modal" class="p-mission-detail__clear" data-mission-id="${_esc(m.id)}">
+      <!-- 編集欄（文章の途中に画像を置ける）＋ 画像ボタン。
+           ★配線と読み書きは clearEditor.js。HTML は保存せず、文字と画像の印だけを取り出す -->
       <div class="p-mission-detail__input-wrap">
-        <textarea id="clear-input" class="p-mission-detail__textarea"
-          placeholder="${_esc(placeholderFor(SUBMISSION_PLACEHOLDERS, m))}"></textarea>
+        <div id="clear-input" class="p-mission-detail__editor is-empty" contenteditable="true"
+          role="textbox" aria-multiline="true" data-mission-id="${_esc(m.id)}"
+          aria-label="提出内容" data-placeholder="${_esc(placeholderFor(SUBMISSION_PLACEHOLDERS, m))}"></div>
         <label for="file-input" class="p-mission-detail__image-pick">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -325,12 +320,12 @@ function _renderClearInput(m) {
           </svg>
         </label>
         <!-- ★hidden は「見た目を消す」ためではなく、ファイル選択を自前のボタンで代替するため -->
-        <input type="file" id="file-input" class="u-hidden" accept="image/*"
+        <input type="file" id="file-input" class="u-hidden" accept="image/*" multiple
           onchange="window._app.handleImageSelect(this)">
       </div>
 
       ${checklistHtml}
-      <button type="button" onclick="window._app.submitMissionClear('${m.id}')"
+      <button type="button" onclick="window._app.submitMissionClear('${m.id}')" data-clear-submit
         class="c-button c-button--primary p-mission-detail__submit p-mission-detail__submit--spaced">完了する</button>
     </div>`;
 }
@@ -394,7 +389,7 @@ function _renderIndividualSection(p, m, canMgr, meId) {
   const meNotDone = isMeAssigned && !clearedBy.includes(meId) && m.status !== 'cleared';
   const myInput = meNotDone
     ? (m.noInput
-        ? `<button type="button" onclick="window._app.submitMissionClear('${m.id}')"
+        ? `<button type="button" onclick="window._app.submitMissionClear('${m.id}')" data-clear-submit
              class="c-button c-button--primary p-mission-detail__submit p-mission-detail__submit--below">完了する</button>`
         : _renderClearInput(m))
     : '';
@@ -416,13 +411,20 @@ function _renderIndividualSection(p, m, canMgr, meId) {
     </div>`;
 }
 
+// 提出物（本文＋画像）。★画像は本文の途中にも入る。読み分けは utils.js の
+//   submissionSegments に任せる（旧形式 format:'image' の後方互換もそちら）。
 function _fmtClearedContent(cd) {
-  if (!cd?.content) return '';
   // ★src / href もエスケープする（提出物はユーザーが入力した文字列で、
   //   属性を閉じられると任意の HTML を差し込める）
-  if (cd.format === 'image') return `<img src="${_esc(cd.content)}" class="p-mission-detail__cleared-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
-  if (cd.format === 'link' || cd.format === 'url') return `<a href="${_esc(cd.content)}" target="_blank" rel="noopener noreferrer" class="p-mission-detail__cleared-link">${_esc(cd.content)}</a>`;
-  return `<p class="p-mission-detail__cleared-text">${_esc(cd.content)}</p>`;
+  return submissionSegments(cd).map(seg => {
+    if (seg.type === 'image') {
+      return `<img src="${_esc(seg.url)}" class="p-mission-detail__cleared-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
+    }
+    if (cd.format === 'link' || cd.format === 'url') {
+      return `<a href="${_esc(seg.text)}" target="_blank" rel="noopener noreferrer" class="p-mission-detail__cleared-link">${_esc(seg.text)}</a>`;
+    }
+    return `<p class="p-mission-detail__cleared-text">${_esc(seg.text)}</p>`;
+  }).join('');
 }
 
 // ===============================================

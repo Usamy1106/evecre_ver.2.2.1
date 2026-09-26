@@ -47,7 +47,7 @@ import {
 } from './modals/mission.js';
 import {
   editArchiveItem, openEditModal,
-  submitMissionClear, handleImageSelect, clearImagePreview,
+  submitMissionClear, handleImageSelect,
   updateDraftInfo,
   copyMissionLink,
 } from './modals/helpers.js';
@@ -63,6 +63,7 @@ import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
+import { submissionImages, submissionText } from './utils.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
@@ -845,7 +846,6 @@ window._app = {
   // --- タスク完了 ---
   submitMissionClear: (mid) => submitMissionClear(mid),
   handleImageSelect:  (input) => handleImageSelect(input),
-  clearImagePreview:  ()      => clearImagePreview(),
 
   // --- アーカイブ編集 ---
   editArchiveItem: (type) => editArchiveItem(type),
@@ -1136,14 +1136,14 @@ window._app = {
     const rows = missions.map(m => {
       const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
       const cd = p.clearedData?.[m.id];
-      let previewHtml = '';
-      if (cd?.content) {
-        if (cd.format === 'image') {
-          previewHtml = `<img src="${_escH(cd.content)}" class="c-list-sheet__preview-image" loading="lazy" data-fallback="submission">`;
-        } else {
-          previewHtml = `<p class="c-list-sheet__preview-text">${_escH(cd.content)}</p>`;
-        }
-      }
+      // ★本文と画像は同時にありうる（utils.js の submissionText / submissionImages が後方互換も吸収）。
+      //   一覧なので画像は1枚目だけ出し、残りは枚数で伝える。
+      const cdText = submissionText(cd);
+      const cdImgs = submissionImages(cd);
+      const previewHtml =
+        (cdText ? `<p class="c-list-sheet__preview-text">${_escH(cdText)}</p>` : '')
+        + (cdImgs[0] ? `<img src="${_escH(cdImgs[0])}" class="c-list-sheet__preview-image" loading="lazy" data-fallback="submission">` : '')
+        + (cdImgs.length > 1 ? `<p class="c-list-sheet__preview-text">ほか画像${cdImgs.length - 1}枚</p>` : '');
       // ★誰の提出かを出す。以前は提出物だけが並んでいて、**誰のものか分からない
       //   まま承認/差し戻しを判断させていた**。submittedBy は submissions 由来で、
       //   /api/data が clearedData に合成して返している（サーバー変更は不要）。
@@ -1817,6 +1817,7 @@ const _LOG_LABELS = {
   mission_link_copied:    'タスクリンクをコピー',
   connection_error_shown: '接続エラー画面が出た',
   connection_retry_tapped:'接続エラーで再試行した',
+  submission_image_failed:'完了時の画像の送信に失敗した',
   reflection_edited:       '振り返りを編集した',
   leader_motivation_skipped: '★意気込みモーダルを出さなかった（理由つき）',
   leader_motivation_failed:  '★意気込みモーダルの表示に失敗した',
