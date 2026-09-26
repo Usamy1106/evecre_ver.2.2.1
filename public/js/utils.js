@@ -316,6 +316,15 @@ export function hasAllBasicInfo(project) {
 }
 
 /**
+ * 公開してよい振り返りの数（shareable かつ「次にやるなら／なぜうまくいった？」が空でない）。
+ * ★サーバーの lib/publicData.js の isPublishableSubmission と同じ条件に保つこと
+ */
+export function countPublishableReflections(project) {
+  return Object.values(project?.clearedData || {})
+    .filter(s => s && s.shareable === true && String(s.solution || '').trim() !== '').length;
+}
+
+/**
  * 文章の中の URL をタップで開けるリンクにした HTML を返す（アーカイブ用）。
  * ★エスケープはここでまとめて行う（戻り値をもう一度 esc に通さないこと）。
  * ★リンクのタップは stopPropagation（アーカイブの記録はタップでタスク詳細を開くため）。

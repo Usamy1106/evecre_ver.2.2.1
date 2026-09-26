@@ -35,3 +35,9 @@
 .c-toggle.is-on .c-toggle__knob {
   transform: translateX(20px);
 }
+
+/* 押せないとき（例：公開してよい振り返りが0件でナレッジを公開できない） */
+.c-toggle:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}

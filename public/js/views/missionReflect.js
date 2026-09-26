@@ -23,6 +23,7 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { logEvent } from '../logger.js';
 import { placeholderFor } from '../utils.js';
+import { confirmFirstShare, applyShareConfirmed } from '../modals/shareConfirmModal.js';
 import {
   OUTCOME_CHOICES, OUTCOME_REPLIES, REFLECT_LABELS,
   REFLECT_STRUGGLE_PLACEHOLDERS, REFLECT_SOLUTION_PLACEHOLDERS,
@@ -133,7 +134,9 @@ export function renderMissionReflect(appEl) {
   };
   bind('reflect-struggle', 'struggle');
   bind('reflect-solution', 'solution');
-  document.getElementById('reflect-shareable')?.addEventListener('change', (e) => {
+  document.getElementById('reflect-shareable')?.addEventListener('change', async (e) => {
+    // ★このイベントで初めてのチェックなら確認する。「いいえ」ならチェックを外す
+    if (e.target.checked && !(await confirmFirstShare(p))) e.target.checked = false;
     state.reflectDraft.shareable = e.target.checked;
   });
 }
@@ -231,6 +234,7 @@ export async function saveMissionReflect() {
     return;
   }
   _applyLocal(p, missionId, r.reflection);
+  applyShareConfirmed(p, r);
   // ★本文は送らない（行動ログに自由記述を混ぜない）。書かれたかどうかだけ数える
   logEvent('reflect_saved', {
     missionId, outcome: d.outcome || null,

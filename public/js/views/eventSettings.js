@@ -18,7 +18,7 @@ import { logEvent } from '../logger.js';
 import {
   formatEventPeriodLines,
   getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue,
-  bindTapToEdit,
+  bindTapToEdit, isAfterEventDates, countPublishableReflections,
 } from '../utils.js';
 import {
   EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS,
@@ -421,7 +421,7 @@ function _eventManagementSection(p, sec) {
         <div class="c-settings-list__row p-event-settings__toggle-row">
           <div>
             <p class="p-event-settings__sub-title">基礎情報を公開</p>
-            <span class="c-settings-list__value">タイトル・ヘッダー画像・概要・場所・期間をイベクリの外でも見られるようにします。タスクやメンバーの情報は公開されません</span>
+            <p class="p-event-settings__toggle-note">タイトル・ヘッダー画像・概要・場所・期間をイベクリの外でも見られるようにします。タスクやメンバーの情報は公開されません</p>
           </div>
           ${canMgr ? `
             <button type="button" data-ps-public-basic role="switch" aria-checked="${p.publicBasicInfo === true}"
@@ -432,6 +432,28 @@ function _eventManagementSection(p, sec) {
             <span class="c-settings-list__value">${p.publicBasicInfo === true ? '公開中' : '非公開'}</span>
           `}
         </div>
+
+        <!-- ナレッジの公開（タスクの内容・振り返り）。★開催日を過ぎるまで出さない（準備中の情報が漏れる経路を作らない）。
+             ★公開してよい振り返りが0件ならオンにできない。サーバーも同じ条件を確かめる -->
+        ${isAfterEventDates(p) ? (() => {
+          const n = countPublishableReflections(p);
+          const on = p.publicKnowledge === true;
+          return `
+        <div class="c-settings-list__row p-event-settings__toggle-row">
+          <div>
+            <p class="p-event-settings__sub-title">ナレッジを公開</p>
+            <p class="p-event-settings__toggle-note">${n > 0
+              ? `「他の団体にも公開してよい」とされた振り返り ${n}件と、そのタスクの内容を公開します。名前やチャットは公開されません`
+              : `「他の団体にも公開してよい」とされた振り返りがまだありません。振り返りを書くときに選べます`}</p>
+          </div>
+          ${canMgr ? `
+            <button type="button" data-ps-public-knowledge role="switch" aria-checked="${on}" aria-label="ナレッジを公開"
+              ${n === 0 && !on ? 'disabled' : ''} class="c-toggle${on ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
+            </button>
+          ` : `<span class="c-settings-list__value">${on ? '公開中' : '非公開'}</span>`}
+        </div>`;
+        })() : ''}
 
         <!-- 操作履歴（管理者のみ） -->
         ${canMgr ? `
@@ -860,6 +882,20 @@ function _bindEvents(p, sec) {
     await state.saveNow(p.id);
     state.render();
     window._app?.showToast(p.publicBasicInfo ? '基礎情報を公開しました' : '基礎情報を非公開にしました');
+  });
+
+  // ナレッジの公開の切り替え（管理者のみ・開催後のみ。サーバーが条件を確かめ、満たさなければ無視する）
+  document.querySelector('[data-ps-public-knowledge]')?.addEventListener('click', async (e) => {
+    if (e.currentTarget.disabled) return;
+    p.publicKnowledge = p.publicKnowledge !== true;
+    logEvent('public_knowledge_toggled', { eventId: p.id, value: p.publicKnowledge });
+    await state.saveNow(p.id);
+    // ★サーバーが条件を満たさないと判断したら公開にならない。取り直して本当の値を出す
+    await state.silentReloadEvents?.();
+    const now = state.events.find(x => x.id === p.id);
+    window._app?.showToast(now?.publicKnowledge === true ? 'ナレッジを公開しました'
+      : (p.publicKnowledge ? '公開できませんでした（開催後・公開してよい振り返りが必要です）' : 'ナレッジを非公開にしました'));
+    state.render();
   });
 
   document.querySelectorAll('[data-ps-phase]').forEach(btn => {

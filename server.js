@@ -21,6 +21,7 @@ const eventStore      = require('./lib/eventStore');
 const projectStore    = require('./lib/projectStore');
 const notifStore      = require('./lib/notificationStore');
 const submissionStore  = require('./lib/submissionStore');
+const publicData      = require('./lib/publicData');
 const chatStore        = require('./lib/chatStore');
 const pushStore        = require('./lib/pushStore');
 const pushClient       = require('./lib/pushClient');
@@ -2280,8 +2281,27 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
     }
   }
   if (flat.venue !== undefined) flat.venue = String(flat.venue ?? '').trim().slice(0, 200);
-  // 基礎情報の公開。★boolean 以外は捨てる（"true" などの文字列を公開扱いにしない）
+  // 基礎情報・ナレッジの公開。★boolean 以外は捨てる（"true" などの文字列を公開扱いにしない）
   if (flat.publicBasicInfo !== undefined && typeof flat.publicBasicInfo !== 'boolean') delete flat.publicBasicInfo;
+  if (flat.publicKnowledge !== undefined && typeof flat.publicKnowledge !== 'boolean') delete flat.publicKnowledge;
+  // ★初回確認の印はサーバーだけが書く（クライアントの値は信用しない）
+  delete flat.shareConfirmedAt;
+}
+
+/**
+ * ナレッジを公開に切り替えようとしていたら、条件を満たすか確かめる（満たさなければ true を捨てる）。
+ * ★開催日を過ぎていること・公開してよい振り返り（shareable かつ solution あり）が1件以上あること。
+ *   日付はサーバーの時刻（TZ=Asia/Tokyo）で判定する。クライアントのスイッチは見た目の話でしかない
+ */
+async function _guardPublicKnowledge(eventId, flat, existing) {
+  if (flat.publicKnowledge !== true || existing?.fields?.publicKnowledge?.v === true) return;
+  const dates = Array.isArray(flat.dates) ? flat.dates : (existing?.fields?.dates?.v || []);
+  const subs  = await submissionStore.getSubmissionsForProject(eventId);
+  const check = publicData.canPublishKnowledge(dates, subs);
+  if (!check.ok) {
+    console.warn(`[public] knowledge publish rejected event=${eventId} reason=${check.reason}`);
+    delete flat.publicKnowledge;
+  }
 }
 
 async function _saveIncomingEvents(req, incoming, current, now) {
@@ -2294,6 +2314,7 @@ async function _saveIncomingEvents(req, incoming, current, now) {
   }
   for (const p of created) {
     _sanitizeEventFields(p.id, p);
+    delete p.publicKnowledge;   // 作ったばかりのイベントは開催後でも振り返りが無いので公開できない
     const cp = crdt.flatToCrdt(p, now);
     cp.members   = [{ userId: req.user.id, role: 'owner', roles: ['owner'], joinedAt: now }];
     cp.ownerId   = req.user.id;
@@ -2507,6 +2528,7 @@ async function _saveIncomingEvents(req, incoming, current, now) {
     // clearedData を submissions コレクションに分離
     const patchFlat = { ...incomingP };
     _sanitizeEventFields(incomingP.id, patchFlat, existing.fields?.headerImage?.v || null);
+    await _guardPublicKnowledge(incomingP.id, patchFlat, existing);
     await _extractClearedData(incomingP.id, patchFlat);
 
     const merged = await eventStore.applyPatch(incomingP.id, patchFlat, {
@@ -3207,12 +3229,17 @@ app.patch('/api/events/:id/missions/:mid/reflection', requireAuth, async (req, r
     }
     const ok = await submissionStore.updateReflection(p.id, key, reflection);
     if (!ok) return res.status(404).json({ ok: false, error: '提出物が見つかりません' });
+    // 「他の団体にも公開してよい」が初めて選ばれたら、このイベントの確認を済ませた印を立てる
+    // （クライアントは確認モーダルを出してから保存してくる。以後はだれが選んでもモーダルを出さない）
+    const shareConfirmedAt = reflection.shareable === true
+      ? ((await eventStore.markShareConfirmed(p.id)) ? Date.now() : (p.fields?.shareConfirmedAt?.v || Date.now()))
+      : (p.fields?.shareConfirmedAt?.v || null);
 
     logServerEvent(p.id, req.user.id, 'reflection_edited', { missionId: mid });
 
     // ★イベント本体（CRDT）は触っていないので eventUpdated は流さない。
     //   提出物は /api/data の合成でしか配られないため、他の端末は次の取得で反映される。
-    res.json({ ok: true, reflection });
+    res.json({ ok: true, reflection, shareConfirmedAt });
   } catch (e) {
     console.error('PATCH reflection error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });

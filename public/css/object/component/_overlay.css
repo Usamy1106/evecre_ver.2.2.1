@@ -216,3 +216,9 @@
   padding: var(--space-6);
   background-color: rgba(0, 0, 0, .4);
 }
+
+/* 「他の団体にも公開してよい」の初回確認（modals/shareConfirmModal.js）。
+   振り返りを書くモーダルの上に重ねて出すので、それより前に置く */
+.c-overlay--share {
+  z-index: var(--z-share-confirm);
+}

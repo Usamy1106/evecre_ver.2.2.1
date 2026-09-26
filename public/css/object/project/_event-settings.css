@@ -294,6 +294,13 @@
   gap: var(--space-4);
 }
 
+.p-event-settings__toggle-note {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
 .p-event-settings__toggle-row .c-toggle {
   flex-shrink: 0;
 }

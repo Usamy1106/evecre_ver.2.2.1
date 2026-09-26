@@ -13,6 +13,7 @@ import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 import { placeholderFor } from '../utils.js';
+import { confirmFirstShare, applyShareConfirmed } from './shareConfirmModal.js';
 import {
   REFLECT_LABELS,
   REFLECT_STRUGGLE_PLACEHOLDERS, REFLECT_SOLUTION_PLACEHOLDERS,
@@ -88,6 +89,11 @@ export function openReflectionEditModal(missionId, userId = null) {
   overlay.querySelector('[data-re="cancel"]').onclick = close;
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
 
+  // ★このイベントで初めてのチェックなら確認する。「いいえ」ならチェックを外す
+  overlay.querySelector('#re-shareable').addEventListener('change', async (e) => {
+    if (e.target.checked && !(await confirmFirstShare(p))) e.target.checked = false;
+  });
+
   const saveBtn = overlay.querySelector('[data-re="save"]');
   saveBtn.onclick = async () => {
     const struggle  = overlay.querySelector('#re-struggle').value.trim();
@@ -117,6 +123,7 @@ export function openReflectionEditModal(missionId, userId = null) {
     // ★サーバーが返した正規化済みの値で手元を更新する。200字で切られるので、
     //   入力値をそのまま入れると画面とサーバーで食い違う。
     Object.assign(cd, r.reflection || { struggle, solution, shareable });
+    applyShareConfirmed(p, r);
     close();
     state.render();
     window._app?.showToast('振り返りを保存しました');

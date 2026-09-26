@@ -25,6 +25,7 @@ import { logEvent } from './logger.js';
 import { readEditor, bindClearEditor, loadEditorContent, itemsForKeys } from './clearEditor.js';
 import { uploadEditorEmbeds, editorContentAndFormat, embedsPayload } from './modals/helpers.js';
 import { setArchiveSummary, setArchiveVenue } from './utils.js';
+import { confirmFirstShare, applyShareConfirmed } from './modals/shareConfirmModal.js';
 
 const EMBED_SAVE_DELAY_MS = 1200;   // 画像・PDF を動かしたあと、保存するまで待つ時間
 
@@ -198,6 +199,7 @@ async function _saveReflection(node) {
   if (!r?.ok) { node._dirty = true; _status(node, 'error', r?.error || '保存できませんでした'); return; }
   const key = userId ? `${missionId}_u_${userId}` : missionId;
   if (p.clearedData?.[key]) Object.assign(p.clearedData[key], r.reflection || { [field]: value });
+  applyShareConfirmed(p, r);
   // ★サーバーが正規化した値（200字で切る／本文が無いと shareable は false）に合わせる
   if (field === 'shareable' && r.reflection && 'shareable' in r.reflection) node.checked = !!r.reflection.shareable;
   _status(node, 'saved', '保存しました');
@@ -207,7 +209,11 @@ function _bindReflection(node) {
   if (node._bound) return;
   node._bound = true;
   if (node.type === 'checkbox') {
-    node.addEventListener('change', () => _saveReflection(node));
+    node.addEventListener('change', async () => {
+      // ★このイベントで初めてのチェックなら確認する。「いいえ」ならチェックを外して保存しない
+      if (node.checked && !(await confirmFirstShare(_event()))) { node.checked = false; return; }
+      _saveReflection(node);
+    });
     return;
   }
   node.addEventListener('input', () => { node._dirty = true; });

@@ -257,6 +257,7 @@
   --z-mission-menu: 250;     /* ミッションのミートボール・長押しメニュー */
   --z-sort-menu: 60;         /* 並び替えのドロップダウン（ボード内） */
   --z-archive-editbar: 45;   /* アーカイブの編集中の帯（画面の下）。FAB と同じ高さの層 */
+  --z-share-confirm: 290;    /* 「他の団体にも公開してよい」の初回確認。振り返りのモーダルの上に出す */
   --z-drag-ghost: 400;       /* 掴んで動かしている画像の分身。何より前に出す */
   --z-drag-caret: 410;       /* 差し込み先の線。分身の下に隠れないよう、さらに前 */
   --z-context-menu: 260;     /* 長押しメニュー。ピッカーより前 */
@@ -1789,6 +1790,12 @@ body {
   background-color: rgba(0, 0, 0, .4);
 }
 
+/* 「他の団体にも公開してよい」の初回確認（modals/shareConfirmModal.js）。
+   振り返りを書くモーダルの上に重ねて出すので、それより前に置く */
+.c-overlay--share {
+  z-index: var(--z-share-confirm);
+}
+
 /* ===== object/component/_modal.css ===== */
 /* ==========================================================================
    Object / Component / modal — 画面中央に出るモーダルの箱
@@ -3311,6 +3318,12 @@ body {
 
 .c-toggle.is-on .c-toggle__knob {
   transform: translateX(20px);
+}
+
+/* 押せないとき（例：公開してよい振り返りが0件でナレッジを公開できない） */
+.c-toggle:disabled {
+  opacity: .4;
+  cursor: not-allowed;
 }
 
 /* ===== object/component/_action-sheet.css ===== */
@@ -9447,6 +9460,13 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+}
+
+.p-event-settings__toggle-note {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-text-muted);
 }
 
 .p-event-settings__toggle-row .c-toggle {
