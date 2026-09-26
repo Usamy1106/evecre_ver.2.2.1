@@ -1344,10 +1344,7 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
         <label class="p-archive__reflect-label">${labels.solution}
           <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('solution')}>${_esc(cd.solution || '')}</textarea>
         </label>
-        <label class="p-archive__reflect-share">
-          <input type="checkbox" ${cd.shareable ? 'checked' : ''} ${reflectAttrs('shareable')}>
-          他の団体にも公開してよい
-        </label>
+        <div class="p-archive__reflect-share">${Components.ShareCheck({ checked: !!cd.shareable, attrs: reflectAttrs('shareable') })}</div>
         <p class="p-archive__save-status" data-save-status></p>
       </div>`}`;
 }
@@ -1428,8 +1425,9 @@ function _renderArchiveEntry(p, m, editing) {
   const indivSummary = m.individualClear
     ? `<span class="p-archive__entry-indiv">${clearedBy.length}/${Math.max(1, totalAssignees)}人完了</span>` : '';
 
-  // 右上：管理者はメニュー（編集モードのときだけ）／それ以外はリンクのコピー
-  const actionBtn = editing ? `
+  // 右上：管理者はメニュー（リンクをコピー・編集する・未完了に戻す・削除する。閲覧でも編集中でも出す）／
+  //        それ以外はリンクのコピー
+  const actionBtn = state.canManageCurrentEvent() ? `
     <button type="button" onclick="event.stopPropagation(); window._app.openArchiveMissionMenu(event, '${m.id}')"
       class="p-archive__entry-action" aria-label="メニュー">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

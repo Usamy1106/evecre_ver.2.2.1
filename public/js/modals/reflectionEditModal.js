@@ -13,6 +13,7 @@ import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 import { placeholderFor } from '../utils.js';
+import { Components } from '../components.js';
 import { confirmFirstShare, applyShareConfirmed } from './shareConfirmModal.js';
 import {
   REFLECT_LABELS,
@@ -71,10 +72,7 @@ export function openReflectionEditModal(missionId, userId = null) {
         class="c-input c-input--block p-reflect-edit__input"
         placeholder="${_esc(placeholderFor(tables.solution, m))}">${_esc(cd.solution || '')}</textarea>
 
-      <label class="p-reflect-edit__share">
-        <input type="checkbox" id="re-shareable" ${cd.shareable ? 'checked' : ''}>
-        <span>他の団体にも公開してよい</span>
-      </label>
+      <div class="p-reflect-edit__share">${Components.ShareCheck({ id: 're-shareable', checked: !!cd.shareable })}</div>
 
       <div class="p-reflect-edit__actions">
         <button type="button" data-re="cancel" class="c-button c-button--ghost">キャンセル</button>
@@ -99,6 +97,11 @@ export function openReflectionEditModal(missionId, userId = null) {
     const struggle  = overlay.querySelector('#re-struggle').value.trim();
     const solution  = overlay.querySelector('#re-solution').value.trim();
     const shareable = overlay.querySelector('#re-shareable').checked;
+    // ★本文の無い振り返りは公開の候補にできない（サーバーが shareable を外す）。黙って外さず、先に知らせる
+    if (shareable && !struggle && !solution) {
+      window._app?.showToast('「他の団体にも役立ちそう」を選ぶには、振り返りを書いてください', 'error');
+      return;
+    }
 
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中…';

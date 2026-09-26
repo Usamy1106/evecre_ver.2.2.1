@@ -305,7 +305,7 @@ export function getEventMainVisual(project) {
 
 /**
  * アーカイブの基礎情報（タイトル・ヘッダー画像・概要・場所・期間）がすべて入っているか。
- * ★「基礎情報を公開するか」の確認（publicBasicInfoModal.js）を出す条件
+ * ★「宣伝用に公開するか」の確認（publicBasicInfoModal.js）を出す条件
  */
 export function hasAllBasicInfo(project) {
   return !!(String(project?.name || '').trim()

@@ -77,6 +77,8 @@ async function _saveBasic(node) {
     await state.saveNow(p.id);
     _status(node, 'saved', '保存しました');
     logEvent('archive_inline_saved', { field });
+    // ★5つがそろったら「宣伝用に公開するか」を聞く。編集モードは保存しても描き直さないので、ここで判定を呼ぶ
+    window._app?.checkPublicBasicInfoModal?.();
   } catch (_) {
     _status(node, 'error', '保存できませんでした');
   }
@@ -201,7 +203,17 @@ async function _saveReflection(node) {
   if (p.clearedData?.[key]) Object.assign(p.clearedData[key], r.reflection || { [field]: value });
   applyShareConfirmed(p, r);
   // ★サーバーが正規化した値（200字で切る／本文が無いと shareable は false）に合わせる
-  if (field === 'shareable' && r.reflection && 'shareable' in r.reflection) node.checked = !!r.reflection.shareable;
+  if (field === 'shareable' && r.reflection && 'shareable' in r.reflection) {
+    const accepted = !!r.reflection.shareable;
+    // ★本文の無い振り返りは公開の候補にできない（サーバーの _sanitizeReflection）。黙って外すと
+    //   押しても効かないように見えるので、理由を出す
+    if (value && !accepted) {
+      node.checked = false;
+      _status(node, 'error', '先に「困ったこと」か「次にやるなら」を書くと選べます');
+      return;
+    }
+    node.checked = accepted;
+  }
   _status(node, 'saved', '保存しました');
 }
 

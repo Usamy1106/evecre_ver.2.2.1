@@ -248,14 +248,9 @@
   line-height: 1.6;
 }
 
+/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
 .p-mission-reflect__share {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
   margin-top: var(--space-4);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
 }
 
 .p-mission-reflect__save {

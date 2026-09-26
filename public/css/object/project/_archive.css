@@ -548,12 +548,9 @@
   margin-top: var(--space-1);
 }
 
+/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
 .p-archive__reflect-share {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
+  margin-top: var(--space-2);
 }
 
 /* 未完了のタスク（編集モードだけ）。完了した記録と分けて、折りたたんでまとめる */
@@ -854,13 +851,10 @@
   resize: vertical;
 }
 
+/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
 .p-reflect-edit__share {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  margin-top: var(--space-2);
   margin-bottom: var(--space-4);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
 }
 
 .p-reflect-edit__actions {

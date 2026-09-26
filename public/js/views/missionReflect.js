@@ -23,6 +23,7 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { logEvent } from '../logger.js';
 import { placeholderFor } from '../utils.js';
+import { Components } from '../components.js';
 import { confirmFirstShare, applyShareConfirmed } from '../modals/shareConfirmModal.js';
 import {
   OUTCOME_CHOICES, OUTCOME_REPLIES, REFLECT_LABELS,
@@ -108,10 +109,7 @@ export function renderMissionReflect(appEl) {
             class="c-input c-input--block p-mission-reflect__input"
             placeholder="${_esc(f.solution.placeholder)}">${_esc(d.solution)}</textarea>
 
-          <label class="p-mission-reflect__share">
-            <input type="checkbox" id="reflect-shareable" ${d.shareable ? 'checked' : ''}>
-            <span>他の団体にも役立ちそう</span>
-          </label>
+          <div class="p-mission-reflect__share">${Components.ShareCheck({ id: 'reflect-shareable', checked: !!d.shareable })}</div>
 
           <button type="button" onclick="window._app.saveMissionReflect()" id="reflect-save"
             class="c-button c-button--primary p-mission-reflect__save">保存して戻る</button>

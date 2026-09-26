@@ -438,8 +438,10 @@ window._app = {
     menu.className = 'c-context-menu c-context-menu--archive u-animate-fade';
     menu.style.top   = `${rect.bottom + 4}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
+    // ★「編集する」は編集モードに入ってそのタスクへ移る（編集中は出さない）
     menu.innerHTML = `
       <button id="amm-copy-link" class="c-context-menu__item">リンクをコピー</button>
+      ${state.archiveEditing ? '' : '<button id="amm-edit" class="c-context-menu__item">編集する</button>'}
       <button id="amm-revert" class="c-context-menu__item">未完了に戻す</button>
       <button id="amm-delete" class="c-context-menu__item c-context-menu__item--danger">削除する</button>`;
     document.body.appendChild(menu);
@@ -447,6 +449,10 @@ window._app = {
       ev.stopPropagation(); menu.remove();
       window._app.copyMissionLink(missionId);
     };
+    document.getElementById('amm-edit')?.addEventListener('click', (ev) => {
+      ev.stopPropagation(); menu.remove();
+      window._app.editArchiveEntry(missionId);
+    });
     document.getElementById('amm-revert').onclick = (ev) => {
       ev.stopPropagation(); menu.remove();
       window._app.revertMissionToIncomplete(missionId);
@@ -1232,6 +1238,17 @@ window._app = {
 
   // --- アーカイブ：目次から記録へ飛ぶ／編集モードの切り替え（管理者のみ）---
   jumpToArchiveEntry: (missionId) => jumpToArchiveEntry(missionId),
+  // タスクのメニューの「編集する」：編集モードに入り、そのタスクまで移って入力欄にカーソルを置く
+  editArchiveEntry: (missionId) => {
+    if (!state.canManageCurrentEvent()) return;
+    state.archiveEditing = true;
+    state.render();
+    jumpToArchiveEntry(missionId);
+    const entry = [...document.querySelectorAll('.p-archive__entry')].find(x => x.dataset.missionId === missionId);
+    const details = entry?.querySelector('.p-archive__sub');
+    if (details) details.open = true;   // 個別完了は1人目の行を開く
+    entry?.querySelector('.c-editor')?.focus({ preventScroll: true });
+  },
   // ★終えるときは、保存待ちの欄を全部保存してから閲覧に戻す（保存は欄ごとに自動。archiveInlineEdit.js）
   toggleArchiveEditing: async () => {
     if (!state.canManageCurrentEvent()) return;
@@ -1831,8 +1848,8 @@ const _LOG_LABELS = {
   public_basic_answered:     '基礎情報の公開を選んだ',
   public_basic_toggled:      '基礎情報の公開を切り替えた',
   public_knowledge_toggled:  'ナレッジの公開を切り替えた',
-  share_confirm_shown:       '「他の団体にも公開してよい」の初回確認が出た',
-  share_confirm_answered:    '「他の団体にも公開してよい」の初回確認に答えた',
+  share_confirm_shown:       '「他の団体にも役立ちそう」の初回確認が出た',
+  share_confirm_answered:    '「他の団体にも役立ちそう」の初回確認に答えた',
   reflection_edited:       '振り返りを編集した',
   submission_edited:       '提出内容を直した（アーカイブ）',
   leader_motivation_skipped: '★意気込みモーダルを出さなかった（理由つき）',

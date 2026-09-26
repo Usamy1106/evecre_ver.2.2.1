@@ -3980,6 +3980,84 @@ body {
   opacity: .7;
 }
 
+/* ===== object/component/_share-check.css ===== */
+/* ==========================================================================
+   Object / Component / share-check — 「他の団体にも役立ちそう」のチェック（大きめ）
+   使用箇所: public/js/components.js の Components.ShareCheck
+             （完了後の振り返り・振り返りの編集モーダル・アーカイブの編集モード）
+
+   ★見た目は大きなカード。中の <input type="checkbox"> は見えないが、読み上げ・キーボード操作は生きている
+     （label で包んでいるので、カードのどこをタップしても切り替わる）
+   ========================================================================== */
+
+.c-share-check {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease), background-color var(--duration-fast) var(--ease);
+}
+
+.c-share-check:has(.c-share-check__input:checked) {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-tint2);
+}
+
+.c-share-check:has(.c-share-check__input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* 本物のチェックボックスは見えなくする（位置は残す） */
+.c-share-check__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.c-share-check__box {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: transparent;
+  transition: background-color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease);
+}
+
+.c-share-check__input:checked + .c-share-check__box {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+.c-share-check__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.c-share-check__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.c-share-check__note {
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
 /* ===== object/component/_context-menu.css ===== */
 /* ==========================================================================
    Object / Component / context-menu — 長押し・右クリックで出るメニュー
@@ -5734,12 +5812,9 @@ body {
   margin-top: var(--space-1);
 }
 
+/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
 .p-archive__reflect-share {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
+  margin-top: var(--space-2);
 }
 
 /* 未完了のタスク（編集モードだけ）。完了した記録と分けて、折りたたんでまとめる */
@@ -6040,13 +6115,10 @@ body {
   resize: vertical;
 }
 
+/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
 .p-reflect-edit__share {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  margin-top: var(--space-2);
   margin-bottom: var(--space-4);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
 }
 
 .p-reflect-edit__actions {
@@ -12156,14 +12228,9 @@ body {
   line-height: 1.6;
 }
 
+/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
 .p-mission-reflect__share {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
   margin-top: var(--space-4);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
 }
 
 .p-mission-reflect__save {

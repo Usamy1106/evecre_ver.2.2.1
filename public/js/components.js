@@ -444,6 +444,26 @@ export const Components = {
       </div>`;
   },
 
+  /**
+   * 「他の団体にも役立ちそう」の大きなチェック（振り返りの shareable）。3か所で共用する：
+   * 完了後の振り返り・振り返りの編集モーダル・アーカイブの編集モード。★文言を1か所に揃えるため、ここで作る。
+   * @param {{ id?: string, checked?: boolean, attrs?: string }} opts  attrs は <input> に足す属性（data-*）
+   */
+  ShareCheck({ id = '', checked = false, attrs = '' } = {}) {
+    return `
+      <label class="c-share-check">
+        <input type="checkbox" class="c-share-check__input" ${id ? `id="${_escAttr(id)}"` : ''} ${checked ? 'checked' : ''} ${attrs}>
+        <span class="c-share-check__box" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+        <span class="c-share-check__body">
+          <span class="c-share-check__title">他の団体にも役立ちそう</span>
+          <span class="c-share-check__note">開催後、名前を伏せて他の団体に公開される候補になります</span>
+        </span>
+      </label>`;
+  },
+
   SkillTag(tag, { on = false, kind = 'good', attr = 'data-skill-tag' } = {}) {
     const a = `${attr}="${_escText(tag.id)}"`;
     if (!on) {

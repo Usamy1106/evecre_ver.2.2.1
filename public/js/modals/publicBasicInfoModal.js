@@ -1,4 +1,8 @@
-// ===== 基礎情報を公開するかの確認（アーカイブの基礎情報がそろったとき）=====
+// ===== 宣伝用に公開するかの確認（アーカイブの基礎情報がそろったとき）=====
+//
+// ★公開は2種類（2026-09-26 に名前を決めた）：
+//   宣伝用の公開 … ヘッダー画像・タイトル・概要・期間・場所だけ。いつでも公開できる（publicBasicInfo）
+//   開催後の公開 … タスクの内容・振り返りも含む。開催後だけ（publicKnowledge）
 //
 // タイトル・ヘッダー画像・概要・場所・期間の5つがすべて入ったら、一度だけ
 // 「基礎情報だけを公開するか」を管理者に聞く。答えは p.publicBasicInfo（CRDT。true / false）。
@@ -54,14 +58,14 @@ function _open(p) {
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
         </svg>
       </div>
-      <h3 id="pbi-title" class="c-modal__title">このイベントを公開しますか？</h3>
+      <h3 id="pbi-title" class="c-modal__title">このイベントを宣伝用に公開しますか？</h3>
       <p class="c-modal__text">
-        基礎情報がそろいました。タイトル・ヘッダー画像・概要・場所・期間の5つを、イベクリの外でも見られるようにできます。<br>
+        ヘッダー画像・タイトル・概要・期間・場所がそろいました。この5つを、イベクリの外で宣伝に使えるように公開できます。<br>
         タスクやメンバーの情報は公開されません。あとからイベント設定で変更できます。
       </p>
       <div class="c-modal__actions">
         <button type="button" data-action="no" class="c-button c-button--secondary c-modal__button">今はしない</button>
-        <button type="button" data-action="yes" class="c-button c-button--primary c-modal__button">公開する</button>
+        <button type="button" data-action="yes" class="c-button c-button--primary c-modal__button">宣伝用に公開</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -73,7 +77,7 @@ function _open(p) {
     logEvent('public_basic_answered', { eventId: p.id, value });
     await state.saveNow(p.id);
     state.render();
-    if (value) window._app?.showToast('基礎情報を公開しました');
+    if (value) window._app?.showToast('宣伝用に公開しました');
   };
   overlay.querySelector('[data-action="yes"]').onclick = () => answer(true);
   overlay.querySelector('[data-action="no"]').onclick  = () => answer(false);
