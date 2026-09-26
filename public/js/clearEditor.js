@@ -26,7 +26,7 @@
 
 import { SUBMISSION_MAX_IMAGES, SUBMISSION_MAX_FILES, SUBMISSION_FILE_MAX_BYTES } from './constants.js';
 import { renderPdfThumb } from './pdfThumb.js';
-import { formatFileSize } from './utils.js';
+import { formatFileSize, submissionSegments } from './utils.js';
 
 // 本文の中の画像・添付ファイル（PDF）の印。★utils.js の IMAGE_MARK_RE / FILE_MARK_RE と同じ形に保つこと
 // ★編集欄の中の塊は、画像も PDF も data-img-key を持つ（並べ替え・×・差し込み先の判定を共通にするため）。
@@ -202,6 +202,50 @@ export function setEditorText(el, text) {
   _syncEmpty(el);
 }
 
+/**
+ * 保存済みの提出物（文章・画像・PDF）を編集欄に並べる（アーカイブの編集モードで直すとき）。
+ * ★画像・PDF は送信済みなので url を持たせ、送り直さない（uploadEditorEmbeds が url 付きを飛ばす）。
+ * ★PDF の1ページ目の絵も保存済みのものを使う（描き直さない）。
+ * ★この編集欄のタスクIDは dataset.missionId（完了フォームと別の値にして _items を混ぜないこと）。
+ */
+export function loadEditorContent(el, cd) {
+  if (!el) return;
+  _missionId = el.dataset.missionId;
+  _items = new Map();
+  el.textContent = '';
+  const appendText = (text) => {
+    String(text).split('\n').forEach((line, i) => {
+      if (i > 0) el.appendChild(document.createElement('br'));
+      if (line) el.appendChild(document.createTextNode(line));
+    });
+  };
+  let prevWasText = false;
+  for (const seg of submissionSegments(cd)) {
+    if (seg.type === 'text') {
+      if (prevWasText) el.appendChild(document.createElement('br'));
+      appendText(seg.text);
+      prevWasText = true;
+      continue;
+    }
+    const key = `k${++_seq}`;
+    if (seg.type === 'image') {
+      _items.set(key, { dataUrl: null, url: seg.url });
+      el.appendChild(_imageNode(key, seg.url));
+    } else {
+      const f = seg.file;
+      _items.set(key, { kind: 'file', blob: null, name: f.name, size: f.size, url: f.url,
+        thumbUrl: f.thumb || null, thumbDataUrl: null, thumbReady: Promise.resolve() });
+      const node = _fileNode(key, f.name, f.size);
+      el.appendChild(node);
+      _fillFileThumb(node, f.thumb ? { dataUrl: f.thumb } : null);
+    }
+    prevWasText = false;
+  }
+  // ★末尾が画像・PDF だと Safari がその後ろにカーソルを置けない。受け皿の改行を足す
+  if (el.lastChild?.dataset?.imgKey) el.appendChild(document.createElement('br'));
+  _syncEmpty(el);
+}
+
 /** key の並びから、送るもの（画像 { dataUrl, url } ／ PDF { kind:'file', blob, name, size, ... }）を返す */
 export function itemsForKeys(keys) {
   return keys.map(k => _items.get(k)).filter(Boolean);
@@ -287,14 +331,14 @@ function _insertText(el, range, text) {
 
 function _imageNode(key, dataUrl) {
   const span = document.createElement('span');
-  span.className = 'p-mission-detail__editor-image';
+  span.className = 'c-editor__embed';
   span.contentEditable = 'false';
   span.dataset.imgKey = key;
   // ★タグの間に空白や改行を入れないこと。編集欄は white-space: pre-wrap なので、
   //   空白がそのまま空行として描かれ、画像の上下に大きな隙間ができる（実際にそうなった）。
   span.innerHTML =
-    `<img src="${_esc(dataUrl)}" class="p-mission-detail__editor-image-img" alt="" draggable="false">`
-    + `<button type="button" data-img-remove class="p-mission-detail__editor-image-remove" aria-label="画像を外す">`
+    `<img src="${_esc(dataUrl)}" class="c-editor__embed-img" alt="" draggable="false">`
+    + `<button type="button" data-img-remove class="c-editor__embed-remove" aria-label="画像を外す">`
     + `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">`
     + `<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>`;
   return span;
@@ -303,15 +347,15 @@ function _imageNode(key, dataUrl) {
 // PDF の塊。1ページ目の絵ができるまではくるくるを出す
 function _fileNode(key, name, size) {
   const span = document.createElement('span');
-  span.className = 'p-mission-detail__editor-image p-mission-detail__editor-file is-loading';
+  span.className = 'c-editor__embed c-editor__file is-loading';
   span.contentEditable = 'false';
   span.dataset.imgKey = key;
   span.dataset.kind = 'file';
   // ★タグの間に空白を入れない（pre-wrap で空行になる。_imageNode と同じ）
   span.innerHTML =
-    `<span class="p-mission-detail__editor-file-thumb"><span class="c-spinner c-spinner--sm"></span></span>`
-    + `<span class="p-mission-detail__editor-file-name">📄 ${_esc(name)}<span class="p-mission-detail__editor-file-size">${_esc(formatFileSize(size))}</span></span>`
-    + `<button type="button" data-img-remove class="p-mission-detail__editor-image-remove" aria-label="ファイルを外す">`
+    `<span class="c-editor__file-thumb"><span class="c-spinner c-spinner--sm"></span></span>`
+    + `<span class="c-editor__file-name">📄 ${_esc(name)}<span class="c-editor__file-size">${_esc(formatFileSize(size))}</span></span>`
+    + `<button type="button" data-img-remove class="c-editor__embed-remove" aria-label="ファイルを外す">`
     + `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">`
     + `<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>`;
   return span;
@@ -319,11 +363,11 @@ function _fileNode(key, name, size) {
 
 // 1ページ目の絵ができたら差し替える（描けなければ「PDF」の札）
 function _fillFileThumb(node, thumb) {
-  const box = node.querySelector('.p-mission-detail__editor-file-thumb');
+  const box = node.querySelector('.c-editor__file-thumb');
   if (!box) return;
   box.innerHTML = thumb
-    ? `<img src="${_esc(thumb.dataUrl)}" class="p-mission-detail__editor-image-img" alt="" draggable="false">`
-    : `<span class="p-mission-detail__editor-file-badge">PDF</span>`;
+    ? `<img src="${_esc(thumb.dataUrl)}" class="c-editor__embed-img" alt="" draggable="false">`
+    : `<span class="c-editor__file-badge">PDF</span>`;
   node.classList.remove('is-loading');
 }
 
@@ -408,7 +452,7 @@ function _showCaret(range) {
   if (!rect) { _hideCaret(); return; }
   if (!_caretEl || !_caretEl.isConnected) {
     _caretEl = document.createElement('div');
-    _caretEl.className = 'p-mission-detail__editor-caret';
+    _caretEl.className = 'c-editor__caret';
     document.body.appendChild(_caretEl);
   }
   _caretEl.style.transform = `translate3d(${rect.left}px, ${rect.top}px, 0)`;
@@ -653,7 +697,7 @@ function _bindImageDrag(el, onChange) {
       ghost.removeAttribute('data-img-key');
       ghost.removeAttribute('contenteditable');
       ghost.querySelector('[data-img-remove]')?.remove();
-      ghost.classList.add('p-mission-detail__editor-ghost');
+      ghost.classList.add('c-editor__ghost');
       ghost.style.width  = `${box.width}px`;
       ghost.style.height = `${box.height}px`;
       document.body.appendChild(ghost);

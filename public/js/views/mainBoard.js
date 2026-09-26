@@ -1127,7 +1127,7 @@ function _renderArchiveTab(p) {
     <details class="p-archive__pending">
       <summary class="p-archive__pending-summary">未完了のタスク（${pending.length}件）</summary>
       <p class="p-archive__pending-note">編集中だけ表示しています。完了すると記録に並びます</p>
-      ${pending.map(m => _renderArchivePendingEntry(m)).join('')}
+      ${pending.map(m => _renderArchivePendingEntry(m, p)).join('')}
     </details>`;
 
   const hasDatesA = Array.isArray(p.dates) && p.dates.length > 0;
@@ -1220,13 +1220,26 @@ function _renderArchiveTab(p) {
     </div>`;
 }
 
-// 1タスクぶんの記録（文書の1節）。★data-mission-id は目次・通知からのスクロール先の目印
-function _renderArchiveEntry(p, m, editing) {
-  const cd          = p.clearedData?.[m.id];
-  const canMgr      = state.canManageCurrentEvent();
-  const tagNames    = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
-  const completedAt = cd?.timestamp ? _fmtDate(cd.timestamp) : '';
+// 個別完了の提出者ごとの行：開いている行（`${missionId}:${userId}`）と「他N人」を開いたタスク。
+// ★モジュールで持つ（SSE で描き直されても開いたまま。通知のまとめと同じ方式）
+const _archiveOpenRows = new Set();
+const _archiveShowAll  = new Set();
+const ARCHIVE_ROWS_VISIBLE = 3;
 
+export function rememberArchiveRow(rowKey, open) {
+  if (open) _archiveOpenRows.add(rowKey); else _archiveOpenRows.delete(rowKey);
+}
+
+export function showAllArchiveSubmitters(missionId) {
+  _archiveShowAll.add(missionId);
+  state.render();
+}
+
+// 提出物1つぶんの中身（文章・画像・PDF・振り返り・編集ボタン）。
+// userId … 個別完了のときだけ（その人の提出物）
+function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
+  if (!cd) return '';
+  const canMgr = state.canManageCurrentEvent();
   // ★画像・PDF は本文の途中にも入る。読み分けは utils.js の submissionSegments
   const contentHtml = submissionSegments(cd).map(seg => {
     if (seg.type === 'image') {
@@ -1236,35 +1249,113 @@ function _renderArchiveEntry(p, m, editing) {
     return `<p class="p-archive__content-text">${linkifyText(seg.text)}</p>`;
   }).join('');
 
-  const clearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
-  const totalAssignees = Array.isArray(m.assignees) && m.assignees.length > 0
-    ? m.assignees.length
-    : (m.assignee?.type === 'user' ? 1 : clearedBy.length);
-  const indivSummary = m.individualClear
-    ? `<span class="p-archive__entry-indiv">${clearedBy.length}/${Math.max(1, totalAssignees)}人完了</span>` : '';
-
   // ── 振り返り（見出しは成否で変える。missionDetail.js の _reflectionHtml と同じ）──
   // ★初期タスク（目的・企画の整理）には振り返りを出さない（REFLECT_SKIP_MISSION_IDS）
   // ★編集できるのは提出した本人と管理者だけ（サーバーも同じ判定）
   const skipReflect = REFLECT_SKIP_MISSION_IDS.includes(m.id);
-  const struggle = String(cd?.struggle || '').trim();
-  const solution = String(cd?.solution || '').trim();
-  const labels   = REFLECT_LABELS[cd?.outcome] || REFLECT_LABELS.struggle;
-  const canEditReflection = !skipReflect && cd && (canMgr || cd.submittedBy === state.currentUser?.id);
+  const struggle = String(cd.struggle || '').trim();
+  const solution = String(cd.solution || '').trim();
+  const labels   = REFLECT_LABELS[cd.outcome] || REFLECT_LABELS.struggle;
+  const isMine   = cd.submittedBy === state.currentUser?.id;
+  const canEditReflection = !skipReflect && (canMgr || isMine);
   const reflectRow = (label, text) => text
     ? `<div class="p-archive__reflect-row">
          <p class="p-archive__reflect-label">${label}</p>
          <p class="p-archive__reflect-text">${linkifyText(text)}</p>
        </div>` : '';
   const hasReflect = struggle || solution;
+  const uidArg = userId ? `, '${_esc(userId)}'` : '';
   const reflectHtml = skipReflect || (!hasReflect && !(editing && canEditReflection)) ? '' : `
     <div class="p-archive__reflect">
       ${hasReflect ? reflectRow(labels.struggle, struggle) + reflectRow(labels.solution, solution)
         : `<p class="p-archive__reflect-empty">振り返りは未記入です</p>`}
-      ${canEditReflection && (editing || cd.submittedBy === state.currentUser?.id) ? `
-        <button type="button" onclick="event.stopPropagation(); window._app.openReflectionEdit('${m.id}')"
+      ${canEditReflection && (editing || isMine) ? `
+        <button type="button" onclick="event.stopPropagation(); window._app.openReflectionEdit('${m.id}'${uidArg})"
           class="p-archive__reflect-edit">${hasReflect ? '編集' : '書く'}</button>` : ''}
     </div>`;
+
+  // 編集モード：提出内容を直す（管理者だけ。サーバーも canManage を要求する）
+  const editBtn = editing ? `
+    <button type="button" onclick="window._app.openSubmissionEdit('${m.id}'${uidArg})" data-log="archive_submission_edit"
+      class="p-archive__content-edit">内容を編集</button>` : '';
+
+  return contentHtml + reflectHtml + editBtn;
+}
+
+// 個別完了：提出した人ごとに折りたためる行。最初は閉じていて、1行の要約で中身の見当がつく。
+// ★3人まで出し、4人目以降は「他N人の提出を表示」で開く（文書を長くしない）
+function _archiveIndividualHtml(p, m, editing) {
+  const prefix = `${m.id}_u_`;
+  const subs = Object.entries(p.clearedData || {})
+    .filter(([k, cd]) => k.startsWith(prefix) && cd)
+    .map(([k, cd]) => ({ uid: k.slice(prefix.length), cd }))
+    .sort((a, b) => (a.cd.timestamp || 0) - (b.cd.timestamp || 0));
+  const showAll = _archiveShowAll.has(m.id);
+  const visible = showAll ? subs : subs.slice(0, ARCHIVE_ROWS_VISIBLE);
+  const hidden  = subs.length - visible.length;
+
+  const rows = visible.map(({ uid, cd }) => {
+    const mem = (p.members || []).find(x => x.userId === uid) || { userId: uid, username: '退会したメンバー' };
+    const rowKey = `${m.id}:${uid}`;
+    const text = submissionText(cd);
+    const nImg = submissionImages(cd).length;
+    const nPdf = (cd.files || []).length;
+    const preview = [
+      text ? _esc(text.length > 40 ? text.slice(0, 40) + '…' : text) : '',
+      nImg ? `📷${nImg}` : '', nPdf ? `📄${nPdf}` : '',
+    ].filter(Boolean).join(' ');
+    return `
+      <details class="p-archive__sub" ${_archiveOpenRows.has(rowKey) ? 'open' : ''}
+        ontoggle="window._app.rememberArchiveRow('${_esc(rowKey)}', this.open)">
+        <summary class="p-archive__sub-summary">
+          ${Components.UserAvatar(mem, { size: 28 })}
+          <span class="p-archive__sub-head">
+            <span class="p-archive__sub-name">${_esc(mem.username || '')}
+              ${cd.timestamp ? `<span class="p-archive__sub-date">${_fmtDate(cd.timestamp)} 提出</span>` : ''}</span>
+            ${preview ? `<span class="p-archive__sub-preview">${preview}</span>` : ''}
+          </span>
+          <svg class="p-archive__sub-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <div class="p-archive__sub-body">${_archiveSubmissionHtml(p, m, cd, editing, uid)}</div>
+      </details>`;
+  }).join('');
+
+  // 編集モード：まだ提出していない担当者
+  const assigneeIds = Array.isArray(m.assignees) && m.assignees.length > 0
+    ? m.assignees : (m.assignee?.type === 'user' ? [m.assignee.userId] : []);
+  const submitted = new Set(subs.map(x => x.uid));
+  const notYet = editing
+    ? assigneeIds.filter(id => !submitted.has(id)).map(id => (p.members || []).find(x => x.userId === id)?.username).filter(Boolean)
+    : [];
+
+  if (subs.length === 0 && notYet.length === 0) return '';
+  return `
+    <div class="p-archive__subs">
+      ${rows}
+      ${hidden > 0 ? `<button type="button" onclick="window._app.showAllArchiveSubmitters('${m.id}')"
+        class="p-archive__subs-more">＋ 他${hidden}人の提出を表示</button>` : ''}
+    </div>
+    ${notYet.length ? `<p class="p-archive__subs-notyet">未提出：${notYet.map(_esc).join('、')}</p>` : ''}`;
+}
+
+// 1タスクぶんの記録（文書の1節）。★data-mission-id は目次・通知からのスクロール先の目印
+function _renderArchiveEntry(p, m, editing) {
+  const cd          = p.clearedData?.[m.id];
+  const tagNames    = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
+  // 個別完了は提出物が人数ぶんある（<mid>_u_<userId>）。完了日はいちばん新しい提出
+  const indivSubs   = m.individualClear
+    ? Object.entries(p.clearedData || {}).filter(([k]) => k.startsWith(`${m.id}_u_`)).map(([, x]) => x)
+    : [];
+  const lastTs      = m.individualClear ? Math.max(0, ...indivSubs.map(x => x?.timestamp || 0)) : cd?.timestamp;
+  const completedAt = lastTs ? _fmtDate(lastTs) : '';
+
+  const clearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
+  const totalAssignees = Array.isArray(m.assignees) && m.assignees.length > 0
+    ? m.assignees.length
+    : (m.assignee?.type === 'user' ? 1 : clearedBy.length);
+  const indivSummary = m.individualClear
+    ? `<span class="p-archive__entry-indiv">${clearedBy.length}/${Math.max(1, totalAssignees)}人完了</span>` : '';
 
   // 右上：管理者はメニュー（編集モードのときだけ）／それ以外はリンクのコピー
   const actionBtn = editing ? `
@@ -1294,13 +1385,13 @@ function _renderArchiveEntry(p, m, editing) {
         ${indivSummary}
         ${completedAt ? `<span class="p-archive__entry-date">${completedAt}完了</span>` : ''}
       </div>
-      ${contentHtml}
-      ${reflectHtml}
+      ${m.individualClear ? _archiveIndividualHtml(p, m, editing) : _archiveSubmissionHtml(p, m, cd, editing)}
     </div>`;
 }
 
-// 未完了のタスク（編集モードだけ）。提出内容は無いので、名前とラベルだけ
-function _renderArchivePendingEntry(m) {
+// 未完了のタスク（編集モードだけ）。提出内容は無いので、名前とラベルだけ。
+// ★個別完了で途中まで提出があるものは、提出した人ごとの行も出す（直せるように）
+function _renderArchivePendingEntry(m, p) {
   const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
   const status = m.status === 'pending_leader_check' ? 'リーダー確認待ち' : '未完了';
   return `
@@ -1312,6 +1403,7 @@ function _renderArchivePendingEntry(m) {
         ${tagNames.map(t => Components.Tag(t)).join('')}
         <span class="p-archive__entry-date">${status}</span>
       </div>
+      ${m.individualClear && p ? _archiveIndividualHtml(p, m, true) : ''}
     </div>`;
 }
 

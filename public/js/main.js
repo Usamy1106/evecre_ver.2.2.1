@@ -14,7 +14,7 @@ import {
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
-import { renderMainBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry } from './views/mainBoard.js';
+import { renderMainBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry, showAllArchiveSubmitters, rememberArchiveRow } from './views/mainBoard.js';
 import { renderWelcome } from './views/welcome.js';
 import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
@@ -65,6 +65,7 @@ import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
 import { submissionImages, submissionText, submissionFilesLabel } from './utils.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
+import { openSubmissionEditModal } from './modals/submissionEditModal.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
@@ -1099,7 +1100,13 @@ window._app = {
   checkIntro: () => checkIntro(),
   openUserProfileModal: (userId) => openUserProfileModal(userId),
   copySchedule: (source) => copySchedule(source),
-  openReflectionEdit: (missionId) => openReflectionEditModal(missionId),
+  openReflectionEdit: (missionId, userId) => openReflectionEditModal(missionId, userId || null),
+  // アーカイブの編集モードで提出内容を直す（管理者のみ）。個別完了は userId でその人の提出物
+  openSubmissionEdit: (missionId, userId) => openSubmissionEditModal(missionId, userId || null),
+  // アーカイブ：個別完了の「他N人の提出を表示」
+  showAllArchiveSubmitters: (missionId) => showAllArchiveSubmitters(missionId),
+  // アーカイブ：個別完了の行の開閉を覚える（描き直しで閉じないように）
+  rememberArchiveRow: (rowKey, open) => rememberArchiveRow(rowKey, open),
   // アーカイブのサブページ（参加時の回答／みんなの活躍）
   // ★戻り先は必ずアーカイブタブ。setView('MAIN_BOARD') だけだと直前に見ていた
   //   タブ（メイン等）に戻ってしまい、どこから来たのか分からなくなる。
@@ -1821,6 +1828,7 @@ const _LOG_LABELS = {
   public_basic_answered:     '基礎情報の公開を選んだ',
   public_basic_toggled:      '基礎情報の公開を切り替えた',
   reflection_edited:       '振り返りを編集した',
+  submission_edited:       '提出内容を直した（アーカイブ）',
   leader_motivation_skipped: '★意気込みモーダルを出さなかった（理由つき）',
   leader_motivation_failed:  '★意気込みモーダルの表示に失敗した',
   reflect_outcome_picked:  '振り返りで成否を選んだ',

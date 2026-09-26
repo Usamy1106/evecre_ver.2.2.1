@@ -226,6 +226,15 @@ export const api = {
     return json || { ok: false };
   },
 
+  // 提出内容（本文・画像・PDF）を書き換える（管理者のみ。アーカイブの編集モード）。
+  // ★画像・PDF は先に uploadSubmissionImage / uploadSubmissionFile で送り、URL だけを渡す。
+  //   個別完了は targetUserId でその人の提出物を指す。
+  async updateSubmission(eventId, missionId, { targetUserId, content = '', format = 'text', images = [], files = [] } = {}) {
+    const { json } = await _send('PATCH', `/api/events/${eventId}/missions/${missionId}/submission`,
+      { targetUserId, content, format, images, files });
+    return json || { ok: false };
+  },
+
   // 提出画像を1枚アップロードし、{ ok, url } を返す。
   // ★1枚ずつ、順番に呼ぶこと（並列にしない。サーバーは 512MB / 0.5CPU）。
   // ★タイムアウトは既定の8秒では足りない（2MB を細い回線で送る）。POST なので再試行はされない。

@@ -308,11 +308,11 @@ function _renderClearInput(m) {
     <div id="clear-mission-modal" class="p-mission-detail__clear" data-mission-id="${_esc(m.id)}">
       <!-- 編集欄（文章の途中に画像を置ける）＋ 画像ボタン。
            ★配線と読み書きは clearEditor.js。HTML は保存せず、文字と画像の印だけを取り出す -->
-      <div class="p-mission-detail__input-wrap">
-        <div id="clear-input" class="p-mission-detail__editor is-empty" contenteditable="true"
+      <div class="c-editor-field">
+        <div id="clear-input" class="c-editor is-empty" contenteditable="true"
           role="textbox" aria-multiline="true" data-mission-id="${_esc(m.id)}"
           aria-label="提出内容" data-placeholder="${_esc(placeholderFor(SUBMISSION_PLACEHOLDERS, m))}"></div>
-        <label for="file-input" class="p-mission-detail__image-pick">
+        <label for="file-input" class="c-editor-field__pick">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
             <circle cx="8.5" cy="8.5" r="1.5"/>

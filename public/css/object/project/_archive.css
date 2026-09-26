@@ -467,6 +467,120 @@
   box-shadow: none;
 }
 
+/* 編集モードの「内容を編集」 */
+.p-archive__content-edit {
+  margin-top: var(--space-3);
+  padding: 6px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* --- 個別完了：提出した人ごとに折りたためる行 -------------------------------
+   ★開閉は <details>。開いた行は mainBoard.js の _archiveOpenRows が覚えている */
+
+.p-archive__subs {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.p-archive__sub {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.p-archive__sub-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  cursor: pointer;
+  list-style: none;
+}
+
+.p-archive__sub-summary::-webkit-details-marker {
+  display: none;
+}
+
+.p-archive__sub-head {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.p-archive__sub-name {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__sub-date {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
+/* 閉じていても中身の見当がつく1行の要約 */
+.p-archive__sub-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-archive__sub[open] .p-archive__sub-preview {
+  display: none;
+}
+
+.p-archive__sub-arrow {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted);
+  transform: rotate(-90deg);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.p-archive__sub[open] .p-archive__sub-arrow {
+  transform: none;
+}
+
+.p-archive__sub-body {
+  padding-bottom: var(--space-4);
+}
+
+.p-archive__subs-more {
+  width: 100%;
+  padding-block: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-archive__subs-notyet {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* --- 提出内容を直すモーダル（modals/submissionEditModal.js）---------------- */
+
+.p-submission-edit {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.p-submission-edit__target {
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
 /* --- 提出物の表示 -------------------------------------------------------- */
 
 .p-archive__content-image {

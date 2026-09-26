@@ -28,11 +28,12 @@ function _esc(s) {
     .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
-export function openReflectionEditModal(missionId) {
+// userId … 個別完了のとき、誰の提出物の振り返りか（管理者が他人ぶんを直すとき。サーバーも管理者だけ受け付ける）
+export function openReflectionEditModal(missionId, userId = null) {
   const p = state.events.find(x => x.id === state.selectedEventId);
   const m = p?.missions?.find(x => x.id === missionId);
   if (!p || !m) return;
-  const cd = p.clearedData?.[missionId];
+  const cd = p.clearedData?.[m.individualClear && userId ? `${missionId}_u_${userId}` : missionId];
   if (!cd) return;   // 提出物が無い（差し戻された等）
 
   document.getElementById(OVERLAY_ID)?.remove();
@@ -95,7 +96,9 @@ export function openReflectionEditModal(missionId) {
 
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中…';
-    const r = await api.updateReflection(p.id, missionId, { struggle, solution, shareable });
+    const r = await api.updateReflection(p.id, missionId, {
+      struggle, solution, shareable, targetUserId: (m.individualClear && userId) ? userId : undefined,
+    });
     if (!r.ok) {
       saveBtn.disabled = false;
       saveBtn.textContent = '保存する';

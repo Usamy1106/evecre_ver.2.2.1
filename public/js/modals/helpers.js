@@ -242,13 +242,7 @@ export async function submitMissionClear(missionId) {
   const read       = readEditor(editorEl());
   const images     = itemsForKeys(read.keys);
   const files      = itemsForKeys(read.fileKeys);
-  // ★画像だけのときは本文を空で送る（サーバーが旧形式の content に1枚目を入れる）。
-  //   PDF があるときは、画像との並び順を残すため印つきの本文を送る
-  const textValue  = (read.plain || files.length > 0) ? read.text : '';
-
-  const detectedFormat = (images.length > 0 && files.length === 0 && !read.plain) ? 'image'
-    : (images.length === 0 && files.length === 0 && /^https?:\/\/\S+$/i.test(read.plain)) ? 'link'
-    : 'text';
+  const { content: textValue, format: detectedFormat } = editorContentAndFormat(read, images, files);
 
   if (!read.plain && images.length === 0 && files.length === 0 && !m.noInput) {
     window._app?.showToast('入力を完了させてください', 'error');
@@ -271,47 +265,9 @@ export async function submitMissionClear(missionId) {
   const restore = () => { buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; }); _clearSubmitting = false; };
 
   try {
-    for (let i = 0; i < images.length; i++) {
-      const it = images[i];
-      if (it.url) continue;
-      setBusy(`画像を送信中… ${i + 1}/${images.length}`);
-      const up = await api.uploadSubmissionImage(project.id, it.dataUrl);
-      if (!up?.ok || !up.url) {
-        const why = up?.code === 'network' ? '通信状況を確認して、'
-          : up?.error === 'image_too_large' ? '画像が大きすぎます。別の画像にするか、'
-          : '';
-        window._app?.showToast(`${i + 1}枚目の画像を送れませんでした。${why}もう一度「完了する」を押してください`, 'error');
-        logEvent('submission_image_failed', { missionId, index: i, count: images.length, error: up?.code || up?.error || null });
-        restore();
-        return;
-      }
-      it.url = up.url;
-    }
-    // PDF：1つずつ。1ページ目の絵を描き終えるのを待ってから送る
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      if (f.url && (f.thumbUrl || !f.thumbDataUrl)) continue;
-      setBusy(files.length > 1 ? `PDFを送信中… ${i + 1}/${files.length}` : 'PDFを送信中…');
-      await f.thumbReady;
-      if (!f.url) {
-        const up = await api.uploadSubmissionFile(project.id, f.blob);
-        if (!up?.ok || !up.url) {
-          const why = up?.code === 'network' ? '通信状況を確認して、'
-            : up?.error === 'file_too_large' ? 'ファイルが大きすぎます（10MBまで）。'
-            : up?.error === 'invalid_file' ? 'PDF として読めませんでした。'
-            : '';
-          window._app?.showToast(`「${f.name}」を送れませんでした。${why}もう一度「完了する」を押してください`, 'error');
-          logEvent('submission_file_failed', { missionId, index: i, count: files.length, error: up?.code || up?.error || null });
-          restore();
-          return;
-        }
-        f.url = up.url;
-      }
-      // 1ページ目の絵（無くても添付はできるので、失敗しても止めない）
-      if (f.thumbDataUrl && !f.thumbUrl) {
-        const tu = await api.uploadSubmissionImage(project.id, f.thumbDataUrl);
-        if (tu?.ok && tu.url) f.thumbUrl = tu.url; else f.thumbDataUrl = null;
-      }
+    if (!(await uploadEditorEmbeds(project.id, missionId, images, files, setBusy, '完了する'))) {
+      restore();
+      return;
     }
     setBusy('送信中…');
   } catch (e) {
@@ -327,8 +283,7 @@ export async function submitMissionClear(missionId) {
   //   完了ボタンまでの道のりを軽くし、達成感がいちばん高い直後に聞くため。
   //   ★ここで struggle / solution を送らないこと。送ると空文字で上書きされる。
   const r = await api.completeMission(project.id, missionId, {
-    content: textValue, format: detectedFormat, images: images.map(it => it.url),
-    files: files.map(f => ({ url: f.url, name: f.name, size: f.size, thumb: f.thumbUrl || null })),
+    content: textValue, format: detectedFormat, ...embedsPayload(images, files),
   });
   restore();
   if (!r.ok) {
@@ -430,6 +385,85 @@ async function _announceMountainObject(rolled) {
 }
 
 // ★縮小と 2MB 上限は clearEditor.js（_resizeImageDataUrl / SUBMISSION_MAX_BYTES）に移した
+
+/**
+ * 編集欄に置いた画像・PDF を、まだ送っていないものだけ1つずつ送る（完了フォームと提出内容の編集で共用）。
+ * ★Promise.all で並列に送らないこと（サーバーは 512MB / 0.5CPU。dataURL の展開が重なると詰まる）。
+ * ★1つでも失敗したら false（呼び出し側は保存しない）。何枚目が失敗したかを伝える（黙って一部だけ保存しない）。
+ *   送れた分は url を覚えておき、もう一度押したときは残りだけを送る。
+ * @param {string} eventId
+ * @param {string} missionId   ログ用
+ * @param {object[]} images    clearEditor の itemsForKeys（{ dataUrl, url }）
+ * @param {object[]} files     同（{ kind:'file', blob, name, size, thumbDataUrl, url, thumbUrl, thumbReady }）
+ * @param {(text:string) => void} setBusy  送信中の表示
+ * @param {string} retryLabel  失敗時に「もう一度『○○』を押して」と案内するボタン名
+ * @returns {Promise<boolean>}
+ */
+export async function uploadEditorEmbeds(eventId, missionId, images, files, setBusy, retryLabel) {
+  for (let i = 0; i < images.length; i++) {
+    const it = images[i];
+    if (it.url) continue;
+    setBusy(`画像を送信中… ${i + 1}/${images.length}`);
+    const up = await api.uploadSubmissionImage(eventId, it.dataUrl);
+    if (!up?.ok || !up.url) {
+      const why = up?.code === 'network' ? '通信状況を確認して、'
+        : up?.error === 'image_too_large' ? '画像が大きすぎます。別の画像にするか、'
+        : '';
+      window._app?.showToast(`${i + 1}枚目の画像を送れませんでした。${why}もう一度「${retryLabel}」を押してください`, 'error');
+      logEvent('submission_image_failed', { missionId, index: i, count: images.length, error: up?.code || up?.error || null });
+      return false;
+    }
+    it.url = up.url;
+  }
+  // PDF：1つずつ。1ページ目の絵を描き終えるのを待ってから送る
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    if (f.url && (f.thumbUrl || !f.thumbDataUrl)) continue;
+    setBusy(files.length > 1 ? `PDFを送信中… ${i + 1}/${files.length}` : 'PDFを送信中…');
+    await f.thumbReady;
+    if (!f.url) {
+      const up = await api.uploadSubmissionFile(eventId, f.blob);
+      if (!up?.ok || !up.url) {
+        const why = up?.code === 'network' ? '通信状況を確認して、'
+          : up?.error === 'file_too_large' ? 'ファイルが大きすぎます（10MBまで）。'
+          : up?.error === 'invalid_file' ? 'PDF として読めませんでした。'
+          : '';
+        window._app?.showToast(`「${f.name}」を送れませんでした。${why}もう一度「${retryLabel}」を押してください`, 'error');
+        logEvent('submission_file_failed', { missionId, index: i, count: files.length, error: up?.code || up?.error || null });
+        return false;
+      }
+      f.url = up.url;
+    }
+    // 1ページ目の絵（無くても添付はできるので、失敗しても止めない）
+    if (f.thumbDataUrl && !f.thumbUrl) {
+      const tu = await api.uploadSubmissionImage(eventId, f.thumbDataUrl);
+      if (tu?.ok && tu.url) f.thumbUrl = tu.url; else f.thumbDataUrl = null;
+    }
+  }
+  return true;
+}
+
+/**
+ * 編集欄の中身から、保存する本文と format を決める（完了フォームと提出内容の編集で共用）。
+ * ★画像だけのときは本文を空で送る（サーバーが旧形式の content に1枚目を入れる）。
+ *   PDF があるときは、画像との並び順を残すため印つきの本文を送る
+ * @returns {{ content: string, format: 'text'|'image'|'link' }}
+ */
+export function editorContentAndFormat(read, images, files) {
+  const content = (read.plain || files.length > 0) ? read.text : '';
+  const format = (images.length > 0 && files.length === 0 && !read.plain) ? 'image'
+    : (images.length === 0 && files.length === 0 && /^https?:\/\/\S+$/i.test(read.plain)) ? 'link'
+    : 'text';
+  return { content, format };
+}
+
+/** 送った画像・PDF を、保存用の形（images / files）にする */
+export function embedsPayload(images, files) {
+  return {
+    images: images.map(it => it.url),
+    files:  files.map(f => ({ url: f.url, name: f.name, size: f.size, thumb: f.thumbUrl || null })),
+  };
+}
 
 // 完了の送信中か（二重送信を防ぐ）
 let _clearSubmitting = false;

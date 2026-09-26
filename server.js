@@ -3219,6 +3219,62 @@ app.patch('/api/events/:id/missions/:mid/reflection', requireAuth, async (req, r
   }
 });
 
+// 提出内容（本文・画像・PDF）を書き換える。アーカイブの編集モードから（★管理者だけ）。
+// ★振り返り・山のオブジェクト・提出者・日時は触らない（upsertSubmissionFields は渡した項目だけ $set）。
+//   saveSubmission（丸ごと差し替え）を使わないこと。
+// ★個別完了は targetUserId でその人の提出物（<mid>_u_<userId>）を直す。指定が無ければ 400。
+// ★外した画像・PDF（とその1ページ目の絵）は R2 から消す。このイベントのものだけ。
+const SUBMISSION_TEXT_MAX = 20000;
+app.patch('/api/events/:id/missions/:mid/submission', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (!eventStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '提出内容を直せるのは管理者だけです', code: 'no_manage_permission' });
+
+    const mid = req.params.mid;
+    const m = _missionToFlat(p.missions?.[mid], mid);
+    if (!m) return res.status(404).json({ ok: false, error: 'mission not found' });
+    let key = mid;
+    if (m.individualClear) {
+      const target = req.body?.targetUserId;
+      if (typeof target !== 'string' || !target) return res.status(400).json({ ok: false, error: 'targetUserId が必要です' });
+      key = `${mid}_u_${target}`;
+    }
+    const prev = await submissionStore.getSubmission(p.id, key);
+    if (!prev) return res.status(404).json({ ok: false, error: '提出物が見つかりません' });
+
+    const imgs = _sanitizeSubmissionImages(p.id, req.body?.images);
+    if (imgs.error) return res.status(400).json({ ok: false, error: imgs.error });
+    const fls = _sanitizeSubmissionFiles(p.id, req.body?.files);
+    if (fls.error) return res.status(400).json({ ok: false, error: fls.error });
+    const images = imgs.images, files = fls.files;
+    let content = String(req.body?.content ?? '').slice(0, SUBMISSION_TEXT_MAX);
+    let format  = ['text', 'image', 'link'].includes(req.body?.format) ? req.body.format : 'text';
+    // 画像だけのときは旧形式（format:'image' + content に1枚目）も埋める（/complete と同じ）
+    if (images.length > 0 && files.length === 0 && !content.trim()) { format = 'image'; content = images[0]; }
+
+    await submissionStore.upsertSubmissionFields(p.id, key, { content, format, images, files });
+
+    // 外したものを R2 から消す（fire-and-forget）
+    const keep = new Set(submissionStore.storedUrlsOf({ content, format, images, files }));
+    for (const url of submissionStore.storedUrlsOf(prev)) {
+      if (keep.has(url)) continue;
+      const k = r2.urlToKey(url);
+      if (k && k.startsWith(`submissions/${p.id}/`)) {
+        r2.deleteObject(k).catch(e => console.warn('[r2] edited submission delete warn:', e.message));
+      }
+    }
+    logServerEvent(p.id, req.user.id, 'submission_edited', { missionId: mid, individual: !!m.individualClear });
+    // ★提出物は /api/data の合成でしか配られない（eventUpdated は流さない。振り返りの編集と同じ）
+    res.json({ ok: true, submission: await submissionStore.getSubmission(p.id, key) });
+  } catch (e) {
+    console.error('PATCH submission error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
 // 提出画像を1枚アップロードして URL を返す（完了の前に、1枚ずつ呼ばれる）。
 // ★1回に1枚だけ受ける。複数枚をまとめて受けないこと（express.json の上限 5MB）。
 // ★クライアントは順番に送る（並列にしない）。512MB / 0.5CPU で dataURL の展開が重なると詰まる。
