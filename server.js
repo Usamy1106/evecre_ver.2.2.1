@@ -2280,6 +2280,8 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
     }
   }
   if (flat.venue !== undefined) flat.venue = String(flat.venue ?? '').trim().slice(0, 200);
+  // 基礎情報の公開。★boolean 以外は捨てる（"true" などの文字列を公開扱いにしない）
+  if (flat.publicBasicInfo !== undefined && typeof flat.publicBasicInfo !== 'boolean') delete flat.publicBasicInfo;
 }
 
 async function _saveIncomingEvents(req, incoming, current, now) {

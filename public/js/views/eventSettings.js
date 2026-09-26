@@ -14,6 +14,7 @@ import { api }   from '../api.js';
 import { Components } from '../components.js';
 import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
 import { showConfirmDialog } from '../dialog.js';
+import { logEvent } from '../logger.js';
 import {
   formatEventPeriodLines,
   getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue,
@@ -413,6 +414,22 @@ function _eventManagementSection(p, sec) {
             </div>
           ` : `
             <span class="c-settings-list__value">${_esc(p.eventPhase || '企画準備')}</span>
+          `}
+        </div>
+
+        <!-- 基礎情報の公開（タイトル・ヘッダー画像・概要・場所・期間）。★変えられるのは管理者だけ -->
+        <div class="c-settings-list__row p-event-settings__toggle-row">
+          <div>
+            <p class="p-event-settings__sub-title">基礎情報を公開</p>
+            <span class="c-settings-list__value">タイトル・ヘッダー画像・概要・場所・期間をイベクリの外でも見られるようにします。タスクやメンバーの情報は公開されません</span>
+          </div>
+          ${canMgr ? `
+            <button type="button" data-ps-public-basic role="switch" aria-checked="${p.publicBasicInfo === true}"
+              aria-label="基礎情報を公開" class="c-toggle${p.publicBasicInfo === true ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
+            </button>
+          ` : `
+            <span class="c-settings-list__value">${p.publicBasicInfo === true ? '公開中' : '非公開'}</span>
           `}
         </div>
 
@@ -836,6 +853,15 @@ function _bindEvents(p, sec) {
   });
 
   // フェーズ変更（管理者権限が必要・確認ダイアログを表示）
+  // 基礎情報の公開の切り替え（管理者のみ。サーバーも canManage を要求する）
+  document.querySelector('[data-ps-public-basic]')?.addEventListener('click', async () => {
+    p.publicBasicInfo = p.publicBasicInfo !== true;
+    logEvent('public_basic_toggled', { eventId: p.id, value: p.publicBasicInfo });
+    await state.saveNow(p.id);
+    state.render();
+    window._app?.showToast(p.publicBasicInfo ? '基礎情報を公開しました' : '基礎情報を非公開にしました');
+  });
+
   document.querySelectorAll('[data-ps-phase]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const phase = btn.dataset.psPhase;

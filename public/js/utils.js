@@ -304,6 +304,18 @@ export function getEventMainVisual(project) {
 }
 
 /**
+ * アーカイブの基礎情報（タイトル・ヘッダー画像・概要・場所・期間）がすべて入っているか。
+ * ★「基礎情報を公開するか」の確認（publicBasicInfoModal.js）を出す条件
+ */
+export function hasAllBasicInfo(project) {
+  return !!(String(project?.name || '').trim()
+    && getEventMainVisual(project)
+    && getArchiveSummary(project).trim()
+    && getArchiveVenue(project).trim()
+    && Array.isArray(project?.dates) && project.dates.length > 0);
+}
+
+/**
  * 文章の中の URL をタップで開けるリンクにした HTML を返す（アーカイブ用）。
  * ★エスケープはここでまとめて行う（戻り値をもう一度 esc に通さないこと）。
  * ★リンクのタップは stopPropagation（アーカイブの記録はタップでタスク詳細を開くため）。

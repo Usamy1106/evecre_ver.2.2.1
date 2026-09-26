@@ -286,6 +286,18 @@
   color: var(--color-text-muted);
 }
 
+/* 見出し＋説明と、右端のスイッチ（基礎情報を公開） */
+.p-event-settings__toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.p-event-settings__toggle-row .c-toggle {
+  flex-shrink: 0;
+}
+
 .p-event-settings__empty {
   padding-block: var(--space-4);
   font-size: var(--font-size-sm);

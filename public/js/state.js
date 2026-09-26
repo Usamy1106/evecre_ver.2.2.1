@@ -1149,6 +1149,13 @@ export const state = {
       setTimeout(() => window._app?.checkIntro?.(), 250);
     }
 
+    // 基礎情報がそろったら「公開するか」を一度だけ聞く（管理者のみ。判定はモーダル側）。
+    // ★イベント設定で最後の項目を入れた直後にも出すため、EVENT_SETTINGS でも評価する。
+    // ★セッション1回ゲートにしない（重なったら持ち越す作り。答えはイベントに保存される）
+    if ((this.currentView === 'MAIN_BOARD' || this.currentView === 'EVENT_SETTINGS') && this.selectedEventId) {
+      setTimeout(() => window._app?.checkPublicBasicInfoModal?.(), 1400);
+    }
+
     // オンボーディング（使い方の案内）。表示可否・優先度は onboarding.js が判定する。
     // ★他モーダルより後に出す（1300ms）。重なったらフラグを立てずに持ち越すので、
     //   次の render() で再判定される。★セッション1回ゲートにしないこと

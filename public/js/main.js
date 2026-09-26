@@ -66,6 +66,7 @@ import { copySchedule } from './scheduleCopy.js';
 import { submissionImages, submissionText, submissionFilesLabel } from './utils.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
+import { checkPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 // ★暫定：既存メンバーのスキル回収。回収が済んだらこの import ごと削除する
 import { checkSkillCollectModal } from './modals/skillCollectModal.js';
@@ -1116,6 +1117,7 @@ window._app = {
 
   // --- 開催日リマインドモーダル（全メンバー向け・初日/最終日翌日）---
   checkEventDateReminderModal: () => checkEventDateReminderModal(),
+  checkPublicBasicInfoModal:   () => checkPublicBasicInfoModal(),
 
   // --- 開発者からのお知らせモーダル（全ユーザー向け）---
   checkDeveloperAnnouncementModal: () => checkDeveloperAnnouncementModal(),
@@ -1820,6 +1822,9 @@ const _LOG_LABELS = {
   connection_retry_tapped:'接続エラーで再試行した',
   submission_image_failed:'完了時の画像の送信に失敗した',
   submission_file_failed: '完了時の PDF の送信に失敗した',
+  public_basic_prompt_shown: '基礎情報の公開の確認が出た',
+  public_basic_answered:     '基礎情報の公開を選んだ',
+  public_basic_toggled:      '基礎情報の公開を切り替えた',
   reflection_edited:       '振り返りを編集した',
   leader_motivation_skipped: '★意気込みモーダルを出さなかった（理由つき）',
   leader_motivation_failed:  '★意気込みモーダルの表示に失敗した',

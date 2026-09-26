@@ -24,6 +24,7 @@ export const AUTO_MODAL_IDS = [
   'onboarding-overlay',            // オンボーディング
   'skill-collect-overlay',         // ★暫定：既存メンバーのスキル回収（回収後に削除）
   'member-approved-overlay',       // 参加が承認された（SSE 駆動）
+  'public-basic-info-overlay',     // 基礎情報を公開するかの確認（基礎情報がそろったとき・1回）
 ];
 
 // ★初期オンボーディング（onboardingIntro.js）が進行中かを見るためのフック。
