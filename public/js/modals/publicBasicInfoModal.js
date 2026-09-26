@@ -24,11 +24,24 @@ import { hasAllBasicInfo } from '../utils.js';
 
 const OVERLAY_ID = 'public-basic-info-overlay';
 
-function _isManagerStrict(p, userId) {
+// 組み込みのロール（lib/eventStore.js の defaultRoles と同じ）
+const BUILTIN_ROLES = [
+  { id: 'owner',  canManage: true },
+  { id: 'admin',  canManage: true },
+  { id: 'member', canManage: false },
+];
+
+// ★publicKnowledgeModal.js でも使う（管理者の厳密な判定をここ1か所に）
+// ★イベントがロールの定義（p.roles）を持たない・組み込みが欠けているときは、組み込みで補う
+//   （サーバーの eventStore.getRoles と同じ）。多くのイベントは roles を保存しておらず、
+//   補わないと admin ロールの管理者を「管理者でない」と判定してしまう（実際にそうなっていた）
+export function isManagerStrict(p, userId) {
   const me = (p?.members || []).find(m => m.userId === userId);
   if (!me) return false;
   const roleIds = Array.isArray(me.roles) && me.roles.length > 0 ? me.roles : [me.role];
-  return roleIds.some(id => id === 'owner' || (p.roles || []).find(r => r.id === id)?.canManage);
+  const defined = Array.isArray(p.roles) ? p.roles : [];
+  const roles = [...defined, ...BUILTIN_ROLES.filter(b => !defined.some(r => r.id === b.id))];
+  return roleIds.some(id => id === 'owner' || roles.find(r => r.id === id)?.canManage);
 }
 
 export function checkPublicBasicInfoModal() {
@@ -37,7 +50,7 @@ export function checkPublicBasicInfoModal() {
   if (!p || !userId) return;
   if (!['MAIN_BOARD', 'EVENT_SETTINGS'].includes(state.currentView)) return;
   if (p.publicBasicInfo !== undefined) return;          // もう答えた（公開する／今はしない）
-  if (!_isManagerStrict(p, userId)) return;
+  if (!isManagerStrict(p, userId)) return;
   if (!hasAllBasicInfo(p)) return;
   if (document.getElementById(OVERLAY_ID)) return;
   if (isAnyAutoModalOpen(OVERLAY_ID)) return;           // 重なるなら次の render() へ持ち越す
