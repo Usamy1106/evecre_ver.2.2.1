@@ -20,7 +20,11 @@
 //   置いた時点で1ページ目を絵にする（pdfThumb.js。pdf.js はそのとき初めて読む）。
 //   描いているあいだはくるくるを出す。描けなければ絵なしのカードになる（添付はできる）。
 //
-// ■ 選んだ画像・PDF の中身はこのモジュールが持つ（_items）。
+// ■ 1画面に複数置ける（アーカイブの編集モードでは、タスクごとに1つ）。
+//   選んだ画像・PDF と最後のカーソル位置は**編集欄の要素ごと**に持つ（el._items / el._lastRange）。
+//   ★モジュールに1つだけ持たせないこと（別の欄に画像を入れた瞬間に、他の欄の画像が消える）。
+//
+// ■ 選んだ画像・PDF の中身は各編集欄が持つ（el._items）。
 //   ★下書き（localStorage）には入れない（複数枚の dataURL は約5MBをすぐにあふれる）。
 //   送信済みの URL も覚えておき、完了に失敗して押し直したときに送り直さない。
 
@@ -39,12 +43,13 @@ export const SUBMISSION_MAX_BYTES = 2 * 1024 * 1024;
 const RESIZE_MAX_EDGE = 1600;  // 長辺の上限(px)
 const RESIZE_QUALITY  = 0.8;   // JPEG 品質
 
-// key → { dataUrl, url }。どのタスクのものかは _missionId で区別し、変わったら捨てる
-let _missionId = null;
-let _items = new Map();
+// key → { dataUrl, url }。★編集欄ごと（el._items）
 let _seq = 0;
-// 編集欄の中で最後にカーソルがあった位置（画像ボタンを押すと編集欄からフォーカスが外れるため）
-let _lastRange = null;
+function _store(el) { return (el._items ||= new Map()); }
+// ★最後にカーソルがあった位置も編集欄ごと（el._lastRange）。画像ボタンを押すとフォーカスが外れるため覚えておく
+
+// 画面上の編集欄（いくつあってもよい）
+const _editorOf = (node) => (node?.nodeType === 1 ? node : node?.parentElement)?.closest?.('.c-editor') || null;
 
 function _esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -206,12 +211,12 @@ export function setEditorText(el, text) {
  * 保存済みの提出物（文章・画像・PDF）を編集欄に並べる（アーカイブの編集モードで直すとき）。
  * ★画像・PDF は送信済みなので url を持たせ、送り直さない（uploadEditorEmbeds が url 付きを飛ばす）。
  * ★PDF の1ページ目の絵も保存済みのものを使う（描き直さない）。
- * ★この編集欄のタスクIDは dataset.missionId（完了フォームと別の値にして _items を混ぜないこと）。
+ * ★選んだ画像・PDF はこの編集欄だけが持つ（el._items）。他の編集欄とは混ざらない。
  */
 export function loadEditorContent(el, cd) {
   if (!el) return;
-  _missionId = el.dataset.missionId;
-  _items = new Map();
+  el._items = new Map();
+  const _items = el._items;
   el.textContent = '';
   const appendText = (text) => {
     String(text).split('\n').forEach((line, i) => {
@@ -247,14 +252,14 @@ export function loadEditorContent(el, cd) {
 }
 
 /** key の並びから、送るもの（画像 { dataUrl, url } ／ PDF { kind:'file', blob, name, size, ... }）を返す */
-export function itemsForKeys(keys) {
-  return keys.map(k => _items.get(k)).filter(Boolean);
+export function itemsForKeys(keys, el = editorEl()) {
+  const items = el ? _store(el) : new Map();
+  return keys.map(k => items.get(k)).filter(Boolean);
 }
 
 /** 完了したあとに捨てる */
-export function resetEditorImages() {
-  _items = new Map();
-  _missionId = null;
+export function resetEditorImages(el = editorEl()) {
+  if (el) el._items = new Map();
 }
 
 function _syncEmpty(el) {
@@ -272,7 +277,7 @@ function _inside(el, node) {
 function _currentRange(el) {
   const sel = window.getSelection?.();
   if (sel && sel.rangeCount > 0 && _inside(el, sel.getRangeAt(0).startContainer)) return sel.getRangeAt(0).cloneRange();
-  if (_lastRange && _inside(el, _lastRange.startContainer)) return _lastRange.cloneRange();
+  if (el._lastRange && _inside(el, el._lastRange.startContainer)) return el._lastRange.cloneRange();
   const r = document.createRange();
   r.selectNodeContents(el);
   r.collapse(false);
@@ -306,7 +311,7 @@ function _insertAt(el, range, node) {
   after.collapse(true);
   const sel = window.getSelection?.();
   if (sel && document.activeElement === el) { sel.removeAllRanges(); sel.addRange(after); }
-  _lastRange = after.cloneRange();
+  el._lastRange = after.cloneRange();
   return after;
 }
 
@@ -326,7 +331,7 @@ function _insertText(el, range, text) {
   after.collapse(true);
   const sel = window.getSelection?.();
   if (sel) { sel.removeAllRanges(); sel.addRange(after); }
-  _lastRange = after.cloneRange();
+  el._lastRange = after.cloneRange();
 }
 
 function _imageNode(key, dataUrl) {
@@ -374,7 +379,7 @@ function _fillFileThumb(node, thumb) {
 async function _insertPdf(el, file, at, onChange) {
   const key = `k${++_seq}`;
   const item = { kind: 'file', blob: file, name: file.name || 'document.pdf', size: file.size, thumbDataUrl: null, url: null, thumbUrl: null };
-  _items.set(key, item);
+  _store(el).set(key, item);
   const node = _fileNode(key, item.name, item.size);
   const after = _insertAt(el, at, node);
   _syncEmpty(el);
@@ -392,9 +397,7 @@ async function _insertPdf(el, file, at, onChange) {
  * ★順番に処理する（大きな写真を同時にデコードするとスマホのメモリを食う）。
  */
 export async function insertFiles(el, files, range, onChange) {
-  const missionId = el?.dataset?.missionId;
-  if (!el || !missionId) return;
-  if (_missionId !== missionId) { _missionId = missionId; _items = new Map(); }
+  if (!el) return;
 
   const all    = [...files];
   const images = all.filter(_isImageFile);
@@ -414,7 +417,7 @@ export async function insertFiles(el, files, range, onChange) {
   let unreadable = 0, tooLarge = 0, pdfTooLarge = 0;
   // ★選んだ順（ドロップした順）のまま入れる
   for (const file of all) {
-    if (_missionId !== missionId || !el.isConnected) return;
+    if (!el.isConnected) return;
     if (!_inside(el, at.startContainer)) at = _currentRange(el);
     if (_isPdfFile(file)) {
       if (fileRoom <= 0) continue;
@@ -430,9 +433,9 @@ export async function insertFiles(el, files, range, onChange) {
     if (!dataUrl) { unreadable++; imgRoom++; continue; }
     if (dataUrl.length > SUBMISSION_MAX_BYTES) { tooLarge++; imgRoom++; continue; }
     // 読み込み中に別のタスクへ移った／描き直しで編集欄が差し替わったら捨てる
-    if (_missionId !== missionId || !el.isConnected) return;
+    if (!el.isConnected) return;
     const key = `k${++_seq}`;
-    _items.set(key, { dataUrl, url: null });
+    _store(el).set(key, { dataUrl, url: null });
     if (!_inside(el, at.startContainer)) at = _currentRange(el);
     at = _insertAt(el, at, _imageNode(key, dataUrl));
     _syncEmpty(el);
@@ -478,10 +481,12 @@ const _hasFiles = (e) => {
 // 外からのドラッグが編集欄の上にあるあいだ、最後に示した差し込み先（線と同じ位置に落とす）
 let _extDropRange = null;
 let _extHideTimer = 0;
-function _endExternalDrag(el) {
+let _extEditor = null;   // いまファイルを重ねている編集欄
+function _endExternalDrag() {
   clearTimeout(_extHideTimer);
   _extDropRange = null;
-  el?.classList.remove('is-dragover');
+  _extEditor?.classList.remove('is-dragover');
+  _extEditor = null;
   _hideCaret();
 }
 
@@ -491,35 +496,34 @@ function _bindDocumentOnce() {
   _docBound = true;
   // 最後のカーソル位置を覚える（画像ボタンを押すとフォーカスが外れるため）
   document.addEventListener('selectionchange', () => {
-    const el = editorEl();
     const sel = window.getSelection?.();
-    if (el && sel && sel.rangeCount > 0 && _inside(el, sel.getRangeAt(0).startContainer)) {
-      _lastRange = sel.getRangeAt(0).cloneRange();
-    }
+    if (!sel || sel.rangeCount === 0) return;
+    const el = _editorOf(sel.getRangeAt(0).startContainer);
+    if (el) el._lastRange = sel.getRangeAt(0).cloneRange();
   });
   // ★編集欄を少し外してファイルを落としたとき、ブラウザがその画像を開いて
   //   ページごと離れてしまう（書きかけが消える）。編集欄があるあいだは止める。
   //   完了フォームの枠の中なら、末尾に入れる。
   document.addEventListener('dragover', (e) => {
-    const el = editorEl();
-    if (!_hasFiles(e) || !el) return;
+    if (!_hasFiles(e) || !document.querySelector('.c-editor')) return;
     e.preventDefault();
     // 編集欄の外に出たら「ここに入る」を消す
-    if (!_inside(el, e.target)) _endExternalDrag(el);
+    if (!_editorOf(e.target)) _endExternalDrag();
   });
   document.addEventListener('drop', (e) => {
-    const el = editorEl();
-    if (!el || !_hasFiles(e) || _inside(el, e.target)) return;   // 編集欄の中は編集欄の配線に任せる
+    if (!_hasFiles(e) || !document.querySelector('.c-editor') || _editorOf(e.target)) return;   // 編集欄の中は編集欄の配線に任せる
     e.preventDefault();
-    _endExternalDrag(el);
-    const form = document.getElementById('clear-mission-modal');
-    if (form && form.contains(e.target)) {
+    _endExternalDrag();
+    // 入れ物（完了フォーム・編集欄の枠）の中なら、その編集欄の末尾に入れる
+    const host = e.target.closest?.('.c-editor-field, #clear-mission-modal');
+    const el = host?.querySelector('.c-editor');
+    if (el) {
       const end = document.createRange(); end.selectNodeContents(el); end.collapse(false);
       insertFiles(el, _filesFrom(e.dataTransfer), end, el._onEditorChange);
     }
   });
   // ウィンドウの外へ出た・Esc で取り消した
-  document.addEventListener('dragend', () => _endExternalDrag(editorEl()));
+  document.addEventListener('dragend', () => _endExternalDrag());
 }
 
 /**
@@ -569,22 +573,25 @@ export function bindClearEditor(el, { onChange } = {}) {
     if (!_hasFiles(e)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    // 別の編集欄から移ってきたら、前の欄の色を戻す
+    if (_extEditor && _extEditor !== el) { _extEditor.classList.remove('is-dragover'); _extDropRange = null; }
+    _extEditor = el;
     el.classList.add('is-dragover');
     _extDropRange = _dropRangeAt(el, e.clientX, e.clientY, null) || _extDropRange;
     _showCaret(_extDropRange);
     // ★ウィンドウの外へ出ると dragleave が来ないことがある。dragover が途切れたら消す
     clearTimeout(_extHideTimer);
-    _extHideTimer = setTimeout(() => _endExternalDrag(el), 250);
+    _extHideTimer = setTimeout(() => _endExternalDrag(), 250);
   });
   el.addEventListener('dragleave', (e) => {
     // 子要素の上へ移っただけのときも dragleave が来る。本当に外へ出たときだけ消す
     if (e.relatedTarget && _inside(el, e.relatedTarget)) return;
     if (!e.relatedTarget) return;   // 相手が分からないときは dragover の途切れ（上のタイマー）に任せる
-    _endExternalDrag(el);
+    _endExternalDrag();
   });
   el.addEventListener('drop', (e) => {
-    const shown = _extDropRange;
-    _endExternalDrag(el);
+    const shown = _extEditor === el ? _extDropRange : null;
+    _endExternalDrag();
     e.preventDefault();   // ★HTML のまま落とさせない（書式やタグを持ち込まない）
     // ★線で示した位置に落とす（見せた場所と入る場所をずらさない）
     const range = (shown && _inside(el, shown.startContainer)) ? shown : _rangeFromPoint(el, e.clientX, e.clientY);
@@ -761,7 +768,7 @@ function _bindImageDrag(el, onChange) {
       if (range && !_inside(item, range.startContainer)) {
         range.insertNode(item);   // ★insertNode は移動になる（複製しない）
         if (!item.nextSibling) el.appendChild(document.createElement('br'));
-        _lastRange = null;
+        el._lastRange = null;
       }
       // 落ちた先へ吸い込ませてから消す
       const to = item.getBoundingClientRect();

@@ -5,6 +5,7 @@ import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, submissionFilesLabel, getEventMainVisual, linkifyText } from '../utils.js';
+import { bindArchiveInlineEditing, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 
@@ -138,6 +139,8 @@ export function renderMainBoard(container) {
   // ★背景は <img> が 200 個近くある。innerHTML の差し替えで作り直すと毎回すべて
   //   再デコードされ、SSE のたびに一瞬白くなる。中身が同じなら DOM ごと使い回す。
   captureBgLayer();
+  // ★アーカイブの編集モードで書いている途中の欄を、描き直しで消さない（archiveInlineEdit.js）
+  captureInlineEdits();
 
   container.innerHTML = `
     <div class="p-main-board ${isMain ? 'p-main-board--fixed' : 'p-main-board--scroll'}">
@@ -199,7 +202,11 @@ export function renderMainBoard(container) {
     syncMountainBackdrop();
   }
 
-  if (state.mainBoardTab === 'ARCHIVE') _focusArchiveMission();
+  if (state.mainBoardTab === 'ARCHIVE') {
+    restoreInlineEdits();
+    if (state.archiveEditing) bindArchiveInlineEditing(container);
+    _focusArchiveMission();
+  }
   // ★セグメンテッドコントロールのつまみを滑らせる（通知タブの絞り込み）
   Components.segmentedSettle();
 
@@ -1072,7 +1079,6 @@ function _renderArchiveTab(p) {
   const canMgr  = state.canManageCurrentEvent();
   // ★編集できるのは管理者だけ。権限が無いのに編集中のまま残っていたら閲覧に戻す
   const editing = canMgr && !!state.archiveEditing;
-  const _pen    = (type) => editing ? Components.PenIcon(type) : '';
 
   // ── 基礎情報（すべてイベント自身の項目。utils.js の getter が旧データも読み替える）──
   const title      = p.name || '未設定';
@@ -1148,9 +1154,15 @@ function _renderArchiveTab(p) {
             <img src="/images/icon/icon-Link.svg" alt="" class="p-archive__copy-icon">
             予定をコピー
           </button>
-          ${canMgr ? `
+          ${canMgr && !editing ? `
             <button type="button" onclick="window._app.toggleArchiveEditing()" data-log="archive_edit_toggle"
-              class="p-archive__edit-toggle${editing ? ' is-active' : ''}">${editing ? '編集を終える' : '編集する'}</button>` : ''}
+              class="p-archive__edit-toggle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+              </svg>
+              編集する
+            </button>` : ''}
         </div>
       </div>
 
@@ -1159,28 +1171,44 @@ function _renderArchiveTab(p) {
         ${mainVisual
           ? `<img src="${_esc(mainVisual)}" class="p-archive__visual-image" alt="" data-fallback="archive-visual">`
           : Components.ThumbnailEmptyState()}
-        ${editing ? `<div class="p-archive__visual-edit">${_pen('image')}</div>` : ''}
+        ${editing ? `<button type="button" onclick="window._app.editArchiveItem('image')" class="p-archive__visual-edit">画像を変更</button>` : ''}
       </div>
 
       <article class="p-archive__doc">
         <!-- ② タイトル（＝イベント名）-->
-        <div class="p-archive__title-row">
-          <h1 class="p-archive__title">${_esc(title)}</h1>
-          ${_pen('title')}
+        <div class="p-archive__title-row" data-inline-block>
+          ${editing ? `
+            <h1 class="p-archive__title p-archive__inline" contenteditable="true" role="textbox" aria-label="タイトル"
+              data-inline="title" data-inline-key="title" data-placeholder="タイトル">${_esc(p.name || '')}</h1>
+            <span class="p-archive__save-status" data-save-status></span>`
+          : `<h1 class="p-archive__title">${_esc(title)}</h1>`}
         </div>
 
         <!-- ③ 概要と基礎情報 -->
         <section class="p-archive__intro">
-          <div class="p-archive__label-row">
-            <h2 class="p-archive__label">概要</h2>
-            ${_pen('summary')}
+          <div data-inline-block>
+            <div class="p-archive__label-row">
+              <h2 class="p-archive__label">概要</h2>
+              ${editing ? `<span class="p-archive__save-status" data-save-status></span>` : ''}
+            </div>
+            ${editing ? `
+              <p class="p-archive__summary p-archive__inline${summary ? '' : ' is-empty'}" contenteditable="true" role="textbox"
+                aria-multiline="true" aria-label="概要" data-inline="summary" data-inline-key="summary"
+                data-placeholder="どんなイベントか、数行で">${_esc(summary)}</p>`
+              : `<p class="p-archive__summary${summary ? '' : ' is-empty'}">${summary ? linkifyText(summary) : '未設定'}</p>`}
           </div>
-          <p class="p-archive__summary${summary ? '' : ' is-empty'}">${summary ? linkifyText(summary) : '未設定'}</p>
           <dl class="p-archive__facts">
             <dt class="p-archive__fact-label">期間</dt>
-            <dd class="p-archive__fact-value">${period || '未設定'} ${_pen('period')}</dd>
+            <dd class="p-archive__fact-value">${period || '未設定'}
+              ${editing ? `<button type="button" onclick="window._app.editArchiveItem('period')" class="p-archive__inline-button">変更</button>` : ''}</dd>
             <dt class="p-archive__fact-label">場所</dt>
-            <dd class="p-archive__fact-value">${venue ? _esc(venue) : '未設定'} ${_pen('venue')}</dd>
+            <dd class="p-archive__fact-value" data-inline-block>
+              ${editing ? `
+                <span class="p-archive__inline p-archive__inline--line${venue ? '' : ' is-empty'}" contenteditable="true" role="textbox"
+                  aria-label="場所" data-inline="venue" data-inline-key="venue" data-placeholder="例：大学ギャラリー">${_esc(venue)}</span>
+                <span class="p-archive__save-status" data-save-status></span>`
+              : (venue ? _esc(venue) : '未設定')}
+            </dd>
           </dl>
         </section>
 
@@ -1191,6 +1219,14 @@ function _renderArchiveTab(p) {
         <div class="p-archive__body">${bodyHtml}</div>
         ${pendingHtml}
       </article>
+
+      ${editing ? `
+        <!-- 編集中の帯（画面の下に常に出す）。★保存は欄ごとに自動。完了で保存待ちを流してから閲覧に戻る -->
+        <div class="p-archive__editbar" role="status">
+          <span class="p-archive__editbar-text">編集中・変更は自動で保存されます</span>
+          <button type="button" onclick="window._app.toggleArchiveEditing()" data-log="archive_edit_done"
+            class="c-button c-button--primary p-archive__editbar-done">完了</button>
+        </div>` : ''}
 
       <!-- 振り返り用のサブページ。★メンバー全員が見られる（アーカイブと同じ）。 -->
       <div class="p-archive__links">
@@ -1239,6 +1275,7 @@ export function showAllArchiveSubmitters(missionId) {
 // userId … 個別完了のときだけ（その人の提出物）
 function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
   if (!cd) return '';
+  if (editing) return _archiveSubmissionEditHtml(p, m, cd, userId);
   const canMgr = state.canManageCurrentEvent();
   // ★画像・PDF は本文の途中にも入る。読み分けは utils.js の submissionSegments
   const contentHtml = submissionSegments(cd).map(seg => {
@@ -1274,12 +1311,45 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
           class="p-archive__reflect-edit">${hasReflect ? '編集' : '書く'}</button>` : ''}
     </div>`;
 
-  // 編集モード：提出内容を直す（管理者だけ。サーバーも canManage を要求する）
-  const editBtn = editing ? `
-    <button type="button" onclick="window._app.openSubmissionEdit('${m.id}'${uidArg})" data-log="archive_submission_edit"
-      class="p-archive__content-edit">内容を編集</button>` : '';
+  return contentHtml + reflectHtml;
+}
 
-  return contentHtml + reflectHtml + editBtn;
+// 編集モード：提出内容と振り返りをその場で直す（archiveInlineEdit.js が中身を入れて配線する）
+// ★data-inline-key は描き直しをまたいで欄を守る目印（書いている途中なら DOM ごと差し戻す）
+function _archiveSubmissionEditHtml(p, m, cd, userId) {
+  const key = userId ? `${m.id}_u_${userId}` : m.id;
+  const skipReflect = REFLECT_SKIP_MISSION_IDS.includes(m.id);
+  const labels = REFLECT_LABELS[cd.outcome] || REFLECT_LABELS.struggle;
+  const reflectAttrs = (field) => `data-reflect-mission="${_esc(m.id)}" data-reflect-user="${_esc(userId || '')}" data-reflect-field="${field}"`;
+  return `
+    <div class="p-archive__inline-editor" data-inline-block data-inline-key="sub:${_esc(key)}">
+      <div class="c-editor-field">
+        <div class="c-editor is-empty" contenteditable="true" role="textbox" aria-multiline="true" aria-label="提出内容"
+          data-mission-id="archive:${_esc(key)}" data-sub-mission="${_esc(m.id)}" data-sub-user="${_esc(userId || '')}"
+          data-placeholder="提出内容"></div>
+        <label class="c-editor-field__pick" aria-label="画像・PDF を追加">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <input type="file" class="u-hidden" accept="image/*,application/pdf" multiple onchange="window._app.handleImageSelect(this)">
+        </label>
+      </div>
+      <p class="p-archive__save-status" data-save-status></p>
+    </div>
+    ${skipReflect ? '' : `
+      <div class="p-archive__reflect p-archive__reflect--editing" data-inline-block data-inline-key="ref:${_esc(key)}">
+        <label class="p-archive__reflect-label">${labels.struggle}
+          <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('struggle')}>${_esc(cd.struggle || '')}</textarea>
+        </label>
+        <label class="p-archive__reflect-label">${labels.solution}
+          <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('solution')}>${_esc(cd.solution || '')}</textarea>
+        </label>
+        <label class="p-archive__reflect-share">
+          <input type="checkbox" ${cd.shareable ? 'checked' : ''} ${reflectAttrs('shareable')}>
+          他の団体にも公開してよい
+        </label>
+        <p class="p-archive__save-status" data-save-status></p>
+      </div>`}`;
 }
 
 // 個別完了：提出した人ごとに折りたためる行。最初は閉じていて、1行の要約で中身の見当がつく。
@@ -1290,7 +1360,8 @@ function _archiveIndividualHtml(p, m, editing) {
     .filter(([k, cd]) => k.startsWith(prefix) && cd)
     .map(([k, cd]) => ({ uid: k.slice(prefix.length), cd }))
     .sort((a, b) => (a.cd.timestamp || 0) - (b.cd.timestamp || 0));
-  const showAll = _archiveShowAll.has(m.id);
+  // ★編集モードでは全員を出す（隠れている人の提出を直せなくなるため）
+  const showAll = editing || _archiveShowAll.has(m.id);
   const visible = showAll ? subs : subs.slice(0, ARCHIVE_ROWS_VISIBLE);
   const hidden  = subs.length - visible.length;
 

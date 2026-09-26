@@ -256,6 +256,7 @@
   --z-push-setup: 260;       /* 通知セットアップの案内。他のシートより前 */
   --z-mission-menu: 250;     /* ミッションのミートボール・長押しメニュー */
   --z-sort-menu: 60;         /* 並び替えのドロップダウン（ボード内） */
+  --z-archive-editbar: 45;   /* アーカイブの編集中の帯（画面の下）。FAB と同じ高さの層 */
   --z-drag-ghost: 400;       /* 掴んで動かしている画像の分身。何より前に出す */
   --z-drag-caret: 410;       /* 差し込み先の線。分身の下に隠れないよう、さらに前 */
   --z-context-menu: 260;     /* 長押しメニュー。ピッカーより前 */
@@ -3737,7 +3738,7 @@ body {
 /* ==========================================================================
    Object / Component / editor — 文章の途中に画像・PDF を置ける編集欄
    使用箇所: public/js/clearEditor.js（配線）、views/missionDetail.js（完了フォーム）、
-             modals/submissionEditModal.js（アーカイブの編集モードで提出内容を直す）
+             archiveInlineEdit.js（アーカイブの編集モードで、文書をその場で直す）
 
    c-editor-field … 編集欄と画像ボタンを重ねる入れ物
    c-editor       … contenteditable の本体。__embed（画像・PDF の塊）/ __file / __ghost / __caret
@@ -5263,10 +5264,13 @@ body {
   position: absolute;
   right: var(--space-4);
   bottom: var(--space-4);
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-full);
-  background-color: rgba(255, 255, 255, .8);
+  background-color: var(--color-surface);
   box-shadow: var(--shadow-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
 }
 
 /* --- 上部右：予定のコピーと編集モードの切り替え ---------------------------- */
@@ -5279,22 +5283,24 @@ body {
   gap: var(--space-2);
 }
 
+/* 「編集する」（管理者のみ）。★目立たせる：塗りのボタン＋ペンのアイコン */
 .p-archive__edit-toggle {
-  padding: 6px var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-4);
   white-space: nowrap;
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  font-size: var(--font-size-xs);
+  background-color: var(--color-primary);
+  box-shadow: var(--shadow-primary);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-  transition: background-color var(--duration-fast) var(--ease);
+  color: var(--color-text-inverse);
+  transition: transform var(--duration-fast) var(--ease);
 }
 
-.p-archive__edit-toggle.is-active {
-  border-color: var(--color-primary);
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+.p-archive__edit-toggle:active {
+  transform: scale(.96);
 }
 
 /* 予定のコピー。★スケジュールシートの同名ボタンと見た目を揃えること
@@ -5612,6 +5618,117 @@ body {
   margin-top: var(--space-3);
 }
 
+/* 編集中の帯。画面の下に常に出す（保存は欄ごとに自動。ここは「完了」だけ） */
+.p-archive--editing {
+  padding-bottom: 96px;
+}
+
+.p-archive__editbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-archive-editbar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  max-width: 28rem;
+  margin-inline: auto;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  background-color: var(--color-text);
+  box-shadow: var(--shadow-2xl);
+}
+
+.p-archive__editbar-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}
+
+.p-archive__editbar-done {
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-6);
+}
+
+/* その場で入力する欄（タイトル・概要・場所）。★文字は 16px 未満にしない（iOS のズーム） */
+.p-archive__inline {
+  min-width: 4em;
+  margin-inline: calc(var(--space-2) * -1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg);
+  outline: 1px dashed var(--color-border);
+  cursor: text;
+}
+
+.p-archive__inline:focus {
+  outline: 2px solid var(--color-primary);
+}
+
+.p-archive__summary.p-archive__inline,
+.p-archive__inline--line {
+  font-size: var(--font-size-lg);
+}
+
+.p-archive__inline--line {
+  display: inline-block;
+  flex: 1;
+  margin-inline: 0;
+}
+
+.p-archive__inline.is-empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.p-archive__inline-button {
+  padding: 2px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.p-archive__inline-editor {
+  margin-top: var(--space-3);
+}
+
+/* 欄ごとの保存の状態（保存中… / 保存しました / 保存できませんでした） */
+.p-archive__save-status {
+  min-height: 1em;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-archive__save-status[data-state="saved"] {
+  color: var(--color-success-dark);
+}
+
+.p-archive__save-status[data-state="error"] {
+  color: var(--color-danger);
+}
+
+/* 振り返りをその場で書く */
+.p-archive__reflect--editing > * + * {
+  margin-top: var(--space-3);
+}
+
+.p-archive__reflect-input {
+  margin-top: var(--space-1);
+}
+
+.p-archive__reflect-share {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
 /* 未完了のタスク（編集モードだけ）。完了した記録と分けて、折りたたんでまとめる */
 .p-archive__pending {
   padding: var(--space-4);
@@ -5637,18 +5754,6 @@ body {
   border-style: dashed;
   background-color: var(--color-bg);
   box-shadow: none;
-}
-
-/* 編集モードの「内容を編集」 */
-.p-archive__content-edit {
-  margin-top: var(--space-3);
-  padding: 6px var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
 }
 
 /* --- 個別完了：提出した人ごとに折りたためる行 -------------------------------
@@ -5737,19 +5842,6 @@ body {
 .p-archive__subs-notyet {
   margin-top: var(--space-2);
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-/* --- 提出内容を直すモーダル（modals/submissionEditModal.js）---------------- */
-
-.p-submission-edit {
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.p-submission-edit__target {
-  margin-bottom: var(--space-4);
-  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 

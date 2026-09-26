@@ -65,7 +65,7 @@ import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
 import { submissionImages, submissionText, submissionFilesLabel } from './utils.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
-import { openSubmissionEditModal } from './modals/submissionEditModal.js';
+import { flushArchiveInlineEdits } from './archiveInlineEdit.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
@@ -1101,8 +1101,6 @@ window._app = {
   openUserProfileModal: (userId) => openUserProfileModal(userId),
   copySchedule: (source) => copySchedule(source),
   openReflectionEdit: (missionId, userId) => openReflectionEditModal(missionId, userId || null),
-  // アーカイブの編集モードで提出内容を直す（管理者のみ）。個別完了は userId でその人の提出物
-  openSubmissionEdit: (missionId, userId) => openSubmissionEditModal(missionId, userId || null),
   // アーカイブ：個別完了の「他N人の提出を表示」
   showAllArchiveSubmitters: (missionId) => showAllArchiveSubmitters(missionId),
   // アーカイブ：個別完了の行の開閉を覚える（描き直しで閉じないように）
@@ -1234,8 +1232,13 @@ window._app = {
 
   // --- アーカイブ：目次から記録へ飛ぶ／編集モードの切り替え（管理者のみ）---
   jumpToArchiveEntry: (missionId) => jumpToArchiveEntry(missionId),
-  toggleArchiveEditing: () => {
+  // ★終えるときは、保存待ちの欄を全部保存してから閲覧に戻す（保存は欄ごとに自動。archiveInlineEdit.js）
+  toggleArchiveEditing: async () => {
     if (!state.canManageCurrentEvent()) return;
+    if (state.archiveEditing) {
+      document.activeElement?.blur?.();
+      await flushArchiveInlineEdits();
+    }
     state.archiveEditing = !state.archiveEditing;
     state.render();
   },

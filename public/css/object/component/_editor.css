@@ -1,7 +1,7 @@
 /* ==========================================================================
    Object / Component / editor — 文章の途中に画像・PDF を置ける編集欄
    使用箇所: public/js/clearEditor.js（配線）、views/missionDetail.js（完了フォーム）、
-             modals/submissionEditModal.js（アーカイブの編集モードで提出内容を直す）
+             archiveInlineEdit.js（アーカイブの編集モードで、文書をその場で直す）
 
    c-editor-field … 編集欄と画像ボタンを重ねる入れ物
    c-editor       … contenteditable の本体。__embed（画像・PDF の塊）/ __file / __ghost / __caret

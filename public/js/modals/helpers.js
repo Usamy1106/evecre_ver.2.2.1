@@ -476,7 +476,8 @@ let _clearSubmitting = false;
 export async function handleImageSelect(input) {
   const files = [...(input.files || [])];
   input.value = '';   // 同じ画像をもう一度選べるように
-  const el = editorEl();
+  // ★ボタンと同じ枠（c-editor-field）の編集欄に入れる（1画面に複数あるため。無ければ完了フォーム）
+  const el = input.closest?.('.c-editor-field')?.querySelector('.c-editor') || editorEl();
   if (!el || files.length === 0) return;
   await insertFiles(el, files, null, el._onEditorChange);
 }
