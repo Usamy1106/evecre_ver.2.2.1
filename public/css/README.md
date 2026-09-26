@@ -116,6 +116,7 @@
 | 操作を選ばせるボトムシート（長押しメニュー） | `object/component/_action-sheet.css` |
 | オン・オフのスイッチ | `object/component/_toggle.css` |
 | 一覧を出すボトムシート（承認待ち・確認待ち・履歴） | `object/component/_list-sheet.css` |
+| 提出物に添付した PDF のカード（開く・ダウンロード） | `object/component/_file-card.css` |
 | モーダルのフェードイン（`u-animate-fade`） | `object/utility/_transition.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`u-no-scrollbar`） | `object/utility/_scroll.css` |
@@ -291,6 +292,7 @@ public/css/
 │  ├─ _action-sheet.css         ✅ 操作を選ばせるボトムシート
 │  ├─ _toggle.css               ✅ オン・オフのスイッチ
 │  ├─ _list-sheet.css           ✅ 一覧を出すボトムシート
+│  ├─ _file-card.css            ✅ c-file-card（提出物の PDF）
 │  ├─ _context-menu.css         ✅ c-context-menu
 │  ├─ _emoji-picker.css         ✅ c-emoji-picker
 │  ├─ _coach-mark.css           ✅ coachMark.js

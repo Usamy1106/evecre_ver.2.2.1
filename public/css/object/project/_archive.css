@@ -467,6 +467,11 @@
   object-fit: cover;
 }
 
+/* 提出物の PDF のカードの置き場所（カード自体は c-file-card） */
+.p-archive__content-file {
+  margin-top: var(--space-2);
+}
+
 .p-archive__content-link {
   display: flex;
   align-items: center;

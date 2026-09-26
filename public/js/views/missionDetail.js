@@ -320,7 +320,7 @@ function _renderClearInput(m) {
           </svg>
         </label>
         <!-- ★hidden は「見た目を消す」ためではなく、ファイル選択を自前のボタンで代替するため -->
-        <input type="file" id="file-input" class="u-hidden" accept="image/*" multiple
+        <input type="file" id="file-input" class="u-hidden" accept="image/*,application/pdf" multiple
           onchange="window._app.handleImageSelect(this)">
       </div>
 
@@ -420,6 +420,7 @@ function _fmtClearedContent(cd) {
     if (seg.type === 'image') {
       return `<img src="${_esc(seg.url)}" class="p-mission-detail__cleared-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
     }
+    if (seg.type === 'file') return `<div class="p-mission-detail__cleared-file">${Components.SubmissionFileCard(seg.file, state.selectedEventId)}</div>`;
     if (cd.format === 'link' || cd.format === 'url') {
       return `<a href="${_esc(seg.text)}" target="_blank" rel="noopener noreferrer" class="p-mission-detail__cleared-link">${_esc(seg.text)}</a>`;
     }

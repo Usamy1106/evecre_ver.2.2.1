@@ -6,7 +6,7 @@ import { openCalendarModal } from './calendar.js';
 import { getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue } from '../utils.js';
 import { REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import {
-  editorEl, readEditor, setEditorText, bindClearEditor, insertImageFiles,
+  editorEl, readEditor, setEditorText, bindClearEditor, insertFiles,
   itemsForKeys, resetEditorImages,
 } from '../clearEditor.js';
 
@@ -217,10 +217,10 @@ export function initClearDraft(missionId, container) {
   }
 
   // === ドラフト自動保存 ===
-  // ★文章だけ。画像の印（{{image:N}}）は外す（画像は下書きに入らないので、印だけ残ると宙に浮く）
+  // ★文章だけ。画像・PDF の印（{{image:N}} / {{file:N}}）は外す（下書きに入らないので、印だけ残ると宙に浮く）
   const snapshot = () => {
     const el      = editorEl();
-    const content = el ? readEditor(el).text.replace(/\{\{image:\d+\}\}/g, '') : '';
+    const content = el ? readEditor(el).text.replace(/\{\{(image|file):\d+\}\}/g, '') : '';
     const checked = Array.from(document.querySelectorAll('[data-clear-checklist]')).map(cb => !!cb.checked);
     _clearDraft.save(missionId, { content, checked });
   };
@@ -259,13 +259,16 @@ export async function submitMissionClear(missionId) {
   //   画像だけのときは本文を空で送り 'image'（サーバーが旧形式の content にも1枚目を入れる）。
   const read       = readEditor(editorEl());
   const images     = itemsForKeys(read.keys);
-  const textValue  = read.plain ? read.text : '';
+  const files      = itemsForKeys(read.fileKeys);
+  // ★画像だけのときは本文を空で送る（サーバーが旧形式の content に1枚目を入れる）。
+  //   PDF があるときは、画像との並び順を残すため印つきの本文を送る
+  const textValue  = (read.plain || files.length > 0) ? read.text : '';
 
-  const detectedFormat = (images.length > 0 && !read.plain) ? 'image'
-    : (images.length === 0 && /^https?:\/\/\S+$/i.test(read.plain)) ? 'link'
+  const detectedFormat = (images.length > 0 && files.length === 0 && !read.plain) ? 'image'
+    : (images.length === 0 && files.length === 0 && /^https?:\/\/\S+$/i.test(read.plain)) ? 'link'
     : 'text';
 
-  if (!read.plain && images.length === 0 && !m.noInput) {
+  if (!read.plain && images.length === 0 && files.length === 0 && !m.noInput) {
     window._app?.showToast('入力を完了させてください', 'error');
     return;
   }
@@ -278,7 +281,11 @@ export async function submitMissionClear(missionId) {
   _clearSubmitting = true;
   const buttons = [...document.querySelectorAll('[data-clear-submit]')];
   const labels  = buttons.map(b => b.textContent);
-  const setBusy = (text) => buttons.forEach(b => { b.disabled = !!text; if (text) b.textContent = text; });
+  // ★送信中はくるくる＋何をしているか（画像・PDF を送る間は数秒〜数十秒かかる）
+  const setBusy = (text) => buttons.forEach(b => {
+    b.disabled = true;
+    b.innerHTML = `<span class="c-spinner__inline"><span class="c-spinner c-spinner--xs c-spinner--inverse"></span>${_esc(text)}</span>`;
+  });
   const restore = () => { buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; }); _clearSubmitting = false; };
 
   try {
@@ -298,6 +305,32 @@ export async function submitMissionClear(missionId) {
       }
       it.url = up.url;
     }
+    // PDF：1つずつ。1ページ目の絵を描き終えるのを待ってから送る
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (f.url && (f.thumbUrl || !f.thumbDataUrl)) continue;
+      setBusy(files.length > 1 ? `PDFを送信中… ${i + 1}/${files.length}` : 'PDFを送信中…');
+      await f.thumbReady;
+      if (!f.url) {
+        const up = await api.uploadSubmissionFile(project.id, f.blob);
+        if (!up?.ok || !up.url) {
+          const why = up?.code === 'network' ? '通信状況を確認して、'
+            : up?.error === 'file_too_large' ? 'ファイルが大きすぎます（10MBまで）。'
+            : up?.error === 'invalid_file' ? 'PDF として読めませんでした。'
+            : '';
+          window._app?.showToast(`「${f.name}」を送れませんでした。${why}もう一度「完了する」を押してください`, 'error');
+          logEvent('submission_file_failed', { missionId, index: i, count: files.length, error: up?.code || up?.error || null });
+          restore();
+          return;
+        }
+        f.url = up.url;
+      }
+      // 1ページ目の絵（無くても添付はできるので、失敗しても止めない）
+      if (f.thumbDataUrl && !f.thumbUrl) {
+        const tu = await api.uploadSubmissionImage(project.id, f.thumbDataUrl);
+        if (tu?.ok && tu.url) f.thumbUrl = tu.url; else f.thumbDataUrl = null;
+      }
+    }
     setBusy('送信中…');
   } catch (e) {
     restore();
@@ -313,6 +346,7 @@ export async function submitMissionClear(missionId) {
   //   ★ここで struggle / solution を送らないこと。送ると空文字で上書きされる。
   const r = await api.completeMission(project.id, missionId, {
     content: textValue, format: detectedFormat, images: images.map(it => it.url),
+    files: files.map(f => ({ url: f.url, name: f.name, size: f.size, thumb: f.thumbUrl || null })),
   });
   restore();
   if (!r.ok) {
@@ -327,6 +361,7 @@ export async function submitMissionClear(missionId) {
     tag:      m.tag || (Array.isArray(m.tags) ? m.tags[0] : null),
     format:   detectedFormat,
     imageCount: images.length,
+    fileCount:  files.length,
     priority: m.priority,
     // ★振り返りは完了後のページで書く。書かれたかどうかは reflect_saved で数える
   });
@@ -427,7 +462,7 @@ export async function handleImageSelect(input) {
   input.value = '';   // 同じ画像をもう一度選べるように
   const el = editorEl();
   if (!el || files.length === 0) return;
-  await insertImageFiles(el, files, null, el._onEditorChange);
+  await insertFiles(el, files, null, el._onEditorChange);
 }
 
 // ===== 招待機能 =====

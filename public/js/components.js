@@ -1,11 +1,16 @@
 // ===== UIコンポーネント =====
 import { state } from './state.js';
 import { LABEL_CONFIG } from './constants.js';
-import { submissionImages } from './utils.js';
+import { submissionImages, formatFileSize } from './utils.js';
+import { api } from './api.js';
 
 function _initial(name) {
   return String(name || '?').trim().charAt(0).toUpperCase() || '?';
 }
+function _escAttr(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function _escText(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -415,6 +420,39 @@ export const Components = {
    *   kind … 'good'（できること）| 'want'（やってみたいこと）
    *   attr … タップを拾うための data 属性名（例 'data-jf-tag'）。値は tag.id
    */
+  /**
+   * 提出物の添付ファイル（PDF）のカード。1ページ目の絵＋名前＋「開く」「ダウンロード」。
+   * タスク詳細とアーカイブで共用する。
+   * ★ボタンは stopPropagation（アーカイブの記録はタップでタスク詳細を開くため）。
+   * ★「開く」は R2 の公開 URL（ブラウザの PDF ビューアで開く）。「ダウンロード」は
+   *   サーバーが署名付き URL へ転送し、元の名前で保存させる（別ドメインでは <a download> が効かない）。
+   * @param {{url:string, name:string, size:number, thumb:string|null}} file
+   * @param {string} eventId
+   */
+  SubmissionFileCard(file, eventId) {
+    const name = file?.name || 'document.pdf';
+    const stop = 'onclick="event.stopPropagation()"';
+    return `
+      <div class="c-file-card">
+        <a href="${_escAttr(file.url)}" target="_blank" rel="noopener noreferrer" ${stop}
+          class="c-file-card__preview" aria-label="${_escAttr(name)} を開く">
+          ${file.thumb
+            ? `<img src="${_escAttr(file.thumb)}" class="c-file-card__thumb" alt="" loading="lazy" data-fallback="submission">`
+            : `<span class="c-file-card__badge">PDF</span>`}
+        </a>
+        <div class="c-file-card__body">
+          <p class="c-file-card__name">${_escText(name)}</p>
+          <p class="c-file-card__size">PDF・${_escText(formatFileSize(file.size))}</p>
+        </div>
+        <div class="c-file-card__actions">
+          <a href="${_escAttr(file.url)}" target="_blank" rel="noopener noreferrer" ${stop}
+            class="c-file-card__action" data-log="submission_file_open">開く</a>
+          <a href="${_escAttr(api.submissionFileDownloadUrl(eventId, file.url, name))}" ${stop}
+            class="c-file-card__action c-file-card__action--primary" data-log="submission_file_download">ダウンロード</a>
+        </div>
+      </div>`;
+  },
+
   SkillTag(tag, { on = false, kind = 'good', attr = 'data-skill-tag' } = {}) {
     const a = `${attr}="${_escText(tag.id)}"`;
     if (!on) {

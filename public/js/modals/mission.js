@@ -7,7 +7,7 @@ import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
 import { suggestAssignees } from '../assigneeSuggest.js';
 import { Components } from '../components.js';
 import { logEvent } from '../logger.js';
-import { submissionImages, submissionText } from '../utils.js';
+import { submissionImages, submissionText, submissionFilesLabel } from '../utils.js';
 
 /**
  * タスク作成/編集モーダルを開く
@@ -810,6 +810,7 @@ export function showMissionListModal() {
             ${submissionText(cleared) ? `<p class="text-rs p-main-board__list-text">${_esc(submissionText(cleared))}</p>` : ''}
             ${submissionImages(cleared).map(url =>
               `<img src="${_escAttr(url)}" class="p-main-board__list-image" data-fallback="submission">`).join('')}
+            ${submissionFilesLabel(cleared) ? `<p class="text-rs p-main-board__list-text">${_esc(submissionFilesLabel(cleared))}</p>` : ''}
           </div>` : '<p class="p-main-board__list-meta">未提出</p>'}
       </div>`;
   }).join('');

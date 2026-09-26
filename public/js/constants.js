@@ -222,6 +222,11 @@ export const REFLECT_SKIP_MISSION_IDS = ['def-1', 'def-3'];
 // 1つの提出に添えられる画像の枚数。★server.js の SUBMISSION_MAX_IMAGES と揃えること
 export const SUBMISSION_MAX_IMAGES = 5;
 
+// 添付ファイル（PDF）。画像とは別に数える。★server.js の SUBMISSION_MAX_FILES /
+//   SUBMISSION_FILE_MAX_BYTES と揃えること。10MB を超えて上げないこと（サーバーは 512MB）
+export const SUBMISSION_MAX_FILES      = 3;
+export const SUBMISSION_FILE_MAX_BYTES = 10 * 1024 * 1024;
+
 // ===== 完了後の振り返り：成否の選択肢 =====
 // ★絵（art）はここ1箇所だけに置く。モジュール側・CSS の content に直書きしないこと。
 //   いまの絵文字は**暫定**で、今後オリジナルイラストへ差し替える予定

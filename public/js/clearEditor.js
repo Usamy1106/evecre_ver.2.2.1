@@ -16,14 +16,23 @@
 //   ★1枚ごとに縮小と 2MB 上限を通す（外すと 512MB のサーバーが OOM する）
 //   ★枚数は SUBMISSION_MAX_IMAGES まで
 //
-// ■ 選んだ画像の中身（dataURL）はこのモジュールが持つ（_items）。
+// ■ PDF も同じように置ける（最大 SUBMISSION_MAX_FILES・1つ SUBMISSION_FILE_MAX_BYTES まで）。
+//   置いた時点で1ページ目を絵にする（pdfThumb.js。pdf.js はそのとき初めて読む）。
+//   描いているあいだはくるくるを出す。描けなければ絵なしのカードになる（添付はできる）。
+//
+// ■ 選んだ画像・PDF の中身はこのモジュールが持つ（_items）。
 //   ★下書き（localStorage）には入れない（複数枚の dataURL は約5MBをすぐにあふれる）。
 //   送信済みの URL も覚えておき、完了に失敗して押し直したときに送り直さない。
 
-import { SUBMISSION_MAX_IMAGES } from './constants.js';
+import { SUBMISSION_MAX_IMAGES, SUBMISSION_MAX_FILES, SUBMISSION_FILE_MAX_BYTES } from './constants.js';
+import { renderPdfThumb } from './pdfThumb.js';
+import { formatFileSize } from './utils.js';
 
-// 本文の中の画像の印。★utils.js の IMAGE_MARK_RE と同じ形に保つこと
-const MARK = (n) => `{{image:${n}}}`;
+// 本文の中の画像・添付ファイル（PDF）の印。★utils.js の IMAGE_MARK_RE / FILE_MARK_RE と同じ形に保つこと
+// ★編集欄の中の塊は、画像も PDF も data-img-key を持つ（並べ替え・×・差し込み先の判定を共通にするため）。
+//   PDF は data-kind="file" で見分ける。
+const MARK      = (n) => `{{image:${n}}}`;
+const MARK_FILE = (n) => `{{file:${n}}}`;
 
 // 提出物画像の上限。server.js の SUBMISSION_MAX_BYTES と揃えること（2MB）。
 export const SUBMISSION_MAX_BYTES = 2 * 1024 * 1024;
@@ -101,6 +110,7 @@ function _resizeImageDataUrl(dataUrl) {
 // ★type が空のファイルもある（ブラウザ・OS によっては拡張子しか手がかりが無い）
 const _IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|heic|heif|bmp|avif|tiff?)$/i;
 const _isImageFile = (f) => !!f && (/^image\//.test(f.type) || (!f.type && _IMAGE_EXT_RE.test(f.name || '')));
+const _isPdfFile   = (f) => !!f && (f.type === 'application/pdf' || (!f.type && /\.pdf$/i.test(f.name || '')));
 
 /**
  * DataTransfer（ドロップ・貼り付け）からファイルを集める。
@@ -123,29 +133,36 @@ export function editorEl() {
   return document.getElementById('clear-input');
 }
 
-/** いま編集欄に置かれている画像の数 */
+/** いま編集欄に置かれている画像の数（PDF は数えない） */
 export function imageCount(el = editorEl()) {
-  return el ? el.querySelectorAll('[data-img-key]').length : 0;
+  return el ? el.querySelectorAll('[data-img-key]:not([data-kind="file"])').length : 0;
+}
+
+/** いま編集欄に置かれている PDF の数 */
+export function fileCount(el = editorEl()) {
+  return el ? el.querySelectorAll('[data-img-key][data-kind="file"]').length : 0;
 }
 
 /**
  * 編集欄を「本文（印つき）」と「画像の key の並び」に変換する。
  * ★HTML は捨てる。取り出すのは文字・改行・画像の印だけ。
- * @returns {{ text: string, plain: string, keys: string[] }}
- *   text  … 画像の位置に {{image:N}} を入れた本文（保存用）
- *   plain … 印を外した本文（下書き・空判定用）
+ * @returns {{ text: string, plain: string, keys: string[], fileKeys: string[] }}
+ *   text     … 画像・PDF の位置に {{image:N}} / {{file:N}} を入れた本文（保存用）
+ *   plain    … 印を外した本文（下書き・空判定用）
+ *   keys     … 画像の key の並び／fileKeys … PDF の key の並び
  */
 export function readEditor(el = editorEl()) {
   const out = [];
   const keys = [];
+  const fileKeys = [];
   const endsWithNewline = () => { const s = out.join(''); return s === '' || s.endsWith('\n'); };
   const walk = (node) => {
     for (const n of node.childNodes) {
       if (n.nodeType === Node.TEXT_NODE) { out.push(n.nodeValue.replace(/​/g, '')); continue; }
       if (n.nodeType !== Node.ELEMENT_NODE) continue;
       if (n.dataset?.imgKey) {
-        keys.push(n.dataset.imgKey);
-        out.push(MARK(keys.length));
+        if (n.dataset.kind === 'file') { fileKeys.push(n.dataset.imgKey); out.push(MARK_FILE(fileKeys.length)); }
+        else { keys.push(n.dataset.imgKey); out.push(MARK(keys.length)); }
         continue;
       }
       if (n.tagName === 'BR') { out.push('\n'); continue; }
@@ -156,8 +173,8 @@ export function readEditor(el = editorEl()) {
   };
   if (el) walk(el);
   const text = out.join('').replace(/\s+$/, '');
-  const plain = text.replace(/\{\{image:\d+\}\}/g, '').trim();
-  return { text, plain, keys };
+  const plain = text.replace(/\{\{(image|file):\d+\}\}/g, '').trim();
+  return { text, plain, keys, fileKeys };
 }
 
 /** 本文（文字だけ）を編集欄に入れる。下書きの復元用。★HTML として解釈しない */
@@ -172,7 +189,7 @@ export function setEditorText(el, text) {
   _syncEmpty(el);
 }
 
-/** 画像の key の並びから、送る画像（{ dataUrl, url }）を返す */
+/** key の並びから、送るもの（画像 { dataUrl, url } ／ PDF { kind:'file', blob, name, size, ... }）を返す */
 export function itemsForKeys(keys) {
   return keys.map(k => _items.get(k)).filter(Boolean);
 }
@@ -185,7 +202,7 @@ export function resetEditorImages() {
 
 function _syncEmpty(el) {
   const { plain } = readEditor(el);
-  el.classList.toggle('is-empty', !plain && imageCount(el) === 0);
+  el.classList.toggle('is-empty', !plain && !el.querySelector('[data-img-key]'));
 }
 
 // ── 挿入 ────────────────────────────────────────────────
@@ -270,28 +287,91 @@ function _imageNode(key, dataUrl) {
   return span;
 }
 
+// PDF の塊。1ページ目の絵ができるまではくるくるを出す
+function _fileNode(key, name, size) {
+  const span = document.createElement('span');
+  span.className = 'p-mission-detail__editor-image p-mission-detail__editor-file is-loading';
+  span.contentEditable = 'false';
+  span.dataset.imgKey = key;
+  span.dataset.kind = 'file';
+  // ★タグの間に空白を入れない（pre-wrap で空行になる。_imageNode と同じ）
+  span.innerHTML =
+    `<span class="p-mission-detail__editor-file-thumb"><span class="c-spinner c-spinner--sm"></span></span>`
+    + `<span class="p-mission-detail__editor-file-name">📄 ${_esc(name)}<span class="p-mission-detail__editor-file-size">${_esc(formatFileSize(size))}</span></span>`
+    + `<button type="button" data-img-remove class="p-mission-detail__editor-image-remove" aria-label="ファイルを外す">`
+    + `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">`
+    + `<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>`;
+  return span;
+}
+
+// 1ページ目の絵ができたら差し替える（描けなければ「PDF」の札）
+function _fillFileThumb(node, thumb) {
+  const box = node.querySelector('.p-mission-detail__editor-file-thumb');
+  if (!box) return;
+  box.innerHTML = thumb
+    ? `<img src="${_esc(thumb.dataUrl)}" class="p-mission-detail__editor-image-img" alt="" draggable="false">`
+    : `<span class="p-mission-detail__editor-file-badge">PDF</span>`;
+  node.classList.remove('is-loading');
+}
+
+async function _insertPdf(el, file, at, onChange) {
+  const key = `k${++_seq}`;
+  const item = { kind: 'file', blob: file, name: file.name || 'document.pdf', size: file.size, thumbDataUrl: null, url: null, thumbUrl: null };
+  _items.set(key, item);
+  const node = _fileNode(key, item.name, item.size);
+  const after = _insertAt(el, at, node);
+  _syncEmpty(el);
+  onChange?.();
+  // ★絵を描き終えるまで送信を待たせる（submitMissionClear が thumbReady を待つ）
+  item.thumbReady = renderPdfThumb(file).then((thumb) => {
+    item.thumbDataUrl = thumb?.dataUrl || null;
+    _fillFileThumb(node, thumb);
+  });
+  return after;
+}
+
 /**
- * 画像ファイルを範囲の位置へ順に入れる（1枚ずつ縮小）。
+ * 画像・PDF を範囲の位置へ順に入れる（画像は1枚ずつ縮小、PDF は1ページ目を絵にする）。
  * ★順番に処理する（大きな写真を同時にデコードするとスマホのメモリを食う）。
  */
-export async function insertImageFiles(el, files, range, onChange) {
+export async function insertFiles(el, files, range, onChange) {
   const missionId = el?.dataset?.missionId;
   if (!el || !missionId) return;
   if (_missionId !== missionId) { _missionId = missionId; _items = new Map(); }
 
-  const images = [...files].filter(_isImageFile);
-  if (images.length === 0) { _toast('画像ファイルを選んでください'); return; }
-  const room = SUBMISSION_MAX_IMAGES - imageCount(el);
-  if (room <= 0) { _toast(`画像は${SUBMISSION_MAX_IMAGES}枚までです`); return; }
-  if (images.length > room) _toast(`画像は${SUBMISSION_MAX_IMAGES}枚までです。先頭の${room}枚だけ追加しました`);
+  const all    = [...files];
+  const images = all.filter(_isImageFile);
+  const pdfs   = all.filter(_isPdfFile);
+  if (images.length === 0 && pdfs.length === 0) { _toast('画像か PDF を選んでください'); return; }
+
+  let imgRoom  = SUBMISSION_MAX_IMAGES - imageCount(el);
+  let fileRoom = SUBMISSION_MAX_FILES  - fileCount(el);
+  if (images.length > Math.max(0, imgRoom)) {
+    _toast(imgRoom <= 0 ? `画像は${SUBMISSION_MAX_IMAGES}枚までです` : `画像は${SUBMISSION_MAX_IMAGES}枚までです。先頭の${imgRoom}枚だけ追加しました`);
+  }
+  if (pdfs.length > Math.max(0, fileRoom)) {
+    _toast(fileRoom <= 0 ? `PDF は${SUBMISSION_MAX_FILES}つまでです` : `PDF は${SUBMISSION_MAX_FILES}つまでです。先頭の${fileRoom}つだけ追加しました`);
+  }
 
   let at = range || _currentRange(el);
-  let unreadable = 0, tooLarge = 0;
-  for (const file of images.slice(0, room)) {
+  let unreadable = 0, tooLarge = 0, pdfTooLarge = 0;
+  // ★選んだ順（ドロップした順）のまま入れる
+  for (const file of all) {
+    if (_missionId !== missionId || !el.isConnected) return;
+    if (!_inside(el, at.startContainer)) at = _currentRange(el);
+    if (_isPdfFile(file)) {
+      if (fileRoom <= 0) continue;
+      if (file.size > SUBMISSION_FILE_MAX_BYTES) { pdfTooLarge++; continue; }
+      fileRoom--;
+      at = await _insertPdf(el, file, at, onChange);
+      continue;
+    }
+    if (!_isImageFile(file) || imgRoom <= 0) continue;
+    imgRoom--;
     let dataUrl = null;
     try { dataUrl = await _resizeImageDataUrl(await _readAsDataUrl(file)); } catch (_) { /* 下で数える */ }
-    if (!dataUrl) { unreadable++; continue; }
-    if (dataUrl.length > SUBMISSION_MAX_BYTES) { tooLarge++; continue; }
+    if (!dataUrl) { unreadable++; imgRoom++; continue; }
+    if (dataUrl.length > SUBMISSION_MAX_BYTES) { tooLarge++; imgRoom++; continue; }
     // 読み込み中に別のタスクへ移った／描き直しで編集欄が差し替わったら捨てる
     if (_missionId !== missionId || !el.isConnected) return;
     const key = `k${++_seq}`;
@@ -303,6 +383,7 @@ export async function insertImageFiles(el, files, range, onChange) {
   }
   if (unreadable > 0) _toast(`${unreadable}枚の画像を読み込めませんでした。この形式（HEIC など）は JPEG か PNG にしてから追加してください`);
   if (tooLarge > 0)   _toast(`${tooLarge}枚の画像が大きすぎて追加できませんでした`);
+  if (pdfTooLarge > 0) _toast(`${pdfTooLarge}つの PDF が大きすぎて追加できませんでした（1つ ${formatFileSize(SUBMISSION_FILE_MAX_BYTES)} まで）`);
 }
 
 // ── 「ここに入る」の縦線 ──────────────────────────────────
@@ -377,7 +458,7 @@ function _bindDocumentOnce() {
     const form = document.getElementById('clear-mission-modal');
     if (form && form.contains(e.target)) {
       const end = document.createRange(); end.selectNodeContents(el); end.collapse(false);
-      insertImageFiles(el, _filesFrom(e.dataTransfer), end, el._onEditorChange);
+      insertFiles(el, _filesFrom(e.dataTransfer), end, el._onEditorChange);
     }
   });
   // ウィンドウの外へ出た・Esc で取り消した
@@ -408,9 +489,9 @@ export function bindClearEditor(el, { onChange } = {}) {
     const cd = e.clipboardData;
     if (!cd) return;
     e.preventDefault();
-    const files = _filesFrom(cd).filter(_isImageFile);
+    const files = _filesFrom(cd).filter(f => _isImageFile(f) || _isPdfFile(f));
     const range = _currentRange(el);
-    if (files.length > 0) { insertImageFiles(el, files, range, onChange); return; }
+    if (files.length > 0) { insertFiles(el, files, range, onChange); return; }
     // ★Finder で「コピー」したファイルは、ブラウザによっては画像ではなく
     //   ファイル名の文字だけが届く。そのまま入れると名前が本文に混ざるので、案内だけ出す
     const plain = cd.getData('text/plain');
@@ -450,7 +531,7 @@ export function bindClearEditor(el, { onChange } = {}) {
     e.preventDefault();   // ★HTML のまま落とさせない（書式やタグを持ち込まない）
     // ★線で示した位置に落とす（見せた場所と入る場所をずらさない）
     const range = (shown && _inside(el, shown.startContainer)) ? shown : _rangeFromPoint(el, e.clientX, e.clientY);
-    if (_hasFiles(e)) { insertImageFiles(el, _filesFrom(e.dataTransfer), range, onChange); return; }
+    if (_hasFiles(e)) { insertFiles(el, _filesFrom(e.dataTransfer), range, onChange); return; }
     const text = e.dataTransfer?.getData('text/plain');
     if (text) { _insertText(el, range, text); _syncEmpty(el); onChange?.(); }
   });
@@ -554,8 +635,12 @@ function _bindImageDrag(el, onChange) {
 
     const lift = () => {
       const box = item.getBoundingClientRect();
-      const ghost = item.querySelector('img').cloneNode();
-      ghost.className = 'p-mission-detail__editor-ghost';
+      // ★塊ごと複製する（PDF は絵が描き終わっていないこともあり、img が無い）
+      const ghost = item.cloneNode(true);
+      ghost.removeAttribute('data-img-key');
+      ghost.removeAttribute('contenteditable');
+      ghost.querySelector('[data-img-remove]')?.remove();
+      ghost.classList.add('p-mission-detail__editor-ghost');
       ghost.style.width  = `${box.width}px`;
       ghost.style.height = `${box.height}px`;
       document.body.appendChild(ghost);

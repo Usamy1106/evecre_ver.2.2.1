@@ -76,6 +76,10 @@ const SUBMISSION_MAX_BYTES = 2 * 1024 * 1024;  // 2MB（ミッション提出物
 // ★画像は1枚ずつ POST /api/events/:id/submission-images で送る。完了にまとめて載せないこと
 //   （express.json の上限 5MB に 2MB の dataURL は2枚しか入らない）
 const SUBMISSION_MAX_IMAGES = 5;
+// 添付ファイル（PDF）。★public/js/constants.js の SUBMISSION_MAX_FILES / SUBMISSION_FILE_MAX_BYTES と揃えること
+// ★10MB を超えて上げないこと（サーバーは 512MB。1回の送信でこの大きさを一時的に抱える）
+const SUBMISSION_MAX_FILES      = 3;
+const SUBMISSION_FILE_MAX_BYTES = 10 * 1024 * 1024;
 const IMAGE_DATA_URL_RE    = /^data:image\/(png|jpeg|jpg|webp);base64,/;
 
 // PUT /api/data の処理時間がこれを超えたら警告ログを出す（接続待ち・スロークエリの検知用）
@@ -846,6 +850,7 @@ function _validateIncomingSubmissions(incoming) {
       const err = _validateSubmissionImage(sub?.content, sub?.format);
       if (err) return err;
       if (sub?.images !== undefined && _sanitizeSubmissionImages(p.id, sub.images).error) return 'invalid_images';
+      if (sub?.files  !== undefined && _sanitizeSubmissionFiles(p.id, sub.files).error)   return 'invalid_files';
     }
   }
   return null;
@@ -871,6 +876,36 @@ function _sanitizeSubmissionImages(eventId, raw) {
     if (!out.includes(u)) out.push(u);
   }
   return { images: out };
+}
+
+/**
+ * 提出物の files（添付 PDF）を検証する。[{ url, name, size, thumb }]
+ * ★url は「このイベント用に R2 へ置いた PDF」（submissions/<eventId>/file_*.pdf）だけ。
+ *   thumb（1ページ目の絵）は提出画像と同じ扱い（submissions/<eventId>/ の R2 URL）か null。
+ * ★name は表示とダウンロード時の名前にしか使わない。制御文字を落とし、長さを切る。
+ * @returns {{ files: object[] } | { error: string }}
+ */
+function _sanitizeSubmissionFiles(eventId, raw) {
+  if (raw === undefined || raw === null) return { files: [] };
+  if (!Array.isArray(raw)) return { error: 'invalid_files' };
+  if (raw.length > SUBMISSION_MAX_FILES) return { error: 'too_many_files' };
+  const prefix = `submissions/${eventId}/`;
+  const out = [];
+  for (const f of raw) {
+    if (!f || typeof f !== 'object') return { error: 'invalid_files' };
+    const key = typeof f.url === 'string' ? r2.urlToKey(f.url) : null;
+    if (!key || !key.startsWith(prefix + 'file_') || !key.endsWith('.pdf')) return { error: 'invalid_files' };
+    let thumb = null;
+    if (f.thumb) {
+      const tk = typeof f.thumb === 'string' ? r2.urlToKey(f.thumb) : null;
+      if (!tk || !tk.startsWith(prefix)) return { error: 'invalid_files' };
+      thumb = f.thumb;
+    }
+    const name = String(f.name || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 120) || 'document.pdf';
+    const size = Math.max(0, Math.min(SUBMISSION_FILE_MAX_BYTES, Number(f.size) || 0));
+    if (!out.some(x => x.url === f.url)) out.push({ url: f.url, name, size, thumb });
+  }
+  return { files: out };
 }
 
 // ===== ミッションの担当者・push ヘルパ =====
@@ -1028,14 +1063,16 @@ async function _extractClearedData(projectId, flat) {
       // ★検証は _validateIncomingSubmissions が済ませている（不正なら保存前に 400）
       images:      submission.images === undefined ? undefined
                  : _sanitizeSubmissionImages(projectId, submission.images).images,
+      files:       submission.files === undefined ? undefined
+                 : _sanitizeSubmissionFiles(projectId, submission.files).files,
       title:       submission.title,
       timestamp:   submission.timestamp,
       submittedBy: submission.submittedBy,
     };
     const prev = current[missionId];
     // ★images は配列なので中身で比べる（=== だと毎回「変わった」になり全件書き直す）
-    const same = (k) => k === 'images'
-      ? JSON.stringify(fields.images) === JSON.stringify(prev.images || [])
+    const same = (k) => (k === 'images' || k === 'files')
+      ? JSON.stringify(fields[k]) === JSON.stringify(prev[k] || [])
       : fields[k] === prev[k];
     if (prev && Object.keys(fields).every(k => fields[k] === undefined || same(k))) return;
 
@@ -1627,8 +1664,8 @@ app.delete('/api/account', requireAuth, async (req, res) => {
         try {
           const subs = await submissionStore.getSubmissionsForProject(p.id);
           for (const mid of Object.keys(subs)) {
-            // ★images と旧形式（format:'image' の content）の両方を消す（submissionStore.imageUrlsOf）
-            for (const url of submissionStore.imageUrlsOf(subs[mid])) {
+            // ★images・旧形式の画像・添付ファイルをすべて消す（submissionStore.storedUrlsOf）
+            for (const url of submissionStore.storedUrlsOf(subs[mid])) {
               const key = r2.urlToKey(url);
               if (key) r2.deleteObject(key).catch(e => console.warn('[r2] submission image delete warn:', e.message));
             }
@@ -2482,8 +2519,8 @@ app.put('/api/data', requireAuth, async (req, res) => {
         try {
           const subs = await submissionStore.getSubmissionsForProject(p.id);
           for (const mid of Object.keys(subs)) {
-            // ★images と旧形式（format:'image' の content）の両方を消す（submissionStore.imageUrlsOf）
-            for (const url of submissionStore.imageUrlsOf(subs[mid])) {
+            // ★images・旧形式の画像・添付ファイルをすべて消す（submissionStore.storedUrlsOf）
+            for (const url of submissionStore.storedUrlsOf(subs[mid])) {
               const key = r2.urlToKey(url);
               if (key) r2.deleteObject(key).catch(e => console.warn('[r2] submission image delete warn:', e.message));
             }
@@ -3170,6 +3207,63 @@ app.post('/api/events/:id/submission-images', requireAuth, uploadLimiter, async 
   }
 });
 
+// 添付ファイル（PDF）を1つアップロードして URL を返す（完了の前に、1つずつ呼ばれる）。
+// ★本文は JSON ではなく PDF そのもの（Content-Type: application/pdf）。dataURL にすると
+//   3割膨らみ、express.json の上限 5MB に 10MB の PDF が入らない。
+// ★上限を超えたら 413 を JSON で返す（express.raw の既定はエラーページ）。
+const _pdfBody = express.raw({ type: 'application/pdf', limit: SUBMISSION_FILE_MAX_BYTES });
+function _readPdfBody(req, res, next) {
+  _pdfBody(req, res, (err) => {
+    if (err) {
+      const tooLarge = err.type === 'entity.too.large';
+      return res.status(tooLarge ? 413 : 400).json({ ok: false, error: tooLarge ? 'file_too_large' : 'invalid_file' });
+    }
+    next();
+  });
+}
+app.post('/api/events/:id/submission-files', requireAuth, uploadLimiter, _readPdfBody, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (eventStore.isViewOnly(p, req.user.id))
+      return res.status(403).json({ ok: false, error: '閲覧のみのロールでは操作できません' });
+
+    const buf = req.body;
+    // ★中身が本当に PDF か（先頭が %PDF-）。Content-Type は送る側が自由に付けられる
+    if (!Buffer.isBuffer(buf) || buf.length < 5 || buf.subarray(0, 5).toString('latin1') !== '%PDF-')
+      return res.status(400).json({ ok: false, error: 'invalid_file' });
+    if (!r2.isConfigured())
+      return res.status(503).json({ ok: false, error: 'ファイルを保存できませんでした', code: 'storage_unavailable' });
+
+    const key = `submissions/${p.id}/file_${r2.randomSuffix()}.pdf`;
+    const url = await r2.uploadBuffer(buf, key, 'application/pdf');
+    res.json({ ok: true, url });
+  } catch (e) {
+    console.error('[r2] submission file upload error:', e.message);
+    res.status(500).json({ ok: false, error: 'ファイルを保存できませんでした' });
+  }
+});
+
+// 添付ファイルのダウンロード。署名付きの一時 URL へ転送する（ファイル本体はサーバーを通らない）。
+// ★メンバーだけ。受け付けるのはこのイベントの添付 PDF の URL だけ（任意の R2 オブジェクトを署名させない）。
+app.get('/api/events/:id/files/download', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p) return res.status(404).send('not found');
+    if (!eventStore.isMember(p, req.user.id)) return res.status(403).send('forbidden');
+    const url = String(req.query.u || '');
+    const key = r2.urlToKey(url);
+    if (!key || !key.startsWith(`submissions/${p.id}/file_`) || !key.endsWith('.pdf') || !r2.isConfigured())
+      return res.status(400).send('invalid');
+    const name = String(req.query.n || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 120) || 'document.pdf';
+    res.redirect(302, await r2.presignDownload(key, /\.pdf$/i.test(name) ? name : `${name}.pdf`));
+  } catch (e) {
+    console.error('[r2] presign error:', e.message);
+    res.status(500).send('error');
+  }
+});
+
 app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res) => {
   try {
     const p = await eventStore.loadEvent(req.params.id);
@@ -3191,6 +3285,10 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     const imgs = _sanitizeSubmissionImages(p.id, req.body?.images);
     if (imgs.error) return res.status(400).json({ ok: false, error: imgs.error });
     const images = imgs.images;
+    // 添付ファイル（PDF。1つずつ POST /submission-files で送ったもの）
+    const fls = _sanitizeSubmissionFiles(p.id, req.body?.files);
+    if (fls.error) return res.status(400).json({ ok: false, error: fls.error });
+    const files = fls.files;
     // ★画像だけの提出は旧形式（format:'image' + content に1枚目）も埋めておく。
     //   images を知らない表示（古いクライアント・他の画面）でも1枚目は見えるようにするため。
     if (images.length > 0 && !content.trim()) { format = 'image'; content = images[0]; }
@@ -3226,7 +3324,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       _setMissionField(p, mid, 'individualClearedBy', clearedBy, now);
       _setMissionField(p, mid, 'clearFormat', format, now);
       await submissionStore.saveSubmission(p.id, `${mid}_u_${userId}`, {
-        content, format, images, title: m.title, timestamp: now, submittedBy: userId,
+        content, format, images, files, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
 
@@ -3246,7 +3344,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       _setMissionField(p, mid, 'clearFormat', format, now);
       _setMissionField(p, mid, 'status', next, now);
       await submissionStore.saveSubmission(p.id, mid, {
-        content, format, images, title: m.title, timestamp: now, submittedBy: userId,
+        content, format, images, files, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
       // ★初期タスク「このイベントの概要を定めよう」(def-3) を完了したら、

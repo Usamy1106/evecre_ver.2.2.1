@@ -56,6 +56,11 @@ async function _send(method, url, body, opts = {}) {
     headers: { ...HEADERS_JSON, 'X-Client-Id': clientId },
   };
   if (body !== undefined) init.body = JSON.stringify(body);
+  // ★ファイルそのものを送るとき（PDF）。JSON にせず、Content-Type を差し替える
+  if (opts.rawBody !== undefined) {
+    init.body = opts.rawBody;
+    init.headers['Content-Type'] = opts.contentType || 'application/octet-stream';
+  }
 
   const timeout = opts.timeout ?? TIMEOUT_MS;
   // ★再試行するのは GET だけ。POST/PUT/PATCH/DELETE を既定で再送しないこと
@@ -215,9 +220,9 @@ export const api = {
   // submissions コレクションに保存する（★CRDT 対象外）。
   // images は uploadSubmissionImage で先に送った R2 の URL の配列（本文と同時に持てる）。
   async completeMission(eventId, missionId,
-    { content = '', format = 'text', images = [], struggle = '', solution = '', shareable = false } = {}) {
+    { content = '', format = 'text', images = [], files = [], struggle = '', solution = '', shareable = false } = {}) {
     const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/complete`,
-      { content, format, images, struggle, solution, shareable });
+      { content, format, images, files, struggle, solution, shareable });
     return json || { ok: false };
   },
 
@@ -228,6 +233,20 @@ export const api = {
     const { json } = await _send('POST', `/api/events/${eventId}/submission-images`,
       { dataUrl }, { timeout: 60000 });
     return json || { ok: false };
+  },
+
+  // 添付ファイル（PDF）を1つアップロードし、{ ok, url } を返す。
+  // ★本文は PDF そのもの（dataURL にしない。3割膨らんで JSON の上限に入らない）。1つずつ、順番に呼ぶこと
+  // ★10MB を細い回線で送ると1分を超えうるので、タイムアウトを長めに取る
+  async uploadSubmissionFile(eventId, blob) {
+    const { status, json } = await _send('POST', `/api/events/${eventId}/submission-files`,
+      undefined, { rawBody: blob, contentType: 'application/pdf', timeout: 180000 });
+    return json || { ok: false, error: status === 413 ? 'file_too_large' : null };
+  },
+
+  // 添付ファイルのダウンロード先（サーバーが署名付き URL へ転送する。ファイル本体はサーバーを通らない）
+  submissionFileDownloadUrl(eventId, url, name) {
+    return `/api/events/${encodeURIComponent(eventId)}/files/download?u=${encodeURIComponent(url)}&n=${encodeURIComponent(name || '')}`;
   },
 
   // 振り返りだけを後から編集する。★completeMission を再送しないこと

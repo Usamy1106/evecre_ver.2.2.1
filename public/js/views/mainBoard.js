@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, submissionFilesLabel } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 
@@ -1245,6 +1245,7 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
     if (seg.type === 'image') {
       return `<img src="${_esc(seg.url)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
     }
+    if (seg.type === 'file') return `<div class="p-archive__content-file">${Components.SubmissionFileCard(seg.file, state.selectedEventId)}</div>`;
     if (cd.format === 'link') {
       return `
         <div class="p-archive__content-link">
@@ -1397,6 +1398,7 @@ function _renderNotificationsTab(p) {
                 ${submissionText(cleared) ? `<p class="p-notification__detail-content">${_esc(submissionText(cleared))}</p>` : ''}
                 ${submissionImages(cleared).map(url =>
                   `<img src="${_esc(url)}" class="p-notification__detail-image" alt="提出画像" data-fallback="submission">`).join('')}
+                ${submissionFilesLabel(cleared) ? `<p class="p-notification__detail-content">${_esc(submissionFilesLabel(cleared))}</p>` : ''}
               </div>` : ''}
             <div class="p-notification__actions">
               <button type="button" onclick="window._app.rejectMission('${m.id}')"

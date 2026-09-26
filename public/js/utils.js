@@ -145,44 +145,75 @@ export function submissionImages(cd) {
 
 // 本文の中の画像の位置（1始まり。images の N 番目）。★clearEditor.js の MARK と同じ形に保つこと
 export const IMAGE_MARK_RE = /\{\{image:(\d+)\}\}/g;
+// 本文の中の添付ファイル（PDF）の位置（1始まり。files の N 番目）
+export const FILE_MARK_RE  = /\{\{file:(\d+)\}\}/g;
+// 画像とファイルの印をまとめて拾う（並び順どおりに分けるため）
+const _EMBED_MARK_RE = /\{\{(image|file):(\d+)\}\}/g;
+
+/** 提出物の添付ファイル（PDF）。[{ url, name, size, thumb }] */
+export function submissionFiles(cd) {
+  return Array.isArray(cd?.files) ? cd.files.filter(f => f && f.url) : [];
+}
 
 /**
- * 提出物の本文（テキスト／リンク）を返す。**画像の印は取り除く**（一覧のプレビュー用）。
+ * 提出物の本文（テキスト／リンク）を返す。**画像・ファイルの印は取り除く**（一覧のプレビュー用）。
  * format:'image' の content は画像なので本文に数えない。
  * @returns {string}
  */
 export function submissionText(cd) {
   if (!cd || cd.format === 'image') return '';
-  return String(cd.content || '').replace(IMAGE_MARK_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+  return String(cd.content || '').replace(_EMBED_MARK_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** 一覧のプレビュー用に、添付ファイルを1行で言う（例「📄 企画書.pdf ほか1件」）。無ければ '' */
+export function submissionFilesLabel(cd) {
+  const files = submissionFiles(cd);
+  if (files.length === 0) return '';
+  return `📄 ${files[0].name}${files.length > 1 ? ` ほか${files.length - 1}件` : ''}`;
+}
+
+/** バイト数を「2.3MB」のように */
+export function formatFileSize(bytes) {
+  const n = Number(bytes) || 0;
+  if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)}MB`;
+  if (n >= 1024) return `${Math.round(n / 1024)}KB`;
+  return `${n}B`;
 }
 
 /**
- * 提出物を「文章」と「画像」の並びに分ける（本文の途中の画像を、その位置に出すため）。
- * ★印の番号が images に無いものは捨てる。印で使われなかった画像は末尾に足す
+ * 提出物を「文章」「画像」「ファイル」の並びに分ける（本文の途中の画像・PDF を、その位置に出すため）。
+ * ★印の番号が images / files に無いものは捨てる。印で使われなかったものは末尾に足す
  *   （旧形式・印の無い提出物もこれで全部出る）。
- * @returns {Array<{type:'text', text:string} | {type:'image', url:string}>}
+ * @returns {Array<{type:'text', text:string} | {type:'image', url:string} | {type:'file', file:object}>}
  */
 export function submissionSegments(cd) {
   if (!cd) return [];
-  const imgs = submissionImages(cd);
-  const raw  = cd.format === 'image' ? '' : String(cd.content || '');
-  const out  = [];
-  const used = new Set();
+  const imgs  = submissionImages(cd);
+  const files = submissionFiles(cd);
+  const raw   = cd.format === 'image' ? '' : String(cd.content || '');
+  const out   = [];
+  const usedI = new Set(), usedF = new Set();
   const pushText = (t) => {
-    // 画像の前後の改行は画像そのものが区切りになるので落とす
+    // 画像・ファイルの前後の改行は、それ自体が区切りになるので落とす
     const s = t.replace(/^\n+|\n+$/g, '');
     if (s.trim()) out.push({ type: 'text', text: s });
   };
   let last = 0;
-  for (const mm of raw.matchAll(IMAGE_MARK_RE)) {
+  for (const mm of raw.matchAll(_EMBED_MARK_RE)) {
     pushText(raw.slice(last, mm.index));
     last = mm.index + mm[0].length;
-    const n = parseInt(mm[1], 10);
-    const url = imgs[n - 1];
-    if (url && !used.has(n)) { out.push({ type: 'image', url }); used.add(n); }
+    const n = parseInt(mm[2], 10);
+    if (mm[1] === 'image') {
+      const url = imgs[n - 1];
+      if (url && !usedI.has(n)) { out.push({ type: 'image', url }); usedI.add(n); }
+    } else {
+      const file = files[n - 1];
+      if (file && !usedF.has(n)) { out.push({ type: 'file', file }); usedF.add(n); }
+    }
   }
   pushText(raw.slice(last));
-  imgs.forEach((url, i) => { if (!used.has(i + 1)) out.push({ type: 'image', url }); });
+  imgs.forEach((url, i)  => { if (!usedI.has(i + 1)) out.push({ type: 'image', url }); });
+  files.forEach((file, i) => { if (!usedF.has(i + 1)) out.push({ type: 'file', file }); });
   return out;
 }
 
