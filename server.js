@@ -2331,6 +2331,8 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
   // 基礎情報・ナレッジの公開。★boolean 以外は捨てる（"true" などの文字列を公開扱いにしない）
   if (flat.publicBasicInfo !== undefined && typeof flat.publicBasicInfo !== 'boolean') delete flat.publicBasicInfo;
   if (flat.publicKnowledge !== undefined && typeof flat.publicKnowledge !== 'boolean') delete flat.publicKnowledge;
+  // 「タスクも含めて公開するか」を聞いた時刻。★数値以外は捨てる
+  if (flat.publicKnowledgePromptedAt !== undefined && !Number.isFinite(flat.publicKnowledgePromptedAt)) delete flat.publicKnowledgePromptedAt;
   // ★初回確認の印はサーバーだけが書く（クライアントの値は信用しない）
   delete flat.shareConfirmedAt;
 }

@@ -1171,6 +1171,8 @@ export const state = {
     // ★セッション1回ゲートにしない（重なったら持ち越す作り。答えはイベントに保存される）
     if ((this.currentView === 'MAIN_BOARD' || this.currentView === 'EVENT_SETTINGS') && this.selectedEventId) {
       setTimeout(() => window._app?.checkPublicBasicInfoModal?.(), 1400);
+      // 振り返りフェーズが終わったら「タスクも含めて公開するか」を一度だけ聞く（管理者のみ。判定はモーダル側）
+      setTimeout(() => window._app?.checkPublicKnowledgeModal?.(), 1450);
     }
 
     // オンボーディング（使い方の案内）。表示可否・優先度は onboarding.js が判定する。

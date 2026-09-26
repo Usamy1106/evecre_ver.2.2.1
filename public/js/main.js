@@ -67,6 +67,7 @@ import { openReflectionEditModal } from './modals/reflectionEditModal.js';
 import { flushArchiveInlineEdits } from './archiveInlineEdit.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
+import { checkPublicKnowledgeModal } from './modals/publicKnowledgeModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 // ★暫定：既存メンバーのスキル回収。回収が済んだらこの import ごと削除する
 import { checkSkillCollectModal } from './modals/skillCollectModal.js';
@@ -1076,6 +1077,7 @@ window._app = {
   // --- 開催日リマインドモーダル（全メンバー向け・初日/最終日翌日）---
   checkEventDateReminderModal: () => checkEventDateReminderModal(),
   checkPublicBasicInfoModal:   () => checkPublicBasicInfoModal(),
+  checkPublicKnowledgeModal:   () => checkPublicKnowledgeModal(),
 
   // --- 開発者からのお知らせモーダル（全ユーザー向け）---
   checkDeveloperAnnouncementModal: () => checkDeveloperAnnouncementModal(),
@@ -1699,6 +1701,10 @@ const _LOG_LABELS = {
   public_basic_answered:     '基礎情報の公開を選んだ',
   public_basic_toggled:      '基礎情報の公開を切り替えた',
   public_knowledge_toggled:  'ナレッジの公開を切り替えた',
+  public_knowledge_prompt_shown: 'タスクも含めた公開の確認が出た（振り返りの終了後）',
+  public_knowledge_answered:     'タスクも含めた公開の確認に答えた',
+  archive_tap_edit:          'アーカイブの欄をタップして編集に入った',
+  archive_edit_exit_tap:     'アーカイブの編集を周りのタップで終えた',
   share_confirm_shown:       '「他の団体にも役立ちそう」の初回確認が出た',
   share_confirm_answered:    '「他の団体にも役立ちそう」の初回確認に答えた',
   reflection_edited:       '振り返りを編集した',
