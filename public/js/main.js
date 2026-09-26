@@ -14,7 +14,7 @@ import {
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
-import { renderMainBoard, toggleAnnounceList, toggleNotifGroup } from './views/mainBoard.js';
+import { renderMainBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry } from './views/mainBoard.js';
 import { renderWelcome } from './views/welcome.js';
 import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
@@ -40,7 +40,7 @@ import {
   renderMissionModalContent,
   addProposalToMission, showProposalHelp,
   toggleMissionMenu, toggleSortMenu,
-  showMissionListModal, changeMissionSort,
+  changeMissionSort,
   openAssigneeSheet,
   openTagCreator, closeTagCreator,
   openSelectClaimModal,
@@ -824,7 +824,6 @@ window._app = {
   // --- タスクリスト操作 ---
   toggleMissionMenu: (e, mid) => toggleMissionMenu(e, mid),
   toggleSortMenu: (e) => toggleSortMenu(e),
-  showMissionListModal: () => showMissionListModal(),
   // アナウンスが2件以上のときの「他N件を見る」。開閉状態は mainBoard.js の
   // モジュール変数が持つので、SSE の再描画では畳まれない
   toggleAnnounceList: () => toggleAnnounceList(),
@@ -1226,16 +1225,12 @@ window._app = {
     state.render();
   },
 
-  // --- アーカイブ セクション折りたたみ（DOM直接操作でre-renderを避ける）---
-  toggleArchiveSection: (tag) => {
-    if (!state.archiveCollapsed) state.archiveCollapsed = {};
-    state.archiveCollapsed[tag] = !state.archiveCollapsed[tag];
-    const section = document.querySelector(`[data-archive-section="${tag}"]`);
-    if (!section) return;
-    // ★開閉はセクションの is-collapsed 1つで決まる（本体の display と矢印の回転は
-    //   object/project/_archive.css が受け持つ）。以前は body と arrow に
-    //   インライン style を書いており、初期描画のクラスと二重管理になっていた。
-    section.classList.toggle('is-collapsed', !!state.archiveCollapsed[tag]);
+  // --- アーカイブ：目次から記録へ飛ぶ／編集モードの切り替え（管理者のみ）---
+  jumpToArchiveEntry: (missionId) => jumpToArchiveEntry(missionId),
+  toggleArchiveEditing: () => {
+    if (!state.canManageCurrentEvent()) return;
+    state.archiveEditing = !state.archiveEditing;
+    state.render();
   },
 
   // --- いいね ---

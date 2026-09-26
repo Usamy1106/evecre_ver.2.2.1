@@ -7,7 +7,6 @@ import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
 import { suggestAssignees } from '../assigneeSuggest.js';
 import { Components } from '../components.js';
 import { logEvent } from '../logger.js';
-import { submissionImages, submissionText, submissionFilesLabel } from '../utils.js';
 
 /**
  * タスク作成/編集モーダルを開く
@@ -775,60 +774,6 @@ export function toggleSortMenu(e) {
   e.currentTarget.parentElement.appendChild(menu);
   const close = () => { menu.remove(); document.removeEventListener('click', close); };
   setTimeout(() => document.addEventListener('click', close), 10);
-}
-
-/**
- * タスク一覧モーダルを表示する
- */
-export function showMissionListModal() {
-  const p = state.events.find(x => x.id === state.selectedEventId);
-  if (!p) return;
-  const overlay = document.createElement('div');
-  overlay.id = 'mission-list-modal';
-  overlay.className = 'c-overlay c-overlay--list u-page-transition';
-
-  const items = p.missions.map(m => {
-    const cleared = p.clearedData[m.id];
-    // タグ：新形式 tags 配列、無ければ旧 tag をラップ
-    const tagNames = Array.isArray(m.tags) && m.tags.length > 0
-      ? m.tags
-      : (m.tag ? [m.tag] : []);
-    const tagsHtml = tagNames.map(t => Components.Tag(t)).join('');
-    return `
-      <div class="p-main-board__list-card">
-        <div class="p-main-board__list-tags">
-          ${tagsHtml}
-          ${m.status === 'cleared' ? '<span class="p-main-board__list-clear">CLEAR</span>' : ''}
-        </div>
-        <h3 class="text-r p-main-board__list-title">${_esc(m.title)}</h3>
-        ${cleared ? `
-          <div class="p-main-board__list-submission">
-            <div class="p-main-board__list-submission-head">
-              <p class="p-main-board__list-meta">提出内容</p>
-              ${cleared.timestamp ? `<p class="p-main-board__list-meta">${_formatClearedAt(cleared.timestamp)} に完了</p>` : ''}
-            </div>
-            ${submissionText(cleared) ? `<p class="text-rs p-main-board__list-text">${_esc(submissionText(cleared))}</p>` : ''}
-            ${submissionImages(cleared).map(url =>
-              `<img src="${_escAttr(url)}" class="p-main-board__list-image" data-fallback="submission">`).join('')}
-            ${submissionFilesLabel(cleared) ? `<p class="text-rs p-main-board__list-text">${_esc(submissionFilesLabel(cleared))}</p>` : ''}
-          </div>` : '<p class="p-main-board__list-meta">未提出</p>'}
-      </div>`;
-  }).join('');
-
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-  overlay.innerHTML = `
-    <div class="p-main-board__list-modal u-animate-fade">
-      <div class="p-main-board__list-head">
-        <h2 class="c-modal__title c-modal__title--tight">やること一覧</h2>
-        <button onclick="document.getElementById('mission-list-modal').remove()" class="p-main-board__list-close">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-      <div class="p-main-board__list-body">${items}</div>
-    </div>`;
-  document.body.appendChild(overlay);
 }
 
 /**

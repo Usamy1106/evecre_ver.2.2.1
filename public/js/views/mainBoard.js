@@ -2,7 +2,7 @@
 import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
-import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
+import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, submissionFilesLabel, getEventMainVisual, linkifyText } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
@@ -226,29 +226,50 @@ export function renderMainBoard(container) {
 }
 
 /**
- * 完了の通知から来たとき、アーカイブのそのタスクの記録まで送って光らせる。
- *
- * ★一度きり。`state.archiveFocusMissionId` を**ここで消費する**。
- *   消さないと SSE の再描画のたびにスクロールが飛ぶ。
- * ★見つからないときは何もしない（未完了に戻された／削除された／概要欄のタスクは
- *   ブロックとして並ばない）。アーカイブを開いた状態で止まれば十分。
+ * アーカイブのそのタスクの記録までスクロールして、2秒だけ光らせる。
+ * 目次のタップ（jumpToArchiveEntry）と、完了の通知からの遷移（_focusArchiveMission）で共用する。
+ * ★見つからないときは何もしない（未完了に戻された／削除された／概要欄のタスクは並ばない）。
  * ★`document.querySelectorAll` から探す。タスクIDは数字で始まるものがあり、
  *   セレクタに直接埋めると escape の扱いが面倒になる（通知のまとめと同じ方式）。
+ */
+// 光らせている記録。★モジュールで持つ（SSE などで描き直されても、2秒のあいだは光ったまま）
+let _archiveFocus = { id: null, until: 0 };
+const ARCHIVE_FOCUS_MS = 2000;
+
+function _scrollToArchiveEntry(id) {
+  const el = [...document.querySelectorAll('.p-archive__entry')].find(x => x.dataset.missionId === id);
+  if (!el) return false;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  el.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+  // どれの話か分かるように少しだけ光らせる（2秒で戻す）
+  _archiveFocus = { id, until: Date.now() + ARCHIVE_FOCUS_MS };
+  el.classList.add('is-focused');
+  setTimeout(() => {
+    if (_archiveFocus.id === id) _archiveFocus = { id: null, until: 0 };
+    [...document.querySelectorAll('.p-archive__entry.is-focused')].forEach(x => x.classList.remove('is-focused'));
+  }, ARCHIVE_FOCUS_MS);
+  return true;
+}
+
+function _isArchiveFocused(id) {
+  return _archiveFocus.id === id && Date.now() < _archiveFocus.until;
+}
+
+/** 目次のタップ */
+export function jumpToArchiveEntry(id) {
+  _scrollToArchiveEntry(id);
+}
+
+/**
+ * 完了の通知から来たとき、アーカイブのそのタスクの記録まで送って光らせる。
+ * ★一度きり。`state.archiveFocusMissionId` を**ここで消費する**。
+ *   消さないと SSE の再描画のたびにスクロールが飛ぶ。
  */
 function _focusArchiveMission() {
   const id = state.archiveFocusMissionId;
   if (!id) return;
   state.archiveFocusMissionId = null;
-
-  const el = [...document.querySelectorAll('.p-archive__block')]
-    .find(x => x.dataset.missionId === id);
-  if (!el) return;
-
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-  el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
-  // どれの話か分かるように少しだけ光らせる（2秒で戻す）
-  el.classList.add('is-focused');
-  setTimeout(() => el.classList.remove('is-focused'), 2000);
+  _scrollToArchiveEntry(id);
 }
 
 // 下部パネル（提案＋やること一覧）の開閉状態。再レンダリングをまたいで保持する。
@@ -1009,98 +1030,109 @@ function _isOverviewMission(m) {
 }
 
 // ===== アーカイブタブ =====
+//
+// ★1本の文書として読ませる（2026-09-26。Phase 3）。並びは
+//   ヘッダー画像 → タイトル → 概要 → 期間・場所 → 目次 → タスクごとの内容。
+// ★閲覧（既定）は囲みを持たず、余白と見出しで区切る（カードにしない。通読のため）。
+//   編集モード（管理者だけ。state.archiveEditing）では、各タスクに囲みを出し、
+//   未完了のタスクも下にまとめて並べる。見た目の切り替えは .p-archive--editing だけ。
+// ★目次の並びは 3つ（ラベル別・完了日順・優先度順）。本文も同じ順に並ぶ。
+//   「完了者別」「作成者別」「やること一覧」は廃止した（目次と役割が重なる）。
+// ★目次のタップはその記録までスクロールする（_scrollToArchiveEntry。通知からの遷移と共用）。
+
+// 目次・本文の並び（state.archiveDisplayMode）。★この3つ以外が残っていたらラベル別に戻す
+const _ARCHIVE_MODES = [
+  { id: 'label',    label: 'ラベル別' },
+  { id: 'date',     label: '完了日順' },
+  { id: 'priority', label: '優先度順' },
+];
+
+function _archiveTagOf(m) {
+  return (Array.isArray(m.tags) && m.tags.length > 0 ? m.tags[0] : null) || m.tag || '企画';
+}
+
+// 並べ替えた「節」の配列を返す。label のときは [{ heading, missions }]、ほかは見出し無しの1節
+function _archiveSections(p, missions, mode) {
+  if (mode === 'date') {
+    const sorted = [...missions].sort((a, b) =>
+      (p.clearedData?.[b.id]?.timestamp ?? 0) - (p.clearedData?.[a.id]?.timestamp ?? 0));
+    return [{ heading: null, missions: sorted }];
+  }
+  if (mode === 'priority') {
+    return [{ heading: null, missions: [...missions].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0)) }];
+  }
+  const groups = {};
+  for (const m of missions) (groups[_archiveTagOf(m)] ||= []).push(m);
+  // ビルトインの4つを先に、カスタムタグは後ろに
+  const order = [..._ARCHIVE_TAG_ORDER.filter(t => groups[t]), ...Object.keys(groups).filter(t => !_ARCHIVE_TAG_ORDER.includes(t))];
+  return order.map(tag => ({ heading: tag, missions: groups[tag] }));
+}
+
 function _renderArchiveTab(p) {
-  const canMgr = state.canManageCurrentEvent();
-  const _pen   = (type) => canMgr ? Components.PenIcon(type) : '';
-  // ── Layer 1：基礎情報（すべてイベント自身の項目。2026-09-26）──────────
-  // ★タイトル＝イベント名。概要＝description。場所・ヘッダー画像＝venue / headerImage
-  //   （旧データの読み替えは utils.js の getter が持つ）。タスクの提出物を読まないこと。
-  // ★URL の欄は廃止した。概要や提出物の中の URL がタップで開ける（linkifyText）
+  const canMgr  = state.canManageCurrentEvent();
+  // ★編集できるのは管理者だけ。権限が無いのに編集中のまま残っていたら閲覧に戻す
+  const editing = canMgr && !!state.archiveEditing;
+  const _pen    = (type) => editing ? Components.PenIcon(type) : '';
+
+  // ── 基礎情報（すべてイベント自身の項目。utils.js の getter が旧データも読み替える）──
   const title      = p.name || '未設定';
   const summary    = getArchiveSummary(p);
   const mainVisual = getEventMainVisual(p);
-  const venue      = getArchiveVenue(p) || '未設定';
-  // p.dates を優先し、旧 period-temp は後方互換フォールバック。時刻ありは日ごとに改行表示
+  const venue      = getArchiveVenue(p);
   const period     = p.dates?.length > 0
     ? formatEventPeriodLines(p.dates, p.dateTimes).join('<br>')
-    : (p.clearedData?.['period-temp']?.content || '未設定');
+    : (p.clearedData?.['period-temp']?.content ? _esc(p.clearedData['period-temp'].content) : '');
 
-  // ── Layer 2 データ取得（概要スロット以外の完了タスク）──────
-  const clearedMissions = (p.missions || []).filter(m =>
-    m.status === 'cleared' && !_isOverviewMission(m)
-  );
+  // ── 記録（完了したタスク。概要欄の読み替え元 p1 / p3 は除く）──
+  const cleared = (p.missions || []).filter(m => m.status === 'cleared' && !_isOverviewMission(m));
+  const mode    = _ARCHIVE_MODES.some(x => x.id === state.archiveDisplayMode) ? state.archiveDisplayMode : 'label';
+  const sections = _archiveSections(p, cleared, mode);
+  // ★未完了は編集モードでだけ出す（閲覧は読み物なので完了したものだけ）
+  const pending = editing
+    ? (p.missions || []).filter(m => m.status !== 'cleared' && !_isOverviewMission(m))
+    : [];
 
-  const groups = {};
-  for (const m of clearedMissions) {
-    const tag = (Array.isArray(m.tags) && m.tags.length > 0 ? m.tags[0] : null) || m.tag || '企画';
-    if (!groups[tag]) groups[tag] = [];
-    groups[tag].push(m);
-  }
+  const tocHtml = cleared.length === 0 ? '' : `
+    <nav class="p-archive__toc" aria-label="目次">
+      <div class="p-archive__toc-head">
+        <h2 class="p-archive__toc-title">目次</h2>
+        <span class="p-archive__toc-count">${cleared.length}件</span>
+      </div>
+      <div class="p-archive__modes" role="tablist">
+        ${_ARCHIVE_MODES.map(x => `
+          <button type="button" role="tab" aria-selected="${mode === x.id}"
+            onclick="window._app.setArchiveDisplayMode('${x.id}')"
+            class="p-archive__mode${mode === x.id ? ' is-active' : ''}">${x.label}</button>`).join('')}
+      </div>
+      ${sections.map((sec, si) => `
+        ${sec.heading ? `<p class="p-archive__toc-group">
+          <span class="p-archive__category-dot" style="--tag-color:${_esc((LABEL_CONFIG[sec.heading] || {}).color || '#A7AAAC')}"></span>
+          ${_esc(sec.heading)}</p>` : ''}
+        <ol class="p-archive__toc-list" start="${1 + sections.slice(0, si).reduce((n, x) => n + x.missions.length, 0)}">
+          ${sec.missions.map(m => `
+            <li><button type="button" class="p-archive__toc-item" data-log="archive_toc_jump"
+              onclick="window._app.jumpToArchiveEntry('${m.id}')">${_esc(m.title)}</button></li>`).join('')}
+        </ol>`).join('')}
+    </nav>`;
 
-  const mode = state.archiveDisplayMode || 'label';
-  const archiveTabBtns = ['label','date','priority','assignee','creator'].map(m => {
-    const label = { label:'ラベル別', date:'完了日順', priority:'優先度順', assignee:'完了者別', creator:'作成者別' }[m];
-    const active = mode === m;
-    return `<button type="button" onclick="window._app.setArchiveDisplayMode('${m}')"
-      class="p-archive__mode${active ? ' is-active' : ''}">
-      ${label}</button>`;
-  }).join('');
+  const bodyHtml = cleared.length === 0
+    ? `<p class="p-archive__empty">完了したタスクがここに記録されます</p>`
+    : sections.map(sec => `
+        <section class="p-archive__section">
+          ${sec.heading ? `<h2 class="p-archive__section-title">${_esc(sec.heading)}</h2>` : ''}
+          ${sec.missions.map(m => _renderArchiveEntry(p, m, editing)).join('')}
+        </section>`).join('');
 
-  let missionsRecordHtml = '';
-  if (mode === 'label') {
-    missionsRecordHtml = _ARCHIVE_TAG_ORDER
-      .filter(tag => groups[tag]?.length > 0)
-      .map(tag => _renderArchiveCategorySection(p, tag, groups[tag]))
-      .join('');
-    // カスタムタグで _ARCHIVE_TAG_ORDER に含まれないものも追加
-    const extraTags = Object.keys(groups).filter(t => !_ARCHIVE_TAG_ORDER.includes(t) && groups[t]?.length > 0);
-    if (extraTags.length > 0) {
-      missionsRecordHtml += extraTags.map(tag => _renderArchiveCategorySection(p, tag, groups[tag])).join('');
-    }
-  } else if (mode === 'date') {
-    const sorted = [...clearedMissions].sort((a, b) =>
-      (p.clearedData?.[b.id]?.timestamp ?? 0) - (p.clearedData?.[a.id]?.timestamp ?? 0)
-    );
-    missionsRecordHtml = `<div class="p-archive__blocks">${sorted.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>`;
-  } else if (mode === 'priority') {
-    const sorted = [...clearedMissions].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
-    missionsRecordHtml = `<div class="p-archive__blocks">${sorted.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>`;
-  } else if (mode === 'assignee') {
-    const assigneeGroups = {};
-    for (const m of clearedMissions) {
-      // submittedBy（実際の完了者）を優先し、なければ assignee にフォールバック
-      const uid = p.clearedData?.[m.id]?.submittedBy
-        || (Array.isArray(m.assignees) && m.assignees.length > 0 ? m.assignees[0] : null)
-        || (m.assignee?.type === 'user' ? m.assignee.userId : null);
-      const mem = uid ? (p.members || []).find(x => x.userId === uid) : null;
-      const key = mem?.username || uid || '不明';
-      if (!assigneeGroups[key]) assigneeGroups[key] = [];
-      assigneeGroups[key].push(m);
-    }
-    missionsRecordHtml = Object.entries(assigneeGroups).map(([name, missions]) => `
-      <div class="p-archive__group">
-        <p class="p-archive__group-label">@${_esc(name)}（${missions.length}件）</p>
-        <div class="p-archive__blocks">${missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>
-      </div>`).join('');
-  } else if (mode === 'creator') {
-    const creatorGroups = {};
-    for (const m of clearedMissions) {
-      const uid = m.createdBy || null;
-      const mem = uid ? (p.members || []).find(x => x.userId === uid) : null;
-      const key = mem?.username || (uid ? uid : '作成者不明');
-      if (!creatorGroups[key]) creatorGroups[key] = [];
-      creatorGroups[key].push(m);
-    }
-    missionsRecordHtml = Object.entries(creatorGroups).map(([name, missions]) => `
-      <div class="p-archive__group">
-        <p class="p-archive__group-label">@${_esc(name)}（${missions.length}件）</p>
-        <div class="p-archive__blocks">${missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], null)).join('')}</div>
-      </div>`).join('');
-  }
+  const pendingHtml = !editing || pending.length === 0 ? '' : `
+    <details class="p-archive__pending">
+      <summary class="p-archive__pending-summary">未完了のタスク（${pending.length}件）</summary>
+      <p class="p-archive__pending-note">編集中だけ表示しています。完了すると記録に並びます</p>
+      ${pending.map(m => _renderArchivePendingEntry(m)).join('')}
+    </details>`;
 
   const hasDatesA = Array.isArray(p.dates) && p.dates.length > 0;
   return `
-    <div class="p-archive u-page-transition">
+    <div class="p-archive${editing ? ' p-archive--editing' : ''} u-page-transition">
       <div class="p-archive__head">
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
           class="p-archive__days">
@@ -1109,66 +1141,58 @@ function _renderArchiveTab(p) {
             ? `<span class="p-archive__days-text">残り <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
             : `<span class="p-archive__days-text p-archive__days-text--muted">未設定</span>`}
         </div>
-      </div>
-
-      <!-- Layer 1: メインビジュアル（3:2。ホームのサムネイルと同じ比率に揃える）-->
-      <div class="p-archive__visual">
-        ${mainVisual
-          ? `<img src="${_esc(mainVisual)}" class="p-archive__visual-image" alt="" data-fallback="archive-visual">`
-          // 未設定時はホームのサムネイルと同じエンプティーステート画像
-          : Components.ThumbnailEmptyState()}
-        ${canMgr ? `<div class="p-archive__visual-edit">${_pen('image')}</div>` : ''}
-      </div>
-
-      <!-- Layer 1: イベント概要カード -->
-      <div class="p-archive__overview">
-        <div class="p-archive__title-row">
-          <h2 class="p-archive__title">「${_esc(title)}」</h2>
-          ${_pen('title')}
-        </div>
-        <div class="p-archive__sections">
-          <section>
-            <div class="p-archive__label-row">
-              <h3 class="p-archive__label">概要</h3>
-              ${_pen('summary')}
-            </div>
-            <p class="p-archive__summary">${summary ? linkifyText(summary) : '未設定'}</p>
-          </section>
-          <section class="p-archive__facts">
-            <div class="p-archive__fact-label">期間</div>
-            <div class="p-archive__fact-value p-archive__fact-value--multiline"><span>${period}</span> ${_pen('period')}</div>
-            <div></div>
-            <div class="p-archive__fact-label">場所</div>
-            <div class="p-archive__fact-value">${_esc(venue)}</div>
-            <div>${_pen('venue')}</div>
-          </section>
-        </div>
-        <button type="button" onclick="window._app.showMissionListModal()"
-          class="c-button c-button--secondary p-archive__list-button">やること一覧</button>
-      </div>
-
-      <!-- Layer 2: やったことの記録 -->
-      <div class="p-archive__record">
-        <div class="p-archive__record-head">
-          <h2 class="p-archive__record-title">やったことの記録</h2>
-          ${clearedMissions.length > 0
-            ? `<span class="p-archive__record-count">${clearedMissions.length}件</span>`
-            : ''}
-          <!-- ★コピーされるのは「未完了・締め切りあり」全件（記録の中身ではない）。
-               振り返りながら次の予定をチャットへ貼る流れを想定している。 -->
+        <div class="p-archive__head-actions">
+          <!-- ★コピーされるのは「未完了・締め切りあり」全件（記録の中身ではない）。 -->
           <button type="button" onclick="window._app.copySchedule('archive')"
             data-log="schedule_copy" class="p-archive__copy" aria-label="予定をコピー">
             <img src="/images/icon/icon-Link.svg" alt="" class="p-archive__copy-icon">
             予定をコピー
           </button>
+          ${canMgr ? `
+            <button type="button" onclick="window._app.toggleArchiveEditing()" data-log="archive_edit_toggle"
+              class="p-archive__edit-toggle${editing ? ' is-active' : ''}">${editing ? '編集を終える' : '編集する'}</button>` : ''}
         </div>
-        ${clearedMissions.length > 0 ? `
-          <div class="p-archive__modes">${archiveTabBtns}</div>` : ''}
-        ${missionsRecordHtml || `<p class="p-archive__empty">完了したタスクが記録されます</p>`}
       </div>
 
-      <!-- 振り返り用のサブページ。★メンバー全員が見られる（アーカイブと同じ）。
-           イベント設定の行（c-settings-list__link）と同じ見た目で揃えてある。 -->
+      <!-- ① ヘッダー画像（3:2。ホームのサムネイルと同じ比率）-->
+      <div class="p-archive__visual">
+        ${mainVisual
+          ? `<img src="${_esc(mainVisual)}" class="p-archive__visual-image" alt="" data-fallback="archive-visual">`
+          : Components.ThumbnailEmptyState()}
+        ${editing ? `<div class="p-archive__visual-edit">${_pen('image')}</div>` : ''}
+      </div>
+
+      <article class="p-archive__doc">
+        <!-- ② タイトル（＝イベント名）-->
+        <div class="p-archive__title-row">
+          <h1 class="p-archive__title">${_esc(title)}</h1>
+          ${_pen('title')}
+        </div>
+
+        <!-- ③ 概要と基礎情報 -->
+        <section class="p-archive__intro">
+          <div class="p-archive__label-row">
+            <h2 class="p-archive__label">概要</h2>
+            ${_pen('summary')}
+          </div>
+          <p class="p-archive__summary${summary ? '' : ' is-empty'}">${summary ? linkifyText(summary) : '未設定'}</p>
+          <dl class="p-archive__facts">
+            <dt class="p-archive__fact-label">期間</dt>
+            <dd class="p-archive__fact-value">${period || '未設定'} ${_pen('period')}</dd>
+            <dt class="p-archive__fact-label">場所</dt>
+            <dd class="p-archive__fact-value">${venue ? _esc(venue) : '未設定'} ${_pen('venue')}</dd>
+          </dl>
+        </section>
+
+        <!-- ④ 目次 -->
+        ${tocHtml}
+
+        <!-- ⑤ タスクごとの内容 -->
+        <div class="p-archive__body">${bodyHtml}</div>
+        ${pendingHtml}
+      </article>
+
+      <!-- 振り返り用のサブページ。★メンバー全員が見られる（アーカイブと同じ）。 -->
       <div class="p-archive__links">
         <button type="button" onclick="window._app.openArchiveAnswers()" data-log="archive_answers_open"
           class="p-archive__link">
@@ -1196,58 +1220,19 @@ function _renderArchiveTab(p) {
     </div>`;
 }
 
-// カテゴリセクション（折りたたみ付き）
-function _renderArchiveCategorySection(p, tag, missions) {
-  const cfg       = LABEL_CONFIG[tag] || { color: '#A7AAAC' };
-  const collapsed = state.archiveCollapsed?.[tag] ?? false;
-  const items     = missions.map(m => _renderArchiveMissionBlock(m, p.clearedData?.[m.id], tag)).join('');
-
-  // ★p-archive__section-body / p-archive__section-arrow は main.js が掴む目印。
-  //   クラス名を変えるなら main.js の開閉処理も直すこと。
-  return `
-    <div data-archive-section="${_esc(tag)}" class="p-archive__category${collapsed ? ' is-collapsed' : ''}">
-      <button type="button" onclick="window._app.toggleArchiveSection('${_esc(tag)}')"
-        class="p-archive__category-toggle">
-        <span class="p-archive__category-label">
-          <span class="p-archive__category-dot" style="--tag-color:${_esc(cfg.color)}"></span>
-          <span class="p-archive__category-name">${_esc(tag)}</span>
-          <span class="p-archive__category-count">${missions.length}件</span>
-        </span>
-        <svg class="p-archive__section-arrow"
-          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-          stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-      <div class="p-archive__section-body">
-        ${items}
-      </div>
-    </div>`;
-}
-
-// タスクブロック（text / image / link で表示切替）
-function _renderArchiveMissionBlock(m, cd, sectionTag) {
+// 1タスクぶんの記録（文書の1節）。★data-mission-id は目次・通知からのスクロール先の目印
+function _renderArchiveEntry(p, m, editing) {
+  const cd          = p.clearedData?.[m.id];
   const canMgr      = state.canManageCurrentEvent();
-  const tagNames    = (Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : [sectionTag]));
+  const tagNames    = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
   const completedAt = cd?.timestamp ? _fmtDate(cd.timestamp) : '';
 
-  // ★画像は本文の途中にも入る。読み分けは utils.js の submissionSegments
-  //   （旧形式 format:'image' の後方互換もそちら）。
+  // ★画像・PDF は本文の途中にも入る。読み分けは utils.js の submissionSegments
   const contentHtml = submissionSegments(cd).map(seg => {
     if (seg.type === 'image') {
       return `<img src="${_esc(seg.url)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
     }
-    if (seg.type === 'file') return `<div class="p-archive__content-file">${Components.SubmissionFileCard(seg.file, state.selectedEventId)}</div>`;
-    if (cd.format === 'link') {
-      return `
-        <div class="p-archive__content-link">
-          <svg class="p-archive__content-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
-          <span class="p-archive__content-link-text">${linkifyText(seg.text)}</span>
-        </div>`;
-    }
+    if (seg.type === 'file') return `<div class="p-archive__content-file">${Components.SubmissionFileCard(seg.file, p.id)}</div>`;
     return `<p class="p-archive__content-text">${linkifyText(seg.text)}</p>`;
   }).join('');
 
@@ -1256,20 +1241,41 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
     ? m.assignees.length
     : (m.assignee?.type === 'user' ? 1 : clearedBy.length);
   const indivSummary = m.individualClear
-    ? `<span class="p-archive__block-indiv">${clearedBy.length}/${Math.max(1,totalAssignees)}人完了</span>`
-    : '';
-  const archiveClick = `onclick="window._app.openMissionDetail('${m.id}')"`;
+    ? `<span class="p-archive__entry-indiv">${clearedBy.length}/${Math.max(1, totalAssignees)}人完了</span>` : '';
 
-  const meatballBtn = canMgr ? `
+  // ── 振り返り（見出しは成否で変える。missionDetail.js の _reflectionHtml と同じ）──
+  // ★初期タスク（目的・企画の整理）には振り返りを出さない（REFLECT_SKIP_MISSION_IDS）
+  // ★編集できるのは提出した本人と管理者だけ（サーバーも同じ判定）
+  const skipReflect = REFLECT_SKIP_MISSION_IDS.includes(m.id);
+  const struggle = String(cd?.struggle || '').trim();
+  const solution = String(cd?.solution || '').trim();
+  const labels   = REFLECT_LABELS[cd?.outcome] || REFLECT_LABELS.struggle;
+  const canEditReflection = !skipReflect && cd && (canMgr || cd.submittedBy === state.currentUser?.id);
+  const reflectRow = (label, text) => text
+    ? `<div class="p-archive__reflect-row">
+         <p class="p-archive__reflect-label">${label}</p>
+         <p class="p-archive__reflect-text">${linkifyText(text)}</p>
+       </div>` : '';
+  const hasReflect = struggle || solution;
+  const reflectHtml = skipReflect || (!hasReflect && !(editing && canEditReflection)) ? '' : `
+    <div class="p-archive__reflect">
+      ${hasReflect ? reflectRow(labels.struggle, struggle) + reflectRow(labels.solution, solution)
+        : `<p class="p-archive__reflect-empty">振り返りは未記入です</p>`}
+      ${canEditReflection && (editing || cd.submittedBy === state.currentUser?.id) ? `
+        <button type="button" onclick="event.stopPropagation(); window._app.openReflectionEdit('${m.id}')"
+          class="p-archive__reflect-edit">${hasReflect ? '編集' : '書く'}</button>` : ''}
+    </div>`;
+
+  // 右上：管理者はメニュー（編集モードのときだけ）／それ以外はリンクのコピー
+  const actionBtn = editing ? `
     <button type="button" onclick="event.stopPropagation(); window._app.openArchiveMissionMenu(event, '${m.id}')"
-      class="p-archive__block-action" aria-label="メニュー">
+      class="p-archive__entry-action" aria-label="メニュー">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
       </svg>
     </button>` : `
     <button type="button" onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
-      class="p-archive__block-action"
-      aria-label="リンクをコピー">
+      class="p-archive__entry-action" aria-label="リンクをコピー">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
@@ -1277,44 +1283,35 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
       </svg>
     </button>`;
 
-  // ── 振り返り（困ったこと／どう乗り越えたか）───────────────────
-  // ★編集できるのは提出した本人と管理者だけ（サーバー側でも同じ判定をしている）。
-  //   ここでボタンを出す／出さないは見た目の話で、権限の担保はサーバーが行う。
-  // ★個別完了は提出物が人数ぶんあり、ここで見えているのは代表の1件。
-  //   誰のぶんを直すかの選択は作らず、本人が自分のぶんを直す形にしてある。
-  const struggle = String(cd?.struggle || '').trim();
-  const solution = String(cd?.solution || '').trim();
-  const canEditReflection = cd && (canMgr || cd.submittedBy === state.currentUser?.id);
-  const reflectRow = (label, text) => text
-    ? `<div class="p-archive__reflect-row">
-         <p class="p-archive__reflect-label">${label}</p>
-         <p class="p-archive__reflect-text">${linkifyText(text)}</p>
-       </div>`
-    : '';
-  const reflectHtml = (!struggle && !solution && !canEditReflection) ? '' : `
-    <div class="p-archive__reflect">
-      ${(struggle || solution) ? `
-        ${reflectRow('困ったこと', struggle)}
-        ${reflectRow('どう乗り越えた？', solution)}
-      ` : `<p class="p-archive__reflect-empty">振り返りは未記入です</p>`}
-      ${canEditReflection ? `
-        <button type="button" onclick="event.stopPropagation(); window._app.openReflectionEdit('${m.id}')"
-          class="p-archive__reflect-edit">${(struggle || solution) ? '編集' : '書く'}</button>` : ''}
-    </div>`;
-
   return `
-    <div ${archiveClick} data-mission-id="${m.id}" class="p-archive__block">
-      <div class="p-archive__block-head">
-        <div class="p-archive__block-tags">
-          ${tagNames.map(t => Components.Tag(t)).join('')}
-          ${indivSummary}
-        </div>
-        ${completedAt ? `<span class="p-archive__block-date">${completedAt}完了</span>` : ''}
+    <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
+      <div class="p-archive__entry-head">
+        <button type="button" onclick="window._app.openMissionDetail('${m.id}')" class="p-archive__entry-title">${_esc(m.title)}</button>
+        ${actionBtn}
       </div>
-      <h3 class="p-archive__block-title">${_esc(m.title)}</h3>
+      <div class="p-archive__entry-meta">
+        ${tagNames.map(t => Components.Tag(t)).join('')}
+        ${indivSummary}
+        ${completedAt ? `<span class="p-archive__entry-date">${completedAt}完了</span>` : ''}
+      </div>
       ${contentHtml}
       ${reflectHtml}
-      ${meatballBtn}
+    </div>`;
+}
+
+// 未完了のタスク（編集モードだけ）。提出内容は無いので、名前とラベルだけ
+function _renderArchivePendingEntry(m) {
+  const tagNames = Array.isArray(m.tags) && m.tags.length > 0 ? m.tags : (m.tag ? [m.tag] : []);
+  const status = m.status === 'pending_leader_check' ? 'リーダー確認待ち' : '未完了';
+  return `
+    <div data-mission-id="${_esc(m.id)}" class="p-archive__entry p-archive__entry--pending">
+      <div class="p-archive__entry-head">
+        <button type="button" onclick="window._app.openMissionDetail('${m.id}')" class="p-archive__entry-title">${_esc(m.title)}</button>
+      </div>
+      <div class="p-archive__entry-meta">
+        ${tagNames.map(t => Components.Tag(t)).join('')}
+        <span class="p-archive__entry-date">${status}</span>
+      </div>
     </div>`;
 }
 

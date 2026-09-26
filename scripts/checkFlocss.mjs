@@ -817,7 +817,8 @@ section('[B] 実機で見つかった不具合');
     {
       const z = (n) => +(new RegExp(`--z-${n}:\\s*(\\d+)`).exec(vr) || [])[1];
       const profile = z('user-profile');
-      const sheets = ['sheet', 'sheet-stacked', 'pending', 'list-modal', 'schedule'].map(z);
+      // ★'list-modal' は「やること一覧」モーダルの廃止（2026-09-26）で消した
+      const sheets = ['sheet', 'sheet-stacked', 'pending', 'schedule'].map(z);
       ok('★プロフィールの z がすべてのシートより大きい',
         sheets.every(v => profile > v), `profile=${profile} vs ${sheets.join(',')}`);
     }
