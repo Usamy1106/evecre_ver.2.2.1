@@ -178,14 +178,6 @@
   line-height: 1.625;
 }
 
-.p-archive__fact-value--link {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-primary);
-  text-decoration: underline;
-}
-
 .p-archive__list-button {
   width: 100%;
   padding-block: var(--space-4);

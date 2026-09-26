@@ -1,0 +1,10 @@
+/* ==========================================================================
+   Object / Component / text-link — 文章の中の URL を開けるリンクにしたもの
+   使用箇所: public/js/utils.js の linkifyText（アーカイブの概要・提出物・振り返り）
+   ========================================================================== */
+
+.c-text-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  word-break: break-all;
+}

@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, submissionFilesLabel } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, submissionFilesLabel, getEventMainVisual, linkifyText } from '../utils.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 
@@ -996,34 +996,29 @@ function _renderAnnounceCards(p, meId) {
 //   自動生成されるタスクとして本人が完了させるものなので、完了しても
 //   記録に出てこないと「やったのに残らない」と受け取られる。概要カードにも
 //   同じ内容が出るが、あちらは要約、こちらは作業の記録で役割が違う。
-// ★p1 / p2 / p3 は提案から作られたタスク（会場・広報リンク・メインビジュアル）。
-//   こちらは概要カードのスロットを埋めるためだけのものなので外したままにする。
+// ★p1 / p3 は提案から作られたタスク（会場・メインビジュアル）。旧データでは概要欄の
+//   「場所」「ヘッダー画像」の読み替え元なので、記録には並べない。
+// ★p2（広報リンク）は外さない（2026-09-26）。URL の欄を廃止したので、隠すとアーカイブの
+//   どこにも出なくなる。ふつうのタスクとして記録に並べる。
 const _OVERVIEW_IDS     = new Set();
-const _OVERVIEW_ORIGINS = new Set(['p1', 'p2', 'p3']);
+const _OVERVIEW_ORIGINS = new Set(['p1', 'p3']);
 const _ARCHIVE_TAG_ORDER = ['企画', '運営', '制作', '広報'];
 
 function _isOverviewMission(m) {
   return _OVERVIEW_IDS.has(m.id) || _OVERVIEW_ORIGINS.has(m.originProposalId);
 }
 
-// originProposalId で生成されたタスクの clearedData を返す
-function _getClearedByOrigin(p, originId) {
-  const m = (p.missions || []).find(x => x.originProposalId === originId && x.status === 'cleared');
-  return m ? (p.clearedData?.[m.id] ?? null) : null;
-}
-
 // ===== アーカイブタブ =====
 function _renderArchiveTab(p) {
   const canMgr = state.canManageCurrentEvent();
   const _pen   = (type) => canMgr ? Components.PenIcon(type) : '';
-  // ── Layer 1 データ取得（固定IDで紐づけ）──────────────────────
-  const title   = p.clearedData?.['def-2']?.content ?? '未設定';
-  const summary = getArchiveSummary(p) || '未設定';
-  const mainVisual = p.clearedData?.['archive-image']?.content
-    ?? _getClearedByOrigin(p, 'p3')?.content
-    ?? null;
-  const url        = _getClearedByOrigin(p, 'p2')?.content ?? '未設定';
-  // ★概要・開催場所は utils.js の getter を通す（イベント設定からも編集されるため）
+  // ── Layer 1：基礎情報（すべてイベント自身の項目。2026-09-26）──────────
+  // ★タイトル＝イベント名。概要＝description。場所・ヘッダー画像＝venue / headerImage
+  //   （旧データの読み替えは utils.js の getter が持つ）。タスクの提出物を読まないこと。
+  // ★URL の欄は廃止した。概要や提出物の中の URL がタップで開ける（linkifyText）
+  const title      = p.name || '未設定';
+  const summary    = getArchiveSummary(p);
+  const mainVisual = getEventMainVisual(p);
   const venue      = getArchiveVenue(p) || '未設定';
   // p.dates を優先し、旧 period-temp は後方互換フォールバック。時刻ありは日ごとに改行表示
   const period     = p.dates?.length > 0
@@ -1137,15 +1132,12 @@ function _renderArchiveTab(p) {
               <h3 class="p-archive__label">概要</h3>
               ${_pen('summary')}
             </div>
-            <p class="p-archive__summary">${_esc(summary)}</p>
+            <p class="p-archive__summary">${summary ? linkifyText(summary) : '未設定'}</p>
           </section>
           <section class="p-archive__facts">
             <div class="p-archive__fact-label">期間</div>
             <div class="p-archive__fact-value p-archive__fact-value--multiline"><span>${period}</span> ${_pen('period')}</div>
             <div></div>
-            <div class="p-archive__fact-label">URL</div>
-            <div class="p-archive__fact-value p-archive__fact-value--link">${_esc(url)}</div>
-            <div>${_pen('url')}</div>
             <div class="p-archive__fact-label">場所</div>
             <div class="p-archive__fact-value">${_esc(venue)}</div>
             <div>${_pen('venue')}</div>
@@ -1253,10 +1245,10 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
-          <span class="p-archive__content-link-text">${_esc(seg.text)}</span>
+          <span class="p-archive__content-link-text">${linkifyText(seg.text)}</span>
         </div>`;
     }
-    return `<p class="p-archive__content-text">${_esc(seg.text)}</p>`;
+    return `<p class="p-archive__content-text">${linkifyText(seg.text)}</p>`;
   }).join('');
 
   const clearedBy = Array.isArray(m.individualClearedBy) ? m.individualClearedBy : [];
@@ -1296,7 +1288,7 @@ function _renderArchiveMissionBlock(m, cd, sectionTag) {
   const reflectRow = (label, text) => text
     ? `<div class="p-archive__reflect-row">
          <p class="p-archive__reflect-label">${label}</p>
-         <p class="p-archive__reflect-text">${_esc(text)}</p>
+         <p class="p-archive__reflect-text">${linkifyText(text)}</p>
        </div>`
     : '';
   const reflectHtml = (!struggle && !solution && !canEditReflection) ? '' : `

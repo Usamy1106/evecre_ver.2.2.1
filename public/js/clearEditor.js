@@ -109,6 +109,19 @@ function _resizeImageDataUrl(dataUrl) {
 
 // ★type が空のファイルもある（ブラウザ・OS によっては拡張子しか手がかりが無い）
 const _IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|heic|heif|bmp|avif|tiff?)$/i;
+/**
+ * 画像ファイル1枚を、送れる dataURL にする（縮小・JPEG 化・2MB 上限）。
+ * ★アーカイブのヘッダー画像でも使う（同じ上限・同じ縮小を通すため）。
+ * @returns {Promise<{ dataUrl?: string, error?: 'unreadable'|'too_large' }>}
+ */
+export async function prepareImageFile(file) {
+  let dataUrl = null;
+  try { dataUrl = await _resizeImageDataUrl(await _readAsDataUrl(file)); } catch (_) { /* 下で扱う */ }
+  if (!dataUrl) return { error: 'unreadable' };
+  if (dataUrl.length > SUBMISSION_MAX_BYTES) return { error: 'too_large' };
+  return { dataUrl };
+}
+
 const _isImageFile = (f) => !!f && (/^image\//.test(f.type) || (!f.type && _IMAGE_EXT_RE.test(f.name || '')));
 const _isPdfFile   = (f) => !!f && (f.type === 'application/pdf' || (!f.type && /\.pdf$/i.test(f.name || '')));
 

@@ -1672,6 +1672,9 @@ app.delete('/api/account', requireAuth, async (req, res) => {
           }
         } catch (e) { console.warn('[account-delete] R2 cleanup warn:', e.message); }
 
+        // ヘッダー画像（イベントの項目。提出物ではないので上の後始末に入らない）
+        const headerKey = r2.urlToKey(p.fields?.headerImage?.v || '');
+        if (headerKey) r2.deleteObject(headerKey).catch(e => console.warn('[r2] header image delete warn:', e.message));
         await eventStore.deleteEvent(p.id);
         await submissionStore.deleteAllForProject(p.id);
         await notifStore.deleteByEventId(p.id);
@@ -2130,6 +2133,10 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
 
     let proposals;
     let newUsedIds; // テンプレ経由のときだけ更新する（AI 経由では触らない）
+    // 初期タスク def-3（企画の整理）の提出内容。画像・PDF の印は外す
+    const planningText = await submissionStore.getSubmission(p.id, 'def-3')
+      .then(s => (s && s.format !== 'image') ? String(s.content || '').replace(/\{\{(image|file):\d+\}\}/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 600) : '')
+      .catch(() => '');
 
     try {
       // ── Cloudflare Workers AI で生成（イベント固有の文脈から動的生成） ──
@@ -2146,6 +2153,9 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       const aiProps = await aiProposalClient.generateMissionProposals({
         name:        flat.name || '',
         description: flat.description || '',
+        // 初期タスク「どのようなイベントを行うか整理しよう」(def-3) に書かれた内容。
+        // ★概要（description）とは切り離したので、別の行で渡す（どちらも読ませる）
+        planning:    planningText,
         // 作成フローで聞いた項目（未設定なら null。プロンプト側で行ごと省略される）
         eventTypeLabel:     _EVENT_TYPE_LABELS[flat.eventType] || null,
         expectedScaleLabel: _SCALE_LABELS[flat.expectedScale] || null,
@@ -2184,7 +2194,8 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       ];
       const r = proposalEngine.generateProposals({
         name:           flat.name        || '',
-        description:    flat.description || '',
+        // ★カテゴリ判定のキーワードは概要と企画の整理（def-3）の両方から拾う
+        description:    [flat.description || '', planningText].filter(Boolean).join('\n'),
         // 明示された種別があればキーワード推測（detectCategory）より優先される
         eventType:      typeof flat.eventType === 'string' ? flat.eventType : null,
         expectedScale:  typeof flat.expectedScale === 'string' ? flat.expectedScale : null,
@@ -2247,6 +2258,30 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
  * @param {number} now        タイムスタンプ（呼び出し元で1つに揃える）
  * @returns {Promise<{savedIds?: string[], error?: {status:number, body:object}}>}
  */
+/**
+ * クライアントから来たイベントの項目を検証する（flatToCrdt に渡す前）。
+ * - headerImage … 空文字か「このイベントの提出画像として R2 に置いた URL」だけ。それ以外は捨てる
+ *   （dataURL を CRDT に入れると events の文書が膨らみ、外部 URL は差し替えられうる）
+ * - venue       … 文字列にして 200 字で切る
+ * ★ヘッダー画像を差し替えたら、前の画像を R2 から消す（fire-and-forget）
+ * @param {string} eventId
+ * @param {object} flat      クライアントのイベント（書き換える）
+ * @param {string|null} prevHeader  保存前のヘッダー画像
+ */
+function _sanitizeEventFields(eventId, flat, prevHeader = null) {
+  if (flat.headerImage !== undefined) {
+    const v = flat.headerImage;
+    const key = typeof v === 'string' && v ? r2.urlToKey(v) : null;
+    if (v === '' || v === null) flat.headerImage = '';
+    else if (!key || !key.startsWith(`submissions/${eventId}/`)) delete flat.headerImage;
+    if (flat.headerImage !== undefined && prevHeader && prevHeader !== flat.headerImage) {
+      const oldKey = r2.urlToKey(prevHeader);
+      if (oldKey) r2.deleteObject(oldKey).catch(e => console.warn('[r2] header image delete warn:', e.message));
+    }
+  }
+  if (flat.venue !== undefined) flat.venue = String(flat.venue ?? '').trim().slice(0, 200);
+}
+
 async function _saveIncomingEvents(req, incoming, current, now) {
   const currentIds = new Set(current.map(p => p.id));
   // --- 新規イベント ---
@@ -2256,6 +2291,7 @@ async function _saveIncomingEvents(req, incoming, current, now) {
     return { error: { status: 403, body: { ok: false, error: 'メール認証が完了するまで新規イベントを作成できません', code: 'verification_required' } } };
   }
   for (const p of created) {
+    _sanitizeEventFields(p.id, p);
     const cp = crdt.flatToCrdt(p, now);
     cp.members   = [{ userId: req.user.id, role: 'owner', roles: ['owner'], joinedAt: now }];
     cp.ownerId   = req.user.id;
@@ -2468,6 +2504,7 @@ async function _saveIncomingEvents(req, incoming, current, now) {
 
     // clearedData を submissions コレクションに分離
     const patchFlat = { ...incomingP };
+    _sanitizeEventFields(incomingP.id, patchFlat, existing.fields?.headerImage?.v || null);
     await _extractClearedData(incomingP.id, patchFlat);
 
     const merged = await eventStore.applyPatch(incomingP.id, patchFlat, {
@@ -2528,6 +2565,9 @@ app.put('/api/data', requireAuth, async (req, res) => {
         } catch (e) { console.warn('[delete] R2 cleanup warn:', e.message); }
 
         // 関連データを即時・完全に消去（残骸を残さない）
+        // ヘッダー画像（イベントの項目。提出物ではないので上の後始末に入らない）
+        const headerKey = r2.urlToKey(p.fields?.headerImage?.v || '');
+        if (headerKey) r2.deleteObject(headerKey).catch(e => console.warn('[r2] header image delete warn:', e.message));
         await eventStore.deleteEvent(p.id);
         await submissionStore.deleteAllForProject(p.id);
         await notifStore.deleteByEventId(p.id);
@@ -3347,18 +3387,9 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         content, format, images, files, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
-      // ★初期タスク「このイベントの概要を定めよう」(def-3) を完了したら、
-      //   イベントの description にも同じ内容を入れる。
-      //   イベント設定・アーカイブのペンから書いたときは utils.js の
-      //   setArchiveSummary が両方に書くのに、ミッションを完了した経路だけ
-      //   clearedData にしか入らず、description が空のままだった。
-      //   description は proposalEngine の detectCategory と AI プロンプトが
-      //   読むので、空だと提案の精度が落ちる（イベントの内容が伝わらない）。
-      if (mid === 'def-3' && format === 'text') {
-        // ★本文の途中の画像の印（{{image:N}}）は説明文に持ち込まない
-        const summary = String(content || '').replace(/\{\{image:\d+\}\}/g, '').replace(/\n{3,}/g, '\n\n').trim();
-        if (summary) _setEventField(p, 'description', summary, now);
-      }
+      // ★初期タスク def-3（どのようなイベントを行うか整理しよう）を完了しても、概要（description）には
+      //   書き写さない（2026-09-26。アーカイブの概要はタスクから切り離した）。以前はここで写していた。
+      //   AI の提案は proposals/generate が def-3 の提出内容を別の行で読むので、精度は落ちない。
       becameCleared      = next === 'cleared';
       becamePendingCheck = next === 'pending_leader_check';
     }

@@ -3729,6 +3729,18 @@ body {
   color: var(--color-text-inverse);
 }
 
+/* ===== object/component/_text-link.css ===== */
+/* ==========================================================================
+   Object / Component / text-link — 文章の中の URL を開けるリンクにしたもの
+   使用箇所: public/js/utils.js の linkifyText（アーカイブの概要・提出物・振り返り）
+   ========================================================================== */
+
+.c-text-link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
 /* ===== object/component/_context-menu.css ===== */
 /* ==========================================================================
    Object / Component / context-menu — 長押し・右クリックで出るメニュー
@@ -5216,14 +5228,6 @@ body {
 
 .p-archive__fact-value--multiline span {
   line-height: 1.625;
-}
-
-.p-archive__fact-value--link {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--color-primary);
-  text-decoration: underline;
 }
 
 .p-archive__list-button {

@@ -3,28 +3,35 @@ import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 import { openCalendarModal } from './calendar.js';
-import { getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue } from '../utils.js';
+import { getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue, getEventMainVisual } from '../utils.js';
 import { REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import {
   editorEl, readEditor, setEditorText, bindClearEditor, insertFiles,
-  itemsForKeys, resetEditorImages,
+  itemsForKeys, resetEditorImages, prepareImageFile,
 } from '../clearEditor.js';
 
 // ===== アーカイブ直接編集 =====
 
 /**
- * アーカイブアイテムを編集する
- * @param {'title'|'summary'|'url'|'venue'|'period'|'image'} type
+ * アーカイブの基礎情報を編集する（管理者のみ）
+ * ★どれもイベント自身の項目を書く（2026-09-26）。タスクの提出物（clearedData）は書かない。
+ *   以前はタイトルで def-2 のタスクを作り、URL で「広報リンクを挿入」のタスクを作っていた。
+ * @param {'title'|'summary'|'venue'|'period'|'image'} type
  */
 export function editArchiveItem(type) {
   if (!state.canManageCurrentEvent()) return; // 管理者権限なし
   const p = state.events.find(x => x.id === state.selectedEventId);
-  let missionId = '', currentVal = '', format = 'text', titleLabel = '';
+  if (!p) return;
 
   if (type === 'title') {
-    missionId   = 'def-2';
-    currentVal  = p.clearedData['def-2']?.content || p.name;
-    titleLabel  = 'タイトル';
+    // ★タイトル＝イベント名（イベントページ・イベント設定と同じもの）
+    openEditModal('イベント名', p.name || '', 'plain', (newVal) => {
+      const v = String(newVal || '').trim();
+      if (!v) { window._app?.showToast('イベント名を入力してください', 'error'); return; }
+      p.name = v;
+      state.save();
+      state.render();
+    });
   } else if (type === 'summary') {
     // ★イベント設定の「概要」と同じ場所を読み書きする（utils.js に集約）
     openEditModal('概要', getArchiveSummary(p), 'text', (newVal) => {
@@ -32,64 +39,27 @@ export function editArchiveItem(type) {
       state.save();
       state.render();
     });
-    return;
   } else if (type === 'venue') {
-    // ★イベント設定の「開催場所」と同じ場所を読み書きする（utils.js に集約）。
-    //   以前はタスクをタイトルで探して venue-temp を作っていたが、アーカイブ側は
-    //   originProposalId==='p1' を読んでいたため、編集しても表示に反映されなかった。
-    openEditModal('開催場所', getArchiveVenue(p), 'text', (newVal) => {
+    // ★イベント設定の「開催場所」と同じ場所を読み書きする（utils.js に集約）
+    openEditModal('開催場所', getArchiveVenue(p), 'plain', (newVal) => {
       setArchiveVenue(p, newVal);
       state.save();
       state.render();
     });
-    return;
-  } else if (type === 'url') {
-    const m     = p.missions.find(x => x.title === '広報リンクを挿入');
-    missionId   = m?.id || 'url-temp';
-    currentVal  = p.clearedData[missionId]?.content || '';
-    format      = 'link';
-    titleLabel  = 'URL';
   } else if (type === 'period') {
     // テキスト入力ではなくカレンダー UI で開催日を編集
     openCalendarModal('projectEdit');
-    return;
   } else if (type === 'image') {
-    // タスク経由ではなく専用ダイアログで画像を保存
     _openArchiveImageDialog(p);
-    return;
   }
-
-  openEditModal(titleLabel, currentVal, format, (newVal) => {
-    let m = p.missions.find(x => x.id === missionId);
-    if (!m) {
-      m = {
-        id: missionId,
-        // venue / summary はここを通らない（上で早期 return して utils.js 経由で保存する）
-        // ★イベント作成時に def-2 を自動生成しなくなったので、タイトルは必ず
-        //   ここで作られる。type をそのまま入れると 'title' という名前になる。
-        title: type === 'url'   ? '広報リンクを挿入'
-             : type === 'title' ? 'イベントのタイトルを決める'
-             : type === 'period' ? '開催日時' : type,
-        tag: type === 'url' ? '広報' : '企画',
-        clearFormat: format,
-        status: 'cleared',
-        dates: [],
-        daysLeft: 7,
-        isDeletable: false,
-        createdAt: Date.now(),
-        priority: 5,
-      };
-      p.missions.push(m);
-    } else {
-      m.status = 'cleared';
-    }
-    p.clearedData[missionId] = { content: newVal, timestamp: Date.now(), title: m.title, format };
-    state.save();
-    state.render();
-  });
 }
 
-/** アーカイブ用メインビジュアル画像アップロードダイアログ */
+/**
+ * ヘッダー画像を設定するダイアログ。
+ * ★画像は選んだ時点で縮小し（clearEditor.js の prepareImageFile。提出画像と同じ上限）、
+ *   「保存」で R2 に送って URL を p.headerImage に入れる。dataURL をイベントに持たせないこと
+ *   （サーバーの _sanitizeEventFields が捨てる）。前の画像はサーバーが R2 から消す。
+ */
 function _openArchiveImageDialog(p) {
   const overlay = document.createElement('div');
   overlay.id = 'archive-image-dialog';
@@ -97,10 +67,10 @@ function _openArchiveImageDialog(p) {
   overlay.className = 'c-overlay c-overlay--edit c-overlay--blur';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-  const current = p.clearedData?.['archive-image']?.content;
+  const current = getEventMainVisual(p);
   overlay.innerHTML = `
     <div class="c-modal c-modal--left u-animate-fade">
-      <h3 class="c-modal__title c-modal__title--loose">メインビジュアルを設定</h3>
+      <h3 class="c-modal__title c-modal__title--loose">ヘッダー画像を設定</h3>
       <div id="arch-img-preview" class="p-archive__image-preview${current ? '' : ' u-hidden'}">
         <img id="arch-img-src" src="${_esc(current || '')}" class="p-archive__image-thumb">
       </div>
@@ -121,26 +91,38 @@ function _openArchiveImageDialog(p) {
     </div>`;
   document.body.appendChild(overlay);
 
-  let selectedBase64 = null;
+  let selected = null;
+  const saveBtn = overlay.querySelector('[data-action="save"]');
 
-  overlay.querySelector('#arch-file-input').onchange = (e) => {
+  overlay.querySelector('#arch-file-input').onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      selectedBase64 = ev.target.result;
-      overlay.querySelector('#arch-img-src').src = selectedBase64;
-      overlay.querySelector('#arch-img-preview').classList.remove('u-hidden');
-      overlay.querySelector('[data-action="save"]').disabled = false;
-    };
-    reader.readAsDataURL(file);
+    const r = await prepareImageFile(file);
+    if (r.error) {
+      window._app?.showToast(r.error === 'too_large'
+        ? '画像が大きすぎます。別の画像を選んでください'
+        : 'この形式の画像は読み込めませんでした（HEIC などは JPEG か PNG にしてください）', 'error');
+      return;
+    }
+    selected = r.dataUrl;
+    overlay.querySelector('#arch-img-src').src = selected;
+    overlay.querySelector('#arch-img-preview').classList.remove('u-hidden');
+    saveBtn.disabled = false;
   };
 
   overlay.querySelector('[data-action="cancel"]').onclick = () => overlay.remove();
-  overlay.querySelector('[data-action="save"]').onclick = () => {
-    if (!selectedBase64) return;
-    p.clearedData = p.clearedData || {};
-    p.clearedData['archive-image'] = { content: selectedBase64, timestamp: Date.now(), format: 'image' };
+  saveBtn.onclick = async () => {
+    if (!selected) return;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<span class="c-spinner__inline"><span class="c-spinner c-spinner--xs c-spinner--inverse"></span>保存中…</span>`;
+    const up = await api.uploadSubmissionImage(p.id, selected);
+    if (!up?.ok || !up.url) {
+      window._app?.showToast('画像を保存できませんでした。もう一度お試しください', 'error');
+      saveBtn.disabled = false;
+      saveBtn.textContent = '保存';
+      return;
+    }
+    p.headerImage = up.url;
     state.save();
     state.render();
     overlay.remove();

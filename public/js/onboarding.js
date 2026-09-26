@@ -14,7 +14,7 @@
 
 import { state } from './state.js';
 import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
-import { getArchiveSummary, getArchiveVenue, todayStr, isAfterEventDates } from './utils.js';
+import { getArchiveSummary, getArchiveVenue, getEventMainVisual, todayStr, isAfterEventDates } from './utils.js';
 import { isIntroEligible, getIntroState } from './onboardingIntro.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
@@ -505,7 +505,7 @@ const STEPS = [
       const missing = [];
       if (!getArchiveSummary(ctx.p)) missing.push(['概要', 'イベント設定から書けます']);
       if (!getArchiveVenue(ctx.p))   missing.push(['開催場所', 'イベント設定から書けます']);
-      if (!ctx.p.clearedData?.['archive-image']) missing.push(['メインビジュアル', 'アーカイブから登録できます']);
+      if (!getEventMainVisual(ctx.p)) missing.push(['ヘッダー画像', 'アーカイブから登録できます']);
       return {
         emoji: '📦',
         eyebrow: 'おつかれさまでした',

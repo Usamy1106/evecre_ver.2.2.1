@@ -943,13 +943,13 @@ export const state = {
     //   def-2（タイトル）は作らない。タイトルはアーカイブのペンから入力でき
     //   （modals/helpers.js の editArchiveItem('title')、保存時に def-2 を作る）、
     //   タスクとして並べるほどの作業ではないため。★この入口は消さないこと。
-    //   ★def-3（概要）は utils.js の setArchiveSummary と同じ clearedData キーを使う。
-    //     イベント設定・アーカイブのペンからも同じ場所を読み書きするので、
-    //     どこから書いても表示が食い違わない。
+    //   ★def-3（どのようなイベントを行うか整理しよう。旧「このイベントの概要を定めよう」）は
+    //     アーカイブの概要（description）とは切り離した（2026-09-26）。提出内容は
+    //     タスクの記録として残り、AI の提案が「企画の整理」として読む。
     //   ★ヒント文は constants.js の MISSION_DESCRIPTIONS['def-1'] / ['def-3']。
     const defaultMissions = [
       { id: 'def-1', title: 'このイベントの目的を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
-      { id: 'def-3', title: 'このイベントの概要を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
+      { id: 'def-3', title: 'どのようなイベントを行うか整理しよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
     ];
 
     const newProject = {

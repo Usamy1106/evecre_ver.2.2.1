@@ -250,46 +250,76 @@ export function bindTapToEdit(root = document) {
 //   両方から編集される。どちらから直しても同じ場所を読み書きするよう、
 //   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
 
-/** 概要。実体は clearedData['def-3']（初期タスク「このイベントの概要を定めよう」）。
- *  ★タスクが無くても成立する（clearedData に直接書くため）。イベント設定と
- *    アーカイブのペンからも同じ場所を読み書きする。個別に clearedData を触らないこと。 */
-export function getArchiveSummary(project) {
-  // ★本文の中の画像の印（{{image:N}}）は外す（submissionText）
-  const cd = project?.clearedData?.['def-3'];
-  return cd ? submissionText(cd) : (project?.description ?? '');
-}
-
 /**
- * 概要を書き込む。
- * ★description にも同じ値を入れる。提案エンジンの detectCategory と AI プロンプトが
- *   description を読むため、こちらを空のままにすると提案の精度が落ちる。
+ * 概要。実体は **イベントの description だけ**（2026-09-26）。
+ * ★初期タスク def-3（どのようなイベントを行うか整理しよう）の提出物とは切り離した。
+ *   以前は clearedData['def-3'] を優先して読み、書くときも両方に書いていたため、
+ *   アーカイブで概要を直すとタスクの提出内容まで書き換わっていた。
+ *   ★def-3 を読みに行かないこと（AI の提案は server.js が def-3 を別の行で読む）。
+ * イベント設定とアーカイブのペンの両方から、この2関数を通して読み書きする。
  */
+export function getArchiveSummary(project) {
+  return String(project?.description ?? '');
+}
+
+/** 概要を書き込む（description だけ） */
 export function setArchiveSummary(project, value) {
-  const v = String(value ?? '').trim();
-  if (!project.clearedData) project.clearedData = {};
-  project.clearedData['def-3'] = {
-    content: v, timestamp: Date.now(), title: 'このイベントの概要を定めよう', format: 'text',
-  };
-  project.description = v;
+  project.description = String(value ?? '').trim();
 }
 
 /**
- * 開催場所。実体は clearedData['archive-venue']。
- * ★旧データは提案 p1「開催場所を決める」由来の完了タスクに入っているので、
- *   そちらもフォールバックで読む（本番に3件ある）。この参照は消さないこと。
+ * 開催場所。実体は **イベントの venue**（2026-09-26。CRDT の項目）。
+ * ★venue が一度も書かれていない（undefined）イベントだけ、旧データを読む：
+ *   clearedData['archive-venue'] → 提案 p1「開催場所を決める」由来の完了タスク（本番に3件）。
+ *   ★空文字は「消した」なので旧データに戻らない（`!== undefined` で見ること。`||` にしない）。
+ *   移行はしない。この読み替えは消さないこと。
  */
 export function getArchiveVenue(project) {
+  if (typeof project?.venue === 'string') return project.venue;
   const direct = project?.clearedData?.['archive-venue']?.content;
   if (direct) return direct;
   const m = (project?.missions || []).find(x => x.originProposalId === 'p1' && x.status === 'cleared');
-  return (m ? project?.clearedData?.[m.id]?.content : '') || '';
+  return (m ? submissionText(project?.clearedData?.[m.id]) : '') || '';
 }
 
-/** 開催場所を書き込む（常に archive-venue へ。旧タスク側は読むだけ） */
+/** 開催場所を書き込む（venue だけ。旧データ側は読むだけ） */
 export function setArchiveVenue(project, value) {
-  const v = String(value ?? '').trim();
-  if (!project.clearedData) project.clearedData = {};
-  project.clearedData['archive-venue'] = {
-    content: v, timestamp: Date.now(), title: '開催場所', format: 'text',
-  };
+  project.venue = String(value ?? '').trim();
+}
+
+/**
+ * ヘッダー画像（アーカイブの一番上・ホームのサムネイル）の URL。無ければ null。
+ * 実体は **イベントの headerImage**（2026-09-26。R2 の URL）。
+ * ★headerImage が一度も書かれていないイベントだけ、旧データを読む：
+ *   clearedData['archive-image'] → 提案 p3 由来の完了タスクの画像（本番に実在。消さないこと）。
+ *   空文字は「消した」なので旧データに戻らない。
+ */
+export function getEventMainVisual(project) {
+  if (typeof project?.headerImage === 'string') return project.headerImage || null;
+  const direct = project?.clearedData?.['archive-image']?.content;
+  if (direct) return direct;
+  const m = (project?.missions || []).find(x => x.originProposalId === 'p3' && x.status === 'cleared');
+  // ★本文と画像を同時に持つ提出物もあるので、画像は submissionImages で取る（1枚目）
+  return m ? (submissionImages(project?.clearedData?.[m.id])[0] ?? null) : null;
+}
+
+/**
+ * 文章の中の URL をタップで開けるリンクにした HTML を返す（アーカイブ用）。
+ * ★エスケープはここでまとめて行う（戻り値をもう一度 esc に通さないこと）。
+ * ★リンクのタップは stopPropagation（アーカイブの記録はタップでタスク詳細を開くため）。
+ * ★http / https だけ（javascript: などは作らない）。末尾の句読点・閉じ括弧はリンクに含めない。
+ */
+export function linkifyText(text) {
+  const esc = (x) => String(x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const src = String(text ?? '');
+  let out = '', last = 0;
+  for (const m of src.matchAll(/https?:\/\/[^\s<>"'「」『』（）]+/g)) {
+    let url = m[0];
+    const trail = /[、。，．,.!！?？:：;；)\]}]+$/.exec(url);
+    if (trail) url = url.slice(0, -trail[0].length);
+    out += esc(src.slice(last, m.index));
+    out += `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="c-text-link" onclick="event.stopPropagation()">${esc(url)}</a>`;
+    last = m.index + url.length;
+  }
+  return out + esc(src.slice(last));
 }

@@ -1,7 +1,7 @@
 // ===== UIコンポーネント =====
 import { state } from './state.js';
 import { LABEL_CONFIG } from './constants.js';
-import { submissionImages, formatFileSize } from './utils.js';
+import { formatFileSize, getEventMainVisual } from './utils.js';
 import { api } from './api.js';
 
 function _initial(name) {
@@ -15,16 +15,7 @@ function _escText(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// イベントのメインビジュアル（アーカイブで設定する画像）のパスを返す。無ければ null。
-// 保存先は clearedData['archive-image']。旧データは提案 p3 由来のタスク完了画像を見る
-// （mainBoard.js の _getClearedByOrigin と同じ後方互換）。
-export function getEventMainVisual(project) {
-  const direct = project?.clearedData?.['archive-image']?.content;
-  if (direct) return direct;
-  const m = (project?.missions || []).find(x => x.originProposalId === 'p3' && x.status === 'cleared');
-  // ★本文と画像を同時に持つ提出物もあるので、画像は submissionImages で取る（1枚目）
-  return m ? (submissionImages(project?.clearedData?.[m.id])[0] ?? null) : null;
-}
+// ヘッダー画像の読み出しは utils.js の getEventMainVisual に移した（アーカイブと共用するため）
 
 // サムネイルのエンプティーステート。avif → webp → png の順に並べ、
 // ブラウザが対応する最も軽い形式を選ぶ（avif 2.7KB / webp 7KB / png 26KB）。
