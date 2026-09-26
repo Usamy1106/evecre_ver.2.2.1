@@ -14,7 +14,7 @@ import {
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
-import { renderMainBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry, showAllArchiveSubmitters, rememberArchiveRow } from './views/mainBoard.js';
+import { renderMainBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry, showAllArchiveSubmitters, rememberArchiveRow, setBoardPanelView, clearBoardFilterDate } from './views/mainBoard.js';
 import { renderWelcome } from './views/welcome.js';
 import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
@@ -73,6 +73,7 @@ import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.j
 import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
+import { watchLayoutMode } from './layoutMode.js';
 import {
   registerServiceWorker, initPushNavigation,
   enablePush, disablePush, getPushState, hasSubscription,
@@ -1060,6 +1061,9 @@ window._app = {
   showAllArchiveSubmitters: (missionId) => showAllArchiveSubmitters(missionId),
   // アーカイブ：個別完了の行の開閉を覚える（描き直しで閉じないように）
   rememberArchiveRow: (rowKey, open) => rememberArchiveRow(rowKey, open),
+  // 広い画面（タブレット・PC）のメインボード右列：カレンダー｜ガント（やることと融合）／選んだ日の解除
+  setBoardPanelView: (view) => setBoardPanelView(view),
+  clearBoardFilterDate: () => clearBoardFilterDate(),
   // アーカイブのサブページ（参加時の回答／みんなの活躍）
   // ★戻り先は必ずアーカイブタブ。setView('MAIN_BOARD') だけだと直前に見ていた
   //   タブ（メイン等）に戻ってしまい、どこから来たのか分からなくなる。
@@ -1313,6 +1317,12 @@ initPushNavigation((url) => state.handlePushNavigation(url));
 
 // ===== アプリ起動 =====
 initSheetDragClose(); // ボトムシートの下スワイプで閉じる（data-sheet / data-sheet-handle）
+// 画面の広さがスマホ⇔タブレット・PC の境目をまたいだら描き直す（layoutMode.js）。
+// ★開いているスケジュールのシートは閉じる（ダッシュボード表示では右列に同じものを出すため、id が重なる）
+watchLayoutMode(() => {
+  document.getElementById('event-cal-sheet')?.remove();
+  state.render();
+});
 initImageFallback();  // data-fallback を付けた画像の読み込み失敗を代替表示に差し替える
 state.init().catch(e => {
   console.error('init() で例外:', e);
@@ -1701,6 +1711,8 @@ const _LOG_LABELS = {
   public_basic_answered:     '基礎情報の公開を選んだ',
   public_basic_toggled:      '基礎情報の公開を切り替えた',
   public_knowledge_toggled:  'ナレッジの公開を切り替えた',
+  board_panel_switched:      'メインボードの右列を切り替えた（広い画面）',
+  board_filter_date:         'メインボードのカレンダーで日付を選んだ（広い画面）',
   public_knowledge_prompt_shown: 'タスクも含めた公開の確認が出た（振り返りの終了後）',
   public_knowledge_answered:     'タスクも含めた公開の確認に答えた',
   archive_tap_edit:          'アーカイブの欄をタップして編集に入った',

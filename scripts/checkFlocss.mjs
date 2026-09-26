@@ -918,12 +918,43 @@ const HOOKS = [
     'data-coach="schedule"']],
   ['public/js/modals/calendar.js', ['id="calendar-bottomsheet-panel"', 'data-sheet-handle']],
   ['public/js/dialog.js', ['id="cd-ok"', 'id="cd-cancel"', '__sheetClose']],
-  ['public/js/modals/eventCalendarSheet.js', ['id="mb-cal-fixed"', 'id="mb-cal-list"',
-    'id="gantt-header-inner"', 'id="gantt-body"', 'id="btn-view-calendar"',
-    'id="btn-view-gantt"', 'data-mb-day', 'data-mb-section', 'data-mission-id',
+  // ★スケジュールの中身は schedulePanel.js に移した（シートと、広い画面のメインボード右列で共用）
+  ['public/js/modals/eventCalendarSheet.js', ['id="btn-view-calendar"', 'id="btn-view-gantt"',
     'data-sheet', 'data-sheet-handle']],
+  ['public/js/schedulePanel.js', ['id="mb-cal-fixed"', 'id="mb-cal-list"',
+    'id="gantt-header-inner"', 'id="gantt-body"', 'data-mb-day', 'data-mb-section', 'data-mission-id']],
   ['public/js/views/missionDetail.js', ['id="clear-input"', 'id="file-input"']],
 ];
+// ── 広い画面（タブレット・PC）のダッシュボード表示 ─────────────────────
+{
+  // ★判定は layoutMode.js の1か所だけ。各画面で matchMedia を書くと境目がずれる
+  const jsFiles = fs.readdirSync('public/js', { recursive: true })
+    .filter(f => String(f).endsWith('.js') && !String(f).startsWith('vendor'))
+    .map(f => path.join('public/js', String(f)));
+  const strays = jsFiles.filter(f => !f.endsWith('layoutMode.js') && /min-width:\s*768px/.test(R(f)));
+  ok('★広い画面の判定（768px）は layoutMode.js だけにある', strays.length === 0, strays.join(' '));
+  ok('★layoutMode.js が判定と <html> のクラスを持つ',
+    /export function isDashboard/.test(R('public/js/layoutMode.js')) && /is-screen-dashboard/.test(R('public/js/layoutMode.js')));
+  // ★スケジュールの中身は描き込む先を知らない（シートと右列で共用するため）
+  const sp = R('public/js/schedulePanel.js');
+  ok('★schedulePanel.js は overlay を前提にしない（c-overlay・body への追加・document からの id 探しが無い）',
+    !/c-overlay|document\.body\.appendChild|document\.getElementById/.test(sp));
+  // ★ダッシュボード表示ではシートを開かない（右列と同じ id が並ぶ）
+  ok('★広い画面ではスケジュールのシートを開かず右列を切り替える',
+    /if \(isDashboard\(\)\)[\s\S]{0,200}setBoardPanelView/.test(R('public/js/modals/eventCalendarSheet.js')));
+  // ★左列（山）と右列は半々。山の背景の幅も同じ変数を使う（片方だけ変えると山が列からはみ出す）
+  const vars = R('public/css/foundation/_variables.css');
+  const dash = R('public/css/object/project/_board-dashboard.css');
+  ok('★ダッシュボードの左列は「左端の列を除いた残りの半分」',
+    /--board-side-width:\s*calc\(\(100vw - var\(--board-rail-width\)\) \/ 2\)/.test(vars));
+  ok('★山の背景と左列が同じ幅の変数を使う',
+    /grid-template-columns:\s*var\(--board-side-width\)/.test(dash) && /\.p-mountain \{[^}]*width:\s*var\(--board-side-width\)/.test(dash));
+  // ★ブレイクポイントに頼らない（右列・ホーム・プロジェクトのタイルに @media を書かない）
+  const noMedia = ['public/css/object/project/_board-dashboard.css', 'public/css/object/project/_home.css', 'public/css/layout/_rail.css']
+    .filter(f => /@media\s*\((?:min|max)-width/.test(R(f)));
+  ok('★右列・ホーム・左端の列は @media の幅指定を使わない', noMedia.length === 0, noMedia.join(' '));
+}
+
 for (const [f, hooks] of HOOKS) {
   const src = R(f);
   const missing = hooks.filter(h => !src.includes(h));

@@ -1,0 +1,57 @@
+/* ==========================================================================
+   Layout / rail — 広い画面のメインボードの左端の列
+   使用箇所: public/js/components.js（Components.BoardRail）、views/mainBoard.js
+
+   ★広い画面（layoutMode.js の isDashboard）でだけ描く。スマホはヘッダーのタブ＋日付チップの行のベル。
+   ★上から メインボード／アーカイブ／通知／フィードバック／設定。丸い白地にアイコン、いま開いているタブは塗り。
+   ★position: fixed で画面の左端に固定する。中身（ヘッダー・2列・アーカイブ）は
+     .p-main-board--dashboard の padding-left（--board-rail-width）でこの幅を空ける。
+   ★通知のバッジ（p-main-board__notif-badge）の位置は object/project/_board-dashboard.css が持つ。
+   ========================================================================== */
+
+.l-rail {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-header-stack);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  width: var(--board-rail-width);
+  padding-top: calc(var(--safe-top) + var(--space-4));
+  border-right: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+}
+
+.l-rail__item {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--rail-button-size);
+  height: var(--rail-button-size);
+  border: 2px solid transparent;
+  border-radius: var(--radius-full);
+  background-color: var(--white);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-primary);
+  transition: transform var(--duration-fast) var(--ease);
+}
+
+.l-rail__item:active {
+  transform: scale(.95);
+}
+
+/* いま開いているタブ */
+.l-rail__item.is-active {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-tint2);
+}
+
+.l-rail__icon {
+  width: 26px;
+  height: 26px;
+}

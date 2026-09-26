@@ -45,6 +45,18 @@
   box-shadow: none;
 }
 
+/* ★広い画面（タブレット・PC）では画面いっぱいに伸ばさず、中央に --sheet-max-width で出す。
+     絶対配置（left/right: 0）のまま max-width と margin auto で中央に寄せるので、
+     せり上がり（transform）には触らない。全画面のシート（--full）も同じ幅で中央に */
+:root.is-wide .c-sheet {
+  max-width: var(--sheet-max-width);
+  margin-inline: auto;
+}
+
+:root.is-wide .c-sheet--full {
+  box-shadow: var(--shadow-2xl);
+}
+
 /* 生成と同時にせり上がるタイプ（.is-open のトグルを持たないシート）。
    開いた状態が初期値なので transform を打ち消す。 */
 .c-sheet--rise {

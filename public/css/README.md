@@ -54,6 +54,7 @@
 | ヘッダー（HOME / イベント） | `layout/_header.css` |
 | タブ（メインボード・通知・アーカイブ）とアクティブ表示 | `layout/_tabs.css` |
 | メインボード下部のパネル・FAB | `layout/_fixed-bottom.css` |
+| 広い画面のメインボードの左端の列（丸いボタン） | `layout/_rail.css` |
 | 起動時のローディング画面 | `layout/_loading.css` |
 | 画面切り替え時のフェード | `object/utility/_transition.css` |
 | ボタン（`c-button--primary` / `--secondary` / `--danger` / `--muted` / `--block`） | `object/component/_button.css` |
@@ -111,6 +112,7 @@
 | 参加・招待まわりのモーダル（🔥・招待リンク） | `object/project/_invite.css` |
 | 開発者からのお知らせ | `object/project/_announcement.css` |
 | スケジュールのシート（カレンダー・ガント） | `object/project/_schedule.css` |
+| メインボードのダッシュボード表示（タブレット・PC の2列。右列のやること｜カレンダー｜ガント） | `object/project/_board-dashboard.css` |
 | 日付を選ぶモーダル（ミッション期間・開催日・応募期限） | `object/project/_date-picker.css` |
 | 通知セットアップの案内・HOME の通知バナー | `object/project/_push-setup.css` |
 | 操作を選ばせるボトムシート（長押しメニュー） | `object/component/_action-sheet.css` |
@@ -266,7 +268,8 @@ public/css/
 │  ├─ _loading.css              ✅ .l-loading（#loading-screen）
 │  ├─ _header.css               ✅ .l-header（--home / --event）／.l-header-stack
 │  ├─ _tabs.css                 ✅ .l-tabs（.is-active）
-│  └─ _fixed-bottom.css         ✅ .l-bottom-panel / .l-fab
+│  ├─ _fixed-bottom.css         ✅ .l-bottom-panel / .l-fab
+│  └─ _rail.css                 ✅ .l-rail（広い画面のメインボードの左端の列）
 │
 ├─ object/component/
 │  ├─ _button.css               ✅ c-button（--primary/--secondary/--danger/--muted/--block）
@@ -335,6 +338,7 @@ public/css/
 │  ├─ _invite.css               ✅ 参加・招待まわりのモーダル
 │  ├─ _announcement.css         ✅ 開発者からのお知らせ
 │  ├─ _schedule.css             ✅ スケジュール（カレンダー・ガント）
+│  ├─ _board-dashboard.css      ✅ メインボードのダッシュボード表示（広い画面の2列）
 │  ├─ _date-picker.css          ✅ 日付を選ぶモーダル
 │  └─ _push-setup.css           ✅ 通知セットアップの案内
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _onboarding                            ⬜ Phase 4

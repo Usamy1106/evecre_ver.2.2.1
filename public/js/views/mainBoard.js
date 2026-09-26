@@ -8,6 +8,53 @@ import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiv
 import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
+import { isDashboard } from '../layoutMode.js';
+import { logEvent } from '../logger.js';
+import {
+  newScheduleCtx, scheduleCssVars, scheduleBodyHtml, scheduleCalendarHtml, bindScheduleBody, scrollScheduleToToday,
+} from '../schedulePanel.js';
+
+// ── ダッシュボード表示（タブレット・PC）の右列 ─────────────────────────
+// 右列は「やること」と「カレンダー／ガント」を融合した1つの表示（2026-09-27）。
+//   上の操作列（私の／みんなの・ラベル・並び替え）がカレンダーにもガントにも効く。
+//   カレンダー … 月のカレンダー（実施日にタグ色の点）＋ 下にやることのカード。日付を押すとその日のカードに絞る
+//   ガント     … 同じ絞り込み・並びの行で横バー
+// ★初期表示は「カレンダー」、以後は最後に選んだものを覚える（ユーザー単位の localStorage）。
+//   以前の値 'list'（やること単独の表示）はカレンダーに読み替える
+// ★スケジュールの表示の状態（表示中の月・開催日の編集中の作業コピー）と、絞り込んだ日は
+//   イベントごとにモジュールで持つ（SSE の再描画で失わない。アーカイブの開閉と同じ考え方）。
+const BOARD_PANEL_VIEWS = ['calendar', 'gantt'];
+const _scheduleCtxByEvent = new Map();
+const _boardFilterDateByEvent = new Map();   // カレンダーで選んだ日（イベントごと。もう一度押すと解除）
+let _boardPanelShownFor = null;   // 右列を最後に描いた「イベント:表示」。変わったら今日へ送る
+
+function _boardPanelKey() {
+  return `evecre:boardPanelView:v1:${state.currentUser?.id || ''}`;
+}
+
+function _boardPanelView() {
+  if (BOARD_PANEL_VIEWS.includes(state.boardPanelView)) return state.boardPanelView;
+  let saved = null;
+  try { saved = localStorage.getItem(_boardPanelKey()); } catch (_) { /* プライベートブラウズなど */ }
+  state.boardPanelView = BOARD_PANEL_VIEWS.includes(saved) ? saved : 'calendar';
+  return state.boardPanelView;
+}
+
+/** カレンダーで選んだ日を外す（右列の「× 解除」から呼ぶ） */
+export function clearBoardFilterDate() {
+  _boardFilterDateByEvent.delete(state.selectedEventId);
+  state.render();
+}
+
+/** 右列の表示を切り替える（右列のセグメント・日付チップ・スマホのシートの入口から呼ぶ） */
+export function setBoardPanelView(view) {
+  if (!BOARD_PANEL_VIEWS.includes(view)) return;
+  if (state.boardPanelView === view) return;
+  state.boardPanelView = view;
+  try { localStorage.setItem(_boardPanelKey(), view); } catch (_) { /* 覚えられなくても動く */ }
+  logEvent('board_panel_switched', { view });
+  state.render();
+}
 
 // ── 通知スワイプ削除 ─────────────────────────────────────
 // モジュールロード時に一度だけ登録。document 全体にデリゲート。
@@ -132,6 +179,11 @@ export function renderMainBoard(container) {
   if (celebrate) collapseMissionPanel();
 
   const isMain = state.mainBoardTab === 'MAIN';
+  // ★広い画面（タブレット・PC）では2列のダッシュボード表示（左＝山と提案／右＝やること・カレンダー・ガント）。
+  //   スマホの DOM は変えない（分岐はここと _renderDashboardMain だけ）
+  const dash = isDashboard();
+  // ★右列のスクロール位置を描き直しをまたいで保つ（SSE で一覧の先頭に戻さない）
+  const _panelScroll = dash && isMain ? _captureBoardPanelScroll() : null;
   // MAIN タブはページ自体をスクロールさせない（上部＝山スクロール／下部＝提案・タスクパネル）。
   // ARCHIVE / NOTIFICATIONS は従来どおり <main> のページスクロール。
   const mainLayout = isMain ? _renderMainTab(p) : null;
@@ -143,23 +195,25 @@ export function renderMainBoard(container) {
   captureInlineEdits();
 
   container.innerHTML = `
-    <div class="p-main-board ${isMain ? 'p-main-board--fixed' : 'p-main-board--scroll'}">
+    <div class="p-main-board ${isMain ? 'p-main-board--fixed' : 'p-main-board--scroll'}${dash ? ' p-main-board--dashboard' : ''}">
       <!-- standalone（ホーム画面から起動）ではステータスバー領域にコンテンツが潜るため、
            safe-area 分の余白を足す。ブラウザ表示では env() が 0 なので見た目は変わらない。 -->
       <!-- ヘッダー＋タブ。★js-mountain-sticky は mountainPath.js が山の上端を
            合わせるための目印（以前は Tailwind の .sticky を掴んでいた）。
            スタイル: public/css/layout/_header.css の .l-header-stack -->
       <div class="l-header-stack js-mountain-sticky">
-        ${Components.Header(p)}
-        ${Components.Tabs(state.mainBoardTab)}
+        ${Components.Header(p, { compact: dash })}
+        ${dash ? '' : Components.Tabs(state.mainBoardTab)}
       </div>
+      <!-- ★広い画面：タブ・フィードバック・設定・通知は左端の列に並べる（layout/_rail.css） -->
+      ${dash ? Components.BoardRail(p, state.mainBoardTab) : ''}
       <!-- 山ビジュアルの背景レイヤー（ヘッダー下〜画面全体。コンテンツ(z-10)の裏側）
            ★アーカイブ・通知タブでも山は出したままにする（タブを移っても同じ場所に
              居る感じを保つため）。ただし backdrop モードで、白いベールを重ねて
              マス（道）は出さない。 -->
       ${renderMountainBg(p, { celebrate, backdrop: !isMain })}
       ${Components.VerifyBanner() ? `<div class="p-main-board__layer">${Components.VerifyBanner()}</div>` : ''}
-      ${isMain ? `
+      ${isMain && dash ? _renderDashboardMain(p, mainLayout) : isMain ? `
         <!-- 上部固定：日付チップ・お知らせ・各バナー（スクロールしない） -->
         <div class="p-main-board__layer">${mainLayout.pinnedAux}</div>
         <!-- 山スクロール窓（透明・上部領域を占める）。ここのスクロールで山を遡れる -->
@@ -218,7 +272,9 @@ export function renderMainBoard(container) {
     // ★パネルの配線を先に行う。パネルの top はこの中で確定するので、
     //   逆順にすると山側が「まだ初期値のままのパネル位置」で遠近の基準帯を
     //   測ってしまう（マスの大きさと初期スクロール位置がずれる）。
-    _initMissionPanelGesture();
+    // ★ダッシュボード表示には下部パネルが無い（右列）。代わりに右列を配線する
+    if (dash) _bindDashboardPanel(container, p, _panelScroll);
+    else _initMissionPanelGesture();
     // 背景レイヤーの位置合わせ・スクロール同期を配線。
     // ★演出中は復元位置を捨てて null（＝_initialScrollTop）にする。
     //   いちばん新しいマスを「見えている帯」に入れるロジックが既にあるので、
@@ -500,9 +556,159 @@ function _characterBoxHtml(ch, idx, opt) {
     </div>`;
 }
 
+// ===== ダッシュボード表示（タブレット・PC）のメインタブ =====
+// 左列：日付チップ・お知らせ・バナー／山のスクロール窓／提案キャラ（スマホと同じ部品を縦に並べる）
+// 右列：やること×カレンダー／ガント（上の操作列は共通。中身だけ独立スクロール）
+// ★山の背景（#mountain-bg）は position:fixed のまま、CSS で左列の位置と幅に合わせる
+//   （object/project/_board-dashboard.css）。--art-unit は measure() が実測するので景色は同じ。
+// ★提案キャラの行は data-mountain-veil を持つ。山の遠近の基準帯はここで終わる
+//   （スマホで下部パネルが担っている役目。mountainPath.js の _panelVeilTop）。
+function _renderDashboardMain(p, mainLayout) {
+  const view = _boardPanelView();
+  const ctx = _scheduleCtxFor(p, view, mainLayout.displayMissions);
+  // ★表示の切り替え（カレンダー｜ガント）は、絞り込みの「私の／みんなの」（セグメンテッドコントロール）と
+  //   見た目を分ける（2026-09-27 の要望）。同じ形が2つ並ぶと、どちらが表示でどちらが絞り込みか分からない。
+  //   こちらはアイコン＋ラベルの小さな枠付きボタンの組にして、操作列の右端に置く
+  //   ★data-log は付けない（setBoardPanelView が board_panel_switched を記録する。二重に数えない）
+  const viewButton = (id, label, icon) => `
+    <button type="button" role="tab" aria-selected="${view === id}" onclick="window._app.setBoardPanelView('${id}')"
+      class="p-board-dash__view${view === id ? ' is-active' : ''}">
+      <svg class="p-board-dash__view-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>
+      ${label}
+    </button>`;
+  const viewSwitchHtml = `
+    <div class="p-board-dash__views" role="tablist" aria-label="表示の切り替え">
+      ${viewButton('calendar', 'カレンダー', '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}
+      ${viewButton('gantt', 'ガント', '<line x1="4" y1="6" x2="14" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="6" y1="18" x2="16" y2="18"/>')}
+    </div>`;
+
+  let body;
+  if (view === 'gantt') {
+    body = `
+      <div class="p-board-dash__body p-board-dash__body--schedule" data-board-panel-body>
+        <div class="p-schedule p-schedule--inline p-schedule--full" data-board-schedule style="${scheduleCssVars()}">
+          <div class="p-schedule__body">${scheduleBodyHtml(ctx)}</div>
+        </div>
+      </div>`;
+  } else {
+    // その日に実施日があるタスクだけに絞る（選んでいなければ全部）
+    const day = ctx.filterDate;
+    const list = day ? mainLayout.displayMissions.filter(m => (m.dates || []).includes(day)) : mainLayout.displayMissions;
+    const cards = day ? mainLayout.cardsFor(list) : mainLayout.cardsFor(mainLayout.displayMissions);
+    const [, mo, d] = day ? day.split('-').map(Number) : [];
+    body = `
+      <div class="p-board-dash__body p-board-dash__body--calendar" data-board-panel-body>
+        <div class="p-schedule p-schedule--inline p-board-dash__cal" data-board-schedule style="${scheduleCssVars()}">
+          ${scheduleCalendarHtml(ctx)}
+        </div>
+        <div class="p-board-dash__list">
+          ${day ? `
+            <div class="p-board-dash__filter">
+              <span class="p-board-dash__filter-label">${mo}月${d}日のタスク（${list.length}件）</span>
+              <button type="button" onclick="window._app.clearBoardFilterDate()" data-log="board_filter_date_clear"
+                class="p-board-dash__filter-clear" aria-label="日付の絞り込みを外す">× 解除</button>
+            </div>` : ''}
+          <div class="p-main-board__mission-list">${cards || '<p class="p-main-board__empty p-main-board__empty--tight">この日のタスクはありません</p>'}</div>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="p-board-dash">
+      <aside class="p-board-dash__side">
+        <div class="p-main-board__layer">${mainLayout.pinnedAux}</div>
+        ${renderMountainScrollWindow(p)}
+        <div class="p-board-dash__proposals" data-mountain-veil>${mainLayout.proposalsRow}</div>
+      </aside>
+      <section class="p-board-dash__main" aria-label="やること・スケジュール" data-coach="mission-list">
+        <div class="p-board-dash__bar">
+          <div class="p-board-dash__bar-row">
+            ${mainLayout.viewToggleHtml}
+            ${viewSwitchHtml}
+          </div>
+          <div class="p-board-dash__bar-row p-board-dash__bar-row--sub">
+            ${mainLayout.tagFilterHtml}
+            <button type="button" onclick="window._app.copySchedule('schedule')"
+              data-log="schedule_copy" class="p-schedule__copy p-board-dash__copy" aria-label="予定をコピー">
+              <img src="/images/icon/icon-Link.svg" alt="" class="p-schedule__copy-icon">
+              予定をコピー
+            </button>
+          </div>
+        </div>
+        ${body}
+      </section>
+    </div>`;
+}
+
+// そのイベントのスケジュールの表示の状態（無ければ作る）。★p は描くたびに最新へ差し替える
+// （SSE でイベントのオブジェクトが入れ替わるため。古い p のままだと開催日の保存が古い値に戻る）
+// ★missions は「私の／みんなの・ラベル・並び替え」を済ませた一覧（カレンダーの点とガントの行に使う）
+function _scheduleCtxFor(p, view, missions) {
+  let ctx = _scheduleCtxByEvent.get(p.id);
+  if (!ctx) { ctx = newScheduleCtx(p, view); _scheduleCtxByEvent.set(p.id, ctx); }
+  ctx.p = p;
+  ctx.view = view === 'gantt' ? 'gantt' : 'calendar';
+  ctx.missions = missions;
+  ctx.filterDate = _boardFilterDateByEvent.get(p.id) || null;
+  ctx.onPickDate = (day) => {
+    // 同じ日をもう一度押すと解除
+    if (_boardFilterDateByEvent.get(p.id) === day) _boardFilterDateByEvent.delete(p.id);
+    else _boardFilterDateByEvent.set(p.id, day);
+    logEvent('board_filter_date', { on: _boardFilterDateByEvent.has(p.id) });
+    state.render();
+  };
+  return ctx;
+}
+
+// 右列のスクロール位置（描き直しの前に読む）
+function _captureBoardPanelScroll() {
+  const body = document.querySelector('[data-board-panel-body]');
+  if (!body) return null;
+  return {
+    key: _boardPanelShownFor,
+    body: body.scrollTop,
+    list: document.getElementById('mb-cal-list')?.scrollTop ?? null,
+    ganttLeft: document.getElementById('gantt-body')?.scrollLeft ?? null,
+    ganttTop: document.getElementById('gantt-body')?.scrollTop ?? null,
+  };
+}
+
+// 右列の配線。★スケジュールの行（タップでタスク詳細）はここで先に配線する。
+//   あとで呼ばれる bindMissionInteractions(container, …, useInlineTap:true) は二重に配線しない
+function _bindDashboardPanel(container, p, saved) {
+  const view = _boardPanelView();
+  const key = `${p.id}:${view}`;
+  const same = saved && saved.key === key;
+  _boardPanelShownFor = key;
+  const body = container.querySelector('[data-board-panel-body]');
+  const host = container.querySelector('[data-board-schedule]');
+  if (host) {
+    const ctx = _scheduleCtxByEvent.get(p.id);
+    bindScheduleBody(host, ctx);
+    bindMissionInteractions(host, p, { useInlineTap: false });
+    if (same) {
+      const list = document.getElementById('mb-cal-list');
+      const gantt = document.getElementById('gantt-body');
+      const header = document.getElementById('gantt-header-inner');
+      if (list && saved.list != null) list.scrollTop = saved.list;
+      if (gantt && saved.ganttLeft != null) {
+        gantt.scrollLeft = saved.ganttLeft;
+        gantt.scrollTop = saved.ganttTop || 0;
+        if (header) header.style.transform = `translateX(-${saved.ganttLeft}px)`;
+      }
+    } else {
+      // 開いた直後・切り替えた直後は今日へ送る
+      requestAnimationFrame(() => scrollScheduleToToday(host, ctx));
+    }
+  }
+  if (body && same) body.scrollTop = saved.body;
+}
+
 function _renderMainTab(p) {
   const canMgr = state.canManageCurrentEvent();
   const meId   = state.currentUser?.id;
+  const dashLayout = isDashboard();
 
   // ヘルパ：タスクが「自分が担当している」と言えるか
   const _isMyMission = (m) => {
@@ -783,14 +989,15 @@ function _renderMainTab(p) {
            下のタブバーからは外してあるので、**ここが唯一の入口**。消さないこと。
            ★チップは行の中で中央に置きたいので、左端にベルと同じ幅の空きを作る
            （justify-content: space-between だとチップが左へ寄る）。 -->
-      <div class="p-main-board__date-row">
-        <span class="p-main-board__date-spacer" aria-hidden="true"></span>
+      <!-- ★広い画面（ダッシュボード表示）ではベルを出さない。通知の入口は左端の列（Components.BoardRail）1か所 -->
+      <div class="p-main-board__date-row${dashLayout ? ' p-main-board__date-row--center' : ''}">
+        ${dashLayout ? '' : `<span class="p-main-board__date-spacer" aria-hidden="true"></span>`}
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
           class="p-main-board__date-chip">
           <img src="/images/icon/icon-Calender.svg" class="p-main-board__date-icon" alt="">
           ${_dateChip}
         </div>
-        <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
+        ${dashLayout ? '' : `<button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
           data-log="notif_open" class="p-main-board__notif" aria-label="通知">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -800,7 +1007,7 @@ function _renderMainTab(p) {
           ${Components.unreadCountFor(p.id) > 0
             ? `<span class="p-main-board__notif-badge">${Components.badgeText(Components.unreadCountFor(p.id))}</span>`
             : ''}
-        </button>
+        </button>`}
       </div>
 
       <!-- アナウンスカード -->
@@ -844,11 +1051,8 @@ function _renderMainTab(p) {
           })()}
         </div>` : ''}`;
 
-  // 下部パネルの中身：タスク一覧（背景レイヤーの山がカードの隙間から見える）
-  const bottomPanelInner = `
-      <!-- やること一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
-      <section data-coach="mission-list">
-        <!-- 表示モード切替（私のみ / 全て）-->
+  // 表示モード切替（私のやること / みんなのやること）。★広い画面の右列でも同じものを使う
+  const viewToggleHtml = `
         <div class="p-main-board__view-toggle">
           <button type="button" onclick="window._app.setMissionViewMode('mine')"
             class="p-main-board__view-button${viewMode === 'mine' ? ' is-active' : ''}">
@@ -858,12 +1062,28 @@ function _renderMainTab(p) {
             class="p-main-board__view-button${viewMode === 'all' ? ' is-active' : ''}">
             みんなのやること
           </button>
-        </div>
+        </div>`;
+
+  // 下部パネルの中身：タスク一覧（背景レイヤーの山がカードの隙間から見える）
+  const bottomPanelInner = `
+      <!-- やること一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
+      <section data-coach="mission-list">
+        <!-- 表示モード切替（私のみ / 全て）-->
+        ${viewToggleHtml}
         ${tagFilterHtml}
         <div class="p-main-board__mission-list">${missionCards}</div>
       </section>`;
 
-  return { pinnedAux, proposalsRow, bottomPanelInner };
+  // ★広い画面の右列（_renderDashboardMain）が、カレンダーで選んだ日のぶんだけカードを出すために使う。
+  //   カードの HTML は displayMissions と同じ並びで1回だけ作ってある（missionCardList）
+  const cardsFor = (list) => {
+    if (!Array.isArray(missionCardList)) return missionCardList;   // 空のときの案内文
+    const byId = new Map(displayMissions.map((m, i) => [m.id, missionCardList[i]]));
+    const html = list.map(m => byId.get(m.id)).filter(Boolean);
+    return html.length ? _withMonthHeadings(list, html) : '';
+  };
+
+  return { pinnedAux, proposalsRow, bottomPanelInner, viewToggleHtml, tagFilterHtml, displayMissions, cardsFor };
 }
 
 // ===== 承認待ちメンバーバナー（管理者向け）=====

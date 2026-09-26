@@ -275,3 +275,54 @@
     --layout-max-width: 448px;
   }
 }
+
+/* --- タブレット・PC（広い画面）---------------------------------------------
+   ★<html> のクラスは public/js/layoutMode.js が付ける（判定はそこ1か所）。
+     is-wide … (min-width: 768px) and (min-height: 560px)。横向きのスマホは含めない
+   ★画面の種類で幅を変える。クラスが付かない画面（作成フロー・ログインなど）は 448px のまま
+     （1問ずつの画面で、広げると間延びする）。
+   ★--layout-max-width を参照する固定要素（山の背景・下部パネル）も一緒に追従する。 */
+:root {
+  /* ボトムシート・タスク作成モーダルの最大幅（広い画面で画面いっぱいに伸ばさない）*/
+  --sheet-max-width: 100%;
+  /* 広い画面のメインボードの左端の列（メインボード・アーカイブ・通知・フィードバック・設定の丸いボタン）*/
+  --board-rail-width: 80px;
+  --rail-button-size: 52px;
+  /* ダッシュボード表示の左列（山と提案）の幅。左端の列を除いた残りの半分（右列と半々。2026-09-27）。
+     ★山の素材は 900px 幅で書き出しているので、高解像度の画面で左列が 450px を超えると少しぼやける。
+       気になるようなら素材を広めに書き出し直す（ART_W は変えないこと。mountainPath.js）*/
+  --board-side-width: calc((100vw - var(--board-rail-width)) / 2);
+  /* 読む・書く画面の幅。メインボードのアーカイブ・通知タブの中央の列もこの幅 */
+  --reading-max-width: 720px;
+  /* ダッシュボードの右列の切り替え（やること｜カレンダー｜ガント）の最大幅 */
+  --board-switch-max-width: 360px;
+  /* 右列：カレンダー（月）の目安の幅と、やることのカードの列の最小幅。
+     ★ブレイクポイントを使わない：2つが横に入る幅なら並べ、入らなければ縦に積む（flex-wrap）*/
+  --board-cal-width: 360px;
+  --board-list-min-width: 360px;
+  /* 左列の提案キャラの並びの最大幅（キャラの箱が横に伸びすぎないように）*/
+  --board-proposals-max-width: 560px;
+  /* ホームのイベントのカード1枚の目安の幅（_home.css の .p-home__grid。30%〜22% の間に収める）*/
+  --home-card-basis: 160px;
+  /* プロジェクトのタイル1枚の最小幅（_home.css の .p-home__folders）*/
+  --folder-card-min-width: 280px;
+}
+
+:root.is-wide {
+  --sheet-max-width: 560px;
+}
+
+/* 見渡す画面（ホーム・フォルダ・メインボード）*/
+:root.is-screen-dashboard {
+  --layout-max-width: 1280px;
+}
+
+/* 画面いっぱいに使う画面（メインボード）。★dashboard より後ろに置く（同じ詳細度なので後勝ち）*/
+:root.is-screen-full {
+  --layout-max-width: 100%;
+}
+
+/* 読む・書く画面（タスク詳細・イベント設定など）*/
+:root.is-screen-reading {
+  --layout-max-width: var(--reading-max-width);
+}

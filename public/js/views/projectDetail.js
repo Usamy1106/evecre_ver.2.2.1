@@ -74,7 +74,7 @@ export function renderProjectDetail(container) {
 }
 
 function _renderEventList(list) {
-  return list.map(p => `
+  return `<div class="p-project-detail__events">` + list.map(p => `
       <div data-event-card data-event-id="${p.id}"
         onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
         class="p-project-detail__event">
@@ -88,7 +88,7 @@ function _renderEventList(list) {
         <svg class="p-project-detail__event-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="9 18 15 12 9 6"/>
         </svg>
-      </div>`).join('');
+      </div>`).join('') + `</div>`;
 }
 
 function _esc(s) {

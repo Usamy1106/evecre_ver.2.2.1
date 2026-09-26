@@ -114,6 +114,30 @@
   transform: scale(.95);
 }
 
+/* ボタンの文字。★スマホではアイコンだけ（2つ並べると約240px を占め、ユーザー名の居場所が無くなる）。
+   広い画面（layoutMode.js の is-wide）では、ラベル付きの角丸四角に広げる */
+.l-header__action-label {
+  display: none;
+}
+
+:root.is-wide .l-header--home .l-header__action {
+  gap: var(--space-2);
+  width: auto;
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-md);
+}
+
+:root.is-wide .l-header--home .l-header__action-label {
+  display: inline;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  white-space: nowrap;
+}
+
+:root.is-wide .l-header--home .l-header__action--join .l-header__action-label {
+  color: var(--create-green);
+}
+
 /* メール未認証：押せるが、押すと認証を促される。見た目で「まだ」と分かるようにする */
 .l-header__action--locked {
   border-color: var(--color-text-muted);

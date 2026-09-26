@@ -26,6 +26,7 @@
 @import url("./layout/_header.css");
 @import url("./layout/_tabs.css");
 @import url("./layout/_fixed-bottom.css");
+@import url("./layout/_rail.css");
 
 /* Object: Component -------------------------------------------------------- */
 @import url("./object/component/_button.css");
@@ -93,6 +94,8 @@
 @import url("./object/project/_user-profile.css");
 @import url("./object/project/_answers.css");
 @import url("./object/project/_stats.css");
+/* ★広い画面のメインボード。上の _main-board / _mountain / _character / _schedule を上書きするので最後に置く */
+@import url("./object/project/_board-dashboard.css");
 
 /* Object: Utility ---------------------------------------------------------- */
 @import url("./object/utility/_transition.css");

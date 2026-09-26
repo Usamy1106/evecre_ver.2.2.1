@@ -200,11 +200,15 @@
 
 .p-home__grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  column-gap: var(--space-2);
+  /* ★ブレイクポイントを使わずに列数を決める（2026-09-27）。
+     1枚の最小幅を「30%（＝最大3列）〜22%（＝最大4列）」の間で 160px に寄せる。
+     スマホ（〜530px）は 30% が効いて必ず3列、広い画面では 22% が効いて4列。5列にはならない */
+  grid-template-columns: repeat(auto-fill, minmax(clamp(22%, var(--home-card-basis), 30%), 1fr));
+  /* ★列の間は 0 にして、カードの左右の余白で間を作る（カードの下線を段の端から端までつなげるため）*/
+  column-gap: 0;
+  row-gap: var(--space-8);
   align-items: start;
-  margin-bottom: var(--space-2);
-  padding-inline: var(--space-1);
+  margin-bottom: var(--space-8);
 }
 
 .p-home__divider {
@@ -219,6 +223,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* 段の下の線（棚）。隣のカードの線とつながって1本に見える。左右の余白＝カードの間（以前の column-gap の半分ずつ）*/
+  padding-inline: var(--space-1);
+  padding-bottom: var(--space-3);
+  border-bottom: 1.5px solid var(--color-border);
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
@@ -256,11 +264,18 @@
 
 /* --- プロジェクトのリスト ------------------------------------------------ */
 
+/* プロジェクトのタイル。★ブレイクポイントを使わない：1枚の最小幅 --folder-card-min-width を下回らない範囲で
+   横に並べる。スマホでは1列（今までのリストと同じ見た目）、広い画面ではタイル状に並ぶ */
+.p-home__folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--folder-card-min-width)), 1fr));
+  gap: var(--space-3);
+}
+
 .p-home__folder {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  margin-bottom: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--bg-textbox);
   border-radius: var(--radius-lg);

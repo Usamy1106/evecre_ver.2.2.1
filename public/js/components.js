@@ -50,7 +50,8 @@ export const Components = {
    * ヘッダー
    * @param {object|null} project - イベントオブジェクト（nullでホーム用ヘッダー）
    */
-  Header(project) {
+  // opts.compact … 広い画面のメインボード。「‹ イベント名」だけにする（フィードバック・設定は左端の列 BoardRail へ移す）
+  Header(project, opts = {}) {
     if (!project) {
       const username = state.currentUser?.username || '';
       const verified = !!state.currentUser?.isVerified;
@@ -70,7 +71,9 @@ export const Components = {
                ★どちらも「丸い背景＋アイコンだけ」。ラベルを出していた時期があるが、
                  2つ並べると約240px を占めてユーザー名の居場所が無くなった。
                ★並びは「作成 → 参加」。作った人が繰り返し使うのは作成側なので左に置く。
-               ★ラベルが無いので aria-label は必須。外すと読み上げで用が分からない。 -->
+               ★ラベルが無いので aria-label は必須。外すと読み上げで用が分からない。
+               ★広い画面（タブレット・PC）では幅に余裕があるので、ラベル付きの角丸四角に広げる
+                 （l-header__action-label。表示の切り替えは layout/_header.css の :root.is-wide）。 -->
           <div class="l-header__actions">
             <button type="button" onclick="${verified ? `window._app.setView('CREATE_EVENT_INFO')` : `window._app.requireVerification()`}"
               data-log="home_create_event"
@@ -79,11 +82,13 @@ export const Components = {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
+              <span class="l-header__action-label">イベントを作成</span>
             </button>
             <button type="button" onclick="window._app.openJoinByCodeModal()"
               data-log="home_join_by_code" class="l-header__action l-header__action--join"
               aria-label="イベントに参加">
               <img src="/images/icon/icon-join.svg" alt="" class="l-header__action-icon">
+              <span class="l-header__action-label">イベントに参加</span>
             </button>
           </div>
         </header>`;
@@ -99,7 +104,7 @@ export const Components = {
           <!-- ★タイトル横の山イラストは削除した（MountainMini はホームのグリッド等では継続使用）-->
           <span class="l-header__title">${_escText(project.name)}</span>
         </div>
-        <div class="l-header__actions">
+        ${opts.compact ? '' : `<div class="l-header__actions">
           <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
             data-log="header_feedback" class="l-header__action" aria-label="フィードバックを送る">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -111,8 +116,53 @@ export const Components = {
             data-log="header_project_menu" class="l-header__action">
             <img src="/images/icon/icon-Setting.svg" class="l-header__action-image" alt="">
           </button>
-        </div>
+        </div>`}
       </header>`;
+  },
+
+  /**
+   * 広い画面（タブレット・PC）のメインボードの左端の列。上から メインボード／アーカイブ／通知／フィードバック／設定。
+   * スタイル: public/css/layout/_rail.css（丸い白地にアイコン。いま開いているタブは塗り）
+   * ★スマホでは使わない（スマホはヘッダーのタブ＋日付チップの行のベル）。
+   * ★通知のバッジは [data-notif-entry] で refreshNotifBadge が差し替える（ダッシュボード表示では、ここが唯一の入口）。
+   * ★フィードバック・設定はヘッダーから移したもの。ヘッダー（compact）には出さない（同じボタンを2つ置かない）。
+   * @param {object} project
+   * @param {'MAIN'|'ARCHIVE'|'NOTIFICATIONS'} active
+   */
+  BoardRail(project, active) {
+    const on = (id) => active === id ? ' is-active' : '';
+    const unread = this.unreadCountFor(project?.id);
+    return `
+      <nav class="l-rail" aria-label="イベントのメニュー">
+        <button type="button" onclick="window._app.setTab('MAIN')" data-log="rail_main"
+          class="l-rail__item${on('MAIN')}" aria-label="メインボード" title="メインボード">
+          <img src="/images/icon/icon-MainBoard${active === 'MAIN' ? '-pressed' : ''}.svg" class="l-rail__icon" alt="">
+        </button>
+        <button type="button" onclick="window._app.setTab('ARCHIVE')" data-log="rail_archive"
+          class="l-rail__item${on('ARCHIVE')}" aria-label="アーカイブ" title="アーカイブ">
+          <img src="/images/icon/icon-Archive${active === 'ARCHIVE' ? '-pressed' : ''}.svg" class="l-rail__icon" alt="">
+        </button>
+        <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry data-log="notif_open"
+          class="l-rail__item${on('NOTIFICATIONS')}" aria-label="通知" title="通知">
+          <svg class="l-rail__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          ${unread > 0 ? `<span class="p-main-board__notif-badge">${this.badgeText(unread)}</span>` : ''}
+        </button>
+        <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
+          data-log="header_feedback" class="l-rail__item" aria-label="フィードバックを送る" title="フィードバック">
+          <svg class="l-rail__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </a>
+        <button type="button" onclick="window._app.toggleProjectMenu(event)" data-log="header_project_menu"
+          class="l-rail__item" aria-label="イベント設定" title="設定">
+          <img src="/images/icon/icon-Setting.svg" class="l-rail__icon" alt="">
+        </button>
+      </nav>`;
   },
 
   /**

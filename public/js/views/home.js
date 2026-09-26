@@ -221,6 +221,7 @@ function _renderProjectsTab() {
       <h2 class="p-home__heading">プロジェクト</h2>
       ${createBtn}
     </div>
+    <div class="p-home__folders">
   ` + folders.map(f => `
     <div data-folder-card data-folder-id="${f.id}"
       onclick="window._app.setView('PROJECT_DETAIL', '${f.id}')"
@@ -235,7 +236,8 @@ function _renderProjectsTab() {
         ${f.description ? `<p class="p-home__folder-description">${_esc(f.description)}</p>` : ''}
       </div>
       <p class="p-home__folder-count">${f.eventCount || 0}件</p>
-    </div>`).join('');
+    </div>`).join('') + `
+    </div>`;
 }
 
 function _esc(s) {
@@ -252,12 +254,12 @@ function _renderGrid(list) {
       <div class="p-home__divider"></div>`;
   }
 
-  let html = '';
-  for (let i = 0; i < list.length; i += 3) {
-    const row = list.slice(i, i + 3);
-    html += `
+  // ★1つのグリッドに全部並べる。列の数は CSS が画面の幅で決める（スマホ3列・広い画面4列。_home.css）。
+  //   以前は JS で3件ずつの段に分けて間に線（p-home__divider）を挟んでいたので、PC でも3列に固定されていた。
+  //   段の下の線は、いまはカードの下線がつながって見える形で CSS が描く
+  return `
       <div class="p-home__grid">
-        ${row.map(p => `
+        ${list.map(p => `
             <div data-event-card data-event-id="${p.id}" class="p-home__card"
               onclick="window._app.setView('MAIN_BOARD', '${p.id}')">
               <div class="p-home__card-thumb">
@@ -265,8 +267,5 @@ function _renderGrid(list) {
               </div>
               <span class="p-home__card-name">${_esc(p.name)}</span>
             </div>`).join('')}
-      </div>
-      <div class="p-home__divider"></div>`;
-  }
-  return html;
+      </div>`;
 }

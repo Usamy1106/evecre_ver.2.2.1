@@ -5,6 +5,7 @@ import { logEvent } from './logger.js';
 import { calculateDaysLeft, todayStr } from './utils.js';
 import { syncRealtime, disconnectRealtime } from './realtime.js';
 import { showConfirmDialog } from './dialog.js';
+import { applyLayoutClasses } from './layoutMode.js';
 
 
 // 保存のデバウンス待ち時間(ms)。save() は全イベント全文を PUT し、サーバは
@@ -113,6 +114,7 @@ export const state = {
   missionViewMode: 'mine',     // 'mine' | 'all'  タスク表示モード
   missionFilterTag: null,      // タスク絞り込みタグ（null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority'（目次と本文の並び。完了者別・作成者別は廃止）
+  boardPanelView: null,        // 広い画面のメインボード右列（'list'|'calendar'|'gantt'）。null＝localStorage から読む（views/mainBoard.js）
   archiveEditing: false,       // アーカイブの編集モード（管理者のみ）。★画面を離れたら閲覧に戻す（setView）
   editingMissionId: null,
   draftEvent: newDraftEvent(),   // イベント作成フローの下書き。リセットは state.resetDraftEvent()
@@ -534,6 +536,7 @@ export const state = {
     this.currentUser = null;
     this.events = [];
     this.selectedEventId = null;
+    this.boardPanelView = null;   // 右列の表示はユーザーごとに覚えている。次の人の分を読み直す
     // ★入口へ戻す。別のアカウントで入り直す人も、新しく作る人もここから分かれる
     this.currentView = 'WELCOME';
     this.render();
@@ -553,6 +556,7 @@ export const state = {
     this.selectedFolderId = null;
     this.selectedMissionId = null;
     this.missionChat = null;
+    this.boardPanelView = null;
     this.accountScreen = {};
     this.signup = null;
     this.authDraft  = { username: '', email: '', password: '' };
@@ -1118,6 +1122,8 @@ export const state = {
     // 提案の更新チェック（判定本体は _checkProposalCycle）
     this._checkProposalCycle();
 
+    // ★広い画面（タブレット・PC）なら画面の種類に合わせてアプリの幅を切り替える（layoutMode.js）
+    applyLayoutClasses(this.currentView);
     const fn = _renderers[this.currentView];
     if (fn) fn(appEl);
 

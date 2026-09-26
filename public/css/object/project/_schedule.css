@@ -180,6 +180,28 @@
   user-select: none;
 }
 
+/* タスクの実施日の点（広い画面のメインボード右列だけ。schedulePanel.js の ctx.onPickDate があるとき）。
+   ★タグ色を最大3つ。数字の下に重ねる（セルの高さは変えない） */
+.p-schedule__day.has-dots {
+  position: relative;
+}
+
+.p-schedule__day-dots {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  display: flex;
+  gap: 2px;
+  transform: translateX(-50%);
+}
+
+.p-schedule__day-dots > i {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  background-color: var(--dot-color);
+}
+
 .p-schedule__day:active {
   background-color: var(--color-bg);
 }

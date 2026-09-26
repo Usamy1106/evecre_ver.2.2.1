@@ -1418,8 +1418,12 @@ export function initMountainPathSync(restoreTop = null) {
  */
 function _panelVeilTop(fallback) {
   const panel = document.getElementById('mainboard-bottom-panel');
-  if (!panel) return fallback;
-  return panel.getBoundingClientRect().top + PANEL_WAVE_H / 2;
+  if (panel) return panel.getBoundingClientRect().top + PANEL_WAVE_H / 2;
+  // ★広い画面（ダッシュボード表示）には下部パネルが無い。左列の下の台（提案キャラを載せる）が
+  //   同じ役目を持つ（views/mainBoard.js の data-mountain-veil）。台にも同じ波が乗っている
+  const veil = document.querySelector('[data-mountain-veil]');
+  if (veil) return veil.getBoundingClientRect().top + PANEL_WAVE_H / 2;
+  return fallback;
 }
 
 /**

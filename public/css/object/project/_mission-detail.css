@@ -53,6 +53,18 @@
 
 /* --- 本文 ---------------------------------------------------------------- */
 
+/* ★広い画面の「読む・書く」画面では、アプリの幅（--reading-max-width）いっぱいまで使う。
+     512px の上限はスマホ横向きなどの中くらいの幅のためのもの（layoutMode.js の is-screen-reading） */
+:root.is-screen-reading .p-mission-detail__body {
+  max-width: none;
+}
+
+/* 入力バー（画面下に固定）は本文と同じ幅に揃える（本文＝アプリ幅から左右の余白を引いたもの） */
+:root.is-screen-reading .p-mission-detail__composer-row,
+:root.is-screen-reading .p-mission-detail__reply {
+  max-width: calc(var(--reading-max-width) - var(--space-6) * 2);
+}
+
 .p-mission-detail__body {
   flex: 1;
   width: 100%;

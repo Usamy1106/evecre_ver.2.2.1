@@ -158,11 +158,18 @@
      長押し中に文字が選択されたりリンクのプレビューが出ないよう、
      user-select と touch-callout を止めている。 */
 
+/* イベントのタイル。★ブレイクポイントを使わない（ホームのプロジェクトのタイルと同じ考え方）。
+   スマホでは1列、広い画面ではタイル状に並ぶ */
+.p-project-detail__events {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--folder-card-min-width)), 1fr));
+  gap: var(--space-3);
+}
+
 .p-project-detail__event {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  margin-bottom: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--bg-textbox);
   border-radius: var(--radius-lg);

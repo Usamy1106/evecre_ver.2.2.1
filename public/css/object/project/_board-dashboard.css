@@ -1,0 +1,271 @@
+/* ==========================================================================
+   Object / Project / board-dashboard — メインボードのダッシュボード表示（タブレット・PC）
+   使用箇所: public/js/views/mainBoard.js（_renderDashboardMain）
+
+   ★広い画面でだけ使う（判定は public/js/layoutMode.js の isDashboard。
+     (min-width: 768px) and (min-height: 560px)）。スマホのメインボードには一切効かない。
+   ★画面いっぱいに使う（is-screen-full で --layout-max-width: 100%）。
+     左端の列（layout/_rail.css）＋ 残りを左右半々：左＝日付チップ・お知らせ・山・提案キャラ／
+     右＝やること×カレンダー／ガント（上の操作列は共通）。
+   ★ブレイクポイントに頼らない：右列のカレンダーとカードは、横に入れば並べ・入らなければ積む（flex-wrap）。
+   ★スタイルシートの最後のほうに置く（_main-board / _mountain / _character / _schedule を上書きするため）。
+   ========================================================================== */
+
+/* 左端の列（position: fixed）のぶんだけ中身を右へずらす */
+.p-main-board--dashboard {
+  padding-left: var(--board-rail-width);
+}
+
+.p-board-dash {
+  display: grid;
+  flex: 1;
+  grid-template-columns: var(--board-side-width) minmax(0, 1fr);
+  min-height: 0;
+}
+
+/* --- 左列：山と提案 ------------------------------------------------------ */
+
+.p-board-dash__side {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 日付チップを行の中央に（広い画面ではベルが無く、左の空きも要らない） */
+.p-main-board__date-row--center {
+  justify-content: center;
+}
+
+/* 左列の下の台（提案キャラを載せる）。★スマホの下部パネル（layout/_fixed-bottom.css の .l-bottom-panel）と
+   同じ「波の装飾＋単色」の2枚重ね。キャラは負のマージンで波に重なる（_character.css の --char-lift）。
+   ★キャラが出ないとき（一般メンバー・提案しないイベント）も台だけは出す。出さないと、山の絵が
+     届かない左列の下端に地色の帯が見える。
+   ★山の遠近の基準帯はこの台の波の中ほどで終わる（data-mountain-veil。mountainPath.js の _panelVeilTop）。
+   ★塗りの色・波の高さはスマホと同じトークン。重ねて濃い線が出ないよう、波の下端に単色を突き合わせる */
+.p-board-dash__proposals {
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+  min-height: calc(var(--panel-wave-h) + var(--space-6));
+  padding-top: var(--panel-wave-h);
+  padding-bottom: var(--space-4);
+  background-image:
+    url("/images/front/mainboard-bottom-panel-decolation.svg"),
+    linear-gradient(var(--panel-bg), var(--panel-bg));
+  background-repeat: no-repeat, no-repeat;
+  background-position: top center, bottom center;
+  background-size:
+    100% var(--panel-wave-h),
+    100% calc(100% - var(--panel-wave-h));
+}
+
+/* キャラの箱が横に伸びすぎないよう、並びの幅に上限を付けて中央に */
+.p-board-dash__proposals .p-main-board__proposals {
+  max-width: var(--board-proposals-max-width);
+  margin-inline: auto;
+}
+
+/* 山の背景（position:fixed）を左列の位置と幅に合わせる。
+   ★left は「アプリの左端＋左端の列」。アプリが中央寄せでも全幅でも同じ式で合う。
+   ★--art-unit は mountainPath.js の measure() が実測する（ここでは書かない） */
+.p-main-board--dashboard.p-main-board--fixed .p-mountain {
+  right: auto;
+  left: calc((100vw - min(100vw, var(--layout-max-width))) / 2 + var(--board-rail-width));
+  width: var(--board-side-width);
+  max-width: none;
+  margin-inline: 0;
+}
+
+/* --- 右列：やること×カレンダー／ガント --------------------------------------- */
+
+.p-board-dash__main {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+}
+
+/* 上の操作列。1行目：私の／みんなの（絞り込み）・カレンダー｜ガント（表示）／2行目：ラベル・並び替え・予定をコピー */
+.p-board-dash__bar {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.p-board-dash__bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* 私の／みんなの。★スマホの下部パネル用の余白は持ち込まない */
+.p-board-dash__bar-row .p-main-board__view-toggle {
+  flex: 1 1 var(--board-switch-max-width);
+  margin: 0;
+}
+
+/* 2行目：ラベルの行が伸び、予定をコピーは右端 */
+.p-board-dash__bar-row--sub {
+  flex-wrap: nowrap;
+}
+
+.p-board-dash__bar-row--sub .p-main-board__filter-row {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.p-board-dash__copy {
+  flex-shrink: 0;
+  margin-left: 0;
+}
+
+/* 表示の切り替え（カレンダー｜ガント）。★「私の／みんなの」のセグメンテッドコントロールと形を分ける：
+   アイコン＋ラベルの小さな枠付きボタンの組。選んでいる方だけ青い枠と淡い青の塗り */
+.p-board-dash__views {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.p-board-dash__view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  transition: border-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+
+.p-board-dash__view:hover {
+  color: var(--color-text);
+}
+
+.p-board-dash__view.is-active {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-tint2);
+  color: var(--color-primary);
+}
+
+.p-board-dash__view-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* 中身。★スクロールするのはここ（カレンダーは sticky で上に残る） */
+.p-board-dash__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* カレンダー：月のカレンダーとカードの列。横に入れば並べ、入らなければ積む（ブレイクポイントを使わない） */
+.p-board-dash__body--calendar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  /* ★下は FAB に最後のカードが隠れないぶん空ける */
+  padding-bottom: calc(var(--space-10) * 2);
+}
+
+/* 月のカレンダー。★スクロールしても上（または左）に残る。下を流れるカードが透けないよう地色を持つ */
+.p-board-dash__cal {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: 1 1 var(--board-cal-width);
+  background-color: var(--color-bg);
+}
+
+.p-board-dash__list {
+  flex: 1 1 var(--board-list-min-width);
+  min-width: 0;
+  padding: var(--space-4) var(--space-6) 0;
+}
+
+/* 選んだ日の見出し（× 解除） */
+.p-board-dash__filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary-tint2);
+}
+
+.p-board-dash__filter-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-board-dash__filter-clear {
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* ガント：スクロールするのは中身（ガントの本体）。外枠は動かさない */
+.p-board-dash__body--schedule {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* シート用の高さ（82vh）を外して、右列の高さいっぱいに広げる */
+.p-schedule--inline.p-schedule--full {
+  flex: 1;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+}
+
+/* 締切順の月の見出し。★スマホは黄色いパネルの上なので白文字。右列の地は明るいので文字色に戻す */
+.p-board-dash__list .p-main-board__month {
+  color: var(--color-text-muted);
+}
+
+/* 通知の未読の数（左端の列のベル）。丸の右上に重ねる */
+.p-main-board--dashboard .l-rail__item .p-main-board__notif-badge {
+  top: -4px;
+  right: -4px;
+}
+
+/* タスク作成の FAB は右列の右下（アプリの右端から）。スマホは layout/_fixed-bottom.css のまま */
+.p-main-board--dashboard .l-fab {
+  right: calc((100vw - min(100vw, var(--layout-max-width))) / 2 + var(--space-6));
+}
+
+/* --- アーカイブ・通知タブ：中央の1列（読みやすい幅）------------------------------ */
+
+.p-main-board--dashboard .p-main-board__page {
+  width: 100%;
+  max-width: var(--reading-max-width);
+  margin-inline: auto;
+}
+
+/* 背景の山も中央の1列の幅に（画面いっぱいに伸ばすと素材が粗く見える）。
+   ★左端の列のぶん、中央を右へずらす */
+.p-main-board--dashboard .p-mountain--backdrop {
+  max-width: var(--reading-max-width);
+  transform: translateX(calc(var(--board-rail-width) / 2));
+}
