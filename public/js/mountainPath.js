@@ -43,6 +43,15 @@ const OPACITY_RANGE = 0.95;  // 1.0 - OPACITY_MIN
 const OPACITY_CURVE = 1.5;
 // ★画面上端の帯。ここに入ったマスは追加でフェードさせ、上から「にじみ出る」
 //   ように現れる。遠近だけだと、上端で急に切り取られたように見えてしまう。
+// ★マスの**間隔**にも遠近を掛ける割合（2026-09-28）。0＝間隔は一定（以前）、1＝大きさに比例。
+//   間隔が一定だと、手前ほどマスが大きいのに詰まって見え、奥はまばらに見えていた。
+//   手前の端を基準に縦の位置を伸び縮みさせる（手前は広く、奥は狭く）。
+//   ★1 にすると奥がほとんど重なる（SCALE_MIN が小さいため）。
+const GAP_PERSPECTIVE = 0.7;
+// ★草木（WorldSpawnedObjects）にもマスと同じ遠近を掛ける（2026-09-28）。手前は大きくなりすぎるので、
+//   t（0=手前の端〜1=奥の端）が OBJ_FADE_START を下回ると薄くなり、OBJ_FADE_END で透明になる。
+const OBJ_FADE_START = 0.32;
+const OBJ_FADE_END   = 0.08;
 const FADE_IN_BAND = 120;    // 上端からこの高さ(px)でフェードイン
 
 // ★仮想化のしきい値。可視範囲 ±1画面ぶんの外にあるマスは毎フレームの
@@ -54,7 +63,7 @@ const CULL_MARGIN = 1;     // 画面高の何倍まで面倒を見るか
 import { findObject } from './mountainObjects.js';
 // ★素材の一覧は自動生成。ファイル名・拡張子・パスをこのファイルに書かないこと
 //   （素材を足すたびに手で直すことになる）。URL の組み立ても bgUrl に任せる。
-import { BG_ASSETS, BG_SHARED, bgUrl } from './mountainAssets.generated.js';
+import { BG_ASSETS, BG_SHARED, BG_SHARED_DIR, bgUrl } from './mountainAssets.generated.js';
 import { BG_THEMES } from './mountainThemes.js';
 
 // ── 背景セグメント ────────────────────────────────────────
@@ -259,6 +268,12 @@ function _loadSummitFonts() {
 //   マスの見た目の高さ（--node-size × --node-squash ＝ 約64px）より
 //   小さくすると重なるので、下げすぎないこと。
 const NODE_GAP   = 86;
+// ★広い画面（タブレット・PC）ではマスを大きくする（2026-09-28）。倍率は「山の列の幅 ÷ スマホの幅(448)」を
+//   1〜TILE_SCALE_MAX に収めたもの。マスの大きさ（CSS の --tile-scale）と間隔（NODE_GAP × 倍率）の両方に掛ける
+//   （大きさだけ上げると縦に重なる）。
+//   ★草木の計画（PLANT_REF_*）には掛けない（端末ごとに草木が変わってしまう）。
+const TILE_SCALE_MAX = 1.5;
+const TILE_BASE_W = 448;
 const TOP_PAD    = 96;  // 道の先端より上に取る余白(px)。★山頂マーカーも山頂背景も撤去済みだが、
                         //   先端のマスがキャンバス上端に貼り付かないようにこの余白は残す。
 // ★下端の余白。マスがここより下には来ない。
@@ -303,11 +318,25 @@ function _esc(s) {
 }
 
 /** 画面の高さ viewH・マス n 個のときのキャンバスの高さ（画面px） */
-function _canvasHFor(viewH, n) {
+function _canvasHFor(viewH, n, gap = NODE_GAP) {
   return Math.max(
     viewH - 120, // 画面全体に見せる最低高
-    TOP_PAD + Math.max(n - 1, 0) * NODE_GAP + BOTTOM_PAD + 44,
+    TOP_PAD + Math.max(n - 1, 0) * gap + BOTTOM_PAD + 44,
   );
+}
+
+/**
+ * この端末でのマスの倍率（1〜TILE_SCALE_MAX）。広い画面（<html class="is-wide">）だけ 1 より大きい。
+ * ★広い画面の判定は layoutMode.js が付ける is-wide を読むだけ（ここで matchMedia を書かない）。
+ * ★山の列の幅は --board-side-width と同じ式：(画面幅 − 左端の列) ÷ 2。左端の列の幅は CSS 変数から読む。
+ */
+function _tileScale() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return 1;
+  const root = document.documentElement;
+  if (!root?.classList?.contains('is-wide')) return 1;
+  const rail = parseFloat(getComputedStyle(root).getPropertyValue('--board-rail-width')) || 0;
+  const colW = ((window.innerWidth || 0) - rail) / 2;
+  return Math.min(TILE_SCALE_MAX, Math.max(1, colW / TILE_BASE_W));
 }
 
 // マス列とキャンバス寸法（背景・スクロール窓で共有）
@@ -321,10 +350,12 @@ function _layout(p) {
     .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   const clearedCount = cleared.length;
   const n = clearedCount + 1;   // 完了マス + 1個先の灰色マス
-  const canvasH = _canvasHFor((typeof window !== 'undefined' ? window.innerHeight : 640), n);
+  const tileScale = _tileScale();
+  const gap = NODE_GAP * tileScale;
+  const canvasH = _canvasHFor((typeof window !== 'undefined' ? window.innerHeight : 640), n, gap);
   const xFor = i => _xAt(i);
-  const yFor = i => canvasH - BOTTOM_PAD - i * NODE_GAP;
-  return { missionCount: missions.length, cleared, clearedCount, n, canvasH, xFor, yFor };
+  const yFor = i => canvasH - BOTTOM_PAD - i * gap;
+  return { missionCount: missions.length, cleared, clearedCount, n, canvasH, xFor, yFor, tileScale };
 }
 
 /**
@@ -868,22 +899,24 @@ let _bgKeep = null;
  *   他のページを開いている間は #mountain-bg が DOM に無いので、ここで捨てると
  *   「戻ってきたときに使い回す」が成立しない。
  */
+const _BG_LAYERS = ['.p-mountain__bg-layer', '.p-mountain__cloud-layer'];
+
 export function captureBgLayer() {
-  const el = document.querySelector('#mountain-bg .p-mountain__bg-layer');
-  if (el && el.dataset.bgSig) _bgKeep = { sig: el.dataset.bgSig, el };
+  const els = _BG_LAYERS.map(sel => document.querySelector(`#mountain-bg ${sel}`));
+  if (els.every(el => el && el.dataset.bgSig)) _bgKeep = { sig: els[0].dataset.bgSig, els };
 }
 
-/** 差し替えた**後**に呼ぶ。署名が同じなら退避した背景に戻す */
+/** 差し替えた**後**に呼ぶ。署名が同じなら退避した背景に戻す（背景と雲の2層） */
 export function restoreBgLayer() {
   const keep = _bgKeep;
   if (!keep) return;
-  const fresh = document.querySelector('#mountain-bg .p-mountain__bg-layer');
-  if (!fresh) return;
-  if (fresh.dataset.bgSig !== keep.sig) {
+  const fresh = _BG_LAYERS.map(sel => document.querySelector(`#mountain-bg ${sel}`));
+  if (fresh.some(el => !el)) return;
+  if (fresh.some(el => el.dataset.bgSig !== keep.sig)) {
     _bgKeep = null;               // ★中身が変わった。抱え込まずに手放す
     return;
   }
-  fresh.replaceWith(keep.el);
+  fresh.forEach((el, i) => el.replaceWith(keep.els[i]));
 }
 
 /**
@@ -918,6 +951,13 @@ function _summitRect(parts) {
     y1: Math.max(0, Math.round(y0)) + SUMMIT_W };
 }
 
+/** 山頂のシルエット（開催後の切り抜き）。イベントIDから決定的に1枚 */
+function _pickSummitMask(eventId) {
+  const list = BG_SHARED.summitMask || [];
+  if (list.length === 0) return null;
+  return list[_hash(`${eventId}:mask`) % list.length];
+}
+
 function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   // ★終わったイベントは逃げを積まない（看板を道の天井の近くに保つため）。
   //   代わりに、いちばん上の地形より上は空になる。これは狙いどおり。
@@ -948,8 +988,14 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   //   - 開催後、この端末の看板に重なるもの … 看板の文字を読めることを優先する
   //   ★この2つ以外で端末ごとに草木を変えないこと。
   const ceiling = parts.length ? Math.max(...parts.map(q => q.y + q.h)) : 0;
+  // ★開催後は、いちばん上の地形を山頂のシルエット（Summit/musk）で切り抜く（2026-09-28）。
+  //   切り抜きの帯（シルエットの高さ）より上に頭が出る草木は空に浮くので描かない。
+  const mask = (isSummit && parts.length) ? _pickSummitMask(eventId) : null;
+  const maskRatio = mask ? mask.h / mask.w : 0;
+  const capBottom = ceiling - ART_W * maskRatio;   // シルエットの下端（素材px）
   const hiddenHere = (pt, pl) => {
     if (pt.y + pl.y + pl.h > ceiling) return true;
+    if (mask && pt.y + pl.y + pl.h > capBottom) return true;
     if (!isSummit) return false;
     const x0 = pl.x - BOARD_CLEAR, x1 = pl.x + pl.w + BOARD_CLEAR;
     const y0 = pt.y + pl.y - BOARD_CLEAR, y1 = pt.y + pl.y + pl.h + BOARD_CLEAR;
@@ -972,7 +1018,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
     //     1枚 250KB の地形とは事情がまったく違う（デコード量の問題も起きない）。
     const plantHtml = (planting.get(k) || []).filter(pl => !hiddenHere(pt, pl)).map(pl => `
         <img class="p-mountain__plant" src="${bgUrl(pt.theme, 'WorldSpawnedObjects', pl.file, pl.v)}" alt=""
-          decoding="async" fetchpriority="low"
+          decoding="async" fetchpriority="low" data-oy="${pt.y + pl.y}"
           style="--pl-x:${pl.x};--pl-y:${pl.y};--pl-w:${pl.w};--pl-h:${pl.h}">`).join('');
 
     // ★地形の絵はこの <div> の background-image。<img> にしないこと（上の経緯を参照）。
@@ -1023,20 +1069,32 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   }
   const summit = summitHtml;
 
-  // ★雲は地形と同じ入れ物（bg-layer）に、地形の**間**の z で差し込む。
-  //   地形の子にすると、親の高さで切られたり親ごと transform されたりして
-  //   「山と一緒にスクロールしつつ、横に流れる」が両立しない。
+  // ★雲はマス（道）より**手前**の別の層（cloud-layer）に置く（2026-09-28）。常に少し透かす
+  //   （_mountain.css の --cloud-opacity）。地形の子にすると、親の高さで切られたり親ごと
+  //   transform されたりして「山と一緒にスクロールしつつ、横に流れる」が両立しない。
   const clouds = _driftPlan(eventId, parts).map(c => `
-      <img class="p-mountain__cloud" src="${bgUrl(null, 'cloud', c.file, c.v)}" alt=""
+      <img class="p-mountain__cloud" src="${bgUrl(null, BG_SHARED_DIR.cloud, c.file, c.v)}" alt=""
         decoding="async" fetchpriority="low"
-        style="--cl-y:${c.y};--cl-w:${c.w};--cl-h:${c.h};--cl-x0:${c.x0};--cl-x1:${c.x1};--cl-dur:${c.dur}s;--cl-delay:${c.delay}s;z-index:${c.z}">`).join('');
+        style="--cl-y:${c.y};--cl-w:${c.w};--cl-h:${c.h};--cl-x0:${c.x0};--cl-x1:${c.x1};--cl-dur:${c.dur}s;--cl-delay:${c.delay}s">`).join('');
+
+  // ★地形と草木の入れ物（terrain）。開催後はここを山頂のシルエットで切り抜く（CSS の mask）。
+  //   看板は外に置く（切り抜かれないように）。
+  const maskStyle = mask
+    ? `--ground-top:${ceiling};--summit-mask:url('${bgUrl(null, BG_SHARED_DIR.summitMask, mask.f, mask.v)}');--summit-mask-ratio:${maskRatio.toFixed(4)}`
+    : '';
+  // ★山頂より上の「頂上から見た風景」の入れ物。★素材はまだ無い（CSS の --mtn-summit-view）
+  const summitView = mask ? `<div class="p-mountain__summit-view" aria-hidden="true" style="${maskStyle}"></div>` : '';
+  const terrain = `<div class="p-mountain__terrain${mask ? ' p-mountain__terrain--summit' : ''}" style="${maskStyle}">${lf}</div>`;
 
   // ★署名。SSE の再描画で「中身が同じなら DOM ごと使い回す」判定に使う
   //   （captureBgLayer / restoreBgLayer）。背景の中身を決める入力を全部含めること。
   const sig = `${eventId}:${n}:${isSummit ? 1 : 0}`;
 
   return {
-    html: `<div class="p-mountain__bg-layer" data-bg-sig="${sig}">${lf}${clouds}${summit}</div>`,
+    html: `<div class="p-mountain__bg-layer" data-bg-sig="${sig}">${summitView}${terrain}${summit}</div>`,
+    cloudHtml: `<div class="p-mountain__cloud-layer" data-bg-sig="${sig}">${clouds}</div>`,
+    // 開催後、切り抜いた先に見える空の色（いちばん上の地形のテーマ）
+    sky: mask ? (BG_THEMES.find(t => t.id === parts.at(-1).theme)?.sky || null) : null,
     summitY,
     // 山のシルエットの最高点（素材px）。measure() が「その上に空を見せる」ために読む
     peakY: parts.length ? Math.max(...parts.map(q => q.y + q.h)) : 0,
@@ -1068,7 +1126,7 @@ function _objectFor(p, mission) {
  * @param {object} p イベント（flat 形式）
  */
 export function renderMountainBg(p, opts = {}) {
-  const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor } = _layout(p);
+  const { missionCount, cleared, clearedCount, n, canvasH, xFor, yFor, tileScale } = _layout(p);
   const isSummit = _isSummit(p);
   const bg = _renderBgLayer(p, canvasH, isSummit, clearedCount);
 
@@ -1150,12 +1208,14 @@ export function renderMountainBg(p, opts = {}) {
     <!-- ★top はヘッダー＋タブの実測高に合わせて initMountainPathSync が設定する -->
     <!-- ★data-summit は initMountainPathSync が読む（山頂までスクロールできるよう
          上端の余白を広げるため）。JS から再判定せず、描画時の結果を渡す。 -->
-    <div id="mountain-bg" class="p-mountain${backdrop ? ' p-mountain--backdrop' : ''}" style="top:110px"
+    <!-- ★--mtn-sky は開催後だけ（山頂より上の空の色。mountainThemes.js の sky） -->
+    <div id="mountain-bg" class="p-mountain${backdrop ? ' p-mountain--backdrop' : ''}" style="top:110px;--tile-scale:${tileScale.toFixed(3)};${bg.sky ? `--mtn-sky:${bg.sky}` : ''}"
       data-summit="${isSummit ? '1' : '0'}" data-summit-y="${bg.summitY}" data-peak-y="${bg.peakY}">
       <div id="mountain-canvas" class="p-mountain__canvas" style="height:${canvasH}px">
         ${bg.html}
         ${nodes}
         ${emptyHint}
+        ${bg.cloudHtml}
       </div>
       <!-- ★お試し：画面上ほど白くかすませて奥行きを出すレイヤー。
            キャンバスの**外**に置くこと。中に入れるとスクロールで一緒に動いてしまい、
@@ -1215,6 +1275,21 @@ export function syncMountainBackdrop() {
   _revealLandformsByRect(bg);
 }
 
+/**
+ * 手前の端からの距離 u（画面px）を、間隔の遠近を掛けた距離に写す。
+ * 間隔の倍率 k(t) = 1 + (倍率(t) − 1) × GAP_PERSPECTIVE を 0〜u で積分したもの（閉じた式）。
+ * ★手前の端（u=0）は動かない。単調増加なので並び順は変わらない。
+ */
+function _gapMap(u, span) {
+  const G = GAP_PERSPECTIVE, C = DEPTH_CURVE;
+  const kAt = (sc) => 1 + (sc - 1) * G;
+  if (u <= 0) return u * kAt(SCALE_MAX);
+  const T = u / span;
+  const integ = (x) => (1 - G) * x + G * (SCALE_MAX * x - (SCALE_MAX - SCALE_MIN) * Math.pow(x, C + 1) / (C + 1));
+  if (T <= 1) return span * integ(T);
+  return span * integ(1) + (u - span) * kAt(SCALE_MIN);
+}
+
 export function initMountainPathSync(restoreTop = null) {
   // ★前回の配線を必ず外す。この関数は再描画のたびに呼ばれるので、
   //   window に張ったリスナーが積み上がる（scroll は要素と一緒に消えるが
@@ -1251,6 +1326,12 @@ export function initMountainPathSync(restoreTop = null) {
   // ★キャンバス上端に足す余白。スクロールを最後まで送ったときに、いちばん新しい
   //   マスが下部パネルのすぐ上（＝いちばん手前・いちばん大きい位置）まで下りてくる量。
   //   canvas ごと下へずらすので、背景もマスも一緒に動く＝ずれない。
+  // ★遠近を掛ける絵（草木）。高さは描画時の data-oy（素材px・下端から）から読む。
+  //   画面上の位置は measure() が px に直して yPx に入れる（paint の中で DOM を読まない）。
+  const objs = Array.from(canvas.querySelectorAll('[data-oy]')).map(el => ({
+    el, oy: parseFloat(el.dataset.oy) || 0, yPx: 0,
+  }));
+
   const spacer  = win.querySelector('[data-mtn-spacer]');
   const canvasH = parseFloat(canvas.style.height) || canvas.offsetHeight || 0;
 
@@ -1306,6 +1387,9 @@ export function initMountainPathSync(restoreTop = null) {
     //   CSS 側に初期値（画面幅から算出）があるので、書かなければそちらが効く。
     //   必ずフェールセーフの向きにすること。
     if (canvasW > 0) canvas.style.setProperty('--art-unit', `${canvasW / ART_W}px`);
+    // キャンバス上端からの px（素材px は下端から測っている）
+    const unitNow = canvasW > 0 ? canvasW / ART_W : 0;
+    for (const o of objs) o.yPx = canvasH - o.oy * unitNow;
 
     canvas.style.marginTop = `${headroom}px`;
     if (spacer && canvasH) spacer.style.height = `${canvasH + headroom}px`;
@@ -1353,7 +1437,9 @@ export function initMountainPathSync(restoreTop = null) {
     const margin = viewH * CULL_MARGIN;
     for (let i = 0; i < pins.length; i++) {
       // ★canvas は headroom ぶん下にずれているので、画面上の位置にも足す
-      const screenY = bgTop + headroom + (pins[i].y - top);
+      const linearY = bgTop + headroom + (pins[i].y - top);
+      // ★間隔の遠近：手前の端（depthBottom）からの距離を写して、表示する位置を決める
+      const screenY = depthBottom - _gapMap(depthBottom - linearY, depthSpan);
       // 可視範囲 ±1画面の外は書かない（見えないものに毎フレーム書かない）
       if (screenY < -margin || screenY > viewH + margin) continue;
       // 0=手前（帯の下端＝パネルの上）〜 1=奥（帯の上端）。
@@ -1382,6 +1468,21 @@ export function initMountainPathSync(restoreTop = null) {
       pins[i].el.style.setProperty('--node-scale', scale.toFixed(3));
       pins[i].el.style.setProperty('--node-opacity', opacity.toFixed(3));
       pins[i].el.style.setProperty('--node-dx', `${dx.toFixed(1)}px`);
+      pins[i].el.style.setProperty('--node-dy', `${(screenY - linearY).toFixed(1)}px`);
+    }
+
+    // 草木の遠近。マスと同じ t から倍率を出し、手前の端では消す
+    // （OBJ_FADE_START → OBJ_FADE_END で半透明 → 透明）。★ループは1周。見えないものには書かない
+    for (let i = 0; i < objs.length; i++) {
+      const o = objs[i];
+      const sy = bgTop + headroom + (o.yPx - top);
+      if (sy < -margin || sy > viewH + margin) continue;
+      const t = Math.min(1, Math.max(0, (depthBottom - sy) / depthSpan));
+      const d = Math.pow(t, DEPTH_CURVE);
+      const scale = Math.max(SCALE_MIN, SCALE_MAX - d * (SCALE_MAX - SCALE_MIN));
+      const opacity = Math.min(1, Math.max(0, (t - OBJ_FADE_END) / (OBJ_FADE_START - OBJ_FADE_END)));
+      o.el.style.setProperty('--obj-scale', scale.toFixed(3));
+      o.el.style.setProperty('--obj-opacity', opacity.toFixed(3));
     }
   };
   const request = () => {

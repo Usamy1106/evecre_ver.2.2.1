@@ -113,14 +113,23 @@ export const BG_ASSETS = {
   },
 };
 
-// テーマに属さない共通素材（雲）。どのテーマからでも使う。
+// テーマに属さない共通素材（雲・山頂のシルエット）。どのテーマからでも使う。
 export const BG_SHARED = {
   cloud: [
       {"n":"01","w":978,"h":426,"f":"cloud-01.svg","v":"221a1194"},
       {"n":"02","w":842,"h":373,"f":"cloud-02.svg","v":"c59aac0a"},
       {"n":"03","w":937,"h":411,"f":"cloud-03.svg","v":"d2ea4333"},
   ],
+  summitMask: [
+      {"n":"01","w":2560,"h":953,"f":"musk-01.svg","v":"44b3c9f9"},
+      {"n":"02","w":2560,"h":908,"f":"musk-02.svg","v":"a56fcf3a"},
+      {"n":"03","w":2560,"h":1082,"f":"musk-03.svg","v":"235372a9"},
+      {"n":"04","w":2560,"h":1019,"f":"musk-04.svg","v":"434e94ee"},
+  ],
 };
+
+/** 共通素材の置き場所（bg/ から）。URL は bgUrl(null, BG_SHARED_DIR[名前], ファイル名, v) */
+export const BG_SHARED_DIR = {"cloud":"cloud","summitMask":"Summit/musk"};
 
 /** 素材の URL。★パスの組み立てはここ1箇所に集約する（呼び出し側で連結しないこと）
  *  ★?v=<中身のハッシュ> を必ず付ける。/images/bg/ は immutable で1年キャッシュ

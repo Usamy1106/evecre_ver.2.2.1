@@ -32,7 +32,8 @@
   /* ★空（残り日数で変わるグラデーション）は撤去した。背景セグメントの
      イラストが敷かれていない範囲だけがここで見える地色になる。
      グラデーションを戻さないこと。 */
-  background-color: var(--color-bg);
+  /* ★開催後だけ JS が --mtn-sky（テーマの空の色）を渡す。山頂より上に見える */
+  background-color: var(--mtn-sky, var(--color-bg));
 }
 
 .p-mountain__canvas {
@@ -110,6 +111,46 @@
   animation: mtnLandformRise var(--duration-slow) var(--ease);
 }
 
+/* 地形と草木の入れ物。bg-layer と同じ箱（キャンバス）。
+   ★開催後は上端を山頂のシルエット（Summit/musk の SVG。黒＝地面）で切り抜く（--summit）。 */
+.p-mountain__terrain {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+/* ★マスクは2枚重ね：上端にシルエット（幅いっぱい・縦横比のまま）＋その下を全部見せる四角。
+   ★--summit-mask-h はシルエットの高さ（幅 × 縦横比）。幅は列の幅＝ --art-unit × 2049。
+     ★2049 は mountainPath.js の ART_W（--art-unit の分母と同じ）。 */
+.p-mountain__terrain--summit,
+.p-mountain__summit-view {
+  --summit-mask-h: calc(var(--art-unit) * 2049 * var(--summit-mask-ratio));
+}
+
+.p-mountain__terrain--summit {
+  top: auto;
+  height: calc(var(--ground-top) * var(--art-unit));
+  mask-image: var(--summit-mask), linear-gradient(#000, #000);
+  mask-position: center top, center bottom;
+  mask-repeat: no-repeat;
+  /* ★四角のほうは 1px 重ねる（継ぎ目に細い隙間が出ないように） */
+  mask-size: 100% auto, 100% calc(100% - var(--summit-mask-h) + 1px);
+}
+
+/* 山頂より上の「頂上から見た風景」。★素材はまだ無い（--mtn-summit-view を用意したら入れる）。
+   下端はシルエットの下端に合わせる（シルエットの裏から風景が続いて見える）。 */
+.p-mountain__summit-view {
+  position: absolute;
+  top: calc(-1 * var(--mtn-summit-view-overscan));
+  right: 0;
+  bottom: calc(var(--ground-top) * var(--art-unit) - var(--summit-mask-h));
+  left: 0;
+  background-image: var(--mtn-summit-view);
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+}
+
 /* 地形1枚の入れ物。JS が --lf-y（下端）と --lf-h（高さ）を素材px で渡す。
    ★中に地形の絵と植物が入る。<img> は子を持てないので、植物を地形の子に
      するにはこの入れ物が要る。入れ物ごと動くので、植物が稜線からずれない。
@@ -158,9 +199,30 @@
   height: calc(var(--pl-h) * var(--art-unit));
   bottom: calc(var(--pl-y) * var(--art-unit));
   left: calc(var(--pl-x) * var(--art-unit));
+  /* 遠近（paint() が書く。2026-09-28）。根元を基準に縮める（浮いて見えないように） */
+  opacity: var(--obj-opacity, 1);
+  transform: scale(var(--obj-scale, 1));
+  transform-origin: center bottom;
 }
 
-/* 雲。地形と同じ入れ物に、地形の**間**の z で差し込む（JS が振る）。
+/* 背景だけのタブでは草木に遠近を掛けない（paint() が動かない）。
+   ★背景の DOM はメインボードから使い回すので、要素に残った --obj-scale / --obj-opacity を
+     ここで打ち消す（変数ではなくプロパティごと上書きする。要素の style の変数が勝つため） */
+.p-mountain--backdrop .p-mountain__plant {
+  opacity: 1;
+  transform: none;
+}
+
+/* 雲の層。★マス（道）より手前（2026-09-28）。操作は奪わない */
+.p-mountain__cloud-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* 雲。マスより手前の層（.p-mountain__cloud-layer）に入れる。
    ★地形の子にしないこと。親の高さで切られ、親ごと transform されるため
      「山と一緒にスクロールしつつ、横に流れる」が両立しない。
    ★向きは --cl-x0 → --cl-x1（素材px）で決まる。keyframes を向きごとに
@@ -177,6 +239,8 @@
   --cloud-shadow-y: 3px;
   --cloud-shadow-blur: 6px;
   --cloud-shadow-alpha: .18;
+  /* ★常に少し透かす（マスの手前を流れるので、道が隠れきらないように） */
+  --cloud-opacity: .82;
 
   position: absolute;
   left: 0;
@@ -189,6 +253,7 @@
     rgb(70 90 110 / var(--cloud-shadow-alpha)));
   /* ★負の delay で開始位相をずらす（JS が渡す）。これが無いと全部の雲が
      同じタイミングで画面を横切り、作り物に見える。 */
+  opacity: var(--cloud-opacity);
   animation: mtnDrift var(--cl-dur) linear infinite;
   animation-delay: var(--cl-delay);
 }
@@ -309,13 +374,15 @@
      ★上げすぎないこと。手前は SCALE_MAX(1.20) 倍になるので、
        高さ × 1.20 が NODE_GAP(86px) を超えるとマスが縦に重なる
        （100px にすると 92.5px となり重なる）。 */
-  --node-size: 84px;
+  /* ★広い画面では JS が --tile-scale（1〜1.5）を渡して大きくする（間隔も JS が同じ倍率で広げる） */
+  --node-size: calc(84px * var(--tile-scale, 1));
   position: absolute;
   width: var(--node-size);
   height: var(--node-size);
   /* ★--node-dx は「奥ほど中央へ寄せる」ぶんの横ずらし。left（レイアウト）では
      なく transform で動かすので、スクロール中でも再レイアウトが起きない。 */
-  transform: translate(-50%, -50%) translateX(var(--node-dx, 0px)) scale(var(--node-scale, 1));
+  /* ★--node-dy は「間隔の遠近」ぶんの縦ずらし（paint() が書く。手前は広く、奥は狭く）。 */
+  transform: translate(-50%, -50%) translate(var(--node-dx, 0px), var(--node-dy, 0px)) scale(var(--node-scale, 1));
   opacity: var(--node-opacity, 1);
   pointer-events: none;
 }
@@ -364,6 +431,9 @@
    タイルの上半分が天板なので、単純な 50% では下の側面側にずれる。 */
 .p-mountain__check {
   position: absolute;
+  /* マスと一緒に大きくする（svg の width/height 属性は 32） */
+  width: calc(32px * var(--tile-scale, 1));
+  height: calc(32px * var(--tile-scale, 1));
   top: var(--tile-top-cy);
   left: 50%;
   transform: translate(-50%, -50%);
@@ -395,7 +465,7 @@
   left: 100%;
   /* マスの右外に置く。上下はマスの中心に合わせる */
   transform: translate(4px, -50%);
-  font-size: 22px;
+  font-size: calc(22px * var(--tile-scale, 1));
   line-height: 1;
   /* 絵文字の下に薄い影を置いて、地面に載っているように見せる */
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .18));

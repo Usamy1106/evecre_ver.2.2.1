@@ -63,7 +63,7 @@ const plantsCollide = (a, b) =>
 const MAX_DRIFT = K('MAX_DRIFT');
 
 // 素材の一覧と調整値。★テスト側に複製せず、実装と同じものを読む
-const { BG_ASSETS, BG_SHARED } = await import(pathToFileURL(path.join(ROOT, 'public/js/mountainAssets.generated.js')).href);
+const { BG_ASSETS, BG_SHARED, BG_SHARED_DIR } = await import(pathToFileURL(path.join(ROOT, 'public/js/mountainAssets.generated.js')).href);
 const { BG_THEMES } = await import(pathToFileURL(path.join(ROOT, 'public/js/mountainThemes.js')).href);
 const themeCfg = (id) => BG_THEMES.find(t => t.id === id);
 const colorOf = (pt) => { const a = BG_ASSETS[pt.theme].landform.find(x => x.f === pt.file); return a.c || a.n; };
@@ -136,8 +136,8 @@ function build(done, eventId = 'ev1', dates = [], opts = {}) {
         .map(m => ({ theme: m[1], file: m[2], x: +m[3], y: +m[4], w: +m[5], h: +m[6] }));
       return { y: +box[1], h: +box[2], theme: box[3], file: box[4], z: +box[5], plants };
     }),
-    clouds: [...html.matchAll(/class="p-mountain__cloud" src="\/images\/bg\/cloud\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?style="--cl-y:(-?\d+);--cl-w:(\d+);--cl-h:(\d+);--cl-x0:(-?\d+);--cl-x1:(-?\d+);--cl-dur:(\d+)s;--cl-delay:(-?\d+)s;z-index:(\d+)"/g)]
-      .map(m => ({ file: m[1], y: +m[2], w: +m[3], h: +m[4], x0: +m[5], x1: +m[6], dur: +m[7], delay: +m[8], z: +m[9] })),
+    clouds: [...html.matchAll(/class="p-mountain__cloud" src="\/images\/bg\/cloud\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?style="--cl-y:(-?\d+);--cl-w:(\d+);--cl-h:(\d+);--cl-x0:(-?\d+);--cl-x1:(-?\d+);--cl-dur:(\d+)s;--cl-delay:(-?\d+)s"/g)]
+      .map(m => ({ file: m[1], y: +m[2], w: +m[3], h: +m[4], x0: +m[5], x1: +m[6], dur: +m[7], delay: +m[8] })),
     // 山頂の看板。★専用の1枚絵は廃止し、最後の地形の上に看板を立てる方式
     summit: (/class="p-mountain__summit" style="--lf-y:(\d+);--summit-img:(var\(--summit-board-\d+\));z-index:(\d+)"/.exec(html) || null),
     summitTitle: (/class="p-mountain__summit-title">([^<]*)</.exec(html) || [])[1],
@@ -406,6 +406,44 @@ section('[C] 遠近（大きさ・不透明度・振れ幅）が画面位置に�
     vals.every(v => v.scale >= SCALE_MIN - 1e-6 && v.scale <= SCALE_MAX + 1e-6));
   ok(`不透明度が OPACITY_MIN(${OPACITY_MIN}) を下回らない（上端のフェードを除く）`,
     vals.every(v => v.opacity >= 0));
+}
+// ★マスの間隔にも遠近（手前は広く、奥は狭く）。--node-dy で縦位置をずらす（2026-09-28）
+{
+  const probe = wire(30, 0);
+  const st = Math.max(0, Math.round((parseFloat(probe.spacer.style.height) || 0) - (PANEL_TOP - HEADER) - 150));
+  const w = wire(30, st);
+  const vis = w.nodes.map((_, i) => {
+    const dy = parseFloat(w.canvas.children[i].style.getPropertyValue('--node-dy'));
+    return Number.isFinite(dy) ? { y: w.at(i).screenY + dy } : null;
+  }).filter(v => v && v.y > HEADER && v.y < PANEL_TOP).sort((a, b) => b.y - a.y);   // 手前から
+  const gaps = vis.slice(1).map((v, j) => vis[j].y - v.y);
+  ok('★マスの間隔が手前ほど広い（奥へ行くほど狭まる）',
+    gaps.length >= 2 && gaps.every((g, j) => j === 0 || g <= gaps[j - 1] + 0.5) && gaps[0] > gaps.at(-1),
+    gaps.map(g => g.toFixed(0)).join(' '));
+  const G = K('GAP_PERSPECTIVE');
+  ok('GAP_PERSPECTIVE が 0〜1', G > 0 && G <= 1, String(G));
+  ok('手前の端では間隔が NODE_GAP より広がる', 1 + (SCALE_MAX - 1) * G > 1, (1 + (SCALE_MAX - 1) * G).toFixed(2));
+}
+// ★草木にも遠近（手前は大きく、手前の端では消す）
+{
+  const html = build(48).html;
+  ok('★草木に遠近の高さ（data-oy）が付く', /class="p-mountain__plant"[^>]*data-oy="\d+"/.test(html));
+  ok('★paint() が草木に遠近を書く', /--obj-scale/.test(srcCode) && /--obj-opacity/.test(srcCode));
+  const F0 = K('OBJ_FADE_START'), F1 = K('OBJ_FADE_END');
+  ok('草木が手前で消える範囲が 0 < END < START < 1', 0 < F1 && F1 < F0 && F0 < 1, `${F1} / ${F0}`);
+}
+// ★開催後は、いちばん上の地形を山頂のシルエットで切り抜く（2026-09-28）
+{
+  const before = build(8, 'evA', ['2099-01-01']);
+  const after  = build(8, 'evA', ['2020-01-01']);
+  ok('★開催前は切り抜かない', !/p-mountain__terrain--summit/.test(before.html));
+  ok('★開催後は山頂のシルエットで切り抜く',
+    /p-mountain__terrain--summit/.test(after.html) && /--summit-mask:url\('\/images\/bg\/Summit\/musk\/musk-\d+\.svg\?v=[0-9a-f]{8}'\)/.test(after.html));
+  ok('★開催後は空の色を渡す（開催前は渡さない）', /--mtn-sky:#[0-9A-Fa-f]{6}/.test(after.html) && !/--mtn-sky:#/.test(before.html));
+  const used = new Set(['a','b','c','d','e','f','g','h','i','j'].map(ev => (/musk-\d+/.exec(build(3, ev, ['2020-01-01']).html) || [])[0]));
+  ok('シルエットは複数種類が出る', used.size >= 2, [...used].join(','));
+  ok('看板は切り抜かれない（地形の入れ物の外）',
+    after.html.indexOf('p-mountain__summit"') > after.html.indexOf('</div></div>', after.html.indexOf('p-mountain__terrain')) || /<\/div>\s*<div class="p-mountain__summit"/.test(after.html));
 }
 ok('★OPACITY_RANGE が 1 - OPACITY_MIN になっている',
   Math.abs(OPACITY_RANGE - (1 - OPACITY_MIN)) < 1e-9, `${OPACITY_RANGE} vs ${1 - OPACITY_MIN}`);
@@ -769,7 +807,7 @@ section('[F] 植物が重ならず、設定の範囲に収まる');
 // ── [G] 横に流れる要素（雲）──────────────────────────────
 // ★動く要素は合成レイヤーになるので、数がそのままメモリと合成コストになる。
 //   0.5CPU / 512MB 環境が基準なので、総数の上限は必ず守られていること。
-section('[G] 雲が上限を守り、地形の裏を正しい向きに流れる');
+section('[G] 雲が上限を守り、正しい向きに流れる（マスより手前・少し透過）');
 {
   const events = ['e1', 'e2', 'e3', 'x9', 'zz'];
   const over = [], badZ = [], badDir = [], badPhase = [];
@@ -778,11 +816,7 @@ section('[G] 雲が上限を守り、地形の裏を正しい向きに流れる'
     const { parts, clouds } = build(48, ev);
     if (clouds.length > MAX_DRIFT) over.push(`${ev} ${clouds.length}個`);
 
-    const zs = parts.map(pt => pt.z);
     for (const c of clouds) {
-      // ★地形の「間」に挟まること（z が奇数＝地形の偶数 z の間）
-      if (c.z % 2 !== 1) badZ.push(`${ev} z=${c.z}`);
-      if (c.z > Math.max(...zs) || c.z < Math.min(...zs) - 1) badZ.push(`${ev} 範囲外 z=${c.z}`);
 
       // 端から端まで抜けきる（入れ物の幅 = ART_W）
       const passes = (c.x0 === ART_W && c.x1 === -c.w) || (c.x0 === -c.w && c.x1 === ART_W);
@@ -793,7 +827,15 @@ section('[G] 雲が上限を守り、地形の裏を正しい向きに流れる'
     }
   }
   ok(`★総数が上限 ${MAX_DRIFT} を超えない`, over.length === 0, over.join(' '));
-  ok('★地形の「間」の z に入る（道とマスに被らない）', badZ.length === 0, badZ.slice(0, 3).join(' '));
+  // ★雲はマスより手前の層（2026-09-28）。常に少し透かす
+  {
+    const html = build(8).html;
+    const css = fs.readFileSync(path.join(ROOT, 'public/css/object/project/_mountain.css'), 'utf8');
+    ok('★雲の層はマスより後ろ（＝手前）に描く',
+      html.lastIndexOf('p-mountain__cloud-layer') > html.lastIndexOf('data-node-y'));
+    ok('★雲の層は z-index でマスより手前', /\.p-mountain__cloud-layer\s*\{[^}]*z-index:\s*1/.test(css));
+    ok('★雲は常に少し透かす', /opacity:\s*var\(--cloud-opacity\)/.test(css) && +(/--cloud-opacity:\s*([\d.]+)/.exec(css) || [])[1] < 1);
+  }
   ok('端から端まで抜けきる（途中で消えない）', badDir.length === 0, badDir.slice(0, 3).join(' '));
   ok('★開始位相が雲ごとにずれている（負の delay）', badPhase.length === 0, badPhase.slice(0, 3).join(' '));
 
@@ -1079,7 +1121,7 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   const assetsSrc = path.join(ROOT, 'public/js/mountainAssets.generated.js');
   const themesSrc = path.join(ROOT, 'public/js/mountainThemes.js');
 
-  const { BG_ASSETS, BG_SHARED } = await import(pathToFileURL(assetsSrc).href);
+  const { BG_ASSETS, BG_SHARED, BG_SHARED_DIR } = await import(pathToFileURL(assetsSrc).href);
   const { BG_THEMES } = await import(pathToFileURL(themesSrc).href);
 
   const listOnDisk = (dir) => fs.existsSync(dir)
@@ -1098,10 +1140,11 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
     }
   }
   for (const [name, list] of Object.entries(BG_SHARED)) {
-    const disk = listOnDisk(path.join(BG_DIR, name));
+    const dir = path.join(BG_DIR, BG_SHARED_DIR[name]);
+    const disk = listOnDisk(dir);
     const manifest = list.map(a => a.f).sort();
     if (disk.join('|') !== manifest.join('|')) mismatch ||= `${name}: disk ${disk.length} / manifest ${manifest.length}`;
-    for (const a of list) allEntries.push({ ...a, dir: path.join(BG_DIR, name), theme: null, layer: name });
+    for (const a of list) allEntries.push({ ...a, dir, theme: null, layer: name });
   }
   ok('マニフェストとディスクの内容が一致する（生成し直し忘れが無い）', !mismatch, mismatch || '');
   ok('全エントリの実ファイルが存在する',
@@ -1266,10 +1309,23 @@ section('[K] マスがタイルの素材で正しく組めている');
       got ? `${got[1]}% vs ${want.toFixed(2)}%` : '(未設定)');
 
     // ★手前でマスが縦に重ならないこと。タイルは横長なので、幅ではなく高さで見る
-    const size = +/--node-size:\s*(\d+)px/.exec(mtn)[1];
+    // ★広い画面では --tile-scale 倍になるが、間隔（NODE_GAP）も同じ倍率で広げるので、重ならない条件は同じ
+    const size = +/--node-size:\s*calc\((\d+)px \* var\(--tile-scale, 1\)\)/.exec(mtn)[1];
     const frontH = size / (vw / vh) * SCALE_MAX;
     ok(`★手前でマスが縦に重ならない（高さ×${SCALE_MAX} < NODE_GAP ${NODE_GAP}）`,
       frontH < NODE_GAP, `${frontH.toFixed(1)}px`);
+  }
+
+  // ★広い画面ではマスを大きくする。大きさと間隔に同じ倍率を掛けること（片方だけだと重なる／間延びする）
+  {
+    const T = K('TILE_SCALE_MAX');
+    ok('TILE_SCALE_MAX が 1〜2', T >= 1 && T <= 2, String(T));
+    ok('★マスの間隔に倍率を掛けている（NODE_GAP × tileScale）', /const gap = NODE_GAP \* tileScale/.test(srcCode) && /i \* gap/.test(srcCode));
+    ok('★マスの大きさ・チェック・オブジェクトに --tile-scale を掛けている',
+      /--node-size:\s*calc\(\d+px \* var\(--tile-scale/.test(mtn) && /\.p-mountain__check\s*\{[^}]*var\(--tile-scale/.test(mtn)
+      && /\.p-mountain__object\s*\{[^}]*var\(--tile-scale/.test(mtn));
+    ok('★草木の計画（基準の画面）には倍率を掛けない', /_canvasHFor\(PLANT_REF_H, clearedCount \+ 1\)/.test(srcCode));
+    ok('スマホ（is-wide なし）では倍率 1', /--tile-scale:1\.000/.test(build(8).html));
   }
 
   // ★チェックはマスの**子**。兄弟にすると天板ではなく側面のあたりに乗る

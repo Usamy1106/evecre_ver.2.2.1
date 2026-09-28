@@ -20,6 +20,8 @@
 export const BG_THEMES = [
   {
     id: 'MorningMeadow',
+    // 開催後、山頂のシルエットで切り抜いた先に見える空の色（仮。「頂上から見た風景」の素材ができたら差し込む）
+    sky: '#DCEEF7',
 
     // ── 地形 ────────────────────────────────────────────
     // 次の地形を「前の地形の下端から何px上」に置くか。毎回この範囲で抽選する。
@@ -80,6 +82,7 @@ export const BG_THEMES = [
 
   {
     id: 'WindyMeadow',
+    sky: '#D6ECF6',
     // ★「風」のテーマなので地形は間隔を広めに取り、雲を多く・速く流す。
     landform: { advanceMin: 460, advanceMax: 760 },
     WorldSpawnedObjects: { every: 1, countMin: 0, countMax: 3,
@@ -91,6 +94,7 @@ export const BG_THEMES = [
 
   {
     id: 'SnowyMountain',
+    sky: '#E3EEF6',
     // ★雪山。地形をやや詰めて険しく見せる。草木は生えないので
     //   WorldSpawnedObjects フォルダを空にしてある（設定も null）。
     landform: { advanceMin: 400, advanceMax: 760 },

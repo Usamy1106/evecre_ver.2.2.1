@@ -29,8 +29,9 @@ const OUT    = path.join(ROOT, 'public/js/mountainAssets.generated.js');
 //   `mountainObjects.js`（ミッション完了時に出るオブジェクト）とは**別物**なので
 //   混同しないこと。あちらは submissions に保存される記念碑で、こちらは景色の一部。
 const LAYERS = ['landform', 'WorldSpawnedObjects', 'phenomenon'];
-// テーマに属さない共通素材
-const SHARED = ['cloud'];
+// テーマに属さない共通素材。キー＝マニフェストでの名前、値＝ bg/ からのフォルダ
+// ★summitMask … 山頂のシルエット（開催後、いちばん上の地形をこの形で切り抜く。2026-09-28）。黒＝地面
+const SHARED = { cloud: 'cloud', summitMask: 'Summit/musk' };
 
 // ── webp の寸法を読む ────────────────────────────────────────
 // RIFF コンテナの中に VP8（非可逆）/ VP8L（可逆）/ VP8X（拡張）のいずれかが入る。
@@ -144,7 +145,7 @@ const entries = fs.readdirSync(BG_DIR, { withFileTypes: true })
 
 const themes = {};
 for (const name of entries) {
-  if (SHARED.includes(name)) continue;
+  if (Object.values(SHARED).some(d => d.split('/')[0] === name)) continue;
   const themeDir = path.join(BG_DIR, name);
   if (!fs.existsSync(path.join(themeDir, 'landform'))) continue;   // テーマではない
   themes[name] = {};
@@ -152,7 +153,7 @@ for (const name of entries) {
 }
 
 const shared = {};
-for (const name of SHARED) shared[name] = collect(path.join(BG_DIR, name));
+for (const [name, dir] of Object.entries(SHARED)) shared[name] = collect(path.join(BG_DIR, dir));
 
 // ── 書き出し ────────────────────────────────────────────────
 const j = (v) => JSON.stringify(v);
@@ -187,7 +188,7 @@ for (const [theme, layers] of Object.entries(themes)) {
 
 body += `};
 
-// テーマに属さない共通素材（雲）。どのテーマからでも使う。
+// テーマに属さない共通素材（雲・山頂のシルエット）。どのテーマからでも使う。
 export const BG_SHARED = {
 `;
 for (const [name, list] of Object.entries(shared)) {
@@ -196,6 +197,9 @@ for (const [name, list] of Object.entries(shared)) {
     : `  ${name}: [\n${rows(list)}\n  ],\n`;
 }
 body += `};
+
+/** 共通素材の置き場所（bg/ から）。URL は bgUrl(null, BG_SHARED_DIR[名前], ファイル名, v) */
+export const BG_SHARED_DIR = ${j(SHARED)};
 
 /** 素材の URL。★パスの組み立てはここ1箇所に集約する（呼び出し側で連結しないこと）
  *  ★?v=<中身のハッシュ> を必ず付ける。/images/bg/ は immutable で1年キャッシュ

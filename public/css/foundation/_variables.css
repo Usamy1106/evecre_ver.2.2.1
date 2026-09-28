@@ -94,6 +94,10 @@
      どちらを使うかは mountainPath.js がイベントIDから決定的に選ぶ（`--summit-board-N`）。
      ★種類を増やすときは、ここに足して mountainPath.js の SUMMIT_BOARD_COUNT も上げること。
      ★素材は 601×601 の正方形。比率を変えるなら _mountain.css の aspect-ratio も直す。 */
+  /* 山頂より上の「頂上から見た風景」の絵（開催後）。★素材ができたら url(...) を入れる */
+  --mtn-summit-view: none;
+  /* その絵の入れ物をキャンバスの上へはみ出させる量（headroom の上まで覆う） */
+  --mtn-summit-view-overscan: 200vh;
   --summit-board-1: url("/images/front/summit-board-01.webp");
   --summit-board-2: url("/images/front/summit-board-02.webp");
 
