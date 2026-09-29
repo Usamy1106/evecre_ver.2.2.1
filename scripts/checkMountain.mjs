@@ -1020,7 +1020,8 @@ section('[J] 地形は background-image ＋「見えるぶんだけ敷く」（�
     !/removeProperty\('--lf-img'\)/.test(src48) && !/--lf-img'\s*,\s*''/.test(src48));
   // ★保険(a)：下から LF_EAGER 枚は描画時から絵が入っている（配線が動かなくても何か出る）
   {
-    const eagerCount = (html.match(/--lf-img:url\('/g) || []).length;
+    // ★土台（p-mountain__lf--foot）は数えない（別の検査）
+    const eagerCount = (html.replace(/<div class="p-mountain__lf p-mountain__lf--foot"[\s\S]*?<\/div>/, '').match(/--lf-img:url\('/g) || []).length;
     const LF_EAGER = K('LF_EAGER');
     ok(`★下から ${LF_EAGER} 枚は描画時から絵が入っている（配線が動かないときの保険）`,
       eagerCount === LF_EAGER, `${eagerCount} 枚`);
@@ -1079,6 +1080,20 @@ section('[J] 地形は background-image ＋「見えるぶんだけ敷く」（�
     // ★一度敷いたら外さない（外すと過去の失敗3＝白く抜ける に戻る）
     const kept = lfs.filter(e => e.dataset.lfLoaded && e.style.getPropertyValue('--lf-img')).length;
     ok('★敷いた絵が外れていない', kept === after, `${kept} / ${after} 枚`);
+  }
+
+  // ★土台：いちばん下の地形のさらに下に1枚。スクロールを下まで送ったとき、キャンバスの下に空が見えないように
+  {
+    const LF_OVERLAP = K('LF_OVERLAP');
+    const foot = /<div class="p-mountain__lf p-mountain__lf--foot" data-lf-loaded="1"\s*style="--lf-y:(-?\d+);--lf-h:(\d+);--lf-img:url\('\/images\/bg\/[^']+\/landform\/([^'?]+)[^']*'\);z-index:(\d+)"/.exec(html);
+    const parts48 = build(48).parts;
+    ok('★土台がある（上端＝キャンバスの下端。下へ LF_OVERLAP 以上はみ出す）',
+      !!foot && +foot[1] + +foot[2] === K('FOOT_TUCK') && K('FOOT_TUCK') > 0 && K('FOOT_TUCK') <= 20 && +foot[2] >= LF_OVERLAP, foot ? `${foot[1]} / ${foot[2]}` : '(無い)');
+    ok('★土台は上下反転（1枚目の下端と鏡合わせでつなぐ）',
+      /\.p-mountain__lf--foot\s*\{[^}]*transform:\s*scaleY\(-1\)/.test(fs.readFileSync(path.join(ROOT, 'public/css/object/project/_mountain.css'), 'utf8')));
+    ok('★土台はいちばん奥（z-index 0）', !!foot && +foot[4] === 0);
+    ok('★土台は1枚目と同じ絵（継ぎ目の色を揃える）', !!foot && foot[3] === parts48[0].file, foot && `${foot[3]} / ${parts48[0].file}`);
+    ok('★土台は山頂の切り抜き（terrain）の外', build(8, 'evA', ['2020-01-01']).html.indexOf('p-mountain__lf--foot') < build(8, 'evA', ['2020-01-01']).html.indexOf('p-mountain__terrain'));
   }
 
   // ★植物と雲に loading="lazy" を付けないこと。**一部が永久に出なくなる。**

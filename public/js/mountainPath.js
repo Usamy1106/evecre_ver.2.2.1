@@ -122,6 +122,9 @@ const THEME_RUN = 8;
 //   ここを上げると通信量とメモリが素直に増える。実際に必要な枚数は
 //   キャンバスの高さから決まり、たいていこの上限には届かない。
 const MAX_PARTS = 60;
+// 土台（いちばん下の地形のさらに下の1枚）を上へ重ねる量（素材px）。境目が小数点以下の丸めで
+// わずかに離れ、広い画面で細い線が見えたため。土台はいちばん奥なので、重ねたぶんは隠れる。
+const FOOT_TUCK = 6;
 // ★地形の絵は「見えるぶんだけ」敷く（2026-09-20）。**追加のみ。一度敷いたら外さない。**
 //   ここは3回作り直して background-image に戻ってきた箇所なので、経緯を読んでから触ること
 //   （失敗1: lazy が発火せず絵が出ない／2: <img> を解放せずタブごと落ちる／
@@ -1086,12 +1089,32 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   const summitView = mask ? `<div class="p-mountain__summit-view" aria-hidden="true" style="${maskStyle}"></div>` : '';
   const terrain = `<div class="p-mountain__terrain${mask ? ' p-mountain__terrain--summit' : ''}" style="${maskStyle}">${lf}</div>`;
 
+  // ★土台（2026-09-28）。いちばん下の地形のさらに下に1枚、キャンバスの下端から下へ置く（上端＝キャンバスの下端）。
+  //   スクロールを下まで送ると、キャンバスの下端がスクロール窓の下端に来て、その下（PC の提案キャラの台の手前・
+  //   スマホの下部パネルの裏）に空が見えていた。どの地形も下 LF_OVERLAP は塗り潰しなので、その部分で埋める。
+  //   ★z-index はいちばん奥（0）。キャンバスの中では手前の地形に隠れ、はみ出した部分だけが見える。
+  //   ★既存の地形の並び（k 番目の中身）は変えない。★絵は1枚目と同じものを**上下反転**して、上端をキャンバスの
+  //     下端に合わせる（1枚目の下端の行と鏡合わせでつながる）。違う絵・反転なしでは、キャンバスの下端に
+  //     横一直線の色・明るさの段差が見えた。反転しても下の LF_OVERLAP 以上は塗り潰しなので、はみ出しは埋まる。
+  //   ★地形の入れ物（terrain）の外に置く。山頂の切り抜き（mask）はキャンバスの下端までしか無いので、中に入れると消える。
+  //   ★絵は描画時から敷く（見えるぶんだけ敷く対象にしない。いちばん下なので必ず最初に見える）。
+  let foot = '';
+  if (parts.length) {
+    const a = (BG_ASSETS[parts[0].theme]?.landform || []).find(x => x.f === parts[0].file);
+    if (a) {
+      const url = bgUrl(parts[0].theme, 'landform', a.f, a.v);
+      const h = _artHeight(a);
+      foot = `<div class="p-mountain__lf p-mountain__lf--foot" data-lf-loaded="1"
+        style="--lf-y:${-h + FOOT_TUCK};--lf-h:${h};--lf-img:url('${url}');z-index:0"></div>`;
+    }
+  }
+
   // ★署名。SSE の再描画で「中身が同じなら DOM ごと使い回す」判定に使う
   //   （captureBgLayer / restoreBgLayer）。背景の中身を決める入力を全部含めること。
   const sig = `${eventId}:${n}:${isSummit ? 1 : 0}`;
 
   return {
-    html: `<div class="p-mountain__bg-layer" data-bg-sig="${sig}">${summitView}${terrain}${summit}</div>`,
+    html: `<div class="p-mountain__bg-layer" data-bg-sig="${sig}">${summitView}${foot}${terrain}${summit}</div>`,
     cloudHtml: `<div class="p-mountain__cloud-layer" data-bg-sig="${sig}">${clouds}</div>`,
     // 開催後、切り抜いた先に見える空の色（いちばん上の地形のテーマ）
     sky: mask ? (BG_THEMES.find(t => t.id === parts.at(-1).theme)?.sky || null) : null,

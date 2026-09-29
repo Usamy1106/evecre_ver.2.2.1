@@ -177,6 +177,12 @@
   background-size: 100% 100%;
 }
 
+/* 土台（いちばん下の地形のさらに下。mountainPath.js の foot）。1枚目と同じ絵を上下反転して、
+   1枚目の下端の行と鏡合わせでつなぐ（継ぎ目の段差を出さない） */
+.p-mountain__lf--foot {
+  transform: scaleY(-1);
+}
+
 @keyframes mtnLandformRise {
   from {
     opacity: 0;
