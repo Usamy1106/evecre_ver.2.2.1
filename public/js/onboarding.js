@@ -15,7 +15,7 @@
 import { state } from './state.js';
 import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
 import { getArchiveSummary, getArchiveVenue, getEventMainVisual, todayStr, isAfterEventDates } from './utils.js';
-import { isIntroEligible, getIntroState } from './onboardingIntro.js';
+import { isIntroEligible, getIntroState, hasStartedIntroElsewhere } from './onboardingIntro.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
 
@@ -401,8 +401,12 @@ const STEPS = [
     // ★`!isIntroEligible` だけでは足りない。初期オンボーディングを**やり終えた**
     //   イベントでも true になり、終わった直後に同じ内容がもう一度出てしまう
     //   （getIntroState が null ＝「このイベントで一度も走っていない」を必ず併せて見る）。
+    // ★他のイベントの初期オンボーディングで①（同じ「進め方」）を読んでいたら出さない（2026-09-29）。
+    //   以前は、1つ目のイベントで初期オンボーディングを終えた人が2つ目のイベントを開くと、
+    //   初期オンボーディングは出ない一方でここに当てはまり、同じ説明がもう一度出ていた。
     match: (ctx) => !isIntroEligible(ctx.userId, ctx.p)
-                 && getIntroState(ctx.userId, ctx.p.id) === null,
+                 && getIntroState(ctx.userId, ctx.p.id) === null
+                 && !hasStartedIntroElsewhere(ctx.userId, ctx.p.id),
     // ★内容は onboardingIntro.js の USAGE_PAGES と揃えること。同じ「進め方」を
     //   2箇所で出しているので、片方だけ変えると人によって説明が食い違う。
     //   ★ここは1枚のモーダル（openOnboardingModal）なので3つ並べて出す。

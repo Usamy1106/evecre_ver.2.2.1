@@ -7,6 +7,9 @@ import { syncRealtime, disconnectRealtime } from './realtime.js';
 import { showConfirmDialog } from './dialog.js';
 import { applyLayoutClasses } from './layoutMode.js';
 
+// AI 提案の生成に失敗したあと、そのイベントで呼び直すまでの間（_checkProposalCycle）
+const PROPOSAL_RETRY_MS = 10 * 60 * 1000;
+
 
 // 保存のデバウンス待ち時間(ms)。save() は全イベント全文を PUT し、サーバは
 // 更新後にイベント全文を SSE 購読者全員へブロードキャストするため、連続操作で
@@ -1398,7 +1401,11 @@ export const state = {
     const TWELVE_H = 12 * 60 * 60 * 1000;
     const last = p.lastProposalGeneratedAt;
     const due  = !last || (Date.now() - last >= TWELVE_H);
-    if (due) this._refreshProposals(p);
+    // ★生成に失敗したイベントは PROPOSAL_RETRY_MS のあいだ呼び直さない（2026-09-29）。
+    //   失敗すると生成時刻が進まないので、以前は描き直し（SSE でも起きる）のたびに生成を呼び直し、
+    //   AI のクレジットを無駄に使っていた。記録はこの画面を開いている間だけ（再読み込みで消える）。
+    const failedAt = this._proposalFailedAt?.[p.id] || 0;
+    if (due && Date.now() - failedAt >= PROPOSAL_RETRY_MS) this._refreshProposals(p);
   },
 
   // --- 提案リフレッシュ（サーバーの AI 生成エンドポイントを呼ぶ） ---
@@ -1458,8 +1465,12 @@ export const state = {
         // AI 生成結果は失うと再生成でクレジットを消費するため即時保存
         this.saveNow();
         this.render();
+      } else {
+        // ★サーバーがエラーを返した（通信は通った）。しばらく呼び直さない
+        (this._proposalFailedAt ||= {})[eventId] = Date.now();
       }
     } catch (_) {
+      (this._proposalFailedAt ||= {})[eventId] = Date.now();
       // API 失敗時は PROPOSAL_POOL フォールバック（採用済みidは除外して3枠を補充）
       const live = this.events.find(x => x.id === eventId);
       if (!live) return;

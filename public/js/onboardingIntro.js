@@ -88,6 +88,43 @@ export function hasCompletedElsewhere(userId, currentEventId) {
 }
 
 /**
+ * このユーザーが**他のイベントで**初期オンボーディングを始めているか（①の「わかった」まで進めたか）。
+ * ★「進め方」は、どの経路で読んでもユーザーにつき1回にする（2026-09-29）。以前は「他で最後まで終えたか」
+ *   （hasCompletedElsewhere）しか見ておらず、①を読んで②の途中で離れた人が2つ目のイベントで①からやり直していた。
+ * ★初期オンボーディングは、始めたイベントの中でだけ続ける（そのイベントを開けば②から再開する）。
+ */
+export function hasStartedIntroElsewhere(userId, currentEventId) {
+  try {
+    const prefix = `evecre:onboardingIntro:v1:${userId}:`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(prefix)) continue;
+      if (k === _key(userId, currentEventId)) continue;
+      const v = localStorage.getItem(k);
+      if (v && (LEGACY_STATES[v] || v)) return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+/**
+ * このユーザーが状態駆動のオンボーディングの L1（中身は①と同じ「進め方」）をどこかで見たか。
+ * ★見た人には①を飛ばして②から始める（同じ説明を2回読ませない。2026-09-29）。
+ * ★キーは onboarding.js の markSeen：`evecre:onboarding:v1:{userId}:{eventId}:{stepId}`。
+ *   末尾は必ず `:L1` で見る（`L1` だけだと `L10` にも当たる）。
+ */
+function _seenUsageAsL1(userId) {
+  try {
+    const prefix = `evecre:onboarding:v1:${userId}:`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix) && k.endsWith(':L1')) return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+/**
  * このイベントでイントロを動かしてよいか。
  * ★フラグより先に「既存イベントか」を評価する（localStorage を消しても復活させない）。
  */
@@ -108,8 +145,11 @@ export function isIntroEligible(userId, project) {
   const since = project.ownerId === userId ? project.createdAt : me.joinedAt;
   if (!(since >= ONBOARDING_INTRO_START_AT)) return false;
 
-  if (getIntroState(userId, project.id) === INTRO.DONE) return false;
+  const cur = getIntroState(userId, project.id);
+  if (cur === INTRO.DONE) return false;
   if (hasCompletedElsewhere(userId, project.id)) return false;           // 2つ目以降
+  // ★他のイベントで始めていたら、このイベントでは始めない（このイベントで既に始めていれば続ける）
+  if (cur === null && hasStartedIntroElsewhere(userId, project.id)) return false;
   return true;
 }
 
@@ -148,6 +188,8 @@ export function nextIntroStep() {
   if (isLeaderMotivationPending(p, userId)) return null;
 
   const cur = getIntroState(userId, p.id);
+  // ★L1 で「進め方」を読んだ人には①を出さず、②から始める（②を閉じれば TOUR へ進む）
+  if ((cur === INTRO.NONE || cur === null) && _seenUsageAsL1(userId)) return 'tour';
   if (cur === INTRO.NONE || cur === null) return 'usage';    // ①進め方
   if (cur === INTRO.USAGE) return 'tour';                    // ②主要機能の紹介
   // ③目的の促しは**作成者だけ**。後から参加した管理者には出さない

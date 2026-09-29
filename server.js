@@ -2261,6 +2261,48 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       newUsedIds = r.newUsedIds;
     }
 
+    // ★AI の提案が重複除去で1〜2件に減ったときは、テンプレートで3件まで補う（2026-09-29）。
+    //   以前は減ったまま返し、生成時刻だけを「今」に打っていたので、12時間以上たって開いた直後でも
+    //   空いた枠に「12時間後に新しい提案が届きます」と出ていた。
+    //   ★避けるタイトルには、AI が今回出したぶんも入れる（補ったものと重ならないように）。
+    const PROPOSAL_SLOTS = 3;
+    if (proposals.length < PROPOSAL_SLOTS && typeof newUsedIds === 'undefined') {
+      try {
+        const fill = proposalEngine.generateProposals({
+          name:           flat.name        || '',
+          description:    [flat.description || '', planningText].filter(Boolean).join('\n'),
+          eventType:      typeof flat.eventType === 'string' ? flat.eventType : null,
+          expectedScale:  typeof flat.expectedScale === 'string' ? flat.expectedScale : null,
+          existingTitles: [
+            ...existingTitles,
+            ...(Array.isArray(flat.proposals) ? flat.proposals : []).map(x => x.title).filter(Boolean),
+            ...recentProposalTitles,
+            ...proposals.map(x => x.title),
+          ],
+          usedProposalIds,
+          eventDates:     Array.isArray(flat.dates) ? flat.dates : [],
+          daysLeft:       typeof flat.daysLeft === 'number' ? flat.daysLeft : null,
+          eventPhase:     typeof flat.eventPhase === 'string' ? flat.eventPhase : null,
+          missions:       missions.map(m => ({
+            tag: m.tag, tags: m.tags, status: m.status, dates: m.dates,
+            originProposalId: m.originProposalId,
+          })),
+        });
+        const titles = new Set(proposals.map(x => x.title));
+        const extra = (fill.proposals || []).filter(x => x && !titles.has(x.title))
+          .slice(0, PROPOSAL_SLOTS - proposals.length);
+        if (extra.length) {
+          proposals  = [...proposals, ...extra];
+          // ★補ったテンプレのぶんだけ既出にする（テンプレ経由の生成と同じ扱い）
+          //   提案の id は「テンプレの id＋_＋接尾辞」（proposalEngine.generateProposals）なので、接尾辞を外して比べる
+          const extraTplIds = new Set(extra.map(x => String(x.id).slice(0, String(x.id).lastIndexOf('_'))));
+          newUsedIds = [...new Set([...usedProposalIds, ...(fill.newUsedIds || []).filter(id => extraTplIds.has(id))])];
+        }
+      } catch (e) {
+        console.warn('[proposal] top-up with templates failed:', e.message);
+      }
+    }
+
     // lastProposalGeneratedAt（常に更新）と usedProposalIds（テンプレ時のみ）を直接更新（CRDT外フィールド）
     const now = Date.now();
     const setFields = { lastProposalGeneratedAt: now };
