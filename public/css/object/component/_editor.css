@@ -230,3 +230,57 @@
   opacity: .7;
 }
 
+
+/* 文字の書式（太字・斜体）のボタン。編集欄の左下に重ねる（画像ボタンは右下）。2026-09-28
+   使用箇所: clearEditor.js（editorFormatButtonsHtml / _bindFormatButtons）
+   ★押しても編集欄のフォーカスと選択範囲を外さない（JS が mousedown を止める） */
+.c-editor-field__format {
+  position: absolute;
+  bottom: var(--space-2);
+  left: var(--space-3);
+  display: flex;
+  gap: var(--space-1);
+}
+
+.c-editor-field__format-btn {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  transition: background-color var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+
+.c-editor-field__format-btn:hover {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.c-editor-field__format-btn.is-active {
+  background-color: var(--color-primary-quarter);
+  color: var(--color-primary);
+}
+
+.c-editor-field__format-btn--bold {
+  font-weight: 700;
+}
+
+.c-editor-field__format-btn--italic {
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+
+/* 編集欄の中の太字・斜体（表示側の strong / em と同じ見た目） */
+.c-editor b,
+.c-editor strong {
+  font-weight: 700;
+}
+
+.c-editor i,
+.c-editor em {
+  font-style: italic;
+}

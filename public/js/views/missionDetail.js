@@ -20,7 +20,8 @@ import {
   SUBMISSION_PLACEHOLDERS, REFLECT_LABELS,
 } from '../constants.js';
 import { initClearDraft } from '../modals/helpers.js';
-import { placeholderFor, submissionSegments } from '../utils.js';
+import { placeholderFor, submissionSegments, richTextHtml } from '../utils.js';
+import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { showConfirmDialog } from '../dialog.js';
 import { logEvent } from '../logger.js';
 
@@ -306,6 +307,7 @@ function _renderClearInput(m) {
         <div id="clear-input" class="c-editor is-empty" contenteditable="true"
           role="textbox" aria-multiline="true" data-mission-id="${_esc(m.id)}"
           aria-label="提出内容" data-placeholder="${_esc(placeholderFor(SUBMISSION_PLACEHOLDERS, m))}"></div>
+        ${editorFormatButtonsHtml()}
         <label for="file-input" class="c-editor-field__pick">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
@@ -418,7 +420,8 @@ function _fmtClearedContent(cd) {
     if (cd.format === 'link' || cd.format === 'url') {
       return `<a href="${_esc(seg.text)}" target="_blank" rel="noopener noreferrer" class="p-mission-detail__cleared-link">${_esc(seg.text)}</a>`;
     }
-    return `<p class="p-mission-detail__cleared-text">${_esc(seg.text)}</p>`;
+    // ★太字・斜体（{{b}} / {{i}} の印）を <strong> / <em> に。文字は richTextHtml がエスケープする
+    return `<p class="p-mission-detail__cleared-text">${richTextHtml(seg.text)}</p>`;
   }).join('');
 }
 

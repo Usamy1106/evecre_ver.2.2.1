@@ -2183,7 +2183,7 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
     let newUsedIds; // テンプレ経由のときだけ更新する（AI 経由では触らない）
     // 初期タスク def-3（企画の整理）の提出内容。画像・PDF の印は外す
     const planningText = await submissionStore.getSubmission(p.id, 'def-3')
-      .then(s => (s && s.format !== 'image') ? String(s.content || '').replace(/\{\{(image|file):\d+\}\}/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 600) : '')
+      .then(s => (s && s.format !== 'image') ? String(s.content || '').replace(/\{\{(image|file):\d+\}\}/g, '').replace(/\{\{\/?[bi]\}\}/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, 600) : '')
       .catch(() => '');
 
     try {

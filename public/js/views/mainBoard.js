@@ -4,7 +4,8 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml } from '../utils.js';
+import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
@@ -202,7 +203,7 @@ export function renderMainBoard(container) {
            合わせるための目印（以前は Tailwind の .sticky を掴んでいた）。
            スタイル: public/css/layout/_header.css の .l-header-stack -->
       <div class="l-header-stack js-mountain-sticky">
-        ${Components.Header(p, { compact: dash })}
+        ${Components.Header(p, { compact: dash, trailing: (!dash && isMain) ? mainLayout.dateChipHtml : '' })}
         ${dash ? '' : Components.Tabs(state.mainBoardTab)}
       </div>
       <!-- ★広い画面：タブ・フィードバック・設定・通知は左端の列に並べる（layout/_rail.css） -->
@@ -563,12 +564,48 @@ function _characterBoxHtml(ch, idx, opt) {
 //   （object/project/_board-dashboard.css）。--art-unit は measure() が実測するので景色は同じ。
 // ★提案キャラの行は data-mountain-veil を持つ。山の遠近の基準帯はここで終わる
 //   （スマホで下部パネルが担っている役目。mountainPath.js の _panelVeilTop）。
+// 目的のボックス（広い画面の右列・カレンダーの上。2026-09-28）。
+// ★目的は初期タスク def-1 の提出内容（目的リマインドのモーダルと同じ読み方）。
+//   決まっていれば本文を出し、まだなら決めるよう促す。def-1 が消されていて目的も無ければ何も出さない。
+// ★押すと def-1 のタスク詳細へ（書く・直す場所はそこ1か所）。
+const PURPOSE_MISSION_ID = 'def-1';
+function _purposeBoxHtml(p) {
+  const text = submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
+  const mission = (p.missions || []).find(m => m.id === PURPOSE_MISSION_ID);
+  if (!text && !mission) return '';
+  const icon = `
+    <svg class="p-board-dash__purpose-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+    </svg>`;
+  const open = mission ? `onclick="window._app.openMissionDetail('${PURPOSE_MISSION_ID}')"` : '';
+  if (text) {
+    return `
+      <button type="button" class="p-board-dash__purpose" ${open} data-log="purpose_box_open"${mission ? '' : ' disabled'}>
+        ${icon}
+        <span class="p-board-dash__purpose-body">
+          <span class="p-board-dash__purpose-label">このイベントの目的</span>
+          <span class="p-board-dash__purpose-text">${_esc(text)}</span>
+        </span>
+      </button>`;
+  }
+  return `
+    <button type="button" class="p-board-dash__purpose p-board-dash__purpose--empty" ${open} data-log="purpose_box_define">
+      ${icon}
+      <span class="p-board-dash__purpose-body">
+        <span class="p-board-dash__purpose-label">目的がまだ決まっていません</span>
+        <span class="p-board-dash__purpose-text">誰に、どんな価値を届けたいのか。迷ったときに立ち帰る軸を決めましょう</span>
+      </span>
+      <span class="p-board-dash__purpose-cta">目的を決める</span>
+    </button>`;
+}
+
 function _renderDashboardMain(p, mainLayout) {
   const view = _boardPanelView();
   const ctx = _scheduleCtxFor(p, view, mainLayout.displayMissions);
   // ★表示の切り替え（カレンダー｜ガント）は、絞り込みの「私の／みんなの」（セグメンテッドコントロール）と
   //   見た目を分ける（2026-09-27 の要望）。同じ形が2つ並ぶと、どちらが表示でどちらが絞り込みか分からない。
-  //   こちらはアイコン＋ラベルの小さな枠付きボタンの組にして、操作列の右端に置く
+  //   こちらはアイコン＋ラベルの小さな枠付きボタンの組にして、操作列の左端（私の／みんなのより前）に置く（2026-09-28）
   //   ★data-log は付けない（setBoardPanelView が board_panel_switched を記録する。二重に数えない）
   const viewButton = (id, label, icon) => `
     <button type="button" role="tab" aria-selected="${view === id}" onclick="window._app.setBoardPanelView('${id}')"
@@ -624,8 +661,8 @@ function _renderDashboardMain(p, mainLayout) {
       <section class="p-board-dash__main" aria-label="やること・スケジュール" data-coach="mission-list">
         <div class="p-board-dash__bar">
           <div class="p-board-dash__bar-row">
-            ${mainLayout.viewToggleHtml}
             ${viewSwitchHtml}
+            ${mainLayout.viewToggleHtml}
           </div>
           <div class="p-board-dash__bar-row p-board-dash__bar-row--sub">
             ${mainLayout.tagFilterHtml}
@@ -636,6 +673,7 @@ function _renderDashboardMain(p, mainLayout) {
             </button>
           </div>
         </div>
+        ${_purposeBoxHtml(p)}
         ${body}
       </section>
     </div>`;
@@ -958,7 +996,7 @@ function _renderMainTab(p) {
 
   const hasDates = Array.isArray(p.dates) && p.dates.length > 0;
   const _dateChip = (() => {
-    if (!hasDates) return `<span class="p-main-board__date-text p-main-board__date-text--muted">開催日時が設定されていません</span>`;
+    if (!hasDates) return `<span class="p-main-board__date-text p-main-board__date-text--muted">開催日未設定</span>`;
     const today = todayStr();
     const sorted = [...p.dates].sort();
     const firstDate = sorted[0];
@@ -980,24 +1018,21 @@ function _renderMainTab(p) {
       return `<span class="p-main-board__date-text p-main-board__date-text--muted">${range}</span>`;
     }
     // 開催前：保存値 p.daysLeft は stale になるので firstDate から当日基準で再計算する
-    return `<span class="p-main-board__date-text">開催まで残り <span class="p-main-board__date-count">${calculateDaysLeft(firstDate)}</span> 日</span>`;
+    return `<span class="p-main-board__date-text">あと <span class="p-main-board__date-count">${calculateDaysLeft(firstDate)}</span> 日</span>`;
   })();
-  // 上部固定領域：日付チップ・お知らせ・各バナー（スクロールしない）
-  const pinnedAux = `
-    <div class="p-main-board__pinned">
-      <!-- ★日付チップの行。通知への入口（ベル）はこの行の右端に置く。
-           下のタブバーからは外してあるので、**ここが唯一の入口**。消さないこと。
-           ★チップは行の中で中央に置きたいので、左端にベルと同じ幅の空きを作る
-           （justify-content: space-between だとチップが左へ寄る）。 -->
-      <!-- ★広い画面（ダッシュボード表示）ではベルを出さない。通知の入口は左端の列（Components.BoardRail）1か所 -->
-      <div class="p-main-board__date-row${dashLayout ? ' p-main-board__date-row--center' : ''}">
-        ${dashLayout ? '' : `<span class="p-main-board__date-spacer" aria-hidden="true"></span>`}
+  // 日付チップ（押すとスケジュール）。★スマホはヘッダーの右端（旧フィードバック・設定の場所）、
+  //   広い画面は左列の上の中央（2026-09-28）
+  const dateChipHtml = `
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
-          class="p-main-board__date-chip">
+          class="p-main-board__date-chip${dashLayout ? '' : ' p-main-board__date-chip--header'}">
           <img src="/images/icon/icon-Calender.svg" class="p-main-board__date-icon" alt="">
           ${_dateChip}
-        </div>
-        ${dashLayout ? '' : `<button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
+        </div>`;
+  // ★スマホ：通知・フィードバック・設定の丸いボタンを右端に縦に並べる（2026-09-28。以前は日付チップの行の右端に
+  //   通知だけ、フィードバックと設定はヘッダーの右端にあった）。通知の入口はここ1か所（[data-notif-entry]）
+  const sideActionsHtml = `
+      <div class="p-main-board__side-actions">
+        <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
           data-log="notif_open" class="p-main-board__notif" aria-label="通知">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1007,9 +1042,22 @@ function _renderMainTab(p) {
           ${Components.unreadCountFor(p.id) > 0
             ? `<span class="p-main-board__notif-badge">${Components.badgeText(Components.unreadCountFor(p.id))}</span>`
             : ''}
-        </button>`}
-      </div>
-
+        </button>
+        <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
+          data-log="header_feedback" class="p-main-board__notif" aria-label="フィードバックを送る">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </a>
+        <button type="button" onclick="window._app.toggleProjectMenu(event)"
+          data-log="header_project_menu" class="p-main-board__notif" aria-label="設定">
+          <img src="/images/icon/icon-Setting.svg" class="p-main-board__side-icon" alt="">
+        </button>
+      </div>`;
+  // 上部固定領域：日付チップ（広い画面のみ）・通知などの丸ボタン（スマホのみ）・お知らせ・各バナー（スクロールしない）
+  // ★スマホは「バナー類」と「右端の丸ボタンの列」を横に並べる。ボタンの列は縦に長いので、バナーの上に重ねない
+  const bannersHtml = `
       <!-- アナウンスカード -->
       ${_renderAnnounceCards(p, meId)}
 
@@ -1017,7 +1065,16 @@ function _renderMainTab(p) {
       ${pendingMembers.length > 0 ? _renderPendingMembersBanner(pendingMembers) : ''}
 
       <!-- 応募待ちアナウンスバナー（管理者のみ・該当がある場合のみ表示）-->
-      ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}
+      ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}`;
+  const pinnedAux = dashLayout ? `
+    <div class="p-main-board__pinned">
+      <!-- ★広い画面（ダッシュボード表示）ではベルを出さない。通知の入口は左端の列（Components.BoardRail）1か所 -->
+      <div class="p-main-board__date-row p-main-board__date-row--center">${dateChipHtml}</div>
+      ${bannersHtml}
+    </div>` : `
+    <div class="p-main-board__pinned p-main-board__pinned--side">
+      <div class="p-main-board__pinned-main">${bannersHtml}</div>
+      ${sideActionsHtml}
     </div>`;
 
   // ★提案キャラクターの行は「スクロールする本文」から出して、パネルの直下に置く。
@@ -1083,7 +1140,7 @@ function _renderMainTab(p) {
     return html.length ? _withMonthHeadings(list, html) : '';
   };
 
-  return { pinnedAux, proposalsRow, bottomPanelInner, viewToggleHtml, tagFilterHtml, displayMissions, cardsFor };
+  return { pinnedAux, dateChipHtml, proposalsRow, bottomPanelInner, viewToggleHtml, tagFilterHtml, displayMissions, cardsFor };
 }
 
 // ===== 承認待ちメンバーバナー（管理者向け）=====
@@ -1347,8 +1404,8 @@ function _renderArchiveTab(p) {
           class="p-archive__days">
           <img src="/images/icon/icon-Calender.svg" class="p-archive__days-icon" alt="">
           ${hasDatesA
-            ? `<span class="p-archive__days-text">残り <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
-            : `<span class="p-archive__days-text p-archive__days-text--muted">未設定</span>`}
+            ? `<span class="p-archive__days-text">あと <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
+            : `<span class="p-archive__days-text p-archive__days-text--muted">開催日未設定</span>`}
         </div>
         <div class="p-archive__head-actions">
           <!-- ★コピーされるのは「未完了・締め切りあり」全件（記録の中身ではない）。 -->
@@ -1489,7 +1546,8 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
       return `<img src="${_esc(seg.url)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
     }
     if (seg.type === 'file') return `<div class="p-archive__content-file">${Components.SubmissionFileCard(seg.file, p.id)}</div>`;
-    return `<p class="p-archive__content-text">${linkifyText(seg.text)}</p>`;
+    // ★太字・斜体（{{b}} / {{i}} の印）を <strong> / <em> に。文字は richTextHtml がエスケープする
+    return `<p class="p-archive__content-text">${richTextHtml(seg.text)}</p>`;
   }).join('');
 
   // ── 振り返り（見出しは成否で変える。missionDetail.js の _reflectionHtml と同じ）──
@@ -1533,6 +1591,7 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
         <div class="c-editor is-empty" contenteditable="true" role="textbox" aria-multiline="true" aria-label="提出内容"
           data-mission-id="archive:${_esc(key)}" data-sub-mission="${_esc(m.id)}" data-sub-user="${_esc(userId || '')}"
           data-placeholder="提出内容"></div>
+        ${editorFormatButtonsHtml()}
         <label class="c-editor-field__pick" aria-label="画像・PDF を追加">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
@@ -1665,7 +1724,8 @@ function _renderArchiveEntry(p, m, editing) {
     </button>`;
 
   return `
-    <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
+    <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${m.id === PURPOSE_MISSION_ID ? ' p-archive__entry--purpose' : ''}${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
+      ${m.id === PURPOSE_MISSION_ID ? '<p class="p-archive__purpose-label">このイベントの目的</p>' : ''}
       <div class="p-archive__entry-head">
         ${_archiveEntryTitleHtml(m, editing)}
         ${actionBtn}

@@ -150,6 +150,49 @@ export const FILE_MARK_RE  = /\{\{file:(\d+)\}\}/g;
 // 画像とファイルの印をまとめて拾う（並び順どおりに分けるため）
 const _EMBED_MARK_RE = /\{\{(image|file):(\d+)\}\}/g;
 
+// ===== 提出物の本文の書式（太字・斜体。2026-09-28）=====
+// ★保存は文字＋印だけ（編集欄の HTML は保存しない＝XSS を出さない）。書式も印で持つ：
+//   {{b}}太字{{/b}} ／ {{i}}斜体{{/i}}（画像の {{image:N}} と同じ形）。
+//   ★Markdown の ** / * にしないこと。太字と斜体が重なると（**a*b***）読み取りが曖昧になり、
+//     既存の本文にある「*」も斜体と取り違える。
+// ★印を読むのはここの3つだけ：inlineRuns（分解）/ stripInlineMarks（外す）/ richTextHtml（表示用 HTML）。
+//   書くのは clearEditor.js の readEditor だけ。
+const _INLINE_MARK_RE = /\{\{(\/?)([bi])\}\}/g;
+
+/** 書式の印を外した文字（抜粋・目的のボックス・AI に渡す本文など） */
+export function stripInlineMarks(text) {
+  return String(text ?? '').replace(_INLINE_MARK_RE, '');
+}
+
+/**
+ * 本文を「同じ書式が続くかたまり」に分ける。[{ text, b, i }]
+ * ★閉じていない印は最後まで効かせる。対応しない閉じの印は無視する（壊れた本文でも落ちない）。
+ */
+export function inlineRuns(text) {
+  const src = String(text ?? '');
+  const runs = [];
+  let b = 0, i = 0, last = 0;
+  const push = (t) => { if (t) runs.push({ text: t, b: b > 0, i: i > 0 }); };
+  for (const m of src.matchAll(_INLINE_MARK_RE)) {
+    push(src.slice(last, m.index));
+    last = m.index + m[0].length;
+    const d = m[1] ? -1 : 1;
+    if (m[2] === 'b') b = Math.max(0, b + d); else i = Math.max(0, i + d);
+  }
+  push(src.slice(last));
+  return runs;
+}
+
+/** 表示用 HTML。文字は必ずエスケープし（URL はリンクにする）、付けるタグは <strong> / <em> だけ */
+export function richTextHtml(text) {
+  return inlineRuns(text).map(r => {
+    let h = linkifyText(r.text);
+    if (r.i) h = `<em>${h}</em>`;
+    if (r.b) h = `<strong>${h}</strong>`;
+    return h;
+  }).join('');
+}
+
 /** 提出物の添付ファイル（PDF）。[{ url, name, size, thumb }] */
 export function submissionFiles(cd) {
   return Array.isArray(cd?.files) ? cd.files.filter(f => f && f.url) : [];
@@ -162,7 +205,7 @@ export function submissionFiles(cd) {
  */
 export function submissionText(cd) {
   if (!cd || cd.format === 'image') return '';
-  return String(cd.content || '').replace(_EMBED_MARK_RE, '').replace(/\n{3,}/g, '\n\n').trim();
+  return stripInlineMarks(String(cd.content || '').replace(_EMBED_MARK_RE, '')).replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /** 一覧のプレビュー用に、添付ファイルを1行で言う（例「📄 企画書.pdf ほか1件」）。無ければ '' */

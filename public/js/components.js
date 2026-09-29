@@ -51,6 +51,9 @@ export const Components = {
    * @param {object|null} project - イベントオブジェクト（nullでホーム用ヘッダー）
    */
   // opts.compact … 広い画面のメインボード。「‹ イベント名」だけにする（フィードバック・設定は左端の列 BoardRail へ移す）
+  // opts.compact … 右端に何も置かない（広い画面のメインボード）
+  // opts.trailing … 右端をこの HTML に差し替える（スマホのメインタブの日付チップ。2026-09-28）。
+  //   ★フィードバックと設定はそのとき日付の行（通知の下）に移る（mainBoard.js の pinnedAux）
   Header(project, opts = {}) {
     if (!project) {
       const username = state.currentUser?.username || '';
@@ -104,7 +107,7 @@ export const Components = {
           <!-- ★タイトル横の山イラストは削除した（MountainMini はホームのグリッド等では継続使用）-->
           <span class="l-header__title">${_escText(project.name)}</span>
         </div>
-        ${opts.compact ? '' : `<div class="l-header__actions">
+        ${opts.compact ? '' : opts.trailing ? `<div class="l-header__actions">${opts.trailing}</div>` : `<div class="l-header__actions">
           <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
             data-log="header_feedback" class="l-header__action" aria-label="フィードバックを送る">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"

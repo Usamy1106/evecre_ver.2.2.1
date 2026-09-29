@@ -39,8 +39,39 @@
   padding: var(--space-3) var(--space-6) var(--space-2);
 }
 
-.p-main-board__pinned > * + * {
+.p-main-board__pinned > * + *,
+.p-main-board__pinned-main > * + * {
   margin-top: var(--space-3);
+}
+
+/* スマホ：バナー類（左・伸びる）＋ 通知・フィードバック・設定の丸ボタンの列（右端・縦）。2026-09-28。
+   ★ボタンの列は縦に長いので、バナーの上に重ねない（横に並べる） */
+.p-main-board__pinned--side {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.p-main-board__pinned--side > * + * {
+  margin-top: 0;
+}
+
+.p-main-board__pinned-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-main-board__side-actions {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.p-main-board__side-icon {
+  width: 22px;
+  height: 22px;
 }
 
 /* アーカイブ／通知タブの本文 */
@@ -59,9 +90,7 @@
    ★5通りに出し分ける（開催前／Day1／中間日／最終日／終了後）。
      押すとカレンダー・ガントのシートが開く。 */
 
-/* 日付チップの行。★通知への入口（ベル）が右端にある。
-   ★チップを行の中央に置くため、左端に同じ幅の空き（__date-spacer）を作る。
-     space-between だけだとチップが左へ寄る。 */
+/* 日付チップの行（★広い画面だけ。スマホの日付チップはヘッダーの右端。2026-09-28） */
 .p-main-board__date-row {
   display: flex;
   align-items: center;
@@ -69,13 +98,13 @@
   gap: var(--space-2);
 }
 
-.p-main-board__date-spacer,
 .p-main-board__notif {
   flex: none;
   width: 40px;
 }
 
-/* 通知への入口。★下のタブバーから外したので、ここが唯一の入口 */
+/* 丸いボタン（通知・フィードバック・設定。スマホのメインタブの右端の列）。
+   ★通知は下のタブバーから外したので、ここが唯一の入口 */
 .p-main-board__notif {
   position: relative;
   display: flex;
@@ -820,4 +849,13 @@
   padding-block: var(--space-4);
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
+}
+
+/* スマホ：ヘッダーの右端に置く日付チップ（旧フィードバック・設定の場所。2026-09-28）。
+   ★タイトルが長いときはタイトル側が省略される（チップは縮めない） */
+.p-main-board__date-chip--header {
+  flex-shrink: 0;
+  margin-inline: 0;
+  padding: var(--space-1) var(--space-3);
+  gap: var(--space-2);
 }

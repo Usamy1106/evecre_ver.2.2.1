@@ -30,7 +30,7 @@
 
 import { SUBMISSION_MAX_IMAGES, SUBMISSION_MAX_FILES, SUBMISSION_FILE_MAX_BYTES } from './constants.js';
 import { renderPdfThumb } from './pdfThumb.js';
-import { formatFileSize, submissionSegments } from './utils.js';
+import { formatFileSize, submissionSegments, inlineRuns, stripInlineMarks } from './utils.js';
 
 // 本文の中の画像・添付ファイル（PDF）の印。★utils.js の IMAGE_MARK_RE / FILE_MARK_RE と同じ形に保つこと
 // ★編集欄の中の塊は、画像も PDF も data-img-key を持つ（並べ替え・×・差し込み先の判定を共通にするため）。
@@ -173,37 +173,65 @@ export function readEditor(el = editorEl()) {
   const out = [];
   const keys = [];
   const fileKeys = [];
+  // ★書式（太字・斜体）は印 {{b}}…{{/b}} / {{i}}…{{/i}} にする（utils.js の inlineRuns が読む）。
+  //   開いている書式を stack で持ち、画像・PDF の印の前後では閉じて開き直す
+  //   （表示は印で区切った文章ごとに読むので、またがせると片側の書式が消える）。
+  const open = [];
   const endsWithNewline = () => { const s = out.join(''); return s === '' || s.endsWith('\n'); };
+  const isBold = (n) => /^(B|STRONG)$/.test(n.tagName) || n.style?.fontWeight === 'bold' || +n.style?.fontWeight >= 600;
+  const isItal = (n) => /^(I|EM)$/.test(n.tagName) || n.style?.fontStyle === 'italic';
   const walk = (node) => {
     for (const n of node.childNodes) {
       if (n.nodeType === Node.TEXT_NODE) { out.push(n.nodeValue.replace(/​/g, '')); continue; }
       if (n.nodeType !== Node.ELEMENT_NODE) continue;
       if (n.dataset?.imgKey) {
+        for (let k = open.length - 1; k >= 0; k--) out.push(`{{/${open[k]}}}`);
         if (n.dataset.kind === 'file') { fileKeys.push(n.dataset.imgKey); out.push(MARK_FILE(fileKeys.length)); }
         else { keys.push(n.dataset.imgKey); out.push(MARK(keys.length)); }
+        for (const t of open) out.push(`{{${t}}}`);
         continue;
       }
       if (n.tagName === 'BR') { out.push('\n'); continue; }
       // Enter でブラウザが作る <div>/<p> は「その前で改行」
       if (/^(DIV|P|LI)$/.test(n.tagName) && !endsWithNewline()) out.push('\n');
+      const tags = [];
+      if (isBold(n) && !open.includes('b')) tags.push('b');
+      if (isItal(n) && !open.includes('i')) tags.push('i');
+      for (const t of tags) { out.push(`{{${t}}}`); open.push(t); }
       walk(n);
+      for (const t of tags.reverse()) { out.push(`{{/${t}}}`); open.splice(open.lastIndexOf(t), 1); }
     }
   };
   if (el) walk(el);
-  const text = out.join('').replace(/\s+$/, '');
-  const plain = text.replace(/\{\{(image|file):\d+\}\}/g, '').trim();
+  // 中身の無い書式（{{b}}{{/b}}）を消す
+  let text = out.join('');
+  for (let prev = ''; prev !== text;) { prev = text; text = text.replace(/\{\{([bi])\}\}(\s*)\{\{\/\1\}\}/g, '$2'); }
+  text = text.replace(/\s+$/, '');
+  const plain = stripInlineMarks(text.replace(/\{\{(image|file):\d+\}\}/g, '')).trim();
   return { text, plain, keys, fileKeys };
+}
+
+/**
+ * 本文（書式の印つき）を編集欄に足す。改行は <br>、太字・斜体は <b> / <i>。
+ * ★HTML として解釈しない（文字は必ずテキストノード）。
+ */
+function _appendRich(el, text) {
+  for (const r of inlineRuns(text)) {
+    let host = el;
+    if (r.b) { const b = document.createElement('b'); host.appendChild(b); host = b; }
+    if (r.i) { const i = document.createElement('i'); host.appendChild(i); host = i; }
+    r.text.split('\n').forEach((line, k) => {
+      if (k > 0) host.appendChild(document.createElement('br'));
+      if (line) host.appendChild(document.createTextNode(line));
+    });
+  }
 }
 
 /** 本文（文字だけ）を編集欄に入れる。下書きの復元用。★HTML として解釈しない */
 export function setEditorText(el, text) {
   if (!el) return;
   el.textContent = '';
-  const lines = String(text || '').split('\n');
-  lines.forEach((line, i) => {
-    if (i > 0) el.appendChild(document.createElement('br'));
-    if (line) el.appendChild(document.createTextNode(line));
-  });
+  _appendRich(el, text);
   _syncEmpty(el);
 }
 
@@ -218,12 +246,7 @@ export function loadEditorContent(el, cd) {
   el._items = new Map();
   const _items = el._items;
   el.textContent = '';
-  const appendText = (text) => {
-    String(text).split('\n').forEach((line, i) => {
-      if (i > 0) el.appendChild(document.createElement('br'));
-      if (line) el.appendChild(document.createTextNode(line));
-    });
-  };
+  const appendText = (text) => _appendRich(el, text);
   let prevWasText = false;
   for (const seg of submissionSegments(cd)) {
     if (seg.type === 'text') {
@@ -494,6 +517,21 @@ let _docBound = false;
 function _bindDocumentOnce() {
   if (_docBound) return;
   _docBound = true;
+  // ★書式のボタン（B / I）は document で委譲して受ける。タスク詳細は描き直しのたびに編集欄のノードだけを
+  //   差し戻し、ボタンは作り直すので、ボタンに直接付けると描き直しのあと効かなくなる（実際にそうなった）
+  // ★mousedown で止める。止めないとボタンにフォーカスが移り、選んでいた文字の範囲が外れる
+  document.addEventListener('mousedown', (e) => {
+    if (e.target.closest?.('[data-editor-format]')) e.preventDefault();
+  });
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest?.('[data-editor-format]');
+    if (!btn) return;
+    const el = btn.closest('.c-editor-field')?.querySelector('.c-editor');
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _applyFormat(el, btn.dataset.editorFormat, el._onEditorChange);
+  });
   // 最後のカーソル位置を覚える（画像ボタンを押すとフォーカスが外れるため）
   document.addEventListener('selectionchange', () => {
     const sel = window.getSelection?.();
@@ -531,6 +569,42 @@ function _bindDocumentOnce() {
  * @param {HTMLElement} el
  * @param {{ onChange?: () => void }} opts  入力・画像の追加／削除のたびに呼ぶ（下書きの保存）
  */
+// ===== 書式（太字・斜体）=====
+/** 編集欄の左下に置く B / I のボタン。★置き場所は .c-editor-field の中（bindClearEditor が拾う） */
+export function editorFormatButtonsHtml() {
+  return `
+    <div class="c-editor-field__format" role="toolbar" aria-label="文字の書式">
+      <button type="button" class="c-editor-field__format-btn c-editor-field__format-btn--bold" data-editor-format="bold"
+        aria-label="太字" aria-pressed="false" title="太字（⌘B）">B</button>
+      <button type="button" class="c-editor-field__format-btn c-editor-field__format-btn--italic" data-editor-format="italic"
+        aria-label="斜体" aria-pressed="false" title="斜体（⌘I）">I</button>
+    </div>`;
+}
+
+function _applyFormat(el, cmd, onChange) {
+  if (document.activeElement !== el && !el.contains(document.activeElement)) el.focus();
+  // ★<b> / <i> で入れる（style="font-weight" の span にしない）。readEditor はどちらも読めるが揃えておく
+  try { document.execCommand('styleWithCSS', false, false); } catch (_) {}
+  document.execCommand(cmd, false, null);
+  _syncEmpty(el);
+  _syncFormatButtons(el);
+  onChange?.();
+}
+
+function _formatButtons(el) {
+  return el.closest('.c-editor-field')?.querySelectorAll('[data-editor-format]') || [];
+}
+
+function _syncFormatButtons(el) {
+  for (const btn of _formatButtons(el)) {
+    let on = false;
+    try { on = document.queryCommandState(btn.dataset.editorFormat); } catch (_) {}
+    btn.classList.toggle('is-active', !!on && el.contains(document.getSelection()?.anchorNode));
+    btn.setAttribute('aria-pressed', String(!!on));
+  }
+}
+
+
 export function bindClearEditor(el, { onChange } = {}) {
   if (!el || el._bound) return;
   el._bound = true;
@@ -540,10 +614,16 @@ export function bindClearEditor(el, { onChange } = {}) {
 
   el.addEventListener('input', () => { _syncEmpty(el); onChange?.(); });
 
-  // 太字・斜体などの書式は持たない（保存はプレーンテキスト）
+  // 書式は太字・斜体だけ（⌘B / ⌘I。2026-09-28）。下線などは持たない
+  // ★ブラウザ任せにせず自分で execCommand する（ボタンと同じ経路にして、<b> / <i> で入れる）
   el.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && /^[biu]$/i.test(e.key)) e.preventDefault();
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === 'u') { e.preventDefault(); return; }
+    if (k === 'b' || k === 'i') { e.preventDefault(); _applyFormat(el, k === 'b' ? 'bold' : 'italic', onChange); }
   });
+  el.addEventListener('keyup', () => _syncFormatButtons(el));
+  el.addEventListener('mouseup', () => _syncFormatButtons(el));
 
   // 貼り付け：画像ならカーソル位置へ、文字は書式を落として入れる
   el.addEventListener('paste', (e) => {
