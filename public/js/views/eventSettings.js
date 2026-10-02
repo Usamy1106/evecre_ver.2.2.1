@@ -18,7 +18,7 @@ import { logEvent } from '../logger.js';
 import {
   formatEventPeriodLines,
   getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue,
-  bindTapToEdit, isAfterEventDates, countPublishableReflections,
+  bindTapToEdit, isAfterEventDates, countPublishableReflections, getPillars,
 } from '../utils.js';
 import {
   EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS,
@@ -310,6 +310,26 @@ function _eventManagementSection(p, sec) {
             </div>
           `}
         </div>
+
+        <!-- 柱（目的を支える大事なこと。最大3つ。2026-10-02）。編集は専用のページ（views/pillarEdit.js）。
+             ★見るのは全員、直すのは管理者だけ -->
+        ${(() => {
+          const names = getPillars(p).map(x => x.name);
+          const value = names.length ? names.join(' ／ ') : '(未設定)';
+          return canMgr ? `
+        <button type="button" onclick="window._app.openPillarEdit('settings')" data-log="settings_pillars"
+          class="c-settings-list__link">
+          <div>
+            <p class="c-settings-list__label">このイベントの柱</p>
+            <span class="c-settings-list__value">${_esc(value)}</span>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>` : `
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">このイベントの柱</p>
+          <span class="c-settings-list__value">${_esc(value)}</span>
+        </div>`;
+        })()}
 
         <!-- 意気込み（カード複数選択＋自分で書く）-->
         <!-- ★招待相手に表示され、🔥で応援できる。意気込みが未入力だと🔥ボタン自体が

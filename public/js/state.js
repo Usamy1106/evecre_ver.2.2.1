@@ -137,6 +137,9 @@ export const state = {
   reflectMissionId: null,      // 振り返り中のタスクID
   reflectReturn: null,         // 戻り先 { tab }（view は常に MAIN_BOARD）
   reflectDraft: null,          // { outcome, struggle, solution, shareable }
+  // 柱を立てる・直すページ（PILLAR_EDIT）
+  pillarDraft: null,           // { eventId, items: [{ id, name, saved }], confirmId }
+  pillarReturn: null,          // 戻り先 { view, tab }
   missionDetailReturn: null,   // 戻り先 { tab, calendarSheetView } （view は常に MAIN_BOARD）
   missionChat: null,           // { missionId, messages, loading } チャットのキャッシュ
   pendingMissionLink: null,    // ディープリンク /m/<eventId>/<missionId> の保留分
@@ -927,6 +930,31 @@ export const state = {
   },
 
   // --- 振り返りページから戻る（書いていなくても完了は取り消さない）---
+  // --- 柱を立てる・直すページへ遷移（管理者だけ。views/pillarEdit.js）---
+  // ★モーダルではなくページ。戻り先（メインボード／イベント設定）を覚えておく
+  openPillarEdit(opts = {}) {
+    if (!this.canManageCurrentEvent()) return;
+    this.pillarDraft = null;   // 開くたびにイベントの今の柱から作り直す
+    this.pillarReturn = { view: this.currentView, tab: this.mainBoardTab };
+    logEvent('view_changed', { from: this.currentView, to: 'PILLAR_EDIT' });
+    logEvent('pillar_edit_opened', { from: opts.from || this.currentView });
+    this.currentView = 'PILLAR_EDIT';
+    this.render();
+    window.scrollTo(0, 0);
+  },
+
+  closePillarEdit() {
+    const ret = this.pillarReturn || {};
+    this.pillarDraft = null;
+    this.pillarReturn = null;
+    const to = ret.view === 'EVENT_SETTINGS' ? 'EVENT_SETTINGS' : 'MAIN_BOARD';
+    logEvent('view_changed', { from: 'PILLAR_EDIT', to });
+    this.currentView = to;
+    if (to === 'MAIN_BOARD') this.mainBoardTab = ret.tab || 'MAIN';
+    this.render();
+    window.scrollTo(0, 0);
+  },
+
   closeMissionReflect() {
     const ret = this.reflectReturn || {};
     this.reflectMissionId = null;

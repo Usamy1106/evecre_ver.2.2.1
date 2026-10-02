@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars } from '../utils.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
@@ -600,6 +600,25 @@ function _purposeBoxHtml(p) {
     </button>`;
 }
 
+// 柱を立てる入口（2026-10-02）。★目的（def-1）が決まっていて、柱がまだ無く、管理者のときだけ。
+//   目的が無いうちは出さない（柱を立てる基準が無い）。柱を立てたら、ここは柱の進み具合の表示に替わる（Phase 4）。
+// ★訴えかけ（「目的を見失っていませんか」など）にしないこと。入口を置くだけ。
+function _pillarCtaHtml(p, extraClass = '') {
+  if (!state.canManageCurrentEvent()) return '';
+  if (getPillars(p).length > 0) return '';
+  if (!submissionText(p.clearedData?.[PURPOSE_MISSION_ID])) return '';
+  return `
+    <button type="button" onclick="window._app.openPillarEdit('board_cta')" data-log="pillar_cta"
+      class="p-main-board__pillar-cta${extraClass ? ' ' + extraClass : ''}">
+      <span class="p-main-board__pillar-cta-body">
+        <span class="p-main-board__pillar-cta-title">柱を立てる</span>
+        <span class="p-main-board__pillar-cta-text">目的のために大事にすることを3つまで決めて、タスクと紐づけます</span>
+      </span>
+      <svg class="p-main-board__pillar-cta-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>`;
+}
+
 function _renderDashboardMain(p, mainLayout) {
   const view = _boardPanelView();
   const ctx = _scheduleCtxFor(p, view, mainLayout.displayMissions);
@@ -674,6 +693,7 @@ function _renderDashboardMain(p, mainLayout) {
           </div>
         </div>
         ${_purposeBoxHtml(p)}
+        ${_pillarCtaHtml(p, 'p-board-dash__pillar-cta')}
         ${body}
       </section>
     </div>`;
@@ -1069,7 +1089,7 @@ function _renderMainTab(p) {
       ${bannersHtml}
     </div>` : `
     <div class="p-main-board__pinned p-main-board__pinned--side">
-      <div class="p-main-board__pinned-main">${bannersHtml}</div>
+      <div class="p-main-board__pinned-main">${_pillarCtaHtml(p)}${bannersHtml}</div>
       ${sideActionsHtml}
     </div>`;
 

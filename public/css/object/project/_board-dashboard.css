@@ -289,6 +289,13 @@
   transition: background-color var(--duration-fast) var(--ease);
 }
 
+/* 柱を立てる入口（目的のボックスの下）。★幅と余白は目的のボックスに揃える */
+.p-board-dash__pillar-cta {
+  flex-shrink: 0;
+  width: auto;
+  margin: 0 var(--space-6) var(--space-2);
+}
+
 .p-board-dash__purpose:hover:not(:disabled) {
   background-color: var(--color-warning-pale);
 }

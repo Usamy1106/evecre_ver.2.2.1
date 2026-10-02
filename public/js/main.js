@@ -24,6 +24,7 @@ import { renderLegal } from './views/legal.js';
 import { renderConnectionError } from './views/connectionError.js';
 import { startPushSetupFlow, refreshPushSubscribed } from './modals/pushSetupModal.js';
 import { renderMissionReflect, saveMissionReflect, skipMissionReflect } from './views/missionReflect.js';
+import { renderPillarEdit } from './views/pillarEdit.js';
 import { checkMissionBeforeCreate } from './modals/missionCheckModal.js';
 import {
   renderMissionDetail,
@@ -124,6 +125,7 @@ registerRenderer('EVENT_SETTINGS',      renderEventSettings);
 registerRenderer('PROJECT_DETAIL',      renderProjectDetail);
 registerRenderer('MISSION_DETAIL',      renderMissionDetail);
 registerRenderer('MISSION_REFLECT',     renderMissionReflect);
+registerRenderer('PILLAR_EDIT',         renderPillarEdit);
 registerRenderer('ARCHIVE_ANSWERS',     renderArchiveAnswers);
 registerRenderer('ARCHIVE_STATS',       renderArchiveStats);
 
@@ -803,6 +805,7 @@ window._app = {
   closeMissionDetail: ()    => state.closeMissionDetail(),
   // 完了直後の振り返りページ（views/missionReflect.js）
   closeMissionReflect: ()   => state.closeMissionReflect(),
+  openPillarEdit:      (from) => state.openPillarEdit({ from }),
   saveMissionReflect: ()    => saveMissionReflect(),
   skipMissionReflect: ()    => skipMissionReflect(),
   copyMissionLink:    (mid) => copyMissionLink(mid),
@@ -1740,6 +1743,8 @@ const _LOG_LABELS = {
   reflect_outcome_picked:  '振り返りで成否を選んだ',
   reflect_saved:           '振り返りを書いた（完了直後）',
   reflect_skipped:         '振り返りを「今はしない」で閉じた',
+  pillar_edit_opened:      '柱の編集ページを開いた',
+  pillars_saved:           '柱を保存した',
   mission_check_shown:     'タスク作成の確認モーダルが出た',
   mission_check_set:       '確認モーダルから設定へ進んだ',
   mission_check_skipped:   '確認モーダルからそのまま作成した',
