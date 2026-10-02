@@ -113,6 +113,29 @@ export function todayStr() {
  *   勝手に終わったことにすると、案内が丸ごと止まる。
  * ★文字列のまま辞書順で比較する（todayStr と同じ理由。Date に戻さないこと）。
  */
+// ===== 目的を支える「柱」（2026-10-02）=====
+// ★柱の読み方はここに集約する。各画面で p.pillars / m.pillarId を直接解釈しないこと。
+
+/** イベントの柱（無ければ空配列）。名前の空いたものは除く */
+export function getPillars(p) {
+  return Array.isArray(p?.pillars) ? p.pillars.filter(x => x && x.id && x.name) : [];
+}
+
+/**
+ * タスクの柱の id。未分類なら null。
+ * ★存在しない id（柱が消された）も未分類として扱う（タスクの pillarId は書き換えない）
+ */
+export function pillarIdOf(p, m) {
+  const id = m?.pillarId;
+  if (!id) return null;
+  return getPillars(p).some(x => x.id === id) ? id : null;
+}
+
+/** 新しい柱の id。★作るときに1回だけ振る。名前を変えても振り直さないこと（紐づきが切れる） */
+export function newPillarId() {
+  return 'pil_' + Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+}
+
 export function isAfterEventDates(p) {
   const sorted = [...(p?.dates || [])].filter(Boolean).sort();
   if (sorted.length === 0) return false;

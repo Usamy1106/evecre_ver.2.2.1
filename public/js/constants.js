@@ -143,6 +143,11 @@ export const TAG_SKILL_HINTS = {
 // ★server.js の JOIN_MESSAGE_MAX と必ず同じ値にすること（超えた分はサーバーで切られる）
 export const JOIN_MESSAGE_MAX = 50;
 
+// 目的を支える「柱」の上限と名前の長さ（2026-10-02）。
+// ★server.js の PILLARS_MAX / PILLAR_NAME_MAX と同じ値に保つこと（片方だけ変えると保存で黙って切られる）
+export const PILLARS_MAX = 3;
+export const PILLAR_NAME_MAX = 20;
+
 // 参加申請フォームの意気込み欄のプレースホルダー（順に切り替えて書き出しを促す）
 export const JOIN_MESSAGE_EXAMPLES = [
   'みんなで最高の一日にしたい',

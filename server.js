@@ -2380,7 +2380,32 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
   if (flat.publicKnowledgePromptedAt !== undefined && !Number.isFinite(flat.publicKnowledgePromptedAt)) delete flat.publicKnowledgePromptedAt;
   // ★初回確認の印はサーバーだけが書く（クライアントの値は信用しない）
   delete flat.shareConfirmedAt;
+  // 目的を支える柱（最大3つ）。★id は書き換えない（クライアントが振った id をそのまま通す）。
+  //   形の合わないもの・名前が空のもの・id が重複するものは捨てる
+  if (flat.pillars !== undefined) {
+    if (!Array.isArray(flat.pillars)) delete flat.pillars;
+    else {
+      const seen = new Set();
+      flat.pillars = flat.pillars
+        .filter(x => x && typeof x.id === 'string' && PILLAR_ID_RE.test(x.id) && !seen.has(x.id) && seen.add(x.id))
+        .map(x => ({ id: x.id, name: String(x.name ?? '').trim().slice(0, PILLAR_NAME_MAX) }))
+        .filter(x => x.name)
+        .slice(0, PILLARS_MAX);
+    }
+  }
+  // タスクの柱。★単一の文字列か null だけ（配列は捨てる）
+  if (Array.isArray(flat.missions)) {
+    for (const m of flat.missions) {
+      if (!m || m.pillarId === undefined) continue;
+      if (m.pillarId === null || m.pillarId === '') m.pillarId = null;
+      else if (typeof m.pillarId !== 'string' || !PILLAR_ID_RE.test(m.pillarId)) delete m.pillarId;
+    }
+  }
 }
+// 柱の上限・名前の長さ・id の形（クライアントの constants.js の PILLARS_MAX / PILLAR_NAME_MAX と同じ値に保つこと）
+const PILLARS_MAX = 3;
+const PILLAR_NAME_MAX = 20;
+const PILLAR_ID_RE = /^pil_[a-z0-9]{4,24}$/;
 
 /**
  * ナレッジを公開に切り替えようとしていたら、条件を満たすか確かめる（満たさなければ true を捨てる）。
