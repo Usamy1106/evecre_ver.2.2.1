@@ -10507,6 +10507,40 @@ body {
   color: var(--tag-color);
 }
 
+/* 柱（タスク名のすぐ下。単一選択）。★柱には色を付けない（ラベルの色と意味が混ざる）。
+   選ばれたものは文字色の枠と濃い文字で示す */
+.p-mission-form__pillars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.p-mission-form__pillar {
+  padding: var(--space-1) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  transition: all var(--duration-fast) var(--ease);
+}
+
+.p-mission-form__pillar.is-selected {
+  border-color: var(--color-text);
+  background-color: var(--color-text);
+  color: var(--color-text-inverse);
+}
+
+/* スキップ（未分類）。柱と見分けがつくよう破線にする */
+.p-mission-form__pillar--skip {
+  border-style: dashed;
+}
+
+.p-mission-form__pillar--skip.is-selected {
+  border-style: solid;
+}
+
 /* 新しいタグを作るボタン。既存のタグと見分けがつくよう破線にする */
 .p-mission-form__tag--add {
   padding-inline: var(--space-3);

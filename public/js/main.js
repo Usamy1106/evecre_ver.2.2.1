@@ -686,6 +686,13 @@ window._app = {
     state.notifications = (state.notifications || []).filter(n => n.id !== notifId);
     state.render();
   },
+  // タスク作成・編集の柱（単一選択。null＝スキップ＝未分類）
+  setMissionPillar: (id) => {
+    if (!state.draftMission) return;
+    state.draftMission.pillarId = id || null;
+    state.draftMission._pillarTouched = true;
+    renderMissionModalContent();
+  },
   createOrUpdateMission: (opts = {}) => {
     const titleInput = document.getElementById('mission-title-input');
     const errorText  = document.getElementById('error-title');
@@ -728,6 +735,8 @@ window._app = {
           announceText: state.draftMission.announce ? (state.draftMission.announceText || '') : '',
           noInput: !!state.draftMission.noInput,
           individualClear: !!state.draftMission.individualClear,
+          // 柱。★選び直したときだけ書く（消された柱を指したままのタスクを、開いて保存しただけで書き換えない）
+          ...(state.draftMission._pillarTouched ? { pillarId: state.draftMission.pillarId || null } : {}),
         };
       }
     } else {
@@ -758,6 +767,8 @@ window._app = {
         announceText: state.draftMission.announce ? (state.draftMission.announceText || '') : '',
         noInput: !!state.draftMission.noInput,
         individualClear: !!state.draftMission.individualClear,
+        // 柱（選んだときだけ持たせる。柱の無いイベントのタスクに null のセルを増やさない）
+        ...(state.draftMission.pillarId ? { pillarId: state.draftMission.pillarId } : {}),
         individualClearedBy: [],
       };
       if (fromPid) {

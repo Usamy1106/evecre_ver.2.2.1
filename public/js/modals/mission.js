@@ -7,6 +7,7 @@ import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
 import { suggestAssignees } from '../assigneeSuggest.js';
 import { Components } from '../components.js';
 import { logEvent } from '../logger.js';
+import { getPillars, pillarIdOf } from '../utils.js';
 
 /**
  * タスク作成/編集モーダルを開く
@@ -41,6 +42,9 @@ export function openMissionModal(missionId = null, prefill = null) {
       announceText: m.announceText || '',
       noInput: !!m.noInput,
       individualClear: !!m.individualClear,
+      // 柱。★存在しない id（柱が消された）は未分類として見せる。触らなければ保存でも書き換えない
+      pillarId: pillarIdOf(project, m),
+      _pillarTouched: false,
     };
   } else {
     state.draftMission = {
@@ -51,6 +55,7 @@ export function openMissionModal(missionId = null, prefill = null) {
       announce: false, announceText: '',
       noInput: false,
       individualClear: false,
+      pillarId: null, _pillarTouched: false,
       // 提案からの事前入力（title/labels/description/priority と採用元マーカー）
       ...(prefill || {}),
     };
@@ -268,6 +273,26 @@ function _missionTabs(active) {
   ], { active });
 }
 
+// 柱の選択（タスク名のすぐ下。2026-10-02）。★柱が無いイベントでは欄ごと出さない。
+// ★単一選択。「スキップ」＝未分類（必須にしない）。★柱には色を付けない（タグの色と混ざる）
+function _renderPillarPicker() {
+  const project = state.events.find(p => p.id === state.selectedEventId);
+  const pillars = getPillars(project);
+  if (!pillars.length) return '';
+  const cur = state.draftMission.pillarId || null;
+  const chip = (id, label, extra = '') => `
+    <button type="button" onclick="window._app.setMissionPillar(${id ? `'${_escAttr(id)}'` : 'null'})"
+      aria-pressed="${cur === id}" class="p-mission-form__pillar${cur === id ? ' is-selected' : ''}${extra}">${_esc(label)}</button>`;
+  return `
+        <div data-field="pillar">
+          <label class="heading-rs p-mission-form__label">柱</label>
+          <div class="p-mission-form__pillars">
+            ${pillars.map(x => chip(x.id, x.name)).join('')}
+            ${chip(null, 'スキップ', ' p-mission-form__pillar--skip')}
+          </div>
+        </div>`;
+}
+
 function _renderBasicTab(isEdit, dateDisplay) {
   // 全タグ（組み込み4種類 + イベントのカスタムタグ）
   const project = state.events.find(p => p.id === state.selectedEventId);
@@ -319,6 +344,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
             class="c-input p-mission-form__input">
           <p id="error-title" class="p-mission-form__error u-hidden">※タスク名は入力必須です</p>
         </div>
+        ${_renderPillarPicker()}
         <div>
           <label class="heading-rs p-mission-form__label">やることの説明</label>
           <textarea id="mission-desc-input" rows="3"
