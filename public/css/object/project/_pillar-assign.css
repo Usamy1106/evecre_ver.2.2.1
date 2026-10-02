@@ -108,6 +108,11 @@
   background-color: var(--color-bg);
 }
 
+/* ★見た目はタスク作成の「作成する」と揃える（柱の設定ページの「保存する」と同じ） */
 .p-pillar-assign__save {
   width: 100%;
+  padding-block: var(--space-4);
+  box-shadow: var(--shadow-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
 }

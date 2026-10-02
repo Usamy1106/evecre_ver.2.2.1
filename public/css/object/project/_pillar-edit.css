@@ -213,9 +213,15 @@
   cursor: default;
 }
 
+/* ★見た目はタスク作成の「作成する」（.p-mission-form__submit）と揃える。c-button は大きさを持たないので、
+   ここで高さ・文字・影を決める（無いと細いボタンになり、他の画面と違って見えた） */
 .p-pillar-edit__save {
   width: 100%;
   margin-top: var(--space-10);
+  padding-block: var(--space-4);
+  box-shadow: var(--shadow-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
 }
 
 /* 保存済みの柱でタスクを振り分けるページへ（柱があるときだけ） */
