@@ -441,7 +441,7 @@ function _eventManagementSection(p, sec) {
         <div class="c-settings-list__row p-event-settings__toggle-row">
           <div>
             <p class="p-event-settings__sub-title">宣伝用に公開</p>
-            <p class="p-event-settings__toggle-note">ヘッダー画像・タイトル・概要・期間・場所だけを、開催前からイベクリの外で見られるようにします。タスクやメンバーの情報は公開されません</p>
+            <p class="p-event-settings__toggle-note">ヘッダー画像・タイトル・概要・期間・場所だけを、開催前からイベクリの外で見られるようにします。すべてそろっていなくても公開でき、あとから入れた情報も反映されます。タスクやメンバーの情報は公開されません</p>
           </div>
           ${canMgr ? `
             <button type="button" data-ps-public-basic role="switch" aria-checked="${p.publicBasicInfo === true}"

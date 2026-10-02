@@ -98,6 +98,7 @@
 | 柱を立てる・直すページ（候補・削除の確認） | `object/project/_pillar-edit.css` |
 | 柱ごとの進み具合（メインボード上部・0件の警告） | `object/project/_pillar-board.css` |
 | タスクを柱に振り分けるページ | `object/project/_pillar-assign.css` |
+| 宣伝用に公開するかの確認（項目の設定済み／未設定） | `object/project/_public-basic.css` |
 | ミッションの作成・編集モーダル | `object/project/_mission-form.css` |
 | タスク作成の確認モーダル（未設定の項目を知らせる） | `object/project/_mission-check.css` |
 | 担当者の選択・おすすめ | `object/project/_assignee.css` |
@@ -329,6 +330,7 @@ public/css/
 │  ├─ _pillar-edit.css          ✅ 柱を立てる・直すページ
 │  ├─ _pillar-board.css         ✅ 柱ごとの進み具合
 │  ├─ _pillar-assign.css        ✅ タスクを柱に振り分けるページ
+│  ├─ _public-basic.css         ✅ 宣伝用に公開するかの確認
 │  ├─ _mission-form.css         ✅ ミッションの作成・編集モーダル
 │  ├─ _mission-check.css        ✅ p-mission-check
 │  ├─ _assignee.css             ✅ 担当者の選択・おすすめ

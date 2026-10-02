@@ -5666,6 +5666,59 @@ body {
 }
 
 /* ③ 概要と基礎情報 */
+/* 「宣伝用に公開できる」帯（概要の上。2026-10-02）。ここから上の欄（ヘッダー画像〜場所）が公開できると伝える。
+   ★ボタンは管理者だけ・非公開のときだけ（mainBoard.js の _archivePublicBannerHtml） */
+.p-archive__public {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+  color: var(--color-text-muted);
+}
+
+.p-archive__public.is-public {
+  border-color: var(--color-primary-half);
+  background-color: var(--color-primary-tint2);
+  color: var(--color-primary);
+}
+
+.p-archive__public-icon {
+  flex: none;
+}
+
+.p-archive__public-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.5;
+  color: var(--color-text-soft);
+}
+
+.p-archive__public-state {
+  flex: none;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-archive__public-state--off {
+  color: var(--color-text-muted);
+}
+
+.p-archive__public-button {
+  flex: none;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}
+
 .p-archive__intro > * + * {
   margin-top: var(--space-4);
 }
@@ -13454,6 +13507,79 @@ body {
 
 .p-pillar-assign__save {
   width: 100%;
+}
+
+/* ===== object/project/_public-basic.css ===== */
+/* ==========================================================================
+   Object / Project / public-basic — 宣伝用に公開するかの確認（モーダルの中身）
+   使用箇所: public/js/modals/publicBasicInfoModal.js（ガワは c-modal）
+
+   ヘッダー画像・タイトル・概要・期間・場所を「設定済み／未設定」で並べ、足りないものを伝える。
+   ★全部そろっていなくても公開できる（2026-10-02）。未設定は止めるためではなく知らせるために出す
+   ========================================================================== */
+
+.p-public-basic__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+  text-align: left;
+}
+
+.p-public-basic__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.p-public-basic__mark {
+  flex: none;
+  width: 16px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  text-align: center;
+}
+
+.p-public-basic__label {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--font-weight-bold);
+}
+
+.p-public-basic__state {
+  flex: none;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+}
+
+/* 未設定の項目。★警告色にしない（止めるものではない） */
+.p-public-basic__item.is-missing .p-public-basic__mark,
+.p-public-basic__item.is-missing .p-public-basic__label {
+  color: var(--color-text-muted);
+}
+
+.p-public-basic__item.is-missing .p-public-basic__state {
+  color: var(--color-warning-dark);
+}
+
+.p-public-basic__note {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-soft);
+  text-align: left;
+}
+
+.p-public-basic__note--sub {
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
 /* ===== object/project/_create-event.css ===== */

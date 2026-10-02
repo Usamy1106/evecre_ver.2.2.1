@@ -851,6 +851,8 @@ export const state = {
     if (view === 'CREATE_EVENT_INFO' && this.currentView !== 'PROJECT_DETAIL') {
       this.selectedFolderId = null;
     }
+    // ★「宣伝用に公開するか」は訪問ごとに1回（publicBasicInfoModal.js）。イベントの外へ出たら次の訪問で出し直す
+    if (view === 'HOME' || view === 'PROJECT_DETAIL') this._publicBasicPromptedFor = null;
     if (view === 'PROJECT_DETAIL') {
       this.selectedFolderId = id;
     } else if (view !== 'PROJECT_DETAIL') {
@@ -1252,9 +1254,8 @@ export const state = {
       setTimeout(() => window._app?.checkIntro?.(), 250);
     }
 
-    // 基礎情報がそろったら「公開するか」を一度だけ聞く（管理者のみ。判定はモーダル側）。
-    // ★イベント設定で最後の項目を入れた直後にも出すため、EVENT_SETTINGS でも評価する。
-    // ★セッション1回ゲートにしない（重なったら持ち越す作り。答えはイベントに保存される）
+    // 概要が書かれていて宣伝用に公開していなければ「公開するか」を聞く（管理者のみ・訪問ごとに1回。判定はモーダル側）。
+    // ★イベント設定で概要を入れた直後にも出すため、EVENT_SETTINGS でも評価する。
     if ((this.currentView === 'MAIN_BOARD' || this.currentView === 'EVENT_SETTINGS') && this.selectedEventId) {
       setTimeout(() => window._app?.checkPublicBasicInfoModal?.(), 1400);
       // 振り返りフェーズが終わったら「タスクも含めて公開するか」を一度だけ聞く（管理者のみ。判定はモーダル側）

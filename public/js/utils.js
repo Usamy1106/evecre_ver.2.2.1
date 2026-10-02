@@ -370,15 +370,25 @@ export function getEventMainVisual(project) {
 }
 
 /**
- * アーカイブの基礎情報（タイトル・ヘッダー画像・概要・場所・期間）がすべて入っているか。
- * ★「宣伝用に公開するか」の確認（publicBasicInfoModal.js）を出す条件
+ * 宣伝用に公開できる基礎情報（ヘッダー画像・タイトル・概要・期間・場所）の入力状況。
+ * ★アーカイブの帯と「宣伝用に公開するか」の確認（publicBasicInfoModal.js）で共用する。
+ * ★全部そろっていなくても公開できる（2026-10-02）。公開の確認を出す条件は「概要がある」こと（canPromptPublicBasic）。
+ *   空の項目は空のまま公開される（lib/publicData.js の buildPublicEvent）
+ * @returns {{ key: string, label: string, ok: boolean }[]}
  */
-export function hasAllBasicInfo(project) {
-  return !!(String(project?.name || '').trim()
-    && getEventMainVisual(project)
-    && getArchiveSummary(project).trim()
-    && getArchiveVenue(project).trim()
-    && Array.isArray(project?.dates) && project.dates.length > 0);
+export function basicInfoStatus(project) {
+  return [
+    { key: 'image',   label: 'ヘッダー画像（サムネイル）', ok: !!getEventMainVisual(project) },
+    { key: 'title',   label: 'タイトル', ok: !!String(project?.name || '').trim() },
+    { key: 'summary', label: '概要',     ok: !!getArchiveSummary(project).trim() },
+    { key: 'period',  label: '期間',     ok: Array.isArray(project?.dates) && project.dates.length > 0 },
+    { key: 'venue',   label: '場所',     ok: !!getArchiveVenue(project).trim() },
+  ];
+}
+
+/** 宣伝用に公開できるか（＝概要が書かれているか）。★タイトル（イベント名）は常にある */
+export function canPromptPublicBasic(project) {
+  return !!getArchiveSummary(project).trim();
 }
 
 /**

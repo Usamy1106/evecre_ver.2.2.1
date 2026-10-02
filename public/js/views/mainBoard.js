@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, canPromptPublicBasic } from '../utils.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
@@ -1427,6 +1427,31 @@ function _archiveSections(p, missions, mode) {
   return order.map(tag => ({ heading: tag, missions: groups[tag] }));
 }
 
+// アーカイブの「宣伝用に公開できる」帯（概要・期間・場所の上。2026-10-02）。
+// ★ヘッダー画像・タイトル・概要・期間・場所は宣伝用に公開できる欄だと伝える。全員に今の状態を見せ、
+//   ボタン（公開する）は管理者だけ・非公開のときだけ。概要が無いうちは「概要を書くと公開できます」と伝える
+//   （公開の確認を出す条件が「概要がある」こと。utils.js の canPromptPublicBasic）
+function _archivePublicBannerHtml(p, canMgr) {
+  const on = p.publicBasicInfo === true;
+  const ready = canPromptPublicBasic(p);
+  const text = on ? 'ヘッダー画像・タイトル・概要・期間・場所を、宣伝用に公開しています'
+    : ready ? 'ヘッダー画像・タイトル・概要・期間・場所は、宣伝用に公開できます'
+    : '概要を書くと、ヘッダー画像・タイトル・概要・期間・場所を宣伝用に公開できます';
+  return `
+    <div class="p-archive__public${on ? ' is-public' : ''}">
+      <svg class="p-archive__public-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+      <span class="p-archive__public-text">${text}</span>
+      ${on ? '<span class="p-archive__public-state">公開中</span>'
+        : canMgr && ready ? `<button type="button" onclick="window._app.openPublicBasicInfoModal()" data-log="archive_public_basic_open"
+            class="p-archive__public-button">公開する</button>`
+        : '<span class="p-archive__public-state p-archive__public-state--off">非公開</span>'}
+    </div>`;
+}
+
 function _renderArchiveTab(p) {
   const canMgr  = state.canManageCurrentEvent();
   // ★編集できるのは管理者だけ。権限が無いのに編集中のまま残っていたら閲覧に戻す
@@ -1540,6 +1565,7 @@ function _renderArchiveTab(p) {
 
         <!-- ③ 概要と基礎情報 -->
         <section class="p-archive__intro">
+          ${_archivePublicBannerHtml(p, canMgr)}
           <div data-inline-block>
             <div class="p-archive__label-row">
               <h2 class="p-archive__label">概要</h2>

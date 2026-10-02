@@ -86,8 +86,7 @@ async function _saveBasic(node) {
     await state.saveNow(p.id);
     _status(node, 'saved', '保存しました');
     logEvent('archive_inline_saved', { field });
-    // ★5つがそろったら「宣伝用に公開するか」を聞く。編集モードは保存しても描き直さないので、ここで判定を呼ぶ
-    window._app?.checkPublicBasicInfoModal?.();
+    // ★「宣伝用に公開するか」はここでは聞かない（書き終えた瞬間に割り込むため）。編集を「完了」したあとの render() で判定する
   } catch (_) {
     _status(node, 'error', '保存できませんでした');
   }

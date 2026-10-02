@@ -68,7 +68,7 @@ import { copySchedule } from './scheduleCopy.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
 import { flushArchiveInlineEdits } from './archiveInlineEdit.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
-import { checkPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
+import { checkPublicBasicInfoModal, openPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkPublicKnowledgeModal } from './modals/publicKnowledgeModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
 import { checkWelcomeTour, isWelcomeTourPending, markWelcomeTourPending, PUSH_AFTER_SIGNUP_KEY } from './modals/welcomeTourModal.js';
@@ -1099,6 +1099,7 @@ window._app = {
   // --- 開催日リマインドモーダル（全メンバー向け・初日/最終日翌日）---
   checkEventDateReminderModal: () => checkEventDateReminderModal(),
   checkPublicBasicInfoModal:   () => checkPublicBasicInfoModal(),
+  openPublicBasicInfoModal:    () => openPublicBasicInfoModal(),
   checkPublicKnowledgeModal:   () => checkPublicKnowledgeModal(),
 
   // --- 開発者からのお知らせモーダル（全ユーザー向け）---
