@@ -14,7 +14,7 @@ import {
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
-import { renderMainBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry, showAllArchiveSubmitters, rememberArchiveRow, setBoardPanelView, clearBoardFilterDate } from './views/mainBoard.js';
+import { renderMainBoard, togglePillarBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry, showAllArchiveSubmitters, rememberArchiveRow, setBoardPanelView, clearBoardFilterDate } from './views/mainBoard.js';
 import { renderWelcome } from './views/welcome.js';
 import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
@@ -1123,8 +1123,21 @@ window._app = {
   setMissionViewMode: (mode) => {
     state.missionViewMode = mode;
     state.missionFilterTag = null; // タグフィルタはリセット
+    state.missionFilterPillar = null;
     state.render();
   },
+
+  // --- 柱での絞り込み（柱ごとの進み具合の行をタップ）。もう一度押すと解除 ---
+  // ★絞り込むときは「みんなのやること」に切り替える。柱の残りのタスクを全部見せるため
+  //   （「私のやること」のままだと、自分の担当でないタスクが隠れて「残り5件」が見えない）
+  setMissionFilterPillar: (id) => {
+    const next = state.missionFilterPillar === id ? null : (id || null);
+    state.missionFilterPillar = next;
+    if (next) state.missionViewMode = 'all';
+    logEvent('pillar_filtered', { on: !!next });
+    state.render();
+  },
+  togglePillarBoard: (eventId) => togglePillarBoard(eventId),
 
   // --- タスク絞り込みタグ変更 ---
   setMissionFilterTag: (tag) => {
@@ -1756,6 +1769,7 @@ const _LOG_LABELS = {
   reflect_skipped:         '振り返りを「今はしない」で閉じた',
   pillar_edit_opened:      '柱の編集ページを開いた',
   pillars_saved:           '柱を保存した',
+  pillar_filtered:         '柱でタスクを絞り込んだ',
   mission_check_shown:     'タスク作成の確認モーダルが出た',
   mission_check_set:       '確認モーダルから設定へ進んだ',
   mission_check_skipped:   '確認モーダルからそのまま作成した',

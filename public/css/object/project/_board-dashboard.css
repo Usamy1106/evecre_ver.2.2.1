@@ -289,6 +289,12 @@
   transition: background-color var(--duration-fast) var(--ease);
 }
 
+/* 柱ごとの進み具合（目的のボックスの下）。★幅と余白は目的のボックスに揃える */
+.p-board-dash__pillars {
+  flex-shrink: 0;
+  margin: 0 var(--space-6) var(--space-2);
+}
+
 /* 柱を立てる入口（目的のボックスの下）。★幅と余白は目的のボックスに揃える */
 .p-board-dash__pillar-cta {
   flex-shrink: 0;

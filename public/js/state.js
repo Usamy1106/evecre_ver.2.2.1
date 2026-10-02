@@ -117,6 +117,7 @@ export const state = {
   //   ★mainBoard.js のフォールバック（`|| 'mine'`）も同じ値に保つこと。
   missionViewMode: 'mine',     // 'mine' | 'all'  タスク表示モード
   missionFilterTag: null,      // タスク絞り込みタグ（null=全表示）
+  missionFilterPillar: null,   // 柱での絞り込み（柱の id。null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority'（目次と本文の並び。完了者別・作成者別は廃止）
   boardPanelView: null,        // 広い画面のメインボード右列（'list'|'calendar'|'gantt'）。null＝localStorage から読む（views/mainBoard.js）
   archiveEditing: false,       // アーカイブの編集モード（管理者のみ）。★画面を離れたら閲覧に戻す（setView）
@@ -864,6 +865,7 @@ export const state = {
     this.currentView = view;
     this.mainBoardTab = 'MAIN';
     this.missionFilterTag = null;
+    this.missionFilterPillar = null;
     this.notifFilter = null;   // 通知の絞り込みは自動（未読優先）に戻す
     this.archiveFocusMissionId = null;
     this.archiveEditing = false;   // 編集モードのまま別の画面・イベントへ持ち越さない

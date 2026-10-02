@@ -619,6 +619,75 @@ function _pillarCtaHtml(p, extraClass = '') {
     </button>`;
 }
 
+// ===== 柱ごとの進み具合（2026-10-02。この機能の本体）=====
+// ★目的は1つの文章だと偏りが見えない。柱に分けて「どこが手薄か」を**ただ見せる**。訴えかけ・説教の文言を足さないこと。
+// ★柱の名前を省略しない（名前が毎回目に入ることが、目的を見失わせない仕掛けそのもの。長ければ折り返す）。
+// ★バーは割合（完了 / 全件）。件数で描くと母数の違いで印象が歪む。
+// ★★0件（タスクすら立っていない）は 0%（着手前）と別の見た目にする。文字「0件」を警告色で出す。
+//   柱として掲げたのに誰も具体化していない＝迷子が起きている兆候で、0% より深刻。
+// ★既定は開いた状態（畳める）。振り返り欄は畳まれていて入力0件だった前例がある。
+// ★行のタップでその柱のタスクに絞り込む（見えるだけで終わらせない）。
+// ★集計は p.missions を1周するだけ（柱の数だけ filter を回さない。0.5CPU 環境）。
+//   一覧に出ていない完了済みのタスクも数える（一般メンバーには完了済みが一覧に出ないため、表示用の一覧からは数えない）
+const _pillarBoardCollapsed = new Map();   // eventId → true（畳んだ。画面を開いている間だけ覚える）
+
+function _pillarStats(p, pillars) {
+  const stats = new Map(pillars.map(x => [x.id, { total: 0, done: 0 }]));
+  for (const m of p.missions || []) {
+    const st = m.pillarId ? stats.get(m.pillarId) : null;   // ★存在しない id は数えない（未分類）
+    if (!st) continue;
+    st.total++;
+    if (m.status === 'cleared') st.done++;
+  }
+  return stats;
+}
+
+function _pillarBoardHtml(p, extraClass = '') {
+  const pillars = getPillars(p);
+  if (!pillars.length) return '';
+  const stats = _pillarStats(p, pillars);
+  const collapsed = _pillarBoardCollapsed.get(p.id) === true;
+  const active = state.missionFilterPillar;
+  const rows = pillars.map(x => {
+    const st = stats.get(x.id);
+    const empty = st.total === 0;
+    const pct = empty ? 0 : Math.round((st.done / st.total) * 100);
+    const on = active === x.id;
+    return `
+      <button type="button" onclick="window._app.setMissionFilterPillar('${_esc(x.id)}')" data-log="pillar_row_tap"
+        aria-pressed="${on}" class="p-pillar-board__row${on ? ' is-active' : ''}${empty ? ' is-empty' : ''}">
+        <span class="p-pillar-board__name">${_esc(x.name)}</span>
+        <span class="p-pillar-board__count">${empty ? '0件' : `${st.done}/${st.total}`}</span>
+        <span class="p-pillar-board__bar" aria-hidden="true"><span class="p-pillar-board__fill" style="--pillar-pct:${pct}%"></span></span>
+      </button>`;
+  }).join('');
+  const canEdit = state.canManageCurrentEvent();
+  return `
+    <section class="p-pillar-board${collapsed ? ' is-collapsed' : ''}${extraClass ? ' ' + extraClass : ''}" data-pillar-board="${_esc(p.id)}">
+      <div class="p-pillar-board__head">
+        <button type="button" onclick="window._app.togglePillarBoard('${_esc(p.id)}')" data-log="pillar_board_toggle"
+          aria-expanded="${!collapsed}" class="p-pillar-board__toggle">
+          <span class="p-pillar-board__title">このイベントの柱</span>
+          <svg class="p-pillar-board__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        ${canEdit ? `<button type="button" onclick="window._app.openPillarEdit('board')" data-log="pillar_board_edit"
+          class="p-pillar-board__edit">編集</button>` : ''}
+      </div>
+      <div class="p-pillar-board__rows">${rows}</div>
+    </section>`;
+}
+
+/** 開閉。★state.render() を呼ばない（クラスの付け外しだけ。描き直すとスクロールが飛ぶ） */
+export function togglePillarBoard(eventId) {
+  const next = !(_pillarBoardCollapsed.get(eventId) === true);
+  _pillarBoardCollapsed.set(eventId, next);
+  document.querySelectorAll(`[data-pillar-board="${CSS.escape(eventId)}"]`).forEach(el => {
+    el.classList.toggle('is-collapsed', next);
+    el.querySelector('.p-pillar-board__toggle')?.setAttribute('aria-expanded', String(!next));
+  });
+}
+
 function _renderDashboardMain(p, mainLayout) {
   const view = _boardPanelView();
   const ctx = _scheduleCtxFor(p, view, mainLayout.displayMissions);
@@ -694,6 +763,7 @@ function _renderDashboardMain(p, mainLayout) {
         </div>
         ${_purposeBoxHtml(p)}
         ${_pillarCtaHtml(p, 'p-board-dash__pillar-cta')}
+        ${_pillarBoardHtml(p, 'p-board-dash__pillars')}
         ${body}
       </section>
     </div>`;
@@ -824,6 +894,12 @@ function _renderMainTab(p) {
       return tags.includes(state.missionFilterTag);
     });
   }
+  // ── 柱での絞り込み（柱ごとの進み具合の行をタップ）──────────────
+  // ★存在しない id（消された柱）を指していたら絞り込まない
+  const _pillarFilter = state.missionFilterPillar && getPillars(p).some(x => x.id === state.missionFilterPillar)
+    ? state.missionFilterPillar : null;
+  if (_pillarFilter) displayMissions = displayMissions.filter(m => m.pillarId === _pillarFilter);
+
   // ★ラベルが2つ以上あるときだけ絞り込みチップを出す。
   //   ラベルが0〜1個なら「絞る意味が無い」のでチップは出さないが、並び替えボタンは残す。
   const tagChipsHtml = allTags.length > 1 ? `
@@ -885,7 +961,9 @@ function _renderMainTab(p) {
   }).join('');
 
   const missionCardList = displayMissions.length === 0
-    ? (state.missionFilterTag
+    ? (_pillarFilter
+        ? `<p class="p-main-board__empty p-main-board__empty--tight">この柱の残りのタスクはありません</p>`
+        : state.missionFilterTag
         ? `<p class="p-main-board__empty p-main-board__empty--tight">このタグのタスクがありません</p>`
         : viewMode === 'mine'
           ? `<p class="p-main-board__empty">あなたに割り当てられたタスクはありません</p>`
@@ -1089,7 +1167,7 @@ function _renderMainTab(p) {
       ${bannersHtml}
     </div>` : `
     <div class="p-main-board__pinned p-main-board__pinned--side">
-      <div class="p-main-board__pinned-main">${_pillarCtaHtml(p)}${bannersHtml}</div>
+      <div class="p-main-board__pinned-main">${_pillarCtaHtml(p)}${_pillarBoardHtml(p)}${bannersHtml}</div>
       ${sideActionsHtml}
     </div>`;
 
