@@ -737,15 +737,10 @@ async function _finish(verifyResp = null) {
   state.authDraft  = { username: '', email: '', password: '' };
   state.authErrors = {};
 
-  if (verifyResp?.needsJoinConfirm && verifyResp?.inviteToken) {
-    // ★ここでは開かない。プロフィール作成（STEP 4〜8）を先に済ませ、
-    //   完了カードの「はじめる」で消費する。作成途中に出すと質問の上に
-    //   モーダルが重なって、どちらも進められなくなる。
-    state.pendingJoinConfirm = {
-      token: verifyResp.inviteToken,
-      eventName: verifyResp.pendingEventName || 'イベント',
-      eventId: verifyResp.pendingEventId || '',
-    };
+  // ★ここでは開かない。プロフィール作成（STEP 4〜8）を先に済ませ、
+  //   完了カードの「はじめる」で消費する（作成途中に出すと質問の上にモーダルが
+  //   重なって、どちらも進められなくなる）。予約の作り方は state 側に集約してある。
+  if (state.applyInviteLanding(verifyResp)) {
     await state.loadAfterAuth();
     return;
   }

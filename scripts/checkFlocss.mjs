@@ -35,9 +35,15 @@ const section = (t) => console.log(`\n${t}`);
  *  ★「ソースに X が現れないこと」の判定は必ずこれを通す。生のソースで判定すると、
  *    「X をしないこと」という**注意書きそのものがテストを落とす**
  *    （checkMountain.mjs でも同じ手当てをしている）。 */
+// ★**行コメントを先に外すこと。** 逆にすると、行コメントの中の `/*`（例:
+//   `// data/projects/*.json` や `// …（新旧両方に OTP）…`）からブロック
+//   コメントが始まったと誤判定し、次の `*/` までの**本物のコードを丸ごと食う**。
+//   server.js では実測で 183KB → 121KB（34%）が消え、その範囲の検査が
+//   「見つからないので素通り」していた（2026-10-01 に発見）。
+//   ★URL の `://` は行コメントとみなさない（`[^:]` の除外を外さないこと）。
 const codeOnly = (text) => text
-  .replace(/\/\*[\s\S]*?\*\//g, ' ')
-  .replace(/(^|[^:])\/\/.*$/gm, '$1');
+  .replace(/(^|[^:])\/\/.*$/gm, '$1')
+  .replace(/\/\*[\s\S]*?\*\//g, ' ');
 
 const entry = R('public/css/style.css');
 const readme = R('public/css/README.md');
@@ -114,6 +120,40 @@ ok('slideUp と sheetRise を取り違えていない',
 
 // -------------------------------------------------------- [B] 再発防止
 section('[B] 実機で見つかった不具合');
+
+// ★招待リンクから来た人の着地。**needsJoinConfirm を pendingEventId より先に見ること。**
+//   pendingEventId は「まだ申請していない」ときにも入るので、先に見ると参加申請フォームを
+//   飛ばして、入っていないイベントのボードへ飛ばしてしまう（ログインと Google サインインが
+//   実際にそうなっていて、招待から来た人はフォームに一度も到達できなかった。2026-10-01）。
+{
+  const au = codeOnly(R('public/js/views/auth.js'));
+  const beforePending = [...au.matchAll(/if \(r\.pendingEventId\)/g)].every(m => {
+    const head = au.slice(0, m.index);
+    // 直前の分岐で applyInviteLanding を見ていること（ログイン・Google の2か所）
+    return /applyInviteLanding\(r\)[\s\S]{0,200}$/.test(head);
+  });
+  ok('★招待：needsJoinConfirm を pendingEventId より先に見ている（auth.js）',
+    /applyInviteLanding/.test(au) && beforePending);
+
+  const vm = codeOnly(R('public/js/modals/verifyEmailModal.js'));
+  ok('★招待：メール認証モーダルも needsJoinConfirm を先に見ている',
+    vm.indexOf('needsJoinConfirm') >= 0 &&
+    vm.indexOf('needsJoinConfirm') < vm.indexOf('pendingEventId'));
+
+  // ★メール認証をスキップした人にも参加申請フォームを出す（accept は requireAuth だけ）
+  const st = codeOnly(R('public/js/state.js'));
+  ok('★招待：未認証（コード入力をスキップ）でも参加申請を予約する',
+    /applyInviteLanding\(r\)\s*\{/.test(st) &&
+    !/isVerified === true[\s\S]{0,120}pendingJoinConfirm/.test(st));
+
+  // ★iOS の Google サインイン（フォーム POST）では招待 Cookie を消費しない。
+  //   消費すると `/` に戻ったあとの me が招待を読めず、フォームに到達できない
+  const sv = codeOnly(R('server.js'));
+  const gi = sv.indexOf("app.post('/api/auth/google'");
+  const seg = sv.slice(gi, gi + 4000);
+  ok('★招待：iOS のフォーム POST は招待 Cookie を消費する前に return する',
+    gi > 0 && seg.indexOf('isFormPost) {') < seg.indexOf('consumeInviteCookieIfAny'));
+}
 
 // ★入力欄の文字が 16px 未満だと、iOS Safari がタップ時に**勝手にズームする**。
 //   一度ズームすると自分では戻せず、以後ずっと拡大表示のままになる（指摘を受けた）。

@@ -1422,13 +1422,16 @@ app.post('/api/auth/google', authLimiter, async (req, res) => {
     }
 
     await attachSession(res, user.id);
-    const inv = await consumeInviteCookieIfAny(req, res, user);
-
-    // iOS(フォーム POST): トップレベル遷移なので Cookie が first-party で保存される。
-    // アプリ(/)に戻すと init→/api/auth/me が Cookie を読み、招待の保留状態も復元される。
+    // ★iOS(フォーム POST) では招待 Cookie を**消費しない**（2026-10-01 に修正）。
+    //   トップレベル遷移なのでレスポンスの JSON は誰も読まない。ここで消費すると
+    //   Cookie が消え、`/` に戻ったあとの `/api/auth/me` が招待を読めず、
+    //   **参加申請フォームに一度も到達できなかった**（「アプリ(/)に戻すと me が
+    //   Cookie を読む」という前のコメントは、消費したあとなので成り立っていなかった）。
     if (isFormPost) {
       return res.redirect('/');
     }
+
+    const inv = await consumeInviteCookieIfAny(req, res, user);
 
     res.json({
       ok: true,

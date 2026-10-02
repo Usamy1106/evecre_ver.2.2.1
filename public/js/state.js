@@ -358,6 +358,27 @@ export const state = {
 
   // --- 招待イベントに入る共通処理 ---
   // サーバー側で受諾済みの eventId を受け取って、イベント画面 + 認証モーダルを開く
+  /**
+   * 認証のレスポンス（login / google / me / verify-email）に乗っている
+   * 招待の着地情報を読んで、参加申請フォームの予約をする。
+   *
+   * ★★**`needsJoinConfirm` を `pendingEventId` より先に見ること。**
+   *   `pendingEventId` は「まだ申請していない（needsJoinConfirm）」ときにも入る。
+   *   先に見ると参加申請フォームを飛ばして、**入っていないイベントのボードへ
+   *   飛ばしてしまう**（ログインと Google サインインが実際にそうなっていた。
+   *   招待リンクから入った人は、申請フォームに一度も到達できなかった。2026-10-01 に修正）。
+   * @returns {boolean} true＝参加申請フォームを予約した（呼び出し側は loadAfterAuth へ進む）
+   */
+  applyInviteLanding(r) {
+    if (!r?.needsJoinConfirm || !r?.inviteToken) return false;
+    this.pendingJoinConfirm = {
+      token:     r.inviteToken,
+      eventName: r.pendingEventName || 'イベント',
+      eventId:   r.pendingEventId   || '',
+    };
+    return true;
+  },
+
   async _enterInvitedEvent(eventId) {
     console.log('[enterInvitedEvent] eventId=', eventId);
     // イベント一覧を再取得
@@ -443,10 +464,14 @@ export const state = {
       const token = this.pendingInviteToken;
       const eventName = this.inviteContextForAuth?.eventName || this.inviteContextForAuth?.name || 'イベント';
       const eventId   = this.inviteContextForAuth?.eventId || '';
-      // 未認証ユーザー（新規登録直後）はメール認証後に signup.js の _finish が
-      // needsJoinConfirm レスポンスを受けて予約する。
-      // ここで予約するのは認証済みユーザー（ログイン・Google サインイン）のみ。
-      if (this.currentUser?.isVerified === true) {
+      // ★メール認証が済んでいなくても予約する（2026-10-01）。
+      //   以前は `isVerified === true` だけに絞っており、**STEP 3（コード入力）を
+      //   スキップした人には参加申請フォームが一度も出なかった**（スキップは許して
+      //   いる仕様なので、ここで落ちると招待から来た人が参加できない）。
+      //   参加申請（POST /api/invites/:token/accept）は requireAuth だけで、
+      //   メール認証を要求していない。
+      // ★すでに予約があるときは上書きしない（認証レスポンス側の値を優先する）。
+      if (!this.pendingJoinConfirm) {
         this.pendingJoinConfirm = { token, eventName, eventId };
       }
       this.pendingInviteToken = null;

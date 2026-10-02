@@ -278,6 +278,12 @@ export function renderLogin(container) {
         state.authErrors = {};
         state.currentUser = r.user;
 
+        // ★招待リンクから来て**まだ申請していない**なら、そのまま参加申請フォームへ。
+        //   pendingEventId より先に見ること（state.applyInviteLanding のコメントを参照）。
+        if (state.applyInviteLanding(r)) {
+          await state.loadAfterAuth();
+          return;
+        }
         if (r.pendingEventId) {
           if (r.pendingApproval) {
             state.pendingApprovalMessage = `「${r.pendingEventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
@@ -521,6 +527,11 @@ export async function _setupGoogleSignIn(mode, opts = {}) {
             state.loginDraft = { identifier: '', password: '' };
             state.authErrors = {};
 
+            // ★ログインと同じ。needsJoinConfirm を pendingEventId より先に見る
+            if (state.applyInviteLanding(r)) {
+              await state.loadAfterAuth();
+              return;
+            }
             if (r.pendingEventId) {
               if (r.pendingApproval) {
                 state.pendingApprovalMessage = `「${r.pendingEventName || 'イベント'}」への参加申請を送りました。管理者の承認後に参加できます。`;
