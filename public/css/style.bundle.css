@@ -16249,9 +16249,7 @@ body {
   top: 0;
   z-index: 1;
   flex: 1 1 var(--board-cal-width);
-  /* --board-dash-bg がアルファ付きでも不透明になるよう、地色の上に重ねる */
   background-color: var(--color-bg);
-  background-image: linear-gradient(var(--board-dash-bg), var(--board-dash-bg));
 }
 
 .p-board-dash__list {
