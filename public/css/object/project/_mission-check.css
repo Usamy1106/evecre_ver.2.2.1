@@ -66,11 +66,9 @@
   padding-block: var(--space-3);
 }
 
-/* 「このまま作成する」。主役にはしないが、読めない薄さにもしない */
+/* 「このまま作成する」。ボタンにするが主役にはしない（c-button--secondary の白地・枠。文字は少し小さく薄く） */
 .p-mission-check__quiet {
-  padding-block: var(--space-2);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
   color: var(--color-text-muted);
 }
 

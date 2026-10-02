@@ -12,7 +12,8 @@
 /* 横並び（柱の設定ページ・広い画面のタスク作成） */
 .p-pillar-chars {
   --char-h: 112px;
-  --char-bleed: 2px;
+  /* 体を枠より大きく敷く量。★大きめにして体を大きく見せる（目と名前に対して体が小さく見えていた） */
+  --char-bleed: 8px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
@@ -22,7 +23,7 @@
    判定は layoutMode.js の1か所（ここで @media を書かない） */
 .p-pillar-chars--stack {
   --char-h: 120px;
-  grid-template-columns: minmax(0, 190px);
+  grid-template-columns: minmax(0, 170px);
   justify-content: center;
   gap: var(--space-3);
 }
@@ -38,22 +39,35 @@
   transition: opacity var(--duration-fast) var(--ease);
 }
 
+/* ★高さは体の素材の縦横比（372×349）から決める。.p-char の固定の高さ（--char-h）のままだと、
+   列の幅によって体が縦長・横長に潰れ、目だけが大きく見えた。（.p-char より強く当てるため2クラス） */
+.p-pillar-char.p-char {
+  height: auto;
+  aspect-ratio: 372 / 349;
+}
+
+/* 目。★提案ボックスのキャラ（27%）より小さくする。名前を体の中に書くぶん、目が大きいと体が小さく見える */
+.p-pillar-char .p-char__face {
+  top: 13%;
+  width: 23%;
+}
+
 /* 名前（体の内側。目の下〜体の下のふくらみの上）。
-   ★左右は 20% 内側に寄せる。体（とくに mori の雲形）は箱より細く見えるので、12% だと長い名前が
-     1行に収まってしまい、文字が体の縁からはみ出して見えた */
+   ★左右は 17% 内側に寄せる（体は --char-bleed のぶん枠より大きい）。寄せが足りないと、体（とくに mori の雲形）の
+     縁より外まで1行で書いてしまい、文字がはみ出して見えた */
 .p-pillar-char__name {
   position: absolute;
   z-index: 1;
-  top: 34%;
-  right: 20%;
-  bottom: 14%;
-  left: 20%;
+  top: 36%;
+  right: 17%;
+  bottom: 12%;
+  left: 17%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
   font-weight: var(--font-weight-heavy);
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--color-text-inverse);
   text-align: center;
   overflow-wrap: anywhere;
@@ -116,7 +130,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: var(--char-h);
+  aspect-ratio: 372 / 349;
   border: 2px dashed var(--color-border);
   border-radius: 42%;
 }

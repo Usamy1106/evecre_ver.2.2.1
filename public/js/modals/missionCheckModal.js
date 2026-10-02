@@ -111,8 +111,9 @@ function _open(missing, onProceed) {
           class="c-button c-button--primary p-mission-check__button">
           ${_esc(single ? single.cta : '設定する')}
         </button>
+        <!-- ★「このまま作成する」もボタンにする（2026-10-02）。色は目立たせない（白地の枠付き） -->
         <button type="button" data-check="skip"
-          class="p-mission-check__quiet">このまま作成する</button>
+          class="c-button c-button--secondary p-mission-check__button p-mission-check__quiet">このまま作成する</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
