@@ -6537,6 +6537,24 @@ body {
   font-weight: 700;
 }
 
+/* 未完了の目的を書く欄（編集モード・管理者だけ・概要の上。書いて離れると def-1 が完了になる。2026-10-02） */
+.p-archive__purpose-input {
+  margin-top: var(--space-3);
+}
+
+.p-archive__purpose-input-text {
+  min-height: 3em;
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+/* 概要（def-3）に画像・PDF・書式があるとき（記録と同じ描き方。ここでは直さない） */
+.p-archive__summary--rich > * + * {
+  margin-top: var(--space-2);
+}
+
 /* ===== object/project/_notification.css ===== */
 /* ==========================================================================
    Object / Project / notification — メインボードの通知タブ
@@ -13037,22 +13055,18 @@ body {
 .p-pillar-edit__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-6) var(--space-2);
 }
 
-/* 戻る。★見た目は振り返りページ・タスク詳細の丸ボタンに合わせる */
-.p-pillar-edit__round-button {
-  display: flex;
+/* あとで（2026-10-02 に戻るボタンから変更）。柱は決めずに抜けてよい */
+.p-pillar-edit__later {
   flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
 }
 
 .p-pillar-edit__heading {
@@ -13084,6 +13098,14 @@ body {
   font-size: var(--font-size-sm);
   color: var(--color-text);
   white-space: pre-wrap;
+}
+
+.p-pillar-edit__next {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.6;
+  color: var(--color-primary);
 }
 
 .p-pillar-edit__lead {

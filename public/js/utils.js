@@ -317,20 +317,15 @@ export function bindTapToEdit(root = document) {
 //   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
 
 /**
- * 概要。実体は **イベントの description だけ**（2026-09-26）。
- * ★初期タスク def-3（どのようなイベントを行うか整理しよう）の提出物とは切り離した。
- *   以前は clearedData['def-3'] を優先して読み、書くときも両方に書いていたため、
- *   アーカイブで概要を直すとタスクの提出内容まで書き換わっていた。
- *   ★def-3 を読みに行かないこと（AI の提案は server.js が def-3 を別の行で読む）。
- * イベント設定とアーカイブのペンの両方から、この2関数を通して読み書きする。
+ * 概要。実体は **初期タスク def-3（どのようなイベントを行うかまとめよう）の提出内容**（2026-10-02 にふたたびつないだ）。
+ * サーバーが def-3 の本文（印を外したもの）を description に写すので、読むのは description。
+ * ★description が空で def-3 だけ書かれているイベント（つなぐ前のデータ。本番1件）は def-3 の本文を読む。
+ * ★書くときは initialTasks.js の saveSummaryText を通す（def-3 を完了・書き換え）。description を直接書かないこと。
  */
 export function getArchiveSummary(project) {
-  return String(project?.description ?? '');
-}
-
-/** 概要を書き込む（description だけ） */
-export function setArchiveSummary(project, value) {
-  project.description = String(value ?? '').trim();
+  const desc = String(project?.description ?? '');
+  if (desc.trim()) return desc;
+  return submissionText(project?.clearedData?.['def-3']);
 }
 
 /**

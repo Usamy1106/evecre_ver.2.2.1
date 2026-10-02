@@ -609,6 +609,9 @@ export function bindClearEditor(el, { onChange } = {}) {
   if (!el || el._bound) return;
   el._bound = true;
   el._onEditorChange = onChange;
+  // ★文字だけの欄（data-text-only。目的＝初期タスク def-1。2026-10-02）。画像・PDF・太字・斜体を受けない。
+  //   ボタンは描画側で出さない。ここでは ⌘B / ⌘I・貼り付け・ドロップのファイルを止める
+  const textOnly = el.hasAttribute('data-text-only');
   _bindDocumentOnce();
   _syncEmpty(el);
 
@@ -620,7 +623,7 @@ export function bindClearEditor(el, { onChange } = {}) {
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === 'u') { e.preventDefault(); return; }
-    if (k === 'b' || k === 'i') { e.preventDefault(); _applyFormat(el, k === 'b' ? 'bold' : 'italic', onChange); }
+    if (k === 'b' || k === 'i') { e.preventDefault(); if (!textOnly) _applyFormat(el, k === 'b' ? 'bold' : 'italic', onChange); }
   });
   el.addEventListener('keyup', () => _syncFormatButtons(el));
   el.addEventListener('mouseup', () => _syncFormatButtons(el));
@@ -632,7 +635,9 @@ export function bindClearEditor(el, { onChange } = {}) {
     e.preventDefault();
     const files = _filesFrom(cd).filter(f => _isImageFile(f) || _isPdfFile(f));
     const range = _currentRange(el);
-    if (files.length > 0) { insertFiles(el, files, range, onChange); return; }
+    if (files.length > 0 && textOnly) {
+      if (!cd.getData('text/plain')) { _toast('ここは文字だけで書けます'); return; }
+    } else if (files.length > 0) { insertFiles(el, files, range, onChange); return; }
     // ★Finder で「コピー」したファイルは、ブラウザによっては画像ではなく
     //   ファイル名の文字だけが届く。そのまま入れると名前が本文に混ざるので、案内だけ出す
     const plain = cd.getData('text/plain');
@@ -650,7 +655,7 @@ export function bindClearEditor(el, { onChange } = {}) {
   // ★dragenter も止める（Safari は dragenter を止めないとドロップ先として扱わないことがある）
   el.addEventListener('dragenter', (e) => { if (_hasFiles(e)) e.preventDefault(); });
   el.addEventListener('dragover', (e) => {
-    if (!_hasFiles(e)) return;
+    if (!_hasFiles(e) || textOnly) return;   // ★文字だけの欄では「ここに入る」の線を出さない
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     // 別の編集欄から移ってきたら、前の欄の色を戻す
@@ -675,7 +680,10 @@ export function bindClearEditor(el, { onChange } = {}) {
     e.preventDefault();   // ★HTML のまま落とさせない（書式やタグを持ち込まない）
     // ★線で示した位置に落とす（見せた場所と入る場所をずらさない）
     const range = (shown && _inside(el, shown.startContainer)) ? shown : _rangeFromPoint(el, e.clientX, e.clientY);
-    if (_hasFiles(e)) { insertFiles(el, _filesFrom(e.dataTransfer), range, onChange); return; }
+    if (_hasFiles(e)) {
+      if (textOnly) { _toast('ここは文字だけで書けます'); return; }
+      insertFiles(el, _filesFrom(e.dataTransfer), range, onChange); return;
+    }
     const text = e.dataTransfer?.getData('text/plain');
     if (text) { _insertText(el, range, text); _syncEmpty(el); onChange?.(); }
   });

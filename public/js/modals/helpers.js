@@ -3,7 +3,8 @@ import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 import { openCalendarModal } from './calendar.js';
-import { getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue, getEventMainVisual } from '../utils.js';
+import { getArchiveSummary, getArchiveVenue, setArchiveVenue, getEventMainVisual } from '../utils.js';
+import { PURPOSE_ID, SUMMARY_ID, isRichSubmission, saveSummaryText, shouldAskPillarsAfterPurpose } from '../initialTasks.js';
 import { REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import {
   editorEl, readEditor, setEditorText, bindClearEditor, insertFiles,
@@ -34,9 +35,11 @@ export function editArchiveItem(type) {
     });
   } else if (type === 'summary') {
     // ★イベント設定の「概要」と同じ場所を読み書きする（utils.js に集約）
-    openEditModal('概要', getArchiveSummary(p), 'text', (newVal) => {
-      setArchiveSummary(p, newVal);
-      state.save();
+    // ★概要の実体は初期タスク def-3。書くと完了になる（initialTasks.js の saveSummaryText）
+    if (isRichSubmission(p.clearedData?.[SUMMARY_ID])) { state.openMissionDetail(SUMMARY_ID); return; }
+    openEditModal('概要', getArchiveSummary(p), 'text', async (newVal) => {
+      const r = await saveSummaryText(p, newVal);
+      if (!r.ok) window._app?.showToast(r.error || '保存できませんでした', 'error');
       state.render();
     });
   } else if (type === 'venue') {
@@ -337,7 +340,12 @@ export async function submitMissionClear(missionId) {
     state.missionChat = null;
   }
   // ★初期タスク（目的・概要）でも出さない。決める作業で、成否を問う対象ではない
-  if (m.noInput || REFLECT_SKIP_MISSION_IDS.includes(m.id)) {
+  // ★目的（def-1）を決めたら、管理者で柱がまだ無ければ柱のページへ（「あとで」で抜けられる。2026-10-02）
+  if (m.id === PURPOSE_ID && r.mission?.status === 'cleared' && shouldAskPillarsAfterPurpose(project)) {
+    state.currentView = 'MAIN_BOARD';
+    state.mainBoardTab = returnTab;
+    state.openPillarEdit({ from: 'purpose_done', afterPurpose: true });
+  } else if (m.noInput || REFLECT_SKIP_MISSION_IDS.includes(m.id)) {
     if (state.currentView === 'MISSION_DETAIL') {
       state.currentView = 'MAIN_BOARD';
       state.mainBoardTab = returnTab;

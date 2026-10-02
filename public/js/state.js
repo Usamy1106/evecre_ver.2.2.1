@@ -141,6 +141,7 @@ export const state = {
   // 柱を立てる・直すページ（PILLAR_EDIT）
   pillarDraft: null,           // { eventId, items: [{ id, name, saved }], confirmId }
   pillarReturn: null,          // 戻り先 { view, tab }（PILLAR_EDIT / PILLAR_ASSIGN 共通）
+  pillarAfterPurpose: false,   // 目的を決めた直後に柱のページへ来たか
   pillarAssignDraft: null,     // { eventId, picks: Map<missionId, pillarId|null> }（PILLAR_ASSIGN）
   missionDetailReturn: null,   // 戻り先 { tab, calendarSheetView } （view は常に MAIN_BOARD）
   missionChat: null,           // { missionId, messages, loading } チャットのキャッシュ
@@ -941,6 +942,8 @@ export const state = {
     if (!this.canManageCurrentEvent()) return;
     this.pillarDraft = null;   // 開くたびにイベントの今の柱から作り直す
     this.pillarReturn = { view: this.currentView, tab: this.mainBoardTab };
+    // 目的を決めた直後に来たか（ページの先頭に「目的が決まりました。次に…」を出す）
+    this.pillarAfterPurpose = !!opts.afterPurpose;
     logEvent('view_changed', { from: this.currentView, to: 'PILLAR_EDIT' });
     logEvent('pillar_edit_opened', { from: opts.from || this.currentView });
     this.currentView = 'PILLAR_EDIT';
@@ -969,6 +972,7 @@ export const state = {
   closePillarEdit() {
     const ret = this.pillarReturn || {};
     this.pillarDraft = null;
+    this.pillarAfterPurpose = false;
     this.pillarReturn = null;
     const to = ret.view === 'EVENT_SETTINGS' ? 'EVENT_SETTINGS' : 'MAIN_BOARD';
     logEvent('view_changed', { from: this.currentView, to });
@@ -1046,13 +1050,13 @@ export const state = {
     //   def-2（タイトル）は作らない。タイトルはアーカイブのペンから入力でき
     //   （modals/helpers.js の editArchiveItem('title')、保存時に def-2 を作る）、
     //   タスクとして並べるほどの作業ではないため。★この入口は消さないこと。
-    //   ★def-3（どのようなイベントを行うか整理しよう。旧「このイベントの概要を定めよう」）は
+    //   ★def-3（どのようなイベントを行うかまとめよう。旧「このイベントの概要を定めよう」）は
     //     アーカイブの概要（description）とは切り離した（2026-09-26）。提出内容は
     //     タスクの記録として残り、AI の提案が「企画の整理」として読む。
     //   ★ヒント文は constants.js の MISSION_DESCRIPTIONS['def-1'] / ['def-3']。
     const defaultMissions = [
       { id: 'def-1', title: 'このイベントの目的を定めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
-      { id: 'def-3', title: 'どのようなイベントを行うか整理しよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
+      { id: 'def-3', title: 'どのようなイベントを行うかまとめよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
     ];
 
     const newProject = {

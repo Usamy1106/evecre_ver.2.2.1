@@ -758,6 +758,15 @@ function _setMissionField(p, mid, field, value, ts) {
  * ★対象は lib/crdt.js の FLAT_EVENT_FIELDS に載っているフィールドだけ。
  *   載っていないキーを書いても保存されない。
  */
+// 概要の実体＝初期タスク def-3 の提出内容（2026-10-02）。description へ写すときは画像・PDF・書式の印を外す
+const SUMMARY_TASK_ID = 'def-3';
+function _summaryTextOf(content, format) {
+  if (format === 'image') return '';
+  return String(content || '')
+    .replace(/\{\{(image|file):\d+\}\}/g, '').replace(/\{\{\/?[bi]\}\}/g, '')
+    .replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function _setEventField(p, field, value, ts) {
   if (!p.fields) p.fields = {};
   p.fields[field] = { v: value, t: ts || Date.now() };
@@ -2204,9 +2213,10 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
       const aiProps = await aiProposalClient.generateMissionProposals({
         name:        flat.name || '',
         description: flat.description || '',
-        // 初期タスク「どのようなイベントを行うか整理しよう」(def-3) に書かれた内容。
+        // 初期タスク「どのようなイベントを行うかまとめよう」(def-3) に書かれた内容。
         // ★概要（description）とは切り離したので、別の行で渡す（どちらも読ませる）
-        planning:    planningText,
+        // ★概要は def-3 の写しなので、同じ文章なら二重に渡さない
+        planning:    planningText && planningText !== String(flat.description || '').trim() ? planningText : '',
         // 作成フローで聞いた項目（未設定なら null。プロンプト側で行ごと省略される）
         eventTypeLabel:     _EVENT_TYPE_LABELS[flat.eventType] || null,
         expectedScaleLabel: _SCALE_LABELS[flat.expectedScale] || null,
@@ -3308,7 +3318,16 @@ app.patch('/api/events/:id/missions/:mid/submission', requireAuth, async (req, r
       }
     }
     logServerEvent(p.id, req.user.id, 'submission_edited', { missionId: mid, individual: !!m.individualClear });
-    // ★提出物は /api/data の合成でしか配られない（eventUpdated は流さない。振り返りの編集と同じ）
+    // ★概要（def-3）を書き換えたら description にも写し、ほかの端末へ配る（概要はアーカイブの先頭・招待ページに出る）
+    if (mid === SUMMARY_TASK_ID && !m.individualClear) {
+      const updated = await eventStore.applyPatch(p.id, { id: p.id, description: _summaryTextOf(content, format) });
+      if (updated) {
+        const flat = crdt.crdtToFlat(updated);
+        await _mergeSubmissions(p.id, flat);
+        eventBus.broadcast(p.id, 'eventUpdated', { eventId: p.id, rev: updated.rev, event: flat }, req.get('X-Client-Id') || null);
+      }
+    }
+    // ★それ以外の提出物は /api/data の合成でしか配られない（eventUpdated は流さない。振り返りの編集と同じ）
     res.json({ ok: true, submission: await submissionStore.getSubmission(p.id, key) });
   } catch (e) {
     console.error('PATCH submission error:', e);
@@ -3486,9 +3505,9 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         content, format, images, files, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
-      // ★初期タスク def-3（どのようなイベントを行うか整理しよう）を完了しても、概要（description）には
-      //   書き写さない（2026-09-26。アーカイブの概要はタスクから切り離した）。以前はここで写していた。
-      //   AI の提案は proposals/generate が def-3 の提出内容を別の行で読むので、精度は落ちない。
+      // ★初期タスク def-3（どのようなイベントを行うかまとめよう）の提出内容が概要の実体（2026-10-02 にふたたびつないだ）。
+      //   description に同じ文章（印を外したもの）を写す。AI の提案・公開データ・招待ページが description を読むため
+      if (mid === SUMMARY_TASK_ID) _setEventField(p, 'description', _summaryTextOf(content, format), now);
       becameCleared = true;
     }
 

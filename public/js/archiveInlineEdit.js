@@ -24,7 +24,8 @@ import { api } from './api.js';
 import { logEvent } from './logger.js';
 import { readEditor, bindClearEditor, loadEditorContent, itemsForKeys } from './clearEditor.js';
 import { uploadEditorEmbeds, editorContentAndFormat, embedsPayload } from './modals/helpers.js';
-import { setArchiveSummary, setArchiveVenue } from './utils.js';
+import { getArchiveSummary, setArchiveVenue } from './utils.js';
+import { saveSummaryText, savePurposeText, shouldAskPillarsAfterPurpose } from './initialTasks.js';
 import { confirmFirstShare, applyShareConfirmed } from './modals/shareConfirmModal.js';
 
 const EMBED_SAVE_DELAY_MS = 1200;   // 画像・PDF を動かしたあと、保存するまで待つ時間
@@ -59,10 +60,12 @@ async function _saveBasic(node) {
   if (!p) return;
   const field = node.dataset.inline;
   const value = _plainText(node);
+  // 概要・目的は初期タスク（def-3 / def-1）に書く（書いた時点で完了になる。initialTasks.js）
+  if (field === 'summary' || field === 'purpose') return _saveInitialTask(node, p, field, value);
   // タスク名（missionTitle）はそのタスクの title。★CRDT の項目なので PATCH /api/data でそのまま保存できる
   const mission = field === 'missionTitle' ? (p.missions || []).find(m => m.id === node.dataset.inlineMission) : null;
   if (field === 'missionTitle' && !mission) { node._dirty = false; return; }
-  const before = field === 'title' ? (p.name || '') : field === 'summary' ? (p.description || '')
+  const before = field === 'title' ? (p.name || '')
     : field === 'missionTitle' ? (mission.title || '') : (p.venue ?? '');
   if (value === String(before).trim()) { node._dirty = false; return; }
   if ((field === 'title' || field === 'missionTitle') && !value) {
@@ -78,7 +81,6 @@ async function _saveBasic(node) {
     // ★描き直さないので、目次の名前だけ手で差し替える
     document.querySelectorAll('[data-toc-mission]').forEach(b => { if (b.dataset.tocMission === mission.id) b.textContent = value; });
   }
-  else if (field === 'summary') setArchiveSummary(p, value);
   else if (field === 'venue') setArchiveVenue(p, value);
   node._dirty = false;
   _status(node, 'saving', '保存中…');
@@ -92,10 +94,28 @@ async function _saveBasic(node) {
   }
 }
 
+// 概要（def-3）・目的（def-1）。★PATCH /api/data ではなく、タスクの完了・提出内容の書き換えで保存する
+async function _saveInitialTask(node, p, field, value) {
+  const before = field === 'summary' ? getArchiveSummary(p) : '';
+  if (value === String(before).trim()) { node._dirty = false; return; }
+  node._dirty = false;
+  _status(node, 'saving', '保存中…');
+  // ★取り直さない（描き直すと、次に書き始めた欄のフォーカスが外れる。保存しても render() を呼ばない、と同じ理由）
+  const r = field === 'summary' ? await saveSummaryText(p, value, { reload: false }) : await savePurposeText(p, value, { reload: false });
+  if (!r.ok) {
+    _status(node, 'error', r.rich ? '画像・PDF・書式があるので、タスクの画面で編集してください' : (r.error || '保存できませんでした'));
+    return;
+  }
+  _status(node, 'saved', '保存しました');
+  logEvent('archive_inline_saved', { field, completed: !!r.completed });
+  // ★目的を書いたら、編集を終えたときに柱のページへ進める（編集の途中では割り込まない。main.js の toggleArchiveEditing）
+  if (field === 'purpose' && r.completed && shouldAskPillarsAfterPurpose(_event())) state._askPillarsAfterEdit = true;
+}
+
 function _bindBasic(node) {
   if (node._bound) return;
   node._bound = true;
-  const singleLine = node.dataset.inline !== 'summary';
+  const singleLine = !['summary', 'purpose'].includes(node.dataset.inline);
   node.addEventListener('input', () => { node._dirty = true; node.classList.toggle('is-empty', !_plainText(node)); });
   node.addEventListener('keydown', (e) => {
     // 1行の欄は Enter で確定（改行させない）

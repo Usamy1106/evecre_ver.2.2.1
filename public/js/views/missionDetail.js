@@ -299,6 +299,9 @@ function _renderClearInput(m) {
       </p>
     </div>`;
 
+  // ★目的（def-1）は文字だけ（2026-10-02）。画像・PDF・太字・斜体のボタンを出さず、編集欄も data-text-only
+  //   （貼り付け・ドロップのファイルと ⌘B / ⌘I を止める。clearEditor.js）。file-input は id を共用しているので残す
+  const textOnly = m.id === 'def-1';
   return `
     <div id="clear-mission-modal" class="p-mission-detail__clear" data-mission-id="${_esc(m.id)}">
       <!-- 編集欄（文章の途中に画像を置ける）＋ 画像ボタン。
@@ -306,7 +309,8 @@ function _renderClearInput(m) {
       <div class="c-editor-field">
         <div id="clear-input" class="c-editor is-empty" contenteditable="true"
           role="textbox" aria-multiline="true" data-mission-id="${_esc(m.id)}"
-          aria-label="提出内容" data-placeholder="${_esc(placeholderFor(SUBMISSION_PLACEHOLDERS, m))}"></div>
+          aria-label="提出内容" data-placeholder="${_esc(placeholderFor(SUBMISSION_PLACEHOLDERS, m))}"${textOnly ? ' data-text-only' : ''}></div>
+        ${textOnly ? '' : `
         ${editorFormatButtonsHtml()}
         <label for="file-input" class="c-editor-field__pick">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -314,7 +318,7 @@ function _renderClearInput(m) {
             <circle cx="8.5" cy="8.5" r="1.5"/>
             <polyline points="21 15 16 10 5 21"/>
           </svg>
-        </label>
+        </label>`}
         <!-- ★hidden は「見た目を消す」ためではなく、ファイル選択を自前のボタンで代替するため -->
         <input type="file" id="file-input" class="u-hidden" accept="image/*,application/pdf" multiple
           onchange="window._app.handleImageSelect(this)">

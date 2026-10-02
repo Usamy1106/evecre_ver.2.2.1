@@ -6,6 +6,7 @@ import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, canPromptPublicBasic } from '../utils.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
+import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
@@ -1372,15 +1373,15 @@ function _renderAnnounceCards(p, meId) {
 // ── アーカイブ：概要カードスロット識別 ───────────────────────────
 // Layer 1（概要カード）が読むスロット。ここに一致するものは Layer 2（記録）から外す。
 //
-// ★def-2（タイトル）/ def-3（概要）は**外さない**（2026-09-02 に変更）。
-//   自動生成されるタスクとして本人が完了させるものなので、完了しても
-//   記録に出てこないと「やったのに残らない」と受け取られる。概要カードにも
-//   同じ内容が出るが、あちらは要約、こちらは作業の記録で役割が違う。
+// ★def-3（どのようなイベントを行うかまとめよう）は**外す**（2026-10-02）。提出内容が概要の実体になり、
+//   アーカイブの先頭の「概要」にそのまま出る（同じ文章を2回並べない。「やったのに残らない」にはならない）。
+//   ★2026-09-02〜10-02 は外していなかった（当時は概要と def-3 が別物だった）。
+// ★def-2（タイトル）は外さない。
 // ★p1 / p3 は提案から作られたタスク（会場・メインビジュアル）。旧データでは概要欄の
 //   「場所」「ヘッダー画像」の読み替え元なので、記録には並べない。
 // ★p2（広報リンク）は外さない（2026-09-26）。URL の欄を廃止したので、隠すとアーカイブの
 //   どこにも出なくなる。ふつうのタスクとして記録に並べる。
-const _OVERVIEW_IDS     = new Set();
+const _OVERVIEW_IDS     = new Set(['def-3']);
 const _OVERVIEW_ORIGINS = new Set(['p1', 'p3']);
 const _ARCHIVE_TAG_ORDER = ['企画', '運営', '制作', '広報'];
 
@@ -1462,6 +1463,11 @@ function _renderArchiveTab(p) {
   // ── 基礎情報（すべてイベント自身の項目。utils.js の getter が旧データも読み替える）──
   const title      = p.name || '未設定';
   const summary    = getArchiveSummary(p);
+  // 概要の実体（def-3）に画像・PDF・書式があるときは、文章・画像・PDF をその位置で描く（ここでは直さない）
+  // まだ決まっていない目的（def-1 があり未完了）。編集モードで書く欄を出す
+  const purposePending = canMgr && (p.missions || []).some(m => m.id === PURPOSE_MISSION_ID && m.status !== 'cleared');
+  const summaryCd  = p.clearedData?.['def-3'];
+  const summaryRich = isRichSubmission(summaryCd) ? _segmentsHtml(p, summaryCd) : '';
   const mainVisual = getEventMainVisual(p);
   const venue      = getArchiveVenue(p);
   const period     = p.dates?.length > 0
@@ -1566,12 +1572,30 @@ function _renderArchiveTab(p) {
         <!-- ③ 概要と基礎情報 -->
         <section class="p-archive__intro">
           ${_archivePublicBannerHtml(p, canMgr)}
+          ${editing && purposePending ? `
+            <!-- ★まだ決まっていない目的は、編集モードのときここで書ける（2026-10-02）。書いて欄を離れると
+                 初期タスク def-1 が完了になり、以後は記録の「このイベントの目的」に出る。文字だけ（initialTasks.js）。
+                 ★未完了のタスクの一覧（畳まれた details）の中に置かないこと（開かないと見えない） -->
+            <div class="p-archive__purpose-input" data-inline-block>
+              <div class="p-archive__label-row">
+                <h2 class="p-archive__label">目的</h2>
+                <span class="p-archive__save-status" data-save-status></span>
+              </div>
+              <p class="p-archive__purpose-input-text p-archive__inline is-empty" contenteditable="true" role="textbox"
+                aria-multiline="true" aria-label="目的" data-inline="purpose" data-inline-key="purpose"
+                data-placeholder="誰に、どんな価値を届けたいイベントか"></p>
+            </div>` : ''}
           <div data-inline-block>
             <div class="p-archive__label-row">
               <h2 class="p-archive__label">概要</h2>
               ${editing ? `<span class="p-archive__save-status" data-save-status></span>` : ''}
             </div>
-            ${editing ? `
+            ${summaryRich ? `
+              <!-- ★概要（def-3）に画像・PDF・書式があるときは、ここでは直さずタスクの画面で編集する -->
+              <div class="p-archive__summary p-archive__summary--rich">${summaryRich}</div>
+              ${editing ? `<button type="button" onclick="window._app.openMissionDetail('def-3')" data-log="archive_summary_open_task"
+                class="p-archive__inline-button">タスクの画面で編集する</button>` : ''}`
+            : editing ? `
               <p class="p-archive__summary p-archive__inline${summary ? '' : ' is-empty'}" contenteditable="true" role="textbox"
                 aria-multiline="true" aria-label="概要" data-inline="summary" data-inline-key="summary"
                 data-placeholder="どんなイベントか、数行で">${_esc(summary)}</p>`
@@ -1653,6 +1677,18 @@ export function showAllArchiveSubmitters(missionId) {
 
 // 提出物1つぶんの中身（文章・画像・PDF・振り返り・編集ボタン）。
 // userId … 個別完了のときだけ（その人の提出物）
+// 提出内容（文章・画像・PDF をその位置に）。アーカイブの記録と、画像・PDF・書式を含む概要で共用
+function _segmentsHtml(p, cd) {
+  return submissionSegments(cd).map(seg => {
+    if (seg.type === 'image') {
+      return `<img src="${_esc(seg.url)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
+    }
+    if (seg.type === 'file') return `<div class="p-archive__content-file">${Components.SubmissionFileCard(seg.file, p.id)}</div>`;
+    // ★太字・斜体（{{b}} / {{i}} の印）を <strong> / <em> に。文字は richTextHtml がエスケープする
+    return `<p class="p-archive__content-text">${richTextHtml(seg.text)}</p>`;
+  }).join('');
+}
+
 function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
   if (!cd) return '';
   if (editing) return _archiveSubmissionEditHtml(p, m, cd, userId);
@@ -1661,14 +1697,7 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
   const tapKey = `${m.id}:${userId || ''}`;
   const tap = (kind) => (canMgr ? ` data-archive-tap="${kind}:${_esc(tapKey)}"` : '');
   // ★画像・PDF は本文の途中にも入る。読み分けは utils.js の submissionSegments
-  const contentHtml = submissionSegments(cd).map(seg => {
-    if (seg.type === 'image') {
-      return `<img src="${_esc(seg.url)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
-    }
-    if (seg.type === 'file') return `<div class="p-archive__content-file">${Components.SubmissionFileCard(seg.file, p.id)}</div>`;
-    // ★太字・斜体（{{b}} / {{i}} の印）を <strong> / <em> に。文字は richTextHtml がエスケープする
-    return `<p class="p-archive__content-text">${richTextHtml(seg.text)}</p>`;
-  }).join('');
+  const contentHtml = _segmentsHtml(p, cd);
 
   // ── 振り返り（見出しは成否で変える。missionDetail.js の _reflectionHtml と同じ）──
   // ★初期タスク（目的・企画の整理）には振り返りを出さない（REFLECT_SKIP_MISSION_IDS）
@@ -1708,16 +1737,18 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
   return `
     <div class="p-archive__inline-editor" data-inline-block data-inline-key="sub:${_esc(key)}">
       <div class="c-editor-field">
+        <!-- ★目的（def-1）は文字だけ（data-text-only。画像・PDF・太字・斜体のボタンを出さない） -->
         <div class="c-editor is-empty" contenteditable="true" role="textbox" aria-multiline="true" aria-label="提出内容"
           data-mission-id="archive:${_esc(key)}" data-sub-mission="${_esc(m.id)}" data-sub-user="${_esc(userId || '')}"
-          data-placeholder="提出内容"></div>
+          data-placeholder="提出内容"${m.id === PURPOSE_MISSION_ID ? ' data-text-only' : ''}></div>
+        ${m.id === PURPOSE_MISSION_ID ? '' : `
         ${editorFormatButtonsHtml()}
         <label class="c-editor-field__pick" aria-label="画像・PDF を追加">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
           </svg>
           <input type="file" class="u-hidden" accept="image/*,application/pdf" multiple onchange="window._app.handleImageSelect(this)">
-        </label>
+        </label>`}
       </div>
       <p class="p-archive__save-status" data-save-status></p>
     </div>

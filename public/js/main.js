@@ -1170,8 +1170,16 @@ window._app = {
   // ★終えるときは、保存待ちの欄を全部保存してから閲覧に戻す（保存は欄ごとに自動。archiveInlineEdit.js）
   toggleArchiveEditing: async () => {
     if (!state.canManageCurrentEvent()) return;
-    if (state.archiveEditing) await finishArchiveEditing();
-    else state.archiveEditing = true;
+    if (state.archiveEditing) {
+      await finishArchiveEditing();
+      // ★編集中に目的を書いた（完了させた）なら、ここで柱のページへ進める（「あとで」で抜けられる）
+      if (state._askPillarsAfterEdit) {
+        state._askPillarsAfterEdit = false;
+        state.render();
+        state.openPillarEdit({ from: 'purpose_archive', afterPurpose: true });
+        return;
+      }
+    } else state.archiveEditing = true;
     state.render();
   },
   // 画面・タブを離れるときに state.setView / setTab から呼ぶ（描き直しはしない）

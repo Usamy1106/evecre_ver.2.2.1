@@ -15,9 +15,10 @@ import { Components } from '../components.js';
 import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
 import { showConfirmDialog } from '../dialog.js';
 import { logEvent } from '../logger.js';
+import { PURPOSE_ID, SUMMARY_ID, isRichSubmission, savePurposeText, saveSummaryText, shouldAskPillarsAfterPurpose } from '../initialTasks.js';
 import {
   formatEventPeriodLines,
-  getArchiveSummary, setArchiveSummary, getArchiveVenue, setArchiveVenue,
+  getArchiveSummary, getArchiveVenue, setArchiveVenue, submissionText,
   bindTapToEdit, isAfterEventDates, countPublishableReflections, getPillars,
 } from '../utils.js';
 import {
@@ -206,6 +207,11 @@ function _eventManagementSection(p, sec) {
   const canMgr = state.canManageCurrentEvent();
   const editingName  = sec.editing === 'name';
   const editingDesc  = sec.editing === 'description';
+  const editingPurp  = sec.editing === 'purpose';
+  // 目的（def-1）・概要（def-3）は初期タスクの提出内容。タスクが消されていたら目的は表示だけにする
+  const purposeTask  = (p.missions || []).some(m => m.id === PURPOSE_ID);
+  const purposeText  = submissionText(p.clearedData?.[PURPOSE_ID]);
+  const summaryRich  = isRichSubmission(p.clearedData?.[SUMMARY_ID]);
   const editingDates = sec.editing === 'dates';
   const editingCatch = sec.editing === 'catchphrase';
   const editingVenue = sec.editing === 'venue';
@@ -232,10 +238,30 @@ function _eventManagementSection(p, sec) {
           `}
         </div>
 
+        <!-- 目的（初期タスク def-1 の提出内容。2026-10-02）。★文字だけ。保存すると def-1 が完了になる（initialTasks.js）。
+             ★見るのは全員、直すのは管理者だけ。目的のタスクが消されていたら表示だけ -->
+        <div class="c-settings-list__row${_tapCls(canMgr && purposeTask && !editingPurp)}"${_tapAttr('purpose', canMgr && purposeTask && !editingPurp)}>
+          <p class="c-settings-list__label">目的</p>
+          ${editingPurp ? `
+            <textarea id="ps-purpose-input" rows="3" placeholder="誰に、どんな価値を届けたいイベントか"
+              class="c-input c-input--block c-settings-list__input c-settings-list__input--multiline">${_esc(sec.draftValue || '')}</textarea>
+            <div class="c-settings-card__actions">
+              <button id="ps-purpose-cancel" class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>
+              <button id="ps-purpose-save"   class="c-settings-card__action c-settings-card__action--save">保存</button>
+            </div>
+          ` : `
+            <div class="c-settings-list__view">
+              <span class="c-settings-list__value c-settings-list__value--body">${_esc(purposeText || '(未設定)')}</span>
+              ${canMgr && purposeTask ? `<button data-ps-edit="purpose" data-tap-edit-btn="purpose" class="c-settings-list__edit">変更</button>` : ''}
+            </div>
+          `}
+        </div>
+
         <!-- 概要（旧「イベントの説明」）-->
         <!-- ★アーカイブの「概要」と同じ場所を読み書きする（utils.js の getter/setter 経由）。
              description にも同じ値が入る（提案エンジンと AI プロンプトが参照するため）。 -->
-        <div class="c-settings-list__row${_tapCls(canMgr && !editingDesc)}"${_tapAttr('description', canMgr && !editingDesc)}>
+        <!-- ★概要の実体は初期タスク def-3。保存すると def-3 が完了になる。画像・PDF・書式があるときはタスクの画面で編集する -->
+        <div class="c-settings-list__row${_tapCls(canMgr && !editingDesc && !summaryRich)}"${_tapAttr('description', canMgr && !editingDesc && !summaryRich)}>
           <p class="c-settings-list__label">概要</p>
           ${editingDesc ? `
             <textarea id="ps-desc-input" rows="3" class="c-input c-input--block c-settings-list__input c-settings-list__input--multiline">${_esc(sec.draftValue || '')}</textarea>
@@ -246,7 +272,9 @@ function _eventManagementSection(p, sec) {
           ` : `
             <div class="c-settings-list__view">
               <span class="c-settings-list__value c-settings-list__value--body">${_esc(getArchiveSummary(p) || '(未設定)')}</span>
-              ${canMgr ? `<button data-ps-edit="description" data-tap-edit-btn="description" class="c-settings-list__edit">変更</button>` : ''}
+              ${canMgr && summaryRich ? `<button type="button" onclick="window._app.openMissionDetail('${SUMMARY_ID}')" data-log="settings_summary_open_task"
+                class="c-settings-list__edit">タスクの画面で編集</button>`
+              : canMgr ? `<button data-ps-edit="description" data-tap-edit-btn="description" class="c-settings-list__edit">変更</button>` : ''}
             </div>
           `}
         </div>
@@ -793,6 +821,7 @@ function _bindEvents(p, sec) {
       : f === 'catchphrase'    ? (p.catchphrase || '')
       : f === 'motivationText' ? (p.motivationText || '')
       : f === 'venue'          ? getArchiveVenue(p)
+      : f === 'purpose'        ? submissionText(p.clearedData?.[PURPOSE_ID])
       :                          getArchiveSummary(p);
       state.render();
       // 「＋ 自分で書く」はタップした場所と入力欄が離れるので、すぐ書き始められるようにする
@@ -816,12 +845,37 @@ function _bindEvents(p, sec) {
   // 説明 保存・キャンセル
   document.getElementById('ps-desc-input')?.addEventListener('input', e => sec.draftValue = e.target.value);
   document.getElementById('ps-desc-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
-  document.getElementById('ps-desc-save')?.addEventListener('click', async () => {
-    // アーカイブの「概要」と同じ場所に書く（description にも同じ値が入る）
-    setArchiveSummary(p, sec.draftValue);
-    await state.saveNow();
+  document.getElementById('ps-desc-save')?.addEventListener('click', async (e) => {
+    // ★概要の実体は初期タスク def-3（書くと完了。サーバーが description に写す）。アーカイブの「概要」と同じ
+    e.currentTarget.disabled = true;
+    const r = await saveSummaryText(p, sec.draftValue);
+    if (!r.ok) {
+      e.currentTarget.disabled = false;
+      window._app?.showToast(r.rich ? '画像・PDF・書式があるので、タスクの画面で編集してください' : (r.error || '保存できませんでした'), 'error');
+      return;
+    }
     sec.editing = null;
     sec.draftValue = null;
+    state.render();
+  });
+
+  // 目的 保存・キャンセル（初期タスク def-1。文字だけ。保存すると完了になる）
+  document.getElementById('ps-purpose-input')?.addEventListener('input', e => sec.draftValue = e.target.value);
+  document.getElementById('ps-purpose-cancel')?.addEventListener('click', () => { sec.editing = null; sec.draftValue = null; state.render(); });
+  document.getElementById('ps-purpose-save')?.addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true;
+    const r = await savePurposeText(p, sec.draftValue);
+    if (!r.ok) {
+      e.currentTarget.disabled = false;
+      window._app?.showToast(r.error || '保存できませんでした', 'error');
+      return;
+    }
+    sec.editing = null;
+    sec.draftValue = null;
+    logEvent('settings_purpose_saved', { completed: !!r.completed });
+    // ★目的を決めたら、管理者で柱がまだ無ければ柱のページへ（「あとで」で設定に戻る）
+    const cur = state.events.find(x => x.id === p.id);
+    if (r.completed && shouldAskPillarsAfterPurpose(cur)) { state.openPillarEdit({ from: 'purpose_settings', afterPurpose: true }); return; }
     state.render();
   });
 

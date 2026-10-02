@@ -80,12 +80,9 @@ export function renderPillarEdit(appEl) {
   appEl.innerHTML = `
     <div class="p-pillar-edit">
       <header class="p-pillar-edit__header">
-        <button type="button" data-pillar-back data-log="pillar_edit_back"
-          class="p-pillar-edit__round-button" aria-label="戻る">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        </button>
         <h1 class="p-pillar-edit__heading">このイベントの柱</h1>
+        <!-- ★戻るではなく「あとで」（2026-10-02）。柱は決めずに抜けてよい（必須にしない）。下書きは捨てる -->
+        <button type="button" data-pillar-back data-log="pillar_edit_later" class="p-pillar-edit__later">あとで</button>
       </header>
 
       <div class="p-pillar-edit__body">
@@ -95,6 +92,7 @@ export function renderPillarEdit(appEl) {
             <p class="p-pillar-edit__purpose-text">${_esc(purpose)}</p>
           </div>` : ''}
 
+        ${state.pillarAfterPurpose ? `<p class="p-pillar-edit__next">目的が決まりました。次に、目的のために大事にすることを${PILLARS_MAX}つ決めましょう。</p>` : ''}
         <p class="p-pillar-edit__lead">目的のために大事にすることを、${PILLARS_MAX}つまで決めます。
           タスクを柱に紐づけると、柱ごとの進み具合がメインボードに出ます。</p>
 

@@ -16,22 +16,18 @@
 .p-pillar-edit__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-6) var(--space-2);
 }
 
-/* 戻る。★見た目は振り返りページ・タスク詳細の丸ボタンに合わせる */
-.p-pillar-edit__round-button {
-  display: flex;
+/* あとで（2026-10-02 に戻るボタンから変更）。柱は決めずに抜けてよい */
+.p-pillar-edit__later {
   flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-sm);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
 }
 
 .p-pillar-edit__heading {
@@ -63,6 +59,14 @@
   font-size: var(--font-size-sm);
   color: var(--color-text);
   white-space: pre-wrap;
+}
+
+.p-pillar-edit__next {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.6;
+  color: var(--color-primary);
 }
 
 .p-pillar-edit__lead {

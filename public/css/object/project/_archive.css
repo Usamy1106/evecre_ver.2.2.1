@@ -1065,3 +1065,21 @@
   font-size: var(--font-size-xs);
   font-weight: 700;
 }
+
+/* 未完了の目的を書く欄（編集モード・管理者だけ・概要の上。書いて離れると def-1 が完了になる。2026-10-02） */
+.p-archive__purpose-input {
+  margin-top: var(--space-3);
+}
+
+.p-archive__purpose-input-text {
+  min-height: 3em;
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+  color: var(--color-text);
+  white-space: pre-wrap;
+}
+
+/* 概要（def-3）に画像・PDF・書式があるとき（記録と同じ描き方。ここでは直さない） */
+.p-archive__summary--rich > * + * {
+  margin-top: var(--space-2);
+}
