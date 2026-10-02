@@ -579,18 +579,12 @@ function _purposeBoxHtml(p, { compact = false } = {}) {
   const text = submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
   const mission = (p.missions || []).find(m => m.id === PURPOSE_MISSION_ID);
   if (!text && !mission) return '';
-  const icon = `
-    <svg class="p-purpose__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>
-    </svg>`;
   const open = mission ? `onclick="window._app.openMissionDetail('${PURPOSE_MISSION_ID}')"` : '';
   const cls = `p-purpose${text ? '' : ' p-purpose--empty'}${compact ? ' p-purpose--compact' : ''}`;
   if (!text) {
     return `
       <div class="${cls}">
         <button type="button" class="p-purpose__main" ${open} data-log="purpose_box_define">
-          ${icon}
           <span class="p-purpose__body">
             <span class="p-purpose__label">目的がまだ決まっていません</span>
             <span class="p-purpose__text">誰に、どんな価値を届けたいのか。迷ったときに立ち帰る軸を決めましょう</span>
@@ -603,7 +597,6 @@ function _purposeBoxHtml(p, { compact = false } = {}) {
   return `
     <div class="${cls}">
       <button type="button" class="p-purpose__main" ${open} data-log="purpose_box_open"${mission ? '' : ' disabled'}>
-        ${icon}
         <span class="p-purpose__body">
           <span class="p-purpose__label">このイベントの目的</span>
           <span class="p-purpose__text">${_esc(text)}</span>
