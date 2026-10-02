@@ -303,6 +303,10 @@
   /* 広い画面のメインボードの左端の列（メインボード・アーカイブ・通知・フィードバック・設定の丸いボタン）*/
   --board-rail-width: 80px;
   --rail-button-size: 52px;
+  /* 広い画面のメインボードの地色（左端の列・右列のカレンダー）。2026-10-02。
+     ★アルファ付きの色にする場合、sticky で上に残る要素は下を流れるカードが透けないよう、
+       --color-bg の上に重ねた形（background-image のグラデーション＋地色）で塗ること */
+  --board-dash-bg: #88c95E;
   /* ダッシュボード表示の左列（山と提案）の幅。左端の列を除いた残りの半分（右列と半々。2026-09-27）。
      ★山の素材は 900px 幅で書き出しているので、高解像度の画面で左列が 450px を超えると少しぼやける。
        気になるようなら素材を広めに書き出し直す（ART_W は変えないこと。mountainPath.js）*/
@@ -1233,7 +1237,7 @@ body {
   width: var(--board-rail-width);
   padding-top: calc(var(--safe-top) + var(--space-4));
   border-right: 1px solid var(--color-border);
-  background-color: var(--color-bg);
+  background-color: var(--board-dash-bg);
 }
 
 .l-rail__item {
@@ -16139,7 +16143,7 @@ body {
   flex-direction: column;
   min-height: 0;
   border-left: 1px solid var(--color-border);
-  background-color: var(--color-bg);
+  background-color: var(--bg-base);
 }
 
 /* 上の操作列。1行目：私の／みんなの（絞り込み）・カレンダー｜ガント（表示）／2行目：ラベル・並び替え・予定をコピー */
@@ -16243,7 +16247,9 @@ body {
   top: 0;
   z-index: 1;
   flex: 1 1 var(--board-cal-width);
+  /* --board-dash-bg がアルファ付きでも不透明になるよう、地色の上に重ねる */
   background-color: var(--color-bg);
+  background-image: linear-gradient(var(--board-dash-bg), var(--board-dash-bg));
 }
 
 .p-board-dash__list {

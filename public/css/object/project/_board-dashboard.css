@@ -86,7 +86,7 @@
   flex-direction: column;
   min-height: 0;
   border-left: 1px solid var(--color-border);
-  background-color: var(--color-bg);
+  background-color: var(--bg-base);
 }
 
 /* 上の操作列。1行目：私の／みんなの（絞り込み）・カレンダー｜ガント（表示）／2行目：ラベル・並び替え・予定をコピー */
@@ -190,7 +190,9 @@
   top: 0;
   z-index: 1;
   flex: 1 1 var(--board-cal-width);
+  /* --board-dash-bg がアルファ付きでも不透明になるよう、地色の上に重ねる */
   background-color: var(--color-bg);
+  background-image: linear-gradient(var(--board-dash-bg), var(--board-dash-bg));
 }
 
 .p-board-dash__list {

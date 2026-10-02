@@ -22,7 +22,7 @@
   width: var(--board-rail-width);
   padding-top: calc(var(--safe-top) + var(--space-4));
   border-right: 1px solid var(--color-border);
-  background-color: var(--color-bg);
+  background-color: var(--board-dash-bg);
 }
 
 .l-rail__item {
