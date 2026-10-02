@@ -1,5 +1,7 @@
 // ===== カレンダーモーダル =====
 import { state } from '../state.js';
+import { ganttPickerHtml, bindGanttRangePicker, initGanttPicker, scheduleCssVars } from '../schedulePanel.js';
+import { LABEL_CONFIG } from '../constants.js';
 
 const _WEEKDAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -242,13 +244,38 @@ function _renderCalendarInner(target) {
       ? `<button onclick="window._app.setMissionClaimDeadline(''); document.getElementById('calendar-modal')?.remove();"
            class="p-date-picker__clear">期限をクリア</button>`
       : '';
+    // ★タスクの実施期間は「カレンダー｜ガント」を切り替えて選べる（2026-09-30）。ガントは他のタスクと開催日を
+    //   並べ、いちばん上の「このタスク」の行をなぞって連続した期間を選ぶ（schedulePanel.js の ganttPickerHtml）
+    const view = target === 'mission' && state.missionDateView === 'gantt' ? 'gantt' : 'calendar';
+    const viewSwitch = target === 'mission' ? `
+        <div class="p-date-picker__views" role="tablist" aria-label="表示の切り替え">
+          ${[['calendar', 'カレンダー'], ['gantt', 'ガント']].map(([id, label]) => `
+            <button type="button" role="tab" aria-selected="${view === id}" data-log="mission_date_view_${id}"
+              onclick="window._app.setMissionDateView('${id}')"
+              class="p-date-picker__view${view === id ? ' is-active' : ''}">${label}</button>`).join('')}
+        </div>` : '';
+    const labels = state.draftMission?.labels || state.draftMission?.tags || [];
+    const firstLabel = Array.isArray(labels) ? labels[0] : labels;
+    const draftColor = (firstLabel && LABEL_CONFIG[firstLabel]?.color)
+      || (project?.customTags || []).find(t => t.name === firstLabel)?.color || '';
+    const ganttHtml = view === 'gantt' ? `
+        <p class="p-date-picker__lead">「このタスク」の行をなぞると、やる期間を設定できます。</p>
+        <div class="p-schedule p-schedule--inline p-date-picker__gantt" style="${scheduleCssVars()}">
+          <div class="p-schedule__body">${ganttPickerHtml(project, {
+            title: state.draftMission.title?.trim() || 'このタスク',
+            dates: state.draftMission.dates || [],
+            color: draftColor,
+            excludeId: state.editingMissionId || null,
+          })}</div>
+        </div>` : '';
     modal.innerHTML = `
       <div id="calendar-bottomsheet-panel" data-sheet
         class="c-sheet c-sheet--padded p-date-picker__sheet">
         <div data-sheet-handle class="c-sheet__handle"><div class="c-sheet__grip"></div></div>
+        ${viewSwitch}
         <div class="p-date-picker__head">
           <h3 class="heading-r p-date-picker__title">${sheetTitle}</h3>
-          <div class="p-date-picker__nav">
+          <div class="p-date-picker__nav${view === 'gantt' ? ' u-hidden' : ''}">
             <button onclick="window._app.moveCalendarMonth(-1, '${target}')"
               class="p-date-picker__arrow" aria-label="前の月">
               <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon">
@@ -262,6 +289,7 @@ function _renderCalendarInner(target) {
             </button>
           </div>
         </div>
+        ${view === 'gantt' ? ganttHtml : `
         ${target === 'mission' ? `
           <!-- ★タスクモーダルの基本設定と同じ説明を出す（同じことを2箇所で伝える）-->
           <p class="p-date-picker__lead">日付をなぞると、やる期間を設定できます。</p>
@@ -272,7 +300,7 @@ function _renderCalendarInner(target) {
         <div class="p-date-picker__week p-date-picker__week--spaced">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}
         </div>
-        <div id="calendar-grid" class="p-date-picker__grid">${daysHtml}</div>
+        <div id="calendar-grid" class="p-date-picker__grid">${daysHtml}</div>`}
         ${target === 'mission' ? `<button id="calendar-confirm-btn"
           class="c-button c-button--primary p-date-picker__confirm p-date-picker__confirm--spaced heading-rs">決定</button>` : ''}
       </div>`;
@@ -309,6 +337,37 @@ function _renderCalendarInner(target) {
 
   // 時刻入力（projectEdit のみ）
   if (target === 'projectEdit') _bindDateTimeInputs(project);
+
+  // ガント（タスクの実施期間）：最初に見せる位置と、「このタスク」の行のなぞり
+  if (target === 'mission' && state.missionDateView === 'gantt') {
+    const dates = state.draftMission.dates || [];
+    initGanttPicker(modal, [...dates].sort()[0] || null);
+    bindGanttRangePicker(modal, (picked) => {
+      // ★選んだ期間で置き換える（カレンダーと同じ配列を書き換える＝参照を保つ）
+      const arr = state.draftMission.dates;
+      arr.splice(0, arr.length, ...picked);
+      // 描き直してもスクロール位置を保つ
+      const body = modal.querySelector('#gantt-body');
+      const keep = body ? { l: body.scrollLeft, t: body.scrollTop } : null;
+      _renderCalendarInner(target);
+      document.getElementById('calendar-bottomsheet-panel')?.classList.add('is-open');
+      const nb = modal.querySelector('#gantt-body');
+      if (nb && keep) {
+        nb.scrollLeft = keep.l; nb.scrollTop = keep.t;
+        const header = modal.querySelector('#gantt-header-inner');
+        if (header) header.style.transform = `translateX(-${keep.l}px)`;
+      }
+      window._app?.renderMissionModalContent?.();
+    });
+  }
+}
+
+/** タスクの実施期間の表示を切り替える（カレンダー｜ガント）。★選んだ表示はこの画面を開いている間覚えておく */
+export function setMissionDateView(view) {
+  state.missionDateView = view === 'gantt' ? 'gantt' : 'calendar';
+  _renderCalendarInner('mission');
+  _bindDragSelection('mission');
+  document.getElementById('calendar-bottomsheet-panel')?.classList.add('is-open');
 }
 
 /**

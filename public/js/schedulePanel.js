@@ -49,6 +49,76 @@ export function scheduleCssVars() {
     + `--gantt-content-w:${(DAYS_BEFORE + DAYS_AFTER + 1) * CELL_W}px;`;
 }
 
+/**
+ * タスクの実施期間を選ぶためのガント（calendar.js の 'mission'）。いちばん上に「このタスク」の行が付く。
+ * @param {object} p イベント
+ * @param {{ title:string, dates:string[], color:string, excludeId:string|null }} draft
+ */
+export function ganttPickerHtml(p, draft) {
+  const missions = getSortedMissions((p?.missions || []).filter(m => m.id !== draft.excludeId));
+  return _renderGanttView({ p, missions, draftRow: draft });
+}
+
+/**
+ * 「このタスク」の行をなぞって、連続した期間を選ぶ。
+ * ★なぞり始めの日からなぞっている日まで（逆向きも可）。タップだけならその1日。
+ * ★なぞっている間は行の見た目だけ差し替え、離したときに onCommit(dates) を1回呼ぶ。
+ * ★行のセルは touch-action: none（CSS）。ほかの行・見出しは今どおり横にスクロールできる。
+ */
+export function bindGanttRangePicker(root, onCommit) {
+  const row = root.querySelector('[data-gantt-draft]');
+  if (!row) return;
+  const slots = [...row.querySelectorAll('[data-gantt-day]')];
+  let start = null, cur = null, pid = null;
+  const dayAt = (x) => {
+    for (const el of slots) { const r = el.getBoundingClientRect(); if (x >= r.left && x < r.right) return el.dataset.ganttDay; }
+    return null;
+  };
+  const paint = () => {
+    const [a, b] = start <= cur ? [start, cur] : [cur, start];
+    slots.forEach(el => el.classList.toggle('is-picking', el.dataset.ganttDay >= a && el.dataset.ganttDay <= b));
+  };
+  row.addEventListener('pointerdown', (e) => {
+    const d = e.target.closest('[data-gantt-day]')?.dataset.ganttDay;
+    if (!d) return;
+    e.preventDefault();
+    start = cur = d; pid = e.pointerId;
+    row.classList.add('is-picking');
+    try { row.setPointerCapture(e.pointerId); } catch (_) {}
+    paint();
+  });
+  row.addEventListener('pointermove', (e) => {
+    if (start === null || e.pointerId !== pid) return;
+    const d = dayAt(e.clientX);
+    if (d && d !== cur) { cur = d; paint(); }
+  });
+  const end = (e) => {
+    if (start === null || (e && e.pointerId !== pid)) return;
+    const [a, b] = start <= cur ? [start, cur] : [cur, start];
+    const dates = slots.map(el => el.dataset.ganttDay).filter(x => x >= a && x <= b);
+    start = cur = pid = null;
+    row.classList.remove('is-picking');
+    onCommit(dates);
+  };
+  row.addEventListener('pointerup', end);
+  row.addEventListener('pointercancel', end);
+}
+
+/** ガントのスクロール配線（見出しの追従）と、最初に見せる位置（startYmd があればその日、無ければ今日） */
+export function initGanttPicker(root, startYmd) {
+  _bindGanttScroll(root);
+  const body = root.querySelector('#gantt-body');
+  const header = root.querySelector('#gantt-header-inner');
+  if (!body) return;
+  let left = Math.max(0, DAYS_BEFORE * CELL_W - 90);
+  if (startYmd) {
+    const idx = Math.round((new Date(startYmd + 'T00:00:00') - _addDays(new Date(), -DAYS_BEFORE).setHours(0, 0, 0, 0)) / 86400000);
+    if (idx >= 0) left = Math.max(0, idx * CELL_W - 90);
+  }
+  body.scrollLeft = left;
+  if (header) header.style.transform = `translateX(-${left}px)`;
+}
+
 /** 中身の HTML（ctx.view に応じてカレンダーかガント） */
 export function scheduleBodyHtml(ctx) {
   return ctx.view === 'gantt' ? _renderGanttView(ctx) : _renderCalendarView(ctx);
@@ -402,6 +472,33 @@ function _renderGanttView(ctx) {
         </div>`;
       }).join('');
 
+  // ★タスクの実施期間をガントで選ぶとき（calendar.js の 'mission'）だけ、いちばん上に「このタスク」の行を出す。
+  //   各日に data-gantt-day を持たせ、bindGanttRangePicker がなぞった範囲を受け取る
+  let draftHtml = '';
+  if (ctx.draftRow) {
+    const dd = (ctx.draftRow.dates || []).slice().sort();
+    const ds = dd[0] || null, de = dd[dd.length - 1] || null;
+    const cells = allDates.map(d => {
+      const ymd = _ymd(d);
+      const on = ds && ymd >= ds && ymd <= de;
+      const isS = ymd === ds, isE = ymd === de;
+      const bar = on ? `<div class="p-schedule__gantt-bar" style="`
+        + `--bar-radius-l:${isS ? '5px' : '0'};--bar-radius-r:${isE ? '5px' : '0'};`
+        + `--bar-inset-l:${isS ? '5px' : '0'};--bar-inset-r:${isE ? '5px' : '0'}"></div>` : '';
+      return `<div class="p-schedule__gantt-slot${dayState(ymd, d.getDay())}" data-gantt-day="${ymd}">${bar}</div>`;
+    }).join('');
+    draftHtml = `<div class="p-schedule__gantt-row p-schedule__gantt-row--draft" data-gantt-draft
+        style="--tag-color:${ctx.draftRow.color || 'var(--color-primary)'};--gantt-opacity:1">
+      <div class="p-schedule__gantt-name">
+        <div class="p-schedule__gantt-name-inner">
+          <div class="p-schedule__gantt-tagdot"></div>
+          <span class="p-schedule__gantt-title">${_esc(ctx.draftRow.title || 'このタスク')}</span>
+        </div>
+      </div>
+      <div class="p-schedule__gantt-slots">${cells}</div>
+    </div>`;
+  }
+
   return `
     <!-- ヘッダー行（横スクロール同期、overflow:hidden）-->
     <div class="p-schedule__gantt-head">
@@ -420,6 +517,7 @@ function _renderGanttView(ctx) {
     <!-- ボディ（両軸スクロール可）-->
     <div id="gantt-body" class="p-schedule__gantt-body">
       <div class="p-schedule__gantt-inner">
+        ${draftHtml}
         ${missionsHtml}
       </div>
     </div>`;

@@ -1,0 +1,221 @@
+/* ==========================================================================
+   Project / welcome-tour — アカウント作成後のオンボーディング（5枚）
+   使用箇所: public/js/modals/welcomeTourModal.js（文言と画像のパスは public/js/welcomeTour.js）
+
+   ★1つの枠の中身を差し替えて進む。並び：ロゴ → イラスト → 見出し → 説明文 → 補足（メリット・手順）
+     → ページネーション／メインボタン → あとで
+   ★画像は後から差し替える。パスが空のときは <img> を出さないが、イラストの枠（__art）は確保する
+     （画像が入っても見出しの位置が動かないように）。枠の大きさは --welcome-art-* で調整する。
+   ========================================================================== */
+
+.p-welcome-tour {
+  --welcome-art-ratio: 4 / 3;       /* イラストの枠の縦横比 */
+  --welcome-art-max-width: 280px;   /* イラストの枠の最大幅 */
+  --welcome-logo-size: 40px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 384px;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-4) var(--space-5);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-2xl);
+  text-align: center;
+}
+
+.p-welcome-tour__logo {
+  width: var(--welcome-logo-size);
+  height: var(--welcome-logo-size);
+  border-radius: var(--radius-md);
+}
+
+/* イラストの枠。★画像が無いあいだは淡い地だけ見せる（仮画像は置かない） */
+.p-welcome-tour__art {
+  width: 100%;
+  max-width: var(--welcome-art-max-width);
+  aspect-ratio: var(--welcome-art-ratio);
+  margin-top: var(--space-4);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg);
+}
+
+.p-welcome-tour__art-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.p-welcome-tour__title {
+  margin-top: var(--space-5);
+  color: var(--color-text);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.4;
+}
+
+.p-welcome-tour__body {
+  margin-top: var(--space-3);
+  /* ★行の終わりに1〜2文字だけ残らないようにする（狭い画面で「〜も。」だけが次の行に落ちていた） */
+  text-wrap: pretty;
+  color: var(--color-text-soft);
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+}
+
+/* --- ①〜③：ページネーション（左）と「次へ →」（右）--------------------------- */
+.p-welcome-tour__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+  margin-top: var(--space-6);
+}
+
+.p-welcome-tour__dots {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.p-welcome-tour__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+}
+
+.p-welcome-tour__dot.is-active {
+  background-color: var(--color-primary);
+}
+
+.p-welcome-tour__next {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  color: var(--color-primary);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* 3枚目の「はじめる」は塗りのボタン（ここで機能紹介が終わる） */
+.p-welcome-tour__next--start {
+  padding-inline: var(--space-6);
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+/* --- ④ Android：メリット（横並び4つ）------------------------------------------ */
+.p-welcome-tour__benefits {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+  align-self: stretch;
+  margin-top: var(--space-5);
+}
+
+.p-welcome-tour__benefit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary-pale);
+}
+
+.p-welcome-tour__benefit-icon {
+  width: 28px;
+  height: 28px;
+}
+
+/* ★改行の位置は welcomeTour.js の label（1行ずつの配列）で決める。行の途中では折り返さない
+     （横幅が狭いので、勝手に折り返すと「ミッション／を」のように崩れる。そのぶん文字を少し小さくする） */
+.p-welcome-tour__benefit-label {
+  color: var(--color-text);
+  font-size: calc(var(--font-size-xs) * .9);
+  letter-spacing: -.02em;
+  white-space: nowrap;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.4;
+}
+
+/* ブラウザがインストールの確認を出せなかったときの案内 */
+.p-welcome-tour__note {
+  margin-top: var(--space-3);
+  color: var(--color-text-soft);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+/* --- ⑤ iOS：ホーム画面への追加方法（3ステップを縦に）----------------------------- */
+.p-welcome-tour__howto {
+  align-self: stretch;
+  margin-top: var(--space-5);
+  text-align: left;
+}
+
+.p-welcome-tour__howto-title {
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  text-align: center;
+}
+
+.p-welcome-tour__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.p-welcome-tour__step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+}
+
+/* 操作説明の画像。★STEP の上に置く（行いっぱい） */
+.p-welcome-tour__step-image {
+  flex-basis: 100%;
+  width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.p-welcome-tour__step-num {
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-welcome-tour__step-label {
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+/* --- ④⑤：メインボタンと「あとで」------------------------------------------------ */
+.p-welcome-tour__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: stretch;
+  margin-top: var(--space-6);
+}
+
+.p-welcome-tour__primary {
+  width: 100%;
+}
+
+.p-welcome-tour__later {
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+}

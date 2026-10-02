@@ -65,7 +65,7 @@ function _open(p) {
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade" role="dialog" aria-modal="true" aria-labelledby="pbi-title">
       <div class="c-modal__icon" style="--icon-bg:#E6F4FB">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#209DDB" stroke-width="2"
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#30A23D" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>

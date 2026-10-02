@@ -896,6 +896,73 @@ export function openAssigneeSheet() {
  * @param {string[]} multiIds 選択中の userId
  * @returns {string}
  */
+/**
+ * 担当者の行の右端のチェック欄。★ここからなぞると、続けて選べる（_bindAssigneeDragSelect）。
+ * 見た目の丸は小さい（16px）ので、指で触れる範囲（__pick）を広く取ってある。
+ */
+function _assigneePickZone(checked) {
+  return `<span class="p-assignee__pick" data-assignee-drag>${checked
+    ? '<span class="p-assignee__check">✓</span>'
+    : '<span class="p-assignee__checkbox"></span>'}</span>`;
+}
+
+/**
+ * 担当者を「なぞって続けて選ぶ」（アカウントタブ・2026-09-30）。
+ * - 始める場所：指（タッチ・ペン）は右端のチェック欄（[data-assignee-drag]）から。行のほかの場所からは今どおりスクロール。
+ *   マウスは行のどこからでも（アバターの上は除く＝プロフィールを開くため）
+ * - 選ぶか外すかは**最初に触れた行**に合わせる（未選択なら選ぶ・選択済みなら外す）を、なぞった行すべてにかける
+ * - ★一覧（#assignee-sheet-list）の中身は選ぶたびに描き直すので、リスナーは入れ物に1回だけ付ける（_dragBound）
+ * - ★なぞった直後に来る click は行のトグルと二重になるので捨てる（list._suppressClick）
+ */
+function _bindAssigneeDragSelect(list) {
+  if (!list || list._dragBound) return;
+  list._dragBound = true;
+  let drag = null;   // { mode: 'add'|'remove', pointerId }
+
+  const uidOf = (row) => {
+    const v = row?.dataset?.assigneePick || '';
+    return v.startsWith('user:') ? v.slice(5) : null;
+  };
+  const apply = (uid) => {
+    if (!uid || !drag) return;
+    const ids = state.draftMission.assignees || [];
+    const has = ids.includes(uid);
+    if (drag.mode === 'add' && !has) state.draftMission.assignees = [...ids, uid];
+    else if (drag.mode === 'remove' && has) state.draftMission.assignees = ids.filter(x => x !== uid);
+    else return;
+    state.draftMission.assignee = null;   // ロール選択は解除（クリックでの選択と同じ）
+    _renderAssigneeSheetList();
+  };
+
+  list.addEventListener('pointerdown', (e) => {
+    if ((state.assigneeSheetTab || 'ACCOUNT') !== 'ACCOUNT') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const row = e.target.closest('[data-assignee-pick^="user:"]');
+    if (!row || e.target.closest('.c-avatar-button')) return;
+    // ★指はチェック欄から始めたときだけ（行のほかの場所は一覧のスクロールに使う）
+    if (e.pointerType !== 'mouse' && !e.target.closest('[data-assignee-drag]')) return;
+    const uid = uidOf(row);
+    drag = { mode: (state.draftMission.assignees || []).includes(uid) ? 'remove' : 'add', pointerId: e.pointerId, moved: false };
+    e.preventDefault();
+    try { list.setPointerCapture(e.pointerId); } catch (_) {}
+    apply(uid);
+  });
+  list.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const row = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-assignee-pick^="user:"]');
+    if (row && list.contains(row)) { drag.moved = true; apply(uidOf(row)); }
+  });
+  const end = (e) => {
+    if (!drag || (e && e.pointerId !== drag.pointerId)) return;
+    drag = null;
+    // ★直後の click（行のトグル）を捨てる。押したときに選択は済ませてある
+    list._suppressClick = true;
+    setTimeout(() => { list._suppressClick = false; }, 0);
+  };
+  list.addEventListener('pointerup', end);
+  list.addEventListener('pointercancel', end);
+}
+
 function _assigneeSuggestHtml(members, multiIds) {
   const p = state.events.find(x => x.id === state.selectedEventId);
   const recs = suggestAssignees(p, state.draftMission.labels || [], {
@@ -927,9 +994,7 @@ function _assigneeSuggestHtml(members, multiIds) {
                 <p class="p-assignee__name">${_esc(nameOf(r.userId))}</p>
                 <p class="p-assignee__reason">${_esc(r.reason)}</p>
               </div>
-              ${checked
-                ? '<span class="p-assignee__check">✓</span>'
-                : '<span class="p-assignee__checkbox"></span>'}
+              ${_assigneePickZone(checked)}
             </div>`;
         }).join('')}
       </div>
@@ -991,7 +1056,7 @@ function _renderAssigneeSheetList() {
               ${Components.UserAvatar(m, { size: 28, userId: m.userId })}
               <span class="p-assignee__row-name">${_esc(m.username)}</span>
             </span>
-            ${checked ? '<span class="p-assignee__check">✓</span>' : '<span class="p-assignee__checkbox"></span>'}
+            ${_assigneePickZone(checked)}
           </div>`;
       }).join('');
     }
@@ -1019,6 +1084,7 @@ function _renderAssigneeSheetList() {
 
   const list = overlay.querySelector('#assignee-sheet-list');
   if (list) list.innerHTML = html;
+  _bindAssigneeDragSelect(list);
 
   // 行の選択ハンドラ
   // ★アバターを含む行は <div role="button">（button の入れ子が作れないため）。
@@ -1030,6 +1096,8 @@ function _renderAssigneeSheetList() {
       });
     }
     btn.addEventListener('click', () => {
+      // ★なぞって選んだ直後の click は捨てる（押したときに選択は済んでいる。二重にトグルしない）
+      if (list?._suppressClick) return;
       const val = btn.dataset.assigneePick;
       if (tab === 'ACCOUNT') {
         if (!val) {

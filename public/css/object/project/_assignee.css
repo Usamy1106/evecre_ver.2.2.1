@@ -235,6 +235,21 @@
   color: var(--color-primary);
 }
 
+/* チェック欄の当たり判定。★ここから指でなぞると続けて選べる（mission.js の _bindAssigneeDragSelect）。
+   見た目の丸は小さいので、触れる範囲だけ 44px 四方に広げる（負の margin でレイアウトは変えない）。
+   ★touch-action: none … ここから始めた指の動きをスクロールに取られないようにする */
+.p-assignee__pick {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: calc(var(--space-3) * -1) calc(var(--space-3) * -1) calc(var(--space-3) * -1) 0;
+  touch-action: none;
+  user-select: none;
+}
+
 .p-assignee__checkbox {
   display: inline-block;
   width: 16px;

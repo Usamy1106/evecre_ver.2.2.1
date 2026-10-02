@@ -233,8 +233,8 @@ export function checkIntro() {
 //   （置くと②へ進まないまま放置され、状態が宙ぶらりんになる）。
 const USAGE_PAGES = [
   '目的や目標、概要を決めよう',
-  'いつ、誰が、何をするかスケジュールを作ろう',
-  '実行・提出して、振り返ろう',
+  'いつ、誰が、何をするかタスクを作ろう',
+  '進捗をチェックしよう',
 ];
 
 export function showUsageModal() {

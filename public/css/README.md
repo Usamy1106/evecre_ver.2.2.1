@@ -115,6 +115,7 @@
 | メインボードのダッシュボード表示（タブレット・PC の2列。右列のやること｜カレンダー｜ガント） | `object/project/_board-dashboard.css` |
 | 日付を選ぶモーダル（ミッション期間・開催日・応募期限） | `object/project/_date-picker.css` |
 | 通知セットアップの案内・HOME の通知バナー | `object/project/_push-setup.css` |
+| アカウント作成後のオンボーディング（機能紹介3枚・ホームに置いておこう） | `object/project/_welcome-tour.css`（文言と画像のパスは `public/js/welcomeTour.js`）|
 | 操作を選ばせるボトムシート（長押しメニュー） | `object/component/_action-sheet.css` |
 | オン・オフのスイッチ | `object/component/_toggle.css` |
 | 一覧を出すボトムシート（承認待ち・確認待ち・履歴） | `object/component/_list-sheet.css` |
@@ -340,7 +341,8 @@ public/css/
 │  ├─ _schedule.css             ✅ スケジュール（カレンダー・ガント）
 │  ├─ _board-dashboard.css      ✅ メインボードのダッシュボード表示（広い画面の2列）
 │  ├─ _date-picker.css          ✅ 日付を選ぶモーダル
-│  └─ _push-setup.css           ✅ 通知セットアップの案内
+│  ├─ _push-setup.css           ✅ 通知セットアップの案内
+│  └─ _welcome-tour.css         ✅ アカウント作成後のオンボーディング
 │  └─ _main-board / _mission-modal / │     _event-settings / _signup / │     _calendar / _onboarding                            ⬜ Phase 4
 │
 └─ object/utility/

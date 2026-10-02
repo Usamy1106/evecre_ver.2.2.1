@@ -253,3 +253,37 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
+
+/* --- タスクの実施期間：カレンダー｜ガントの切り替え（2026-09-30）----------------------
+   使用箇所: modals/calendar.js（target 'mission'）。ガントの中身は schedulePanel.js の ganttPickerHtml */
+.p-date-picker__views {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.p-date-picker__view {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-date-picker__view.is-active {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-pale);
+  color: var(--color-primary);
+}
+
+/* ガントの入れ物。シートの残りの高さに収め、中（#gantt-body）が縦横にスクロールする */
+.p-date-picker__gantt {
+  height: calc(85vh - 200px);
+  min-height: 240px;
+  margin-top: var(--space-2);
+  overflow: hidden;
+  border: 1px solid var(--bg-textbox);
+  border-radius: var(--radius-md);
+}

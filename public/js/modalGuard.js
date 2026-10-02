@@ -26,6 +26,7 @@ export const AUTO_MODAL_IDS = [
   'member-approved-overlay',       // 参加が承認された（SSE 駆動）
   'public-basic-info-overlay',     // 宣伝用に公開するかの確認（基礎情報がそろったとき・1回）
   'public-knowledge-overlay',      // タスクも含めて公開するかの確認（振り返りフェーズが終わったとき・1回）
+  'welcome-tour-overlay',          // アカウント作成後のオンボーディング（機能紹介3枚 → ホームに置いておこう）
 ];
 
 // ★初期オンボーディング（onboardingIntro.js）が進行中かを見るためのフック。

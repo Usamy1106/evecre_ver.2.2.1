@@ -571,3 +571,38 @@
   color: var(--color-text-muted);
   text-align: center;
 }
+
+/* --- タスクの実施期間を選ぶガントの「このタスク」の行（calendar.js の 'mission'。2026-09-30）---------
+   ★なぞって期間を選ぶ行。指の動きを横スクロールに取られないよう touch-action: none。
+     ほかの行・見出しは今どおりスクロールできる */
+.p-schedule__gantt-row--draft {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--color-primary-pale);
+  cursor: crosshair;
+}
+
+.p-schedule__gantt-row--draft .p-schedule__gantt-name {
+  background-color: var(--color-primary-pale);
+}
+
+.p-schedule__gantt-row--draft .p-schedule__gantt-slots {
+  touch-action: none;
+  user-select: none;
+}
+
+.p-schedule__gantt-row--draft .p-schedule__gantt-title {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* なぞっている範囲（離すまでの仮の表示） */
+.p-schedule__gantt-row--draft .p-schedule__gantt-slot.is-picking {
+  background-color: var(--color-primary-half);
+}
+
+/* なぞっている間は、確定前の古い期間を薄くする */
+.p-schedule__gantt-row--draft.is-picking .p-schedule__gantt-bar {
+  opacity: .3;
+}

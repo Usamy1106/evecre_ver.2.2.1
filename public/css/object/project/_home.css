@@ -154,7 +154,7 @@
   padding: var(--space-4);
   border-radius: var(--radius-lg);
   background-color: var(--color-primary);
-  box-shadow: 0 4px 20px rgba(32, 157, 219, .4);
+  box-shadow: 0 4px 20px var(--color-primary-half2);
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);
@@ -224,7 +224,7 @@
   flex-direction: column;
   align-items: center;
   /* 段の下の線（棚）。隣のカードの線とつながって1本に見える。左右の余白＝カードの間（以前の column-gap の半分ずつ）*/
-  padding-inline: var(--space-1);
+  padding-inline: clamp( 8px, calc( -4px + 3vw ), 32px );
   padding-bottom: var(--space-3);
   border-bottom: 1.5px solid var(--color-border);
   cursor: pointer;

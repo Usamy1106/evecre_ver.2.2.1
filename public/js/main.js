@@ -34,7 +34,7 @@ import { renderArchiveAnswers } from './views/archiveAnswers.js';
 import { renderArchiveStats } from './views/archiveStats.js';
 
 // モーダル
-import { openCalendarModal, moveCalendarMonth } from './modals/calendar.js';
+import { openCalendarModal, moveCalendarMonth, setMissionDateView } from './modals/calendar.js';
 import {
   openMissionModal, closeMissionModal, deleteMission,
   renderMissionModalContent,
@@ -69,6 +69,7 @@ import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js'
 import { checkPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkPublicKnowledgeModal } from './modals/publicKnowledgeModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
+import { checkWelcomeTour, isWelcomeTourPending, markWelcomeTourPending, PUSH_AFTER_SIGNUP_KEY } from './modals/welcomeTourModal.js';
 // ★暫定：既存メンバーのスキル回収。回収が済んだらこの import ごと削除する
 import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
@@ -390,6 +391,7 @@ window._app = {
   // --- カレンダー ---
   openCalendarModal: (target) => openCalendarModal(target),
   moveCalendarMonth: (offset, target) => moveCalendarMonth(offset, target),
+  setMissionDateView: (view) => setMissionDateView(view),
 
   // --- タスクモーダル ---
   openMissionModal: (id = null) => openMissionModal(id),
@@ -1085,6 +1087,18 @@ window._app = {
 
   // --- 開発者からのお知らせモーダル（全ユーザー向け）---
   checkDeveloperAnnouncementModal: () => checkDeveloperAnnouncementModal(),
+  // アカウント作成後のオンボーディング（modals/welcomeTourModal.js）
+  checkWelcomeTour: () => checkWelcomeTour(),
+  isWelcomeTourPending: (uid) => isWelcomeTourPending(uid),
+  markWelcomeTourPending: (uid) => markWelcomeTourPending(uid),
+  // 「次に開いたときに通知の案内を出す」印を1回だけ取り出す（state.js）
+  consumePushAfterSignup: (uid) => {
+    try {
+      if (!uid || localStorage.getItem(PUSH_AFTER_SIGNUP_KEY(uid)) !== '1') return false;
+      localStorage.removeItem(PUSH_AFTER_SIGNUP_KEY(uid));
+      return true;
+    } catch (_) { return false; }
+  },
   // ★暫定：既存メンバーのスキル回収。回収が済んだらこの行ごと削除する
   checkSkillCollectModal: () => checkSkillCollectModal(),
 
@@ -1743,6 +1757,12 @@ const _LOG_LABELS = {
   pwa_prompt_shown:       'ホーム画面追加の案内を表示',
   pwa_prompt_dismissed:   'ホーム画面追加の案内を閉じた',
   pwa_install_accepted:   'ホーム画面に追加した',
+  welcome_tour_shown:     'アカウント作成後のオンボーディングを表示',
+  welcome_tour_page:      'アカウント作成後のオンボーディングを進めた',
+  welcome_tour_finished:  'アカウント作成後のオンボーディングを終えた',
+  home_add_prompt_shown:  '「ホームに置いておこう」を表示',
+  home_add_tapped:        '「ホームに置いておこう」のボタンを押した',
+  home_add_later:         '「ホームに置いておこう」をあとでにした',
   pwa_install_dismissed:  'ホーム画面への追加を断った',
   pwa_installed:          'ホーム画面に追加された',
   push_setup_started:     '通知の設定を開いた',

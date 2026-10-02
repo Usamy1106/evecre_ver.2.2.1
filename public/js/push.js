@@ -85,7 +85,9 @@ export async function promptInstall() {
   const p = _deferredInstallPrompt;
   _deferredInstallPrompt = null;      // 一度きりしか使えない
   try {
-    p.prompt();
+    // ★prompt() は Promise を返す。ユーザー操作の外で呼ばれた等で拒否されたとき、await しないと
+    //   例外を受け止められず、下の userChoice を永久に待ち続けてボタンが無反応になる（2026-09-30）
+    await p.prompt();
     const { outcome } = await p.userChoice;
     logEvent(outcome === 'accepted' ? 'pwa_install_accepted' : 'pwa_install_dismissed');
     return outcome;

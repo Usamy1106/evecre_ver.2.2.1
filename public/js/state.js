@@ -74,7 +74,8 @@ export const state = {
   signup: null,                        // アカウント作成フロー（views/signup.js）の下書き
   pushSubscribed: null,                // この端末が push を購読済みか（null=未判定）。
                                        // HOME のバナー表示を同期で判定するためのキャッシュ
-  pendingPushSetup: false,             // アカウント作成の完了直後に通知セットアップを出す予約
+  // ★アカウントを作ったその回（ページを開き直すまで）か。通知許可とお知らせを出さない（2026-09-30）
+  _signupSession: false,
   // 招待リンクから来た人の「参加しますか？」モーダルの予約 { token, eventName, eventId }。
   // ★プロフィール作成（STEP 4〜8）が終わってから出す。作成途中に出すと質問の上に
   //   モーダルが重なり、どちらも進められなくなる（実際にその不具合を出した）。
@@ -565,6 +566,8 @@ export const state = {
     this.events = [];
     this.selectedEventId = null;
     this.boardPanelView = null;   // 右列の表示はユーザーごとに覚えている。次の人の分を読み直す
+    this._signupSession = false;  // 次に入る人は「作ったその回」ではない
+    this._devAnnouncementChecked = false;
     // ★入口へ戻す。別のアカウントで入り直す人も、新しく作る人もここから分かれる
     this.currentView = 'WELCOME';
     this.render();
@@ -1228,24 +1231,31 @@ export const state = {
       setTimeout(() => window._app?.checkSkillCollectModal?.(), 1500);
     }
 
-    // アカウント作成の完了直後：ホーム画面追加 → 通知許可 を順に案内する。
-    // ★オンボーディングの途中では出さない（iOS は追加しないと許可できず、
-    //   作成途中に共有シートへ誘導すると流れが切れるため）。
-    // ★招待リンクから来た人には出さない。参加申請を先に済ませてもらう
-    //   （通知の案内は参加後にいくらでも出せるが、参加申請は今しか出せない）。
-    if (this.currentView === 'HOME' && this.pendingPushSetup && this.currentUser &&
-        !this.pendingJoinConfirm) {
-      this.pendingPushSetup = false;
+    // ★アカウント作成後のオンボーディング（modals/welcomeTourModal.js。機能紹介3枚 → ホームに置いておこう）。
+    //   アカウント作成の完了で localStorage に pending が立つ。HOME に着いたら出す（出せない状態なら次の render で）
+    const _uid = this.currentUser?.id;
+    const _welcomePending = !!(_uid && window._app?.isWelcomeTourPending?.(_uid));
+    if (this.currentView === 'HOME' && _welcomePending) {
+      setTimeout(() => window._app?.checkWelcomeTour?.(), 400);
+    }
+
+    // 通知許可の案内（ホーム画面追加 → 通知許可。modals/pushSetupModal.js）。
+    // ★アカウントを作ったその回には出さない。**次に開いたとき**（再ログイン・再読み込み）に1回だけ出す（2026-09-30）。
+    //   印はオンボーディングと一緒に立つ（markWelcomeTourPending）。オンボーディングが終わってから
+    // ★招待リンクから来た人には、参加申請を先に済ませてもらう
+    if (this.currentView === 'HOME' && _uid && !this._signupSession && !_welcomePending &&
+        !this.pendingJoinConfirm && window._app?.consumePushAfterSignup?.(_uid)) {
       // silent:true … すでにオン／非対応なら何も出さない（自動起動のため）
-      setTimeout(() => window._app?.startPushSetup?.('signup_complete', true), 600);
+      setTimeout(() => window._app?.startPushSetup?.('after_signup_next_session', true), 600);
     }
 
     // 開発者からのお知らせモーダル（全ユーザー・セッション1回、イベント非依存）。
     // HOME/MAIN_BOARD どちらでも表示しうるため selectedEventId は問わない。
     // 他のイベント固有モーダルより後に判定させ、重なった場合は表示を譲る。
+    // ★アカウントを作ったその回と、オンボーディングが終わるまでは出さない（次に開いたときに出す。2026-09-30）
     if ((this.currentView === 'HOME' || this.currentView === 'MAIN_BOARD') &&
         this.currentUser &&
-        !this._devAnnouncementChecked) {
+        !this._devAnnouncementChecked && !this._signupSession && !_welcomePending) {
       this._devAnnouncementChecked = true;
       setTimeout(() => window._app?.checkDeveloperAnnouncementModal?.(), 1100);
     }

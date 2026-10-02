@@ -1430,11 +1430,11 @@ function _renderComplete(container, d) {
     // ★招待リンクから来た人には通知の案内を出さず、参加申請を先に済ませてもらう。
     //   通知は参加後にいくらでも案内できるが、参加申請はこの流れでしか出せない。
     //   参加確認モーダルは loadAfterAuth の最後で consumePendingJoinConfirm が開く。
-    if (!state.pendingJoinConfirm) {
-      // HOME に着いてから、ホーム画面追加→通知の案内を順に出す（modals/pushSetupModal.js）。
-      // オンボーディングの途中では出さない（iOS は追加しないと許可できず流れが切れるため）。
-      state.pendingPushSetup = true;
-    }
+    // ★アカウント作成後のオンボーディング（機能紹介3枚 → ホームに置いておこう）を HOME で出す
+    //   （modals/welcomeTourModal.js）。招待リンクから来た人は、参加申請の確認が済んでから出る。
+    // ★通知許可とお知らせは、このあと（アカウントを作ったその回）は出さない。次に開いたときに出す（state.js）
+    state._signupSession = true;
+    window._app?.markWelcomeTourPending?.(state.currentUser?.id);
     _finish();
   };
 }

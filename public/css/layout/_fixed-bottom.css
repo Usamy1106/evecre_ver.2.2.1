@@ -92,5 +92,5 @@
 /* 管理者：ミッションを作る */
 .l-fab--primary {
   background-color: var(--color-primary);
-  box-shadow: 0 4px 15px rgba(32, 157, 219, .4);
+  box-shadow: 0 4px 15px var(--color-primary-half2);
 }
