@@ -13292,6 +13292,8 @@ body {
 .p-pillar-char.p-char {
   height: auto;
   aspect-ratio: 372 / 349;
+  /* 名前の文字の大きさをキャラの幅から決める（下の cqi）。★画面幅のブレイクポイントに頼らない */
+  container-type: inline-size;
 }
 
 /* 目。★提案ボックスのキャラ（27%）より小さくする。名前を体の中に書くぶん、目が大きいと体が小さく見える */
@@ -13314,6 +13316,10 @@ body {
   align-items: center;
   justify-content: center;
   font-size: 12px;
+  /* ★キャラの幅に合わせて大きくする（スマホの設定ページ＝約105px で 12px、PC＝約200px 以上で 18px）。
+     PC では体が大きいのに文字が 12px のままで小さく見えた（2026-10-02）。
+     cqi が効かないブラウザは上の 12px のまま */
+  font-size: clamp(12px, 9cqi, 18px);
   font-weight: var(--font-weight-heavy);
   line-height: 1.35;
   color: var(--color-text-inverse);
