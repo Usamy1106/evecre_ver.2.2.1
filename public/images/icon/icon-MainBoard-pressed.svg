@@ -1,28 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.14 21.24">
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 15.28 21.39">
   <defs>
     <style>
       .cls-1 {
-        fill: #fff;
-      }
-
-      .cls-1, .cls-2 {
-        stroke: #30A23D;
-        stroke-miterlimit: 10;
-        stroke-width: 1.5px;
+        fill: #22ac38;
       }
 
       .cls-2 {
-        fill: none;
+        fill: #fff;
+      }
+
+      .cls-3 {
+        fill: #22ac38;
+        stroke: #fff;
+        stroke-width: .6px;
+        stroke-linejoin: round;
       }
     </style>
   </defs>
   <g id="_レイヤー_2-2" data-name="レイヤー 2">
-    <rect class="cls-2" x=".75" y=".75" width="13.79" height="18.13" rx="1.17" ry="1.17"/>
-    <line class="cls-2" x1="3.45" y1="5.78" x2="12" y2="5.78"/>
-    <line class="cls-2" x1="3.45" y1="9.82" x2="12" y2="9.82"/>
-    <line class="cls-2" x1="3.45" y1="13.86" x2="12" y2="13.86"/>
-    <circle class="cls-1" cx="12.52" cy="16.61" r="3.87"/>
-    <polyline class="cls-2" points="10.94 16.3 12.32 17.83 14.09 15.4"/>
+    <rect class="cls-1" x="0" y="1.76" width="15.28" height="19.63" rx="1.91" ry="1.91"/>
+    <rect class="cls-2" x="8" y="8.08" width="4.36" height="1"/>
+    <rect class="cls-2" x="7.08" y="14.63" width="4.36" height="1"/>
+    <polygon class="cls-2" points="4.68 16.88 2.55 14.51 3.29 13.84 4.6 15.29 6.45 12.75 7.26 13.34 4.68 16.88"/>
+    <polygon class="cls-2" points="4.68 10.9 2.55 8.52 3.29 7.85 4.6 9.31 6.45 6.77 7.26 7.35 4.68 10.9"/>
+    <path class="cls-3" d="M10.98,1.41h-1.32c-.16,0-.29-.1-.36-.25-.28-.66-.93-1.16-1.65-1.16s-1.37.5-1.65,1.16c-.07.15-.2.25-.36.25h-1.32c-.1,0-.2.08-.2.2v2.09c0,.11.09.21.2.21h6.67c.1,0,.2-.09.2-.21V1.61c0-.11-.09-.2-.2-.2Z"/>
+    <path class="cls-2" d="M6.83,1.37c.08-.39.41-.67.81-.67s.73.28.81.67c0,0,0,.02,0,.04h-1.63s0-.03,0-.04Z"/>
   </g>
 </svg>

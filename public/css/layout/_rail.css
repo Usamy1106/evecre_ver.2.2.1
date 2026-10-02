@@ -48,7 +48,7 @@
 /* いま開いているタブ */
 .l-rail__item.is-active {
   border-color: var(--color-primary);
-  background-color: var(--color-primary-tint2);
+  background-color: var(--rail-active-bg);
 }
 
 .l-rail__icon {

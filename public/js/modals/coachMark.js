@@ -91,13 +91,8 @@ export function showCoachMark(o) {
     ${o.finger ? `
       <!-- ★指は穴に隣接させる。コピー文の中に置くと穴から離れて「どこを指しているか」が伝わらない -->
       <div data-coach-finger class="c-coach-mark__finger">
-        <svg class="c-coach-finger" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white"
-          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+        <img src="/images/icon/icon-Hand.svg" class="c-coach-finger" width="27" height="36" alt=""
           style="filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));">
-          <path d="M9 11V6a2 2 0 1 1 4 0v5"/>
-          <path d="M13 11V8a2 2 0 1 1 4 0v3"/>
-          <path d="M17 11v-1a2 2 0 1 1 4 0v6a5 5 0 0 1-5 5h-3a6 6 0 0 1-6-6v-4a2 2 0 1 1 4 0"/>
-        </svg>
         ${o.hint ? `<span class="c-coach-mark__finger-hint">${_esc(o.hint)}</span>` : ''}
       </div>` : ''}`;
   document.body.appendChild(overlay);

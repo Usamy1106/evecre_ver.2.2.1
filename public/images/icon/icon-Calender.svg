@@ -1,22 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18.92 19.42">
+<svg id="_レイヤー_2" data-name="レイヤー 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18.92 20.11">
   <defs>
     <style>
       .cls-1 {
-        fill: none;
-        stroke: #484545;
-        stroke-miterlimit: 10;
+        fill: #f5bd1a;
+      }
+
+      .cls-2 {
+        fill: #f9b900;
+      }
+
+      .cls-2, .cls-3, .cls-4 {
         stroke-width: 1.5px;
+      }
+
+      .cls-2, .cls-4 {
+        stroke: #f5bd1a;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-3 {
+        stroke: #eaa31a;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .cls-3, .cls-4 {
+        fill: none;
       }
     </style>
   </defs>
   <g id="_レイヤー_2-2" data-name="レイヤー 2">
-    <rect class="cls-1" x=".75" y="1.25" width="17.42" height="17.42" rx="1.25" ry="1.25"/>
-    <line class="cls-1" x1="5.75" x2="5.75" y2="2.5"/>
-    <line class="cls-1" x1="13.26" x2="13.26" y2="2.5"/>
-    <line class="cls-1" x1=".75" y1="6.25" x2="18.17" y2="6.25"/>
-    <line class="cls-1" x1="3.17" y1="9.1" x2="6.73" y2="9.1"/>
-    <line class="cls-1" x1="7.72" y1="9.1" x2="11.28" y2="9.1"/>
-    <line class="cls-1" x1="12.26" y1="9.1" x2="15.83" y2="9.1"/>
+    <g>
+      <rect class="cls-4" x=".75" y="1.95" width="17.42" height="17.42" rx="1.25" ry="1.25"/>
+      <line class="cls-4" x1=".75" y1="6.95" x2="18.17" y2="6.95"/>
+      <rect class="cls-1" x="3.25" y="9.19" width="2.94" height="2.94"/>
+      <rect class="cls-1" x="7.85" y="9.19" width="2.94" height="2.94"/>
+      <rect class="cls-1" x="12.45" y="9.19" width="2.94" height="2.94"/>
+      <rect class="cls-1" x="3.25" y="13.43" width="2.94" height="2.94"/>
+      <rect class="cls-1" x="7.85" y="13.43" width="2.94" height="2.94"/>
+      <rect class="cls-1" x="12.45" y="13.43" width="2.94" height="2.94"/>
+      <path class="cls-2" d="M2,1.95h14.92c.69,0,1.25.56,1.25,1.25v3.75H.75v-3.75c0-.69.56-1.25,1.25-1.25Z"/>
+      <line class="cls-3" x1="5.75" y1=".75" x2="5.75" y2="3.15"/>
+      <line class="cls-3" x1="13.26" y1=".75" x2="13.26" y2="3.15"/>
+    </g>
   </g>
 </svg>

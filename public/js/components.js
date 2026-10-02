@@ -147,11 +147,7 @@ export const Components = {
         </button>
         <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry data-log="notif_open"
           class="l-rail__item${on('NOTIFICATIONS')}" aria-label="通知" title="通知">
-          <svg class="l-rail__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
+          <img src="/images/icon/icon-Notification${active === 'NOTIFICATIONS' ? '-pressed' : ''}.svg" class="l-rail__icon" alt="">
           ${unread > 0 ? `<span class="p-main-board__notif-badge">${this.badgeText(unread)}</span>` : ''}
         </button>
         <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"

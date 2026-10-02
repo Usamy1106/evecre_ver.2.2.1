@@ -1034,11 +1034,7 @@ function _renderMainTab(p) {
       <div class="p-main-board__side-actions">
         <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
           data-log="notif_open" class="p-main-board__notif" aria-label="通知">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
+          <img src="/images/icon/icon-Notification.svg" width="20" height="20" alt="">
           ${Components.unreadCountFor(p.id) > 0
             ? `<span class="p-main-board__notif-badge">${Components.badgeText(Components.unreadCountFor(p.id))}</span>`
             : ''}
