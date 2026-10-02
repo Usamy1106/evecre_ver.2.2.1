@@ -1,0 +1,135 @@
+/* ==========================================================================
+   Object / Project / pillar-char — 柱をキャラクターで描く（mizu / mori / iwa）
+   使用箇所: public/js/pillarChars.js（pillarCharHtml / pillarSlotHtml）
+     柱の設定ページ（views/pillarEdit.js）・タスク作成の2画面目（modals/mission.js）
+
+   1つ目の柱＝mizu・2つ目＝mori・3つ目＝iwa。体の中に柱の名前を書く。
+   ★体と目は .p-char（_character.css）の部品をそのまま使う。ここでは大きさと名前・選択の見た目だけを持つ。
+   ★キャラの色はラベルの色と重なる（了承済み）。
+   ★animate するのは transform と opacity だけ。
+   ========================================================================== */
+
+/* 横並び（柱の設定ページ・広い画面のタスク作成） */
+.p-pillar-chars {
+  --char-h: 112px;
+  --char-bleed: 2px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* スマホは縦並び（タスク作成の2画面目）。★広い画面（<html class="is-wide">）だけ横に戻す。
+   判定は layoutMode.js の1か所（ここで @media を書かない） */
+.p-pillar-chars--stack {
+  --char-h: 120px;
+  grid-template-columns: minmax(0, 190px);
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+:root.is-wide .p-pillar-chars--stack {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-content: stretch;
+}
+
+.p-pillar-char {
+  width: 100%;
+  padding: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+/* 名前（体の内側。目の下〜体の下のふくらみの上）。
+   ★左右は 20% 内側に寄せる。体（とくに mori の雲形）は箱より細く見えるので、12% だと長い名前が
+     1行に収まってしまい、文字が体の縁からはみ出して見えた */
+.p-pillar-char__name {
+  position: absolute;
+  z-index: 1;
+  top: 34%;
+  right: 20%;
+  bottom: 14%;
+  left: 20%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.4;
+  color: var(--color-text-inverse);
+  text-align: center;
+  overflow-wrap: anywhere;
+  /* ★keep-all にしないこと。日本語の続く名前（「安全・安心に運営する」）が折り返せず、体からはみ出した */
+  word-break: normal;
+  line-break: strict;
+  pointer-events: none;
+}
+
+/* ★文字は内側の span に入れる。flex の直下に文字を置くと、縮めない（min-width:auto）ので折り返さず体からはみ出す */
+.p-pillar-char__name-text {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.p-pillar-char__name.is-placeholder {
+  opacity: .7;
+}
+
+/* 選ばれていない（タスク作成）。★消さずに薄くする（どれを選べるかは見えている） */
+.p-pillar-char.is-dimmed {
+  opacity: .4;
+}
+
+/* 選ばれている印（右上） */
+.p-pillar-char__check {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 4%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+/* 編集中の柱（設定ページで名前を直している） */
+.p-pillar-char.is-active .p-char__body {
+  transform: scale(1.06);
+}
+
+/* いま足した柱：下からぽこっと出る。開いたときは mizu → mori → iwa の順に（--char-index で遅らせる） */
+.p-pillar-char.is-new {
+  animation: pillarCharPop .5s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+.p-pillar-chars.is-entering .p-pillar-char:not(.p-pillar-char--empty) {
+  animation: pillarCharPop .5s cubic-bezier(.34, 1.56, .64, 1) calc(var(--char-index, 0) * 140ms) both;
+}
+
+/* まだ埋まっていない枠 */
+.p-pillar-char--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--char-h);
+  border: 2px dashed var(--color-border);
+  border-radius: 42%;
+}
+
+.p-pillar-char__slot-num {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-placeholder);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-pillar-char.is-new,
+  .p-pillar-chars.is-entering .p-pillar-char {
+    animation: none;
+  }
+}

@@ -95,14 +95,6 @@
   color: var(--color-text-inverse);
 }
 
-.p-pillar-assign__chip--skip {
-  border-style: dashed;
-}
-
-.p-pillar-assign__chip--skip.is-selected {
-  border-style: solid;
-}
-
 .p-pillar-assign__empty {
   margin-top: var(--space-5);
   font-size: var(--font-size-sm);

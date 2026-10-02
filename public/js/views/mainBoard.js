@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, canPromptPublicBasic } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic } from '../utils.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
@@ -635,10 +635,14 @@ const _pillarBoardCollapsed = new Map();   // eventId → true（畳んだ。画
 function _pillarStats(p, pillars) {
   const stats = new Map(pillars.map(x => [x.id, { total: 0, done: 0 }]));
   for (const m of p.missions || []) {
-    const st = m.pillarId ? stats.get(m.pillarId) : null;   // ★存在しない id は数えない（未分類）
-    if (!st) continue;
-    st.total++;
-    if (m.status === 'cleared') st.done++;
+    // ★複数の柱にまたがるタスクは、それぞれの柱に1件ずつ数える（2026-10-02）。存在しない id は数えない
+    const ids = Array.isArray(m.pillarIds) ? m.pillarIds : (m.pillarId ? [m.pillarId] : []);
+    for (const id of new Set(ids)) {
+      const st = stats.get(id);
+      if (!st) continue;
+      st.total++;
+      if (m.status === 'cleared') st.done++;
+    }
   }
   return stats;
 }
@@ -899,7 +903,7 @@ function _renderMainTab(p) {
   // ★存在しない id（消された柱）を指していたら絞り込まない
   const _pillarFilter = state.missionFilterPillar && getPillars(p).some(x => x.id === state.missionFilterPillar)
     ? state.missionFilterPillar : null;
-  if (_pillarFilter) displayMissions = displayMissions.filter(m => m.pillarId === _pillarFilter);
+  if (_pillarFilter) displayMissions = displayMissions.filter(m => pillarIdsOf(p, m).includes(_pillarFilter));
 
   // ★ラベルが2つ以上あるときだけ絞り込みチップを出す。
   //   ラベルが0〜1個なら「絞る意味が無い」のでチップは出さないが、並び替えボタンは残す。

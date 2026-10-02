@@ -7,7 +7,8 @@ import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
 import { suggestAssignees } from '../assigneeSuggest.js';
 import { Components } from '../components.js';
 import { logEvent } from '../logger.js';
-import { getPillars, pillarIdOf } from '../utils.js';
+import { getPillars, pillarIdsOf } from '../utils.js';
+import { pillarCharHtml } from '../pillarChars.js';
 
 /**
  * タスク作成/編集モーダルを開く
@@ -42,8 +43,8 @@ export function openMissionModal(missionId = null, prefill = null) {
       announceText: m.announceText || '',
       noInput: !!m.noInput,
       individualClear: !!m.individualClear,
-      // 柱。★存在しない id（柱が消された）は未分類として見せる。触らなければ保存でも書き換えない
-      pillarId: pillarIdOf(project, m),
+      // 柱（複数可）。★存在しない id（柱が消された）は見せない。触らなければ保存でも書き換えない
+      pillarIds: pillarIdsOf(project, m),
       _pillarTouched: false,
     };
   } else {
@@ -55,13 +56,18 @@ export function openMissionModal(missionId = null, prefill = null) {
       announce: false, announceText: '',
       noInput: false,
       individualClear: false,
-      pillarId: null, _pillarTouched: false,
+      // 柱（複数可）。ボードを柱で絞り込んでいるときは、その柱を選んだ状態で始める
+      pillarIds: (state.missionFilterPillar && getPillars(project).some(x => x.id === state.missionFilterPillar))
+        ? [state.missionFilterPillar] : [],
+      _pillarTouched: false,
       // 提案からの事前入力（title/labels/description/priority と採用元マーカー）
       ...(prefill || {}),
     };
   }
 
   state.missionModalTab = 'BASIC';
+  // 1画面目＝タスクの内容、2画面目＝柱（柱のあるイベントだけ。「次へ」で進む）
+  state.missionModalStep = 'form';
 
   // 担当者選択用にメンバー/ロールをロード（キャッシュ）
   if (project && (!state.assigneeCache || state.assigneeCache.projectId !== project.id)) {
@@ -251,7 +257,9 @@ export function renderMissionModalContent() {
       ? `<div class="text-rs p-mission-form__date-chip">${_esc(_sd[0])}</div>`
       : `<div class="text-rs p-mission-form__date-chip">${_esc(_sd[0])} 〜 ${_esc(_sd[_sd.length - 1])}</div>`;
 
-  if (isBasic) {
+  if (state.missionModalStep === 'pillars' && _hasPillars()) {
+    container.innerHTML = _renderPillarStep(isEdit);
+  } else if (isBasic) {
     container.innerHTML = _renderBasicTab(isEdit, dateDisplay);
   } else {
     container.innerHTML = _renderDetailTab(isEdit);
@@ -273,24 +281,51 @@ function _missionTabs(active) {
   ], { active });
 }
 
-// 柱の選択（タスク名のすぐ下。2026-10-02）。★柱が無いイベントでは欄ごと出さない。
-// ★単一選択。「スキップ」＝未分類（必須にしない）。★柱には色を付けない（タグの色と混ざる）
-function _renderPillarPicker() {
+// 柱を選ぶ2画面目（2026-10-02）。柱のあるイベントでは「作成する／保存する」が「次へ」になり、ここで柱を選ぶ。
+// ★複数選べる（pillarIds）。何も選ばなければ未分類（必須にしない）。
+// ★柱はキャラクター（1つ目＝mizu・2つ目＝mori・3つ目＝iwa）の体の中に名前で出す。
+//   スマホは縦並び、広い画面は横並び（_pillar-char.css の .p-pillar-chars--stack）。
+function _hasPillars() {
+  return getPillars(state.events.find(p => p.id === state.selectedEventId)).length > 0;
+}
+
+function _renderPillarStep(isEdit) {
   const project = state.events.find(p => p.id === state.selectedEventId);
   const pillars = getPillars(project);
-  if (!pillars.length) return '';
-  const cur = state.draftMission.pillarId || null;
-  const chip = (id, label, extra = '') => `
-    <button type="button" onclick="window._app.setMissionPillar(${id ? `'${_escAttr(id)}'` : 'null'})"
-      aria-pressed="${cur === id}" class="p-mission-form__pillar${cur === id ? ' is-selected' : ''}${extra}">${_esc(label)}</button>`;
+  const cur = new Set(state.draftMission.pillarIds || []);
+  const any = cur.size > 0;
   return `
-        <div data-field="pillar">
-          <label class="heading-rs p-mission-form__label">柱</label>
-          <div class="p-mission-form__pillars">
-            ${pillars.map(x => chip(x.id, x.name)).join('')}
-            ${chip(null, 'スキップ', ' p-mission-form__pillar--skip')}
-          </div>
-        </div>`;
+    <div class="p-mission-form__inner">
+      <div class="p-mission-form__step">
+        <p class="p-mission-form__step-title">このタスクは、どの柱のため？</p>
+        <p class="p-mission-form__step-note">複数選べます。どれにも当てはまらなければ、選ばずに${isEdit ? '保存' : '作成'}できます。</p>
+        <div class="p-pillar-chars p-pillar-chars--stack p-mission-form__pillar-chars">
+          ${pillars.map((x, i) => pillarCharHtml(i, x.name, {
+            tag: 'button',
+            attrs: `onclick="window._app.toggleMissionPillar('${_escAttr(x.id)}')" aria-pressed="${cur.has(x.id)}" data-pillar-option="${_escAttr(x.id)}"`,
+            selected: cur.has(x.id),
+            dimmed: any && !cur.has(x.id),
+          })).join('')}
+        </div>
+      </div>
+      <div class="p-mission-form__step-actions">
+        <button type="button" onclick="window._app.missionBack()" class="c-button c-button--secondary p-mission-form__back">戻る</button>
+        <button type="button" onclick="window._app.createOrUpdateMission()"
+          class="c-button c-button--primary p-mission-form__submit p-mission-form__submit--step">
+          ${isEdit ? '保存する' : '作成する'}
+        </button>
+      </div>
+    </div>`;
+}
+
+/** 1画面目の下のボタン。柱のあるイベントでは「次へ」（2画面目で柱を選ぶ） */
+function _submitButtonHtml(isEdit) {
+  const next = _hasPillars();
+  return `
+      <button onclick="window._app.${next ? 'missionNext' : 'createOrUpdateMission'}()"
+        class="c-button c-button--primary p-mission-form__submit">
+        ${next ? '次へ' : (isEdit ? '保存する' : '作成する')}
+      </button>`;
 }
 
 function _renderBasicTab(isEdit, dateDisplay) {
@@ -344,7 +379,6 @@ function _renderBasicTab(isEdit, dateDisplay) {
             class="c-input p-mission-form__input">
           <p id="error-title" class="p-mission-form__error u-hidden">※タスク名は入力必須です</p>
         </div>
-        ${_renderPillarPicker()}
         <div>
           <label class="heading-rs p-mission-form__label">やることの説明</label>
           <textarea id="mission-desc-input" rows="3"
@@ -378,10 +412,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
           </div>
         </div>
       </div>
-      <button onclick="window._app.createOrUpdateMission()"
-        class="c-button c-button--primary p-mission-form__submit">
-        ${isEdit ? '保存する' : '作成する'}
-      </button>
+      ${_submitButtonHtml(isEdit)}
     </div>`;
 }
 
@@ -521,10 +552,7 @@ function _renderDetailTab(isEdit) {
             </svg>
           </button>` : ''}
       </div>
-      <button onclick="window._app.createOrUpdateMission()"
-        class="c-button c-button--primary p-mission-form__submit">
-        ${isEdit ? '保存する' : '作成する'}
-      </button>
+      ${_submitButtonHtml(isEdit)}
     </div>`;
 }
 

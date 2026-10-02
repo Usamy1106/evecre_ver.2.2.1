@@ -688,13 +688,28 @@ window._app = {
     state.notifications = (state.notifications || []).filter(n => n.id !== notifId);
     state.render();
   },
-  // タスク作成・編集の柱（単一選択。null＝スキップ＝未分類）
-  setMissionPillar: (id) => {
+  // タスク作成・編集の柱（複数選択。何も選ばなければ未分類）
+  toggleMissionPillar: (id) => {
     if (!state.draftMission) return;
-    state.draftMission.pillarId = id || null;
+    const cur = new Set(state.draftMission.pillarIds || []);
+    if (cur.has(id)) cur.delete(id); else cur.add(id);
+    state.draftMission.pillarIds = [...cur];
     state.draftMission._pillarTouched = true;
     renderMissionModalContent();
   },
+  // 1画面目 →「次へ」→ 2画面目（柱）。★タスク名が空なら進ませない（作成と同じ確認）
+  missionNext: () => {
+    if (!state.draftMission?.title) {
+      const titleInput = document.getElementById('mission-title-input');
+      if (titleInput) titleInput.style.borderColor = '#e8383d';
+      document.getElementById('error-title')?.classList.remove('u-hidden');
+      return;
+    }
+    state.missionModalStep = 'pillars';
+    renderMissionModalContent();
+    document.getElementById('mission-modal-content')?.scrollTo?.(0, 0);
+  },
+  missionBack: () => { state.missionModalStep = 'form'; renderMissionModalContent(); },
   createOrUpdateMission: (opts = {}) => {
     const titleInput = document.getElementById('mission-title-input');
     const errorText  = document.getElementById('error-title');
@@ -738,7 +753,7 @@ window._app = {
           noInput: !!state.draftMission.noInput,
           individualClear: !!state.draftMission.individualClear,
           // 柱。★選び直したときだけ書く（消された柱を指したままのタスクを、開いて保存しただけで書き換えない）
-          ...(state.draftMission._pillarTouched ? { pillarId: state.draftMission.pillarId || null } : {}),
+          ...(state.draftMission._pillarTouched ? { pillarIds: [...(state.draftMission.pillarIds || [])] } : {}),
         };
       }
     } else {
@@ -769,8 +784,8 @@ window._app = {
         announceText: state.draftMission.announce ? (state.draftMission.announceText || '') : '',
         noInput: !!state.draftMission.noInput,
         individualClear: !!state.draftMission.individualClear,
-        // 柱（選んだときだけ持たせる。柱の無いイベントのタスクに null のセルを増やさない）
-        ...(state.draftMission.pillarId ? { pillarId: state.draftMission.pillarId } : {}),
+        // 柱（選んだときだけ持たせる。柱の無いイベントのタスクに空のセルを増やさない）
+        ...((state.draftMission.pillarIds || []).length ? { pillarIds: [...state.draftMission.pillarIds] } : {}),
         individualClearedBy: [],
       };
       if (fromPid) {

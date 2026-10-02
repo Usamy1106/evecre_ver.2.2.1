@@ -2,19 +2,23 @@
 //
 // 目的（def-1）を支える「柱」を最大3つ決める**ページ**（モーダルではない）。管理者だけが開ける。
 //
-// ★空欄から3つ書かせない。イベント種別ごとの候補（constants.js の PILLAR_SUGGESTIONS）から選び、
+// ★空欄から3つ書かせない。候補（constants.js の PILLAR_CANDIDATES。固定の10個）から選び、
 //   名前は自由に直せる。候補に無ければ「＋ 自分で足す」。
+// ★選んだ柱はキャラクター3体（mizu → mori → iwa の順）の体の中に名前で出る（pillarChars.js）。
+//   足した柱のキャラは下からぽこっと出る（.is-new）。開いたときは3体が順に出る（.is-entering）。
+//   キャラをタップすると、その下に名前の欄と「この柱を外す」が開く。
 // ★柱の id は追加したときに1回だけ振る（utils.js の newPillarId）。名前を変えても保持する。
-//   削除した柱の id は再利用しない（タスクの pillarId が別の柱を指してしまう）。
-// ★削除は確認を挟む（その場の確認。モーダルにしない）。紐づいていたタスクの pillarId は
-//   書き換えない。存在しない id は pillarIdOf が未分類として読む。
-// ★保存するまでイベントには書かない（下書き state.pillarDraft だけを触る）。戻るで捨てる。
-// ★入力中に描き直さないこと（フォーカスが飛ぶ）。描き直すのは行を足す・消すときだけ。
+//   削除した柱の id は再利用しない（タスクの pillarIds が別の柱を指してしまう）。
+// ★保存済みで、タスクが紐づいている柱を外すときは確認を挟む（その場で。モーダルにしない）。
+//   紐づいていたタスクの pillarIds は書き換えない。存在しない id は pillarIdsOf が数えない。
+// ★保存するまでイベントには書かない（下書き state.pillarDraft だけを触る）。「あとで」で捨てる。
+// ★名前の入力中に描き直さないこと（フォーカスが飛ぶ）。描き直すのは足す・外す・選ぶときだけ。
 
 import { state } from '../state.js';
 import { logEvent } from '../logger.js';
-import { getPillars, pillarIdOf, newPillarId, submissionText } from '../utils.js';
-import { PILLARS_MAX, PILLAR_NAME_MAX, PILLAR_SUGGESTIONS } from '../constants.js';
+import { getPillars, pillarIdsOf, newPillarId, submissionText } from '../utils.js';
+import { PILLARS_MAX, PILLAR_NAME_MAX, PILLAR_CANDIDATES } from '../constants.js';
+import { pillarCharHtml, pillarSlotHtml } from '../pillarChars.js';
 import { unassignedCount } from './pillarAssign.js';
 
 function _esc(s) {
@@ -29,16 +33,19 @@ function _draft(p) {
     state.pillarDraft = {
       eventId: p.id,
       items: getPillars(p).map(x => ({ id: x.id, name: x.name, saved: true })),
-      confirmId: null,
+      activeId: null,     // 名前を直している柱
+      confirmId: null,    // 外す確認を出している柱
+      newId: null,        // いま足した柱（ぽこっと出す）
+      entering: true,     // 開いた直後（3体を順に出す）
     };
   }
   return state.pillarDraft;
 }
 
-/** その柱に紐づいているタスクの数（削除の確認に出す） */
+/** その柱に紐づいているタスクの数（外す確認に出す） */
 function _linkedCount(p, pillarId) {
   let n = 0;
-  for (const m of p.missions || []) if (pillarIdOf(p, m) === pillarId) n++;
+  for (const m of p.missions || []) if (pillarIdsOf(p, m).includes(pillarId)) n++;
   return n;
 }
 
@@ -49,33 +56,40 @@ export function renderPillarEdit(appEl) {
   const full = d.items.length >= PILLARS_MAX;
   const purpose = submissionText(p.clearedData?.['def-1']);
   const names = new Set(d.items.map(x => x.name.trim()));
-  const suggestions = PILLAR_SUGGESTIONS[p.eventType] || PILLAR_SUGGESTIONS.DEFAULT;
+  const active = d.items.find(x => x.id === d.activeId) || null;
+  const confirm = d.items.find(x => x.id === d.confirmId) || null;
 
-  const row = (it, i) => {
-    if (d.confirmId === it.id) {
-      const n = _linkedCount(p, it.id);
-      return `
-        <li class="p-pillar-edit__row p-pillar-edit__row--confirm">
-          <p class="p-pillar-edit__confirm-text">「${_esc(it.name || '名前なし')}」を削除しますか？${
-            n > 0 ? `<br>紐づいているタスク ${n}件は「未分類」に戻ります。` : ''}</p>
-          <div class="p-pillar-edit__confirm-actions">
-            <button type="button" data-pillar-cancel class="p-pillar-edit__text-button">やめる</button>
-            <button type="button" data-pillar-remove="${_esc(it.id)}" class="p-pillar-edit__danger-button">削除する</button>
-          </div>
-        </li>`;
-    }
-    return `
-      <li class="p-pillar-edit__row">
-        <span class="p-pillar-edit__num">${i + 1}</span>
-        <input type="text" data-pillar-name="${_esc(it.id)}" maxlength="${PILLAR_NAME_MAX}"
-          value="${_esc(it.name)}" placeholder="例：誰も孤立させない" aria-label="柱 ${i + 1} の名前"
-          class="c-input p-pillar-edit__input">
-        <button type="button" data-pillar-delete="${_esc(it.id)}" class="p-pillar-edit__delete" aria-label="この柱を削除">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-        </button>
-      </li>`;
-  };
+  const slots = Array.from({ length: PILLARS_MAX }, (_, i) => {
+    const it = d.items[i];
+    if (!it) return pillarSlotHtml(i);
+    return pillarCharHtml(i, it.name, {
+      tag: 'button',
+      attrs: `data-pillar-pick="${_esc(it.id)}" aria-label="${_esc(it.name || '名前なし')}の柱を直す"`,
+      isNew: it.id === d.newId,
+      active: it.id === d.activeId,
+    });
+  }).join('');
+
+  const linked = confirm ? _linkedCount(p, confirm.id) : 0;
+  const panel = confirm ? `
+    <div class="p-pillar-edit__panel p-pillar-edit__panel--confirm">
+      <p class="p-pillar-edit__confirm-text">「${_esc(confirm.name || '名前なし')}」を外しますか？${
+        linked > 0 ? `<br>紐づいているタスク ${linked}件は、この柱から外れます。` : ''}</p>
+      <div class="p-pillar-edit__confirm-actions">
+        <button type="button" data-pillar-cancel class="p-pillar-edit__text-button">やめる</button>
+        <button type="button" data-pillar-remove="${_esc(confirm.id)}" class="p-pillar-edit__danger-button">外す</button>
+      </div>
+    </div>`
+    : active ? `
+    <div class="p-pillar-edit__panel">
+      <label class="p-pillar-edit__panel-label" for="pillar-name-input">柱の名前</label>
+      <input type="text" id="pillar-name-input" data-pillar-name="${_esc(active.id)}" maxlength="${PILLAR_NAME_MAX}"
+        value="${_esc(active.name)}" placeholder="例：誰も孤立させない" class="c-input c-input--block">
+      <div class="p-pillar-edit__panel-actions">
+        <button type="button" data-pillar-delete="${_esc(active.id)}" class="p-pillar-edit__text-button p-pillar-edit__text-button--danger">この柱を外す</button>
+        <button type="button" data-pillar-done class="p-pillar-edit__text-button">閉じる</button>
+      </div>
+    </div>` : '';
 
   appEl.innerHTML = `
     <div class="p-pillar-edit">
@@ -92,28 +106,25 @@ export function renderPillarEdit(appEl) {
             <p class="p-pillar-edit__purpose-text">${_esc(purpose)}</p>
           </div>` : ''}
 
-        ${state.pillarAfterPurpose ? `<p class="p-pillar-edit__next">目的が決まりました。次に、目的のために大事にすることを${PILLARS_MAX}つ決めましょう。</p>` : ''}
-        <p class="p-pillar-edit__lead">目的のために大事にすることを、${PILLARS_MAX}つまで決めます。
-          タスクを柱に紐づけると、柱ごとの進み具合がメインボードに出ます。</p>
+        ${state.pillarAfterPurpose ? `<p class="p-pillar-edit__next">目的が決まりました。次に、柱を決めましょう。</p>` : ''}
+        <p class="p-pillar-edit__catch">目的・目標を達成するために大事にすることを${PILLARS_MAX}つ決めよう！</p>
+        <p class="p-pillar-edit__lead">タスクを柱に紐づけると、柱ごとの進み具合がメインボードに出ます。</p>
 
-        <div class="p-pillar-edit__section-head">
-          <h2 class="p-pillar-edit__section-title">柱</h2>
-          <span class="p-pillar-edit__count">${d.items.length} / ${PILLARS_MAX}</span>
-        </div>
-        ${d.items.length ? `<ol class="p-pillar-edit__list">${d.items.map(row).join('')}</ol>`
-          : '<p class="p-pillar-edit__empty">下の候補から選ぶか、自分で足してください</p>'}
-        <button type="button" data-pillar-add ${full ? 'disabled' : ''} data-log="pillar_add_custom"
-          class="p-pillar-edit__add">＋ 自分で足す</button>
+        <div class="p-pillar-chars p-pillar-edit__chars${d.entering ? ' is-entering' : ''}">${slots}</div>
+        ${panel}
 
-        <h2 class="p-pillar-edit__section-title p-pillar-edit__section-title--spaced">候補から選ぶ</h2>
+        <h2 class="p-pillar-edit__section-title p-pillar-edit__section-title--spaced">候補から選ぶ
+          <span class="p-pillar-edit__count">${d.items.length} / ${PILLARS_MAX}</span></h2>
         <div class="p-pillar-edit__chips">
-          ${suggestions.map(name => {
+          ${PILLAR_CANDIDATES.map(name => {
             const on = names.has(name);
             return `<button type="button" data-pillar-suggest="${_esc(name)}" aria-pressed="${on}"
-              ${on || full ? 'disabled' : ''}
+              ${!on && full ? 'disabled' : ''}
               class="p-pillar-edit__chip${on ? ' is-selected' : ''}">${_esc(name)}</button>`;
           }).join('')}
         </div>
+        <button type="button" data-pillar-add ${full ? 'disabled' : ''} data-log="pillar_add_custom"
+          class="p-pillar-edit__add">＋ 自分で足す</button>
 
         <button type="button" data-pillar-save class="c-button c-button--primary p-pillar-edit__save">保存する</button>
         ${getPillars(p).length ? `
@@ -122,23 +133,66 @@ export function renderPillarEdit(appEl) {
       </div>
     </div>`;
 
+  // ★出す演出は1回だけ。次の描き直しで同じキャラがまた跳ねないよう、描いたら消す
+  d.entering = false;
+  d.newId = null;
   _bind(appEl, p, d);
+}
+
+/** 柱を外す。保存済みでタスクが紐づいているときは確認を挟む */
+function _remove(d, p, id) {
+  const it = d.items.find(x => x.id === id);
+  if (!it) return;
+  if (it.saved && _linkedCount(p, id) > 0 && d.confirmId !== id) {
+    d.confirmId = id; d.activeId = null;
+    state.render();
+    return;
+  }
+  d.items = d.items.filter(x => x.id !== id);
+  d.confirmId = null;
+  if (d.activeId === id) d.activeId = null;
+  state.render();
 }
 
 function _bind(appEl, p, d) {
   appEl.querySelector('[data-pillar-back]')?.addEventListener('click', () => state.closePillarEdit());
 
-  appEl.querySelectorAll('[data-pillar-name]').forEach(el => {
-    el.addEventListener('input', () => {
-      const it = d.items.find(x => x.id === el.dataset.pillarName);
-      if (it) it.name = el.value;
-    });
+  // 名前（入力中は描き直さない。キャラの中の名前だけ差し替える）
+  const nameInput = appEl.querySelector('[data-pillar-name]');
+  nameInput?.addEventListener('input', () => {
+    const it = d.items.find(x => x.id === nameInput.dataset.pillarName);
+    if (!it) return;
+    it.name = nameInput.value;
+    const label = appEl.querySelector(`[data-pillar-pick="${CSS.escape(it.id)}"] .p-pillar-char__name`);
+    if (label) {
+      label.querySelector('.p-pillar-char__name-text').textContent = it.name.trim() || '名前を入力';
+      label.classList.toggle('is-placeholder', !it.name.trim());
+    }
   });
 
+  // キャラをタップ → その柱の名前を直す（もう一度で閉じる）
+  appEl.querySelectorAll('[data-pillar-pick]').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.pillarPick;
+      d.activeId = d.activeId === id ? null : id;
+      d.confirmId = null;
+      state.render();
+      // ★タップのハンドラから同期で当てる（iOS は操作の外の focus() を無視する）
+      if (d.activeId) document.getElementById('pillar-name-input')?.focus();
+    });
+  });
+  appEl.querySelector('[data-pillar-done]')?.addEventListener('click', () => { d.activeId = null; state.render(); });
+
+  // 候補：選んでいなければ足す（次のキャラが下から出る）、選んでいれば外す
   appEl.querySelectorAll('[data-pillar-suggest]').forEach(el => {
     el.addEventListener('click', () => {
+      const name = el.dataset.pillarSuggest;
+      const it = d.items.find(x => x.name.trim() === name);
+      if (it) { _remove(d, p, it.id); return; }
       if (d.items.length >= PILLARS_MAX) return;
-      d.items.push({ id: newPillarId(), name: el.dataset.pillarSuggest, saved: false, suggested: true });
+      const id = newPillarId();
+      d.items.push({ id, name, saved: false, suggested: true });
+      d.newId = id; d.activeId = null; d.confirmId = null;
       state.render();
     });
   });
@@ -147,21 +201,12 @@ function _bind(appEl, p, d) {
     if (d.items.length >= PILLARS_MAX) return;
     const id = newPillarId();
     d.items.push({ id, name: '', saved: false });
+    d.newId = id; d.activeId = id; d.confirmId = null;
     state.render();
-    // ★タップのハンドラから同期で当てる（iOS は操作の外の focus() を無視する）
-    document.querySelector(`[data-pillar-name="${id}"]`)?.focus();
+    document.getElementById('pillar-name-input')?.focus();
   });
 
-  appEl.querySelectorAll('[data-pillar-delete]').forEach(el => {
-    el.addEventListener('click', () => {
-      const it = d.items.find(x => x.id === el.dataset.pillarDelete);
-      if (!it) return;
-      // まだ保存していない柱はそのまま消す（紐づいているタスクが無い）
-      if (!it.saved) { d.items = d.items.filter(x => x !== it); state.render(); return; }
-      d.confirmId = it.id;
-      state.render();
-    });
-  });
+  appEl.querySelector('[data-pillar-delete]')?.addEventListener('click', (e) => _remove(d, p, e.currentTarget.dataset.pillarDelete));
   appEl.querySelector('[data-pillar-cancel]')?.addEventListener('click', () => { d.confirmId = null; state.render(); });
   appEl.querySelector('[data-pillar-remove]')?.addEventListener('click', (e) => {
     const id = e.currentTarget.dataset.pillarRemove;
@@ -175,14 +220,16 @@ function _bind(appEl, p, d) {
   appEl.querySelector('[data-pillar-assign]')?.addEventListener('click', () => state.openPillarAssign());
 }
 
-function _save(p, d) {
+async function _save(p, d) {
   const items = d.items
     .map(x => ({ id: x.id, name: String(x.name || '').trim().slice(0, PILLAR_NAME_MAX), suggested: !!x.suggested }))
     .filter(x => x.name)
     .slice(0, PILLARS_MAX);
   const before = getPillars(p).length;
   p.pillars = items.map(({ id, name }) => ({ id, name }));
-  state.save(p.id);
+  // ★すぐに保存する（デバウンスの save() にしない）。待っている間に取り直し（silentReloadEvents）や
+  //   SSE が手元のイベントを差し替えると、保存する前の柱が消える
+  await state.saveNow(p.id);
   logEvent('pillars_saved', {
     count: items.length, before,
     suggested: items.filter(x => x.suggested).length,

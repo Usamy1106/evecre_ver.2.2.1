@@ -69,18 +69,53 @@
   color: var(--color-primary);
 }
 
-.p-pillar-edit__lead {
+.p-pillar-edit__catch {
   margin-top: var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.p-pillar-edit__lead {
+  margin-top: var(--space-1);
   font-size: var(--font-size-sm);
   line-height: 1.7;
   color: var(--color-text-soft);
 }
 
-.p-pillar-edit__section-head {
+/* 選んだ柱（キャラクター3体の横並び。見た目は _pillar-char.css） */
+.p-pillar-edit__chars {
+  margin-top: var(--space-5);
+}
+
+/* キャラをタップすると開く欄（名前を直す・外す）と、外す確認 */
+.p-pillar-edit__panel {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-pillar-edit__panel--confirm {
+  border: 1px solid var(--color-danger-tint);
+  background-color: var(--color-danger-wash);
+  box-shadow: none;
+}
+
+.p-pillar-edit__panel-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-pillar-edit__panel-actions {
   display: flex;
-  align-items: baseline;
   justify-content: space-between;
-  margin-top: var(--space-6);
+  margin-top: var(--space-2);
 }
 
 .p-pillar-edit__section-title {
@@ -94,57 +129,10 @@
 }
 
 .p-pillar-edit__count {
+  margin-left: var(--space-2);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-muted);
-}
-
-.p-pillar-edit__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-
-.p-pillar-edit__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.p-pillar-edit__num {
-  flex: none;
-  width: 20px;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-.p-pillar-edit__input {
-  flex: 1;
-  min-width: 0;
-}
-
-.p-pillar-edit__delete {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  color: var(--color-text-muted);
-}
-
-/* 削除の確認（その場で。モーダルにしない） */
-.p-pillar-edit__row--confirm {
-  flex-direction: column;
-  align-items: stretch;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-danger-tint);
-  border-radius: var(--radius-md);
-  background-color: var(--color-danger-wash);
 }
 
 .p-pillar-edit__confirm-text {
@@ -167,6 +155,11 @@
   color: var(--color-text-muted);
 }
 
+.p-pillar-edit__text-button--danger {
+  padding-left: 0;
+  color: var(--color-danger);
+}
+
 .p-pillar-edit__danger-button {
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-full);
@@ -174,12 +167,6 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);
-}
-
-.p-pillar-edit__empty {
-  margin-top: var(--space-3);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
 }
 
 .p-pillar-edit__add {

@@ -2403,10 +2403,15 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
         .slice(0, PILLARS_MAX);
     }
   }
-  // タスクの柱。★単一の文字列か null だけ（配列は捨てる）
+  // タスクの柱。pillarIds＝id の配列（重複なし・最大3つ）。旧 pillarId＝単一の文字列か null（読むだけだが形は守る）
   if (Array.isArray(flat.missions)) {
     for (const m of flat.missions) {
-      if (!m || m.pillarId === undefined) continue;
+      if (!m) continue;
+      if (m.pillarIds !== undefined) {
+        if (!Array.isArray(m.pillarIds)) delete m.pillarIds;
+        else m.pillarIds = [...new Set(m.pillarIds.filter(x => typeof x === 'string' && PILLAR_ID_RE.test(x)))].slice(0, PILLARS_MAX);
+      }
+      if (m.pillarId === undefined) continue;
       if (m.pillarId === null || m.pillarId === '') m.pillarId = null;
       else if (typeof m.pillarId !== 'string' || !PILLAR_ID_RE.test(m.pillarId)) delete m.pillarId;
     }

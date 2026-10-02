@@ -168,40 +168,6 @@
   color: var(--tag-color);
 }
 
-/* 柱（タスク名のすぐ下。単一選択）。★柱には色を付けない（ラベルの色と意味が混ざる）。
-   選ばれたものは文字色の枠と濃い文字で示す */
-.p-mission-form__pillars {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.p-mission-form__pillar {
-  padding: var(--space-1) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-  transition: all var(--duration-fast) var(--ease);
-}
-
-.p-mission-form__pillar.is-selected {
-  border-color: var(--color-text);
-  background-color: var(--color-text);
-  color: var(--color-text-inverse);
-}
-
-/* スキップ（未分類）。柱と見分けがつくよう破線にする */
-.p-mission-form__pillar--skip {
-  border-style: dashed;
-}
-
-.p-mission-form__pillar--skip.is-selected {
-  border-style: solid;
-}
-
 /* 新しいタグを作るボタン。既存のタグと見分けがつくよう破線にする */
 .p-mission-form__tag--add {
   padding-inline: var(--space-3);
@@ -418,4 +384,43 @@
 
 .p-mission-form__delete:active {
   transform: scale(.95);
+}
+
+/* 2画面目：柱を選ぶ（柱のあるイベントだけ。「次へ」で来る。2026-10-02）。
+   キャラの見た目は _pillar-char.css（スマホは縦並び・広い画面は横並び） */
+.p-mission-form__step {
+  padding-top: var(--space-2);
+}
+
+.p-mission-form__step-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-mission-form__step-note {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.p-mission-form__pillar-chars {
+  margin-top: var(--space-6);
+}
+
+/* 戻る ＋ 作成する（保存する） */
+.p-mission-form__step-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-8);
+}
+
+.p-mission-form__back {
+  flex: 1;
+}
+
+.p-mission-form__submit--step {
+  flex: 2;
+  margin-top: 0;
 }

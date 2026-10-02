@@ -122,13 +122,15 @@ export function getPillars(p) {
 }
 
 /**
- * タスクの柱の id。未分類なら null。
- * ★存在しない id（柱が消された）も未分類として扱う（タスクの pillarId は書き換えない）
+ * タスクの柱の id の配列（複数可。2026-10-02）。未分類なら []。
+ * ★pillarIds が配列ならそれ（空配列＝未分類として選び直した）。無ければ旧形式の pillarId を1件目として読む。
+ * ★存在しない id（柱が消された）は除く（タスクの値は書き換えない）
  */
-export function pillarIdOf(p, m) {
-  const id = m?.pillarId;
-  if (!id) return null;
-  return getPillars(p).some(x => x.id === id) ? id : null;
+export function pillarIdsOf(p, m) {
+  const raw = Array.isArray(m?.pillarIds) ? m.pillarIds : (m?.pillarId ? [m.pillarId] : []);
+  if (!raw.length) return [];
+  const exist = new Set(getPillars(p).map(x => x.id));
+  return raw.filter(id => exist.has(id));
 }
 
 /** 新しい柱の id。★作るときに1回だけ振る。名前を変えても振り直さないこと（紐づきが切れる） */

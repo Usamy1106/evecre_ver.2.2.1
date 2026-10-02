@@ -124,6 +124,8 @@ function _open(missing, onProceed) {
     keep();
     logEvent('mission_check_set', { fields: missing.map(f => f.id) });
     closeMissionCheckModal();
+    // ★柱を選ぶ2画面目から呼ばれたときは、1画面目（タスクの内容）へ戻す（4項目とも1画面目にある）
+    if (state.missionModalStep === 'pillars') window._app?.missionBack?.();
     // ★1つだけなら、その設定へ直接つなぐ。ボトムシートはモーダルを閉じてから開く
     //   （重なると下のシートが掴めない）。
     if (single && single.action === 'sheet') { window._app?.[single.open]?.(); return; }
