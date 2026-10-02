@@ -7,8 +7,10 @@
 // ★出す条件は「概要が書かれている」こと（2026-10-02 に変更。以前は5つすべてがそろったとき）。
 //   全部そろっていなくても公開できる。足りない項目（例：ヘッダー画像）はモーダルの中で伝える。
 //   空の項目は空のまま公開され、あとから入れた情報もそのまま公開に反映される。
-// ★公開していない限り（publicBasicInfo !== true）、**イベントを開くたびに1回**出す（2026-10-02 に変更）。
-//   「今はしない」（false）と答えたイベントでも、次に開いたときにまた出す。
+// ★自動で出すのは**まだ答えていないイベントだけ**（publicBasicInfo が undefined）。
+//   「今はしない」（false）・「宣伝用に公開」（true）と答えたら、そのイベントではもう出さない（2026-10-02）。
+//   ★一度「今はしない でも次の訪問でまた出す」にしたが、やめた。公開したくなったらアーカイブの帯の「公開する」か
+//     イベント設定のスイッチから公開できる。
 //   同じ訪問の中で描き直しのたびに出さないよう、state._publicBasicPromptedFor に出したイベントを覚える
 //   （ホーム・フォルダ詳細へ戻ると state.setView が消す）。
 // ★出すのは**管理者権限のある人だけ**（公開を決められるのは管理者だけ。サーバーも canManage を要求）。
@@ -51,7 +53,7 @@ export function checkPublicBasicInfoModal() {
   const userId = state.currentUser?.id;
   if (!p || !userId) return;
   if (!['MAIN_BOARD', 'EVENT_SETTINGS'].includes(state.currentView)) return;
-  if (p.publicBasicInfo === true) return;               // もう公開している
+  if (p.publicBasicInfo !== undefined) return;          // もう答えた（公開する／今はしない）
   if (state._publicBasicPromptedFor === p.id) return;   // この訪問ではもう出した
   if (state.archiveEditing) return;                     // 編集中は割り込まない（完了のあとに出る）
   if (!isManagerStrict(p, userId)) return;
