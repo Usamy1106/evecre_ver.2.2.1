@@ -422,7 +422,6 @@
 /* 1タスクぶんの記録。★閲覧では囲みを持たず、記録の間に細い罫線1本 */
 .p-archive__entry {
   padding-block: var(--space-6);
-  border-radius: var(--radius-md);
   transition: background-color var(--duration-slow) var(--ease), box-shadow var(--duration-slow) var(--ease);
 }
 

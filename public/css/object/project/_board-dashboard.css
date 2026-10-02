@@ -270,96 +270,18 @@
   transform: translateX(calc(var(--board-rail-width) / 2));
 }
 
-/* --- 右列：目的のボックス（カレンダーの上。2026-09-28）------------------------------
-   使用箇所: views/mainBoard.js（_purposeBoxHtml）
-   ★目的（def-1 の提出内容）を常に見える場所に置く。押すと def-1 のタスク詳細へ。
-   ★決まっていないときは点線の枠で「決める」を促す（塗りの強さで状態を分ける）。 */
-.p-board-dash__purpose {
-  display: flex;
+/* --- 右列：目的のボックスの置き場所（カレンダーの上）。箱の見た目は _purpose.css（スマホと共用）----- */
+.p-board-dash__purpose-slot {
   flex-shrink: 0;
-  align-items: flex-start;
-  gap: var(--space-3);
   margin: var(--space-3) var(--space-6) var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-warning-faint);
-  border-left: 4px solid var(--color-warning);
-  border-radius: var(--radius-md);
-  background-color: var(--color-warning-pale2);
-  text-align: left;
-  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-board-dash__purpose-slot:empty {
+  display: none;
 }
 
 /* 柱ごとの進み具合（目的のボックスの下）。★幅と余白は目的のボックスに揃える */
 .p-board-dash__pillars {
   flex-shrink: 0;
   margin: 0 var(--space-6) var(--space-2);
-}
-
-/* 柱を立てる入口（目的のボックスの下）。★幅と余白は目的のボックスに揃える */
-.p-board-dash__pillar-cta {
-  flex-shrink: 0;
-  width: auto;
-  margin: 0 var(--space-6) var(--space-2);
-}
-
-.p-board-dash__purpose:hover:not(:disabled) {
-  background-color: var(--color-warning-pale);
-}
-
-.p-board-dash__purpose--empty {
-  align-items: center;
-  border-style: dashed;
-  border-left-style: solid;
-  background-color: var(--color-bg);
-}
-
-.p-board-dash__purpose-icon {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  margin-top: 2px;
-  color: var(--color-warning);
-}
-
-.p-board-dash__purpose-body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.p-board-dash__purpose-label {
-  color: var(--color-warning-dark);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-}
-
-/* ★長い目的は3行で切る（全文はタスク詳細で読める） */
-.p-board-dash__purpose-text {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-  font-weight: 700;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.p-board-dash__purpose--empty .p-board-dash__purpose-text {
-  color: var(--color-text-soft);
-  font-size: var(--font-size-sm);
-  font-weight: 400;
-}
-
-.p-board-dash__purpose-cta {
-  flex-shrink: 0;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-full);
-  background-color: var(--color-warning);
-  color: var(--color-text-inverse);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
 }

@@ -565,59 +565,60 @@ function _characterBoxHtml(ch, idx, opt) {
 //   （object/project/_board-dashboard.css）。--art-unit は measure() が実測するので景色は同じ。
 // ★提案キャラの行は data-mountain-veil を持つ。山の遠近の基準帯はここで終わる
 //   （スマホで下部パネルが担っている役目。mountainPath.js の _panelVeilTop）。
-// 目的のボックス（広い画面の右列・カレンダーの上。2026-09-28）。
+// 目的のボックス（2026-09-28。2026-10-02 からスマホにも出す）。
+// 置き場所：広い画面＝右列のカレンダーの上／スマホ＝上部固定領域のバナー類の先頭（柱の進み具合の上）。
 // ★目的は初期タスク def-1 の提出内容（目的リマインドのモーダルと同じ読み方）。
 //   決まっていれば本文を出し、まだなら決めるよう促す。def-1 が消されていて目的も無ければ何も出さない。
-// ★押すと def-1 のタスク詳細へ（書く・直す場所はそこ1か所）。
+// ★押すと def-1 のタスク詳細へ（書く・直す場所はそこ。イベント設定・アーカイブからも書ける）。
+// ★柱を立てる入口はこの箱の中（2026-10-02）。目的が決まっていて、柱がまだ無く、管理者のときだけ。
+//   目的も柱も未設定なら、目的（決めるよう促す）だけを出す（柱を立てる基準が無いため）。
+// ★訴えかけ（「目的を見失っていませんか」など）にしないこと。入口を置くだけ。
+// ★外側は div。中に押せるもの（目的・柱を立てる）が2つあるので、button を入れ子にしない。
 const PURPOSE_MISSION_ID = 'def-1';
-function _purposeBoxHtml(p) {
+function _purposeBoxHtml(p, { compact = false } = {}) {
   const text = submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
   const mission = (p.missions || []).find(m => m.id === PURPOSE_MISSION_ID);
   if (!text && !mission) return '';
   const icon = `
-    <svg class="p-board-dash__purpose-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+    <svg class="p-purpose__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>
     </svg>`;
   const open = mission ? `onclick="window._app.openMissionDetail('${PURPOSE_MISSION_ID}')"` : '';
-  if (text) {
+  const cls = `p-purpose${text ? '' : ' p-purpose--empty'}${compact ? ' p-purpose--compact' : ''}`;
+  if (!text) {
     return `
-      <button type="button" class="p-board-dash__purpose" ${open} data-log="purpose_box_open"${mission ? '' : ' disabled'}>
-        ${icon}
-        <span class="p-board-dash__purpose-body">
-          <span class="p-board-dash__purpose-label">このイベントの目的</span>
-          <span class="p-board-dash__purpose-text">${_esc(text)}</span>
-        </span>
-      </button>`;
+      <div class="${cls}">
+        <button type="button" class="p-purpose__main" ${open} data-log="purpose_box_define">
+          ${icon}
+          <span class="p-purpose__body">
+            <span class="p-purpose__label">目的がまだ決まっていません</span>
+            <span class="p-purpose__text">誰に、どんな価値を届けたいのか。迷ったときに立ち帰る軸を決めましょう</span>
+          </span>
+          <span class="p-purpose__cta">目的を決める</span>
+        </button>
+      </div>`;
   }
+  const askPillars = state.canManageCurrentEvent() && getPillars(p).length === 0;
   return `
-    <button type="button" class="p-board-dash__purpose p-board-dash__purpose--empty" ${open} data-log="purpose_box_define">
-      ${icon}
-      <span class="p-board-dash__purpose-body">
-        <span class="p-board-dash__purpose-label">目的がまだ決まっていません</span>
-        <span class="p-board-dash__purpose-text">誰に、どんな価値を届けたいのか。迷ったときに立ち帰る軸を決めましょう</span>
-      </span>
-      <span class="p-board-dash__purpose-cta">目的を決める</span>
-    </button>`;
-}
-
-// 柱を立てる入口（2026-10-02）。★目的（def-1）が決まっていて、柱がまだ無く、管理者のときだけ。
-//   目的が無いうちは出さない（柱を立てる基準が無い）。柱を立てたら、ここは柱の進み具合の表示に替わる（Phase 4）。
-// ★訴えかけ（「目的を見失っていませんか」など）にしないこと。入口を置くだけ。
-function _pillarCtaHtml(p, extraClass = '') {
-  if (!state.canManageCurrentEvent()) return '';
-  if (getPillars(p).length > 0) return '';
-  if (!submissionText(p.clearedData?.[PURPOSE_MISSION_ID])) return '';
-  return `
-    <button type="button" onclick="window._app.openPillarEdit('board_cta')" data-log="pillar_cta"
-      class="p-main-board__pillar-cta${extraClass ? ' ' + extraClass : ''}">
-      <span class="p-main-board__pillar-cta-body">
-        <span class="p-main-board__pillar-cta-title">柱を立てる</span>
-        <span class="p-main-board__pillar-cta-text">目的のために大事にすることを3つまで決めて、タスクと紐づけます</span>
-      </span>
-      <svg class="p-main-board__pillar-cta-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-    </button>`;
+    <div class="${cls}">
+      <button type="button" class="p-purpose__main" ${open} data-log="purpose_box_open"${mission ? '' : ' disabled'}>
+        ${icon}
+        <span class="p-purpose__body">
+          <span class="p-purpose__label">このイベントの目的</span>
+          <span class="p-purpose__text">${_esc(text)}</span>
+        </span>
+      </button>
+      ${askPillars ? `
+        <button type="button" onclick="window._app.openPillarEdit('board_cta')" data-log="pillar_cta" class="p-purpose__pillar-cta">
+          <span class="p-purpose__pillar-body">
+            <span class="p-purpose__pillar-title">柱を立てる</span>
+            <span class="p-purpose__pillar-text">目的達成のために大事なことを3つ決め、タスクと紐付けましょう。</span>
+          </span>
+          <svg class="p-purpose__pillar-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>` : ''}
+    </div>`;
 }
 
 // ===== 柱ごとの進み具合（2026-10-02。この機能の本体）=====
@@ -766,8 +767,7 @@ function _renderDashboardMain(p, mainLayout) {
             </button>
           </div>
         </div>
-        ${_purposeBoxHtml(p)}
-        ${_pillarCtaHtml(p, 'p-board-dash__pillar-cta')}
+        <div class="p-board-dash__purpose-slot">${_purposeBoxHtml(p)}</div>
         ${_pillarBoardHtml(p, 'p-board-dash__pillars')}
         ${body}
       </section>
@@ -1172,7 +1172,7 @@ function _renderMainTab(p) {
       ${bannersHtml}
     </div>` : `
     <div class="p-main-board__pinned p-main-board__pinned--side">
-      <div class="p-main-board__pinned-main">${_pillarCtaHtml(p)}${_pillarBoardHtml(p)}${bannersHtml}</div>
+      <div class="p-main-board__pinned-main">${_purposeBoxHtml(p, { compact: true })}${_pillarBoardHtml(p)}${bannersHtml}</div>
       ${sideActionsHtml}
     </div>`;
 

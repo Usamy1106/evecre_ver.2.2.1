@@ -97,6 +97,7 @@
 | 完了後の振り返りページ（成否チップ・粒の演出） | `object/project/_mission-reflect.css` |
 | 柱を立てる・直すページ（候補・削除の確認） | `object/project/_pillar-edit.css` |
 | 柱をキャラクターで描く（設定ページ・タスク作成の2画面目） | `object/project/_pillar-char.css` |
+| 目的のボックス（メインボード。スマホ・広い画面共用。柱を立てる入口を含む） | `object/project/_purpose.css` |
 | 柱ごとの進み具合（メインボード上部・0件の警告） | `object/project/_pillar-board.css` |
 | タスクを柱に振り分けるページ | `object/project/_pillar-assign.css` |
 | 宣伝用に公開するかの確認（項目の設定済み／未設定） | `object/project/_public-basic.css` |
@@ -330,6 +331,7 @@ public/css/
 │  ├─ _mission-reflect.css      ✅ 完了後の振り返りページ
 │  ├─ _pillar-edit.css          ✅ 柱を立てる・直すページ
 │  ├─ _pillar-char.css          ✅ 柱をキャラクターで描く
+│  ├─ _purpose.css              ✅ 目的のボックス
 │  ├─ _pillar-board.css         ✅ 柱ごとの進み具合
 │  ├─ _pillar-assign.css        ✅ タスクを柱に振り分けるページ
 │  ├─ _public-basic.css         ✅ 宣伝用に公開するかの確認
