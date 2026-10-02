@@ -15,6 +15,7 @@ import { state } from '../state.js';
 import { logEvent } from '../logger.js';
 import { getPillars, pillarIdOf, newPillarId, submissionText } from '../utils.js';
 import { PILLARS_MAX, PILLAR_NAME_MAX, PILLAR_SUGGESTIONS } from '../constants.js';
+import { unassignedCount } from './pillarAssign.js';
 
 function _esc(s) {
   return String(s ?? '')
@@ -117,6 +118,9 @@ export function renderPillarEdit(appEl) {
         </div>
 
         <button type="button" data-pillar-save class="c-button c-button--primary p-pillar-edit__save">保存する</button>
+        ${getPillars(p).length ? `
+          <button type="button" data-pillar-assign data-log="pillar_assign_open" class="p-pillar-edit__assign">
+            タスクを柱に振り分ける${unassignedCount(p) ? `（未分類 ${unassignedCount(p)}件）` : ''}</button>` : ''}
       </div>
     </div>`;
 
@@ -169,6 +173,8 @@ function _bind(appEl, p, d) {
   });
 
   appEl.querySelector('[data-pillar-save]')?.addEventListener('click', () => _save(p, d));
+  // ★保存済みの柱で振り分ける（編集中の下書きは捨てる。保存してから振り分けたいときは「保存する」を先に）
+  appEl.querySelector('[data-pillar-assign]')?.addEventListener('click', () => state.openPillarAssign());
 }
 
 function _save(p, d) {
@@ -184,5 +190,8 @@ function _save(p, d) {
     suggested: items.filter(x => x.suggested).length,
   });
   window._app?.showToast(items.length ? '柱を保存しました' : '柱をすべて外しました');
+  // ★未分類のタスクがあれば、続けて振り分けのページへ（スキップできる）。
+  //   途中から柱を立てると既存のタスクは全部未分類で、進み具合が「どれも0件」になって読めないため
+  if (items.length && unassignedCount(p) > 0) { state.openPillarAssign(); return; }
   state.closePillarEdit();
 }

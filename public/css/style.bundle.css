@@ -13195,6 +13195,18 @@ body {
   margin-top: var(--space-10);
 }
 
+/* 保存済みの柱でタスクを振り分けるページへ（柱があるときだけ） */
+.p-pillar-edit__assign {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-4);
+  padding: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  text-align: center;
+}
+
 /* ===== object/project/_pillar-board.css ===== */
 /* ==========================================================================
    Object / Project / pillar-board — 柱ごとの進み具合（メインボードの上部）
@@ -13319,6 +13331,129 @@ body {
 .p-pillar-board__row.is-empty .p-pillar-board__bar {
   border: 1px dashed var(--color-danger-half);
   background-color: transparent;
+}
+
+/* ===== object/project/_pillar-assign.css ===== */
+/* ==========================================================================
+   Object / Project / pillar-assign — タスクを柱に振り分けるページ
+   使用箇所: public/js/views/pillarAssign.js（ビュー PILLAR_ASSIGN）
+
+   柱を保存した直後に、既存のタスクをまとめて柱へ振り分ける。スキップできる（「あとで」）。
+   ★柱には色を付けない（タスク作成の柱のチップと同じ見た目）。
+   ★保存ボタンは画面の下に残す（タスクが多くても押しに戻らなくてよいように）
+   ========================================================================== */
+
+.p-pillar-assign {
+  min-height: 100vh;
+  min-height: 100svh;
+  background-color: var(--color-bg);
+}
+
+.p-pillar-assign__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6) var(--space-2);
+}
+
+.p-pillar-assign__heading {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-pillar-assign__later {
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+}
+
+.p-pillar-assign__body {
+  padding: var(--space-2) var(--space-6) var(--space-6);
+}
+
+.p-pillar-assign__lead {
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  color: var(--color-text-soft);
+}
+
+.p-pillar-assign__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.p-pillar-assign__item {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.p-pillar-assign__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-pillar-assign__done {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+}
+
+.p-pillar-assign__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.p-pillar-assign__chip {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-pillar-assign__chip.is-selected {
+  border-color: var(--color-text);
+  background-color: var(--color-text);
+  color: var(--color-text-inverse);
+}
+
+.p-pillar-assign__chip--skip {
+  border-style: dashed;
+}
+
+.p-pillar-assign__chip--skip.is-selected {
+  border-style: solid;
+}
+
+.p-pillar-assign__empty {
+  margin-top: var(--space-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.p-pillar-assign__footer {
+  position: sticky;
+  bottom: 0;
+  padding: var(--space-3) var(--space-6) calc(var(--space-3) + var(--safe-bottom));
+  background-color: var(--color-bg);
+}
+
+.p-pillar-assign__save {
+  width: 100%;
 }
 
 /* ===== object/project/_create-event.css ===== */

@@ -140,7 +140,8 @@ export const state = {
   reflectDraft: null,          // { outcome, struggle, solution, shareable }
   // 柱を立てる・直すページ（PILLAR_EDIT）
   pillarDraft: null,           // { eventId, items: [{ id, name, saved }], confirmId }
-  pillarReturn: null,          // 戻り先 { view, tab }
+  pillarReturn: null,          // 戻り先 { view, tab }（PILLAR_EDIT / PILLAR_ASSIGN 共通）
+  pillarAssignDraft: null,     // { eventId, picks: Map<missionId, pillarId|null> }（PILLAR_ASSIGN）
   missionDetailReturn: null,   // 戻り先 { tab, calendarSheetView } （view は常に MAIN_BOARD）
   missionChat: null,           // { missionId, messages, loading } チャットのキャッシュ
   pendingMissionLink: null,    // ディープリンク /m/<eventId>/<missionId> の保留分
@@ -945,12 +946,30 @@ export const state = {
     window.scrollTo(0, 0);
   },
 
+  // --- 柱を保存した直後：タスクを柱に振り分けるページへ（views/pillarAssign.js）---
+  // ★戻り先は柱の編集ページを開く前の画面（pillarReturn をそのまま引き継ぐ）
+  openPillarAssign() {
+    if (!this.canManageCurrentEvent()) return;
+    this.pillarDraft = null;
+    this.pillarAssignDraft = null;
+    if (!this.pillarReturn) this.pillarReturn = { view: this.currentView, tab: this.mainBoardTab };
+    logEvent('view_changed', { from: this.currentView, to: 'PILLAR_ASSIGN' });
+    this.currentView = 'PILLAR_ASSIGN';
+    this.render();
+    window.scrollTo(0, 0);
+  },
+
+  closePillarAssign() {
+    this.pillarAssignDraft = null;
+    this.closePillarEdit();
+  },
+
   closePillarEdit() {
     const ret = this.pillarReturn || {};
     this.pillarDraft = null;
     this.pillarReturn = null;
     const to = ret.view === 'EVENT_SETTINGS' ? 'EVENT_SETTINGS' : 'MAIN_BOARD';
-    logEvent('view_changed', { from: 'PILLAR_EDIT', to });
+    logEvent('view_changed', { from: this.currentView, to });
     this.currentView = to;
     if (to === 'MAIN_BOARD') this.mainBoardTab = ret.tab || 'MAIN';
     this.render();

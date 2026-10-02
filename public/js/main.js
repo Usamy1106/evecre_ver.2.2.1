@@ -25,6 +25,7 @@ import { renderConnectionError } from './views/connectionError.js';
 import { startPushSetupFlow, refreshPushSubscribed } from './modals/pushSetupModal.js';
 import { renderMissionReflect, saveMissionReflect, skipMissionReflect } from './views/missionReflect.js';
 import { renderPillarEdit } from './views/pillarEdit.js';
+import { renderPillarAssign } from './views/pillarAssign.js';
 import { checkMissionBeforeCreate } from './modals/missionCheckModal.js';
 import {
   renderMissionDetail,
@@ -126,6 +127,7 @@ registerRenderer('PROJECT_DETAIL',      renderProjectDetail);
 registerRenderer('MISSION_DETAIL',      renderMissionDetail);
 registerRenderer('MISSION_REFLECT',     renderMissionReflect);
 registerRenderer('PILLAR_EDIT',         renderPillarEdit);
+registerRenderer('PILLAR_ASSIGN',       renderPillarAssign);
 registerRenderer('ARCHIVE_ANSWERS',     renderArchiveAnswers);
 registerRenderer('ARCHIVE_STATS',       renderArchiveStats);
 
@@ -1770,6 +1772,8 @@ const _LOG_LABELS = {
   pillar_edit_opened:      '柱の編集ページを開いた',
   pillars_saved:           '柱を保存した',
   pillar_filtered:         '柱でタスクを絞り込んだ',
+  pillars_assigned:        'タスクを柱に振り分けた',
+  pillars_assign_skipped:  '柱への振り分けを「あとで」にした',
   mission_check_shown:     'タスク作成の確認モーダルが出た',
   mission_check_set:       '確認モーダルから設定へ進んだ',
   mission_check_skipped:   '確認モーダルからそのまま作成した',
