@@ -477,10 +477,46 @@ function _renderDetailTab(isEdit) {
           `}
         </div>
 
-        <!-- 担当の応募型 -->
+        <!-- 全員にアナウンスする -->
+        <div>
+          <div class="p-mission-form__row">
+            <label class="heading-rs p-mission-form__label">全員にアナウンスする</label>
+            <button onclick="window._app.toggleMissionAnnounce()" type="button"
+              class="c-toggle${announce ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
+            </button>
+          </div>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">メインボードにてアナウンスされます。</p>
+        </div>
+
+        <!-- ワンタップで完了する -->
+        <div>
+          <div class="p-mission-form__row">
+            <label class="heading-rs p-mission-form__label">ワンタップで完了する</label>
+            <button onclick="window._app.toggleMissionNoInput()" type="button"
+              class="c-toggle${noInput ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
+            </button>
+          </div>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">テキスト・完了ボタンのみで即完了するようになります。</p>
+        </div>
+
+        <!-- 個別で完了する -->
+        <div>
+          <div class="p-mission-form__row">
+            <label class="heading-rs p-mission-form__label">個別で完了する</label>
+            <button onclick="window._app.toggleMissionIndividualClear()" type="button"
+              class="c-toggle${individualClear ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
+            </button>
+          </div>
+          <p class="p-mission-form__desc p-mission-form__desc--flush">ユーザーごとに個別に回答・完了できるようになります。</p>
+        </div>
+
+        <!-- 担当者を応募する -->
         <div>
           <div class="p-mission-form__row p-mission-form__row--loose">
-            <label class="heading-rs p-mission-form__label">担当の応募型</label>
+            <label class="heading-rs p-mission-form__label">担当者を応募する</label>
             <button onclick="window._app.toggleMissionSelfClaim()" type="button"
               class="c-toggle${selfClaim ? ' is-on' : ''}">
               <span class="c-toggle__knob"></span>
@@ -503,42 +539,6 @@ function _renderDetailTab(isEdit) {
                   class="p-mission-form__clear-deadline">期限をクリア</button>` : ''}
             </div>
           ` : ''}
-        </div>
-
-        <!-- アナウンス -->
-        <div>
-          <div class="p-mission-form__row">
-            <label class="heading-rs p-mission-form__label">アナウンス</label>
-            <button onclick="window._app.toggleMissionAnnounce()" type="button"
-              class="c-toggle${announce ? ' is-on' : ''}">
-              <span class="c-toggle__knob"></span>
-            </button>
-          </div>
-          <p class="p-mission-form__desc p-mission-form__desc--flush">メインボードにてアナウンスされます。</p>
-        </div>
-
-        <!-- ワンタップ完了 -->
-        <div>
-          <div class="p-mission-form__row">
-            <label class="heading-rs p-mission-form__label">ワンタップ完了</label>
-            <button onclick="window._app.toggleMissionNoInput()" type="button"
-              class="c-toggle${noInput ? ' is-on' : ''}">
-              <span class="c-toggle__knob"></span>
-            </button>
-          </div>
-          <p class="p-mission-form__desc p-mission-form__desc--flush">テキスト・完了ボタンのみで即完了するようになります。</p>
-        </div>
-
-        <!-- 個別完了 -->
-        <div>
-          <div class="p-mission-form__row">
-            <label class="heading-rs p-mission-form__label">個別完了</label>
-            <button onclick="window._app.toggleMissionIndividualClear()" type="button"
-              class="c-toggle${individualClear ? ' is-on' : ''}">
-              <span class="c-toggle__knob"></span>
-            </button>
-          </div>
-          <p class="p-mission-form__desc p-mission-form__desc--flush">ユーザーごとに個別に回答・完了できるようになります。</p>
         </div>
 
         ${canDelete ? `

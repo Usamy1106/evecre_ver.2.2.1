@@ -978,7 +978,7 @@ function _renderMainTab(p) {
         // 応募期間中／確定後の表示
         let claimLine = '';
         if (m.selfClaim) {
-          const modeBadge = `<span class="p-main-board__badge">担当の応募型タスク</span>`;
+          const modeBadge = `<span class="p-main-board__badge">担当者を応募するタスク</span>`;
           let actionsBlock = '';
 
           if (!assigned) {
