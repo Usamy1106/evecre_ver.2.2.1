@@ -962,7 +962,7 @@ function _missionUrl(eventId, missionId) {
 /**
  * タスクの作成・完了を投稿する。
  * @param {'created'|'cleared'} type
- * @param {{ eventId, eventName, actorName, items: {id, title, assigneeIds?}[] }} o
+ * @param {{ eventId, eventName, actorName, items: {id, title, assigneeIds?, dates?}[] }} o
  *   created は items を1通にまとめる。cleared は呼び出し側が1件ずつ呼ぶ
  */
 async function _postMissionWebhook(type, { eventId, eventName, actorName, items }) {
@@ -975,18 +975,15 @@ async function _postMissionWebhook(type, { eventId, eventName, actorName, items 
     const uids = [...new Set(items.flatMap(i => i.assigneeIds || []))];
     const users = uids.length ? await userStore.findManyByIds(uids) : [];
     const nameOf = new Map(users.map(u => [u.id, u.username]));
-    const lines = items.map(i => {
-      const names = (i.assigneeIds || []).map(id => nameOf.get(id)).filter(Boolean);
-      return {
-        text: i.title || '(無題のタスク)',
-        url:  `${doc.origin || ''}${_missionUrl(eventId, i.id)}`,
-        note: names.length ? `担当：${names.join('、')}` : '',
-      };
-    });
     const verb = type === 'created' ? '作成' : '完了';
     await webhookClient.send(eventId, {
       title:  `${actorName}さんがタスクを${verb}しました`,
-      lines,
+      items:  items.map(i => ({
+        title:     i.title || '(無題のタスク)',
+        url:       `${doc.origin || ''}${_missionUrl(eventId, i.id)}`,
+        assignees: (i.assigneeIds || []).map(id => nameOf.get(id)).filter(Boolean),
+        deadline:  pushRules.missionDeadline({ dates: i.dates }),   // ★dates は未ソートで保存されている
+      })),
       footer: eventName || '',
     });
   } catch (e) {
@@ -2040,7 +2037,7 @@ app.put('/api/events/:id/webhook', requireAuth,
         }
         const r = await webhookClient.sendRaw(kind, url, {
           title:  'イベクリと連携しました',
-          lines:  [{ text: `「${eventName}」の更新をこのチャンネルに投稿します（タスクの作成・完了・締切）` }],
+          text:   `「${eventName}」の更新をこのチャンネルに投稿します（タスクの作成・完了・締切）`,
           footer: eventName,
         });
         if (!r.ok) {
@@ -2076,7 +2073,7 @@ app.post('/api/events/:id/webhook/test', requireAuth, webhookLimiter, async (req
     if (!doc) return res.status(404).json({ ok: false, error: '連携が設定されていません' });
     const eventName = p.fields?.name?.v ?? '';
     const r = await webhookClient.sendRaw(doc.kind, doc.url, {
-      title: 'テスト送信', lines: [{ text: 'イベクリからのテスト投稿です' }], footer: eventName,
+      title: 'テスト送信', text: 'イベクリからのテスト投稿です', footer: eventName,
     });
     if (r.ok) await webhookStore.setStatus(p.id, 'ok');
     else if (r.broken) await webhookStore.setStatus(p.id, 'broken', r.error);
@@ -2732,7 +2729,7 @@ async function _saveIncomingEvents(req, incoming, current, now) {
       const prevStatus = prev?.status || 'yet';
       const newStatus  = m.status     || 'yet';
       if (prevStatus !== 'cleared' && newStatus === 'cleared') {
-        webhookCleared.push({ id: m.id, title: m.title });
+        webhookCleared.push({ id: m.id, title: m.title, assigneeIds: _resolveAssigneeIds(m), dates: m.dates });
         // push は管理者だけに鳴らす（アプリ内通知は従来どおり全メンバー）
         pushJobs.push({
           userIds: _getManagerIds(existing).filter(uid => uid !== req.user.id),
@@ -2771,7 +2768,7 @@ async function _saveIncomingEvents(req, incoming, current, now) {
       // (D) 新規ミッション作成 / (F) 既存ミッションの内容変更
       if (!prev) {
         // ★新規イベントの作成（上の created のループ）は通らない＝初期タスクは投稿されない（意図どおり）
-        webhookCreated.push({ id: m.id, title: m.title, assigneeIds: _resolveAssigneeIds(m) });
+        webhookCreated.push({ id: m.id, title: m.title, assigneeIds: _resolveAssigneeIds(m), dates: m.dates });
         // アプリ内通知は従来どおり全メンバー（実行者除く）
         notifications.push({
           userIds: projectMembers.filter(uid => uid !== req.user.id),
@@ -3752,7 +3749,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       // 外部連携（Discord / Slack）。個別完了は全員が終わったときだけここに来る
       _postMissionWebhook('cleared', {
         eventId: p.id, eventName: p.fields?.name?.v ?? '', actorName: req.user.username,
-        items: [{ id: mid, title: m.title }],
+        items: [{ id: mid, title: m.title, assigneeIds: _resolveAssigneeIds(m), dates: m.dates }],
       });
     }
     // ★引いたオブジェクトを返す。クライアントは完了トーストの文言に使う
