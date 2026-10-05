@@ -597,7 +597,9 @@ function _renderShare(url) {
 async function _createAndIssueInvite() {
   const sec = state.createEventInviteScreen;
   try {
-    const eventId = await state._createEventAndReturnId();
+    // ★招待リンクの発行だけ失敗して「もう一度試す」を押したときは、作成済みのイベントを使う
+    //   （作り直すと同じイベントが2件できる）
+    const eventId = sec.eventId || await state._createEventAndReturnId();
     if (!eventId) {
       sec.creating = false;
       sec.error = 'イベント名を確認してください';

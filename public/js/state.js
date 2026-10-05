@@ -1016,6 +1016,9 @@ export const state = {
   // --- イベント作成フローの下書きをリセット ---
   resetDraftEvent() {
     this.draftEvent = newDraftEvent();
+    // ★招待画面の状態（作成済みの eventId・エラー）も捨てる。残すと、次の作成フローの
+    //   「もう一度試す」が前回のイベントを使い回す
+    this.createEventInviteScreen = {};
   },
 
   // --- イベント作成（旧フロー、HOME から呼ばれる用、互換）---
