@@ -198,6 +198,26 @@ export const api = {
   },
 
   // ----- メンバー -----
+  // ── 外部連携（Discord / Slack の Incoming Webhook。管理者だけ）──
+  // ★サーバーは URL を伏せ字（maskedUrl）でしか返さない
+  async getWebhook(eventId) {
+    const { json } = await _send('GET', `/api/events/${eventId}/webhook`);
+    return json || { ok: false };
+  },
+  /** body { url?, notify? }。url を渡すと確認メッセージを送り、届いたときだけ保存される */
+  async saveWebhook(eventId, body) {
+    const { json } = await _send('PUT', `/api/events/${eventId}/webhook`, body);
+    return json || { ok: false };
+  },
+  async testWebhook(eventId) {
+    const { json } = await _send('POST', `/api/events/${eventId}/webhook/test`, {});
+    return json || { ok: false };
+  },
+  async deleteWebhook(eventId) {
+    const { json } = await _send('DELETE', `/api/events/${eventId}/webhook`);
+    return json || { ok: false };
+  },
+
   async listMembers(eventId) {
     const { json } = await _send('GET', `/api/events/${eventId}/members`);
     return json || { ok: false };

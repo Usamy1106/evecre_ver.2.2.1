@@ -55,6 +55,42 @@ export const PROPOSAL_POOL = [
 // EVENT_TYPE_TO_CATEGORY で music/exhibit/sports/business/party/general に写す）。
 // ★ここに選択肢を足すときは EVENT_TYPE_TO_CATEGORY にも必ず対応を足すこと。
 // 未定義だと general にフォールバックし、カテゴリ固有のテンプレが選ばれなくなる。
+// ===== 外部連携（Discord / Slack の Incoming Webhook）=====
+// ★URL の形は lib/webhookClient.js の DISCORD_RE / SLACK_RE と同じ値に保つこと
+//   （サーバーが最終的に検証する。ここは入力中にボタンを押せるかどうかの判定だけ）
+export const WEBHOOK_URL_PATTERNS = {
+  discord: /^https:\/\/(discord\.com|discordapp\.com|ptb\.discord\.com|canary\.discord\.com)\/api\/webhooks\/\d+\/[\w-]+$/,
+  slack:   /^https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9]+\/[A-Za-z0-9]+\/[A-Za-z0-9]+$/,
+};
+// 作成フローの STEP 7 とイベント設定の「外部連携」で共用する（文言を2か所に書かない）
+export const WEBHOOK_SERVICES = [
+  {
+    id: 'discord', label: 'Discord',
+    placeholder: 'https://discord.com/api/webhooks/…',
+    steps: [
+      'サーバー設定 →「連携サービス」→「ウェブフック」を開く',
+      '「新しいウェブフック」を作り、投稿するチャンネルを選ぶ',
+      '「ウェブフック URL をコピー」を押して、ここに貼り付ける',
+    ],
+  },
+  {
+    id: 'slack', label: 'Slack',
+    placeholder: 'https://hooks.slack.com/services/…',
+    steps: [
+      'Slack アプリ「Incoming Webhooks」をワークスペースに追加する',
+      '投稿するチャンネルを選ぶ',
+      '表示された Webhook URL をコピーして、ここに貼り付ける',
+    ],
+  },
+];
+
+/** URL の形からサービスを判定する（合わなければ null） */
+export function detectWebhookKind(url) {
+  const s = String(url || '').trim();
+  for (const [kind, re] of Object.entries(WEBHOOK_URL_PATTERNS)) if (re.test(s)) return kind;
+  return null;
+}
+
 export const EVENT_TYPES = [
   { id: 'exhibit',          label: '作品展示会・展覧会',   hint: 'アート・デザイン・制作物の展示' },
   { id: 'festival_market',  label: 'フェス・マーケット',   hint: '物販・飲食の出店がある' },

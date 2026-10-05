@@ -453,3 +453,51 @@
   background-color: var(--phase-color);
   color: var(--color-text-inverse);
 }
+
+/* ==========================================================================
+   外部連携（Discord / Slack の Incoming Webhook）。管理者だけに出る
+   ========================================================================== */
+
+/* サービスの選択（Discord / Slack）。見た目はフェーズのボタンと同じ */
+.p-event-settings__integration-kinds .p-event-settings__phase.is-active {
+  --phase-color: var(--color-primary);
+}
+
+/* 発行の手順 */
+.p-event-settings__integration-steps {
+  margin-block: var(--space-3);
+  padding-left: var(--space-5);
+  list-style: decimal;
+  font-size: var(--font-size-xs);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+/* 伏せ字の URL */
+.p-event-settings__integration-url {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  word-break: break-all;
+}
+
+.p-event-settings__integration-error {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-danger);
+}
+
+.p-event-settings__integration-notice {
+  margin-bottom: var(--space-3);
+}
+
+/* テスト送信・URL を変更・連携を解除。入らなければ折り返す */
+.p-event-settings__integration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.p-event-settings__integration-actions .c-button {
+  flex: 1 1 auto;
+}

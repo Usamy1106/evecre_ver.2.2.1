@@ -7,6 +7,7 @@
 //     ★オーナーには出さない（参加申請フォームを通っていないので回答が無い）
 //   - イベント管理：イベント名 / 概要 / 開催日時 / 開催場所 / 一言説明 / 意気込み / 種別 / 規模 / フェーズ
 //     ★概要と開催場所はアーカイブ側の表示と連動する（utils.js の getter/setter に集約）
+//   - 外部連携：Discord / Slack への投稿（★管理者だけに出す。URL は伏せ字でしか受け取らない）
 //   - メンバー管理：メンバーの招待 / ロール定義 / メンバーのロール設定
 
 import { state } from '../state.js';
@@ -14,6 +15,7 @@ import { api }   from '../api.js';
 import { Components } from '../components.js';
 import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
 import { showConfirmDialog } from '../dialog.js';
+import { isManagerStrict } from '../modals/publicBasicInfoModal.js';
 import { logEvent } from '../logger.js';
 import { PURPOSE_ID, SUMMARY_ID, isRichSubmission, savePurposeText, saveSummaryText, shouldAskPillarsAfterPurpose } from '../initialTasks.js';
 import {
@@ -24,6 +26,7 @@ import {
 import {
   EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS,
   SKILL_TAGS, JOIN_MESSAGE_MAX, JOIN_MESSAGE_EXAMPLES,
+  WEBHOOK_SERVICES, detectWebhookKind,
 } from '../constants.js';
 
 export function renderEventSettings(container) {
@@ -66,12 +69,14 @@ export function renderEventSettings(container) {
         <div class="p-event-settings__sections">
           ${_profileSection(p, sec)}
           ${_accordion('event',   'イベント管理', _eventManagementSection(p, sec), sec)}
+          ${_canIntegrate(p) ? _accordion('integrations', '外部連携', _integrationSection(p, sec), sec) : ''}
           ${_accordion('members', 'メンバー管理', _userManagementSection(p, sec), sec)}
         </div>
         ${_leaveSection(p)}
       </main>
     </div>`;
 
+  if (_canIntegrate(p) && sec.openSections?.integrations) _ensureWebhook(p, sec);
   _bindEvents(p, sec);
 }
 
@@ -705,6 +710,117 @@ function _renderRoleAddForm(sec) {
 // =====================================================
 // セクション: 脱退
 // =====================================================
+// =====================================================
+// セクション: 外部連携（Discord / Slack の Incoming Webhook）
+// =====================================================
+// ★管理者だけ。members から厳密に判定する（canManageCurrentEvent は members 未取得だと true を返し、
+//   一般メンバーに一瞬セクションが見えて GET が 403 になる）
+// ★サーバーは URL を伏せ字（maskedUrl）でしか返さない。入力中の URL は sec.webhookForm に持つ
+//   （この画面は SSE で丸ごと描き直すので、DOM に任せると書きかけが消える）
+// ★入力中は描き直さない（ボタンの disabled だけ DOM で切り替える）
+function _canIntegrate(p) {
+  return isManagerStrict(p, state.currentUser?.id);
+}
+
+function _ensureWebhook(p, sec) {
+  if (sec.webhookLoaded || sec.webhookLoading) return;
+  sec.webhookLoading = true;
+  api.getWebhook(p.id).then(r => {
+    sec.webhook = r?.ok ? r.webhook : null;
+    sec.webhookError = r?.ok ? null : '連携の状態を読み込めませんでした';
+  }).catch(() => {
+    sec.webhookError = '連携の状態を読み込めませんでした';
+  }).finally(() => {
+    sec.webhookLoading = false;
+    sec.webhookLoaded = true;
+    state.render();
+  });
+}
+
+const _NOTIFY_ITEMS = [
+  { key: 'created',  title: 'タスクの作成',         note: 'タスクが作られたら投稿します（まとめて作ったときは1通にまとめます）' },
+  { key: 'cleared',  title: 'タスクの完了',         note: 'タスクが完了したら投稿します' },
+  { key: 'deadline', title: '締切が近いタスク',     note: '今日・明日が締切のタスクを毎朝9時にまとめて投稿します' },
+];
+
+function _serviceLabel(kind) {
+  return WEBHOOK_SERVICES.find(x => x.id === kind)?.label || kind;
+}
+
+function _integrationSection(p, sec) {
+  if (!sec.webhookLoaded) return `<p class="p-event-settings__loading">読み込み中…</p>`;
+  if (sec.webhookError) return `<p class="p-event-settings__loading">${_esc(sec.webhookError)}</p>`;
+  const wh = sec.webhook;
+  if (!wh || sec.webhookForm) {
+    if (!sec.webhookForm) sec.webhookForm = { kind: 'discord', url: '' };
+    return _webhookFormHtml(sec.webhookForm, wh);
+  }
+  const busy = sec.webhookBusy;
+  return `
+      <div class="c-settings-list">
+        ${wh.status === 'broken' ? `
+          <div class="c-notice c-notice--danger c-notice--sm p-event-settings__integration-notice">
+            <p class="c-notice__text">投稿が届かなくなっています。${_esc(_serviceLabel(wh.kind))} 側でウェブフックが削除された可能性があります。URL を設定し直してください</p>
+          </div>` : ''}
+        <div class="c-settings-list__row">
+          <p class="c-settings-list__label">連携先</p>
+          <div class="c-settings-list__view c-settings-list__view--center">
+            <span class="c-settings-list__value">${_esc(_serviceLabel(wh.kind))}</span>
+          </div>
+          <p class="p-event-settings__integration-url">${_esc(wh.maskedUrl)}</p>
+        </div>
+        ${_NOTIFY_ITEMS.map(it => {
+          const on = wh.notify?.[it.key] === true;
+          return `
+        <div class="c-settings-list__row p-event-settings__toggle-row">
+          <div>
+            <p class="p-event-settings__sub-title">${_esc(it.title)}</p>
+            <p class="p-event-settings__toggle-note">${_esc(it.note)}</p>
+          </div>
+          <button type="button" data-ps-wh-notify="${it.key}" role="switch" aria-checked="${on}" aria-label="${_esc(it.title)}"
+            class="c-toggle${on ? ' is-on' : ''}"><span class="c-toggle__knob"></span></button>
+        </div>`;
+        }).join('')}
+        <div class="c-settings-list__row">
+          <div class="p-event-settings__integration-actions">
+            <button type="button" data-ps-wh-test class="c-button c-button--secondary" ${busy ? 'disabled' : ''}>
+              ${busy === 'test' ? '送信中…' : 'テスト送信'}</button>
+            <button type="button" data-ps-wh-change class="c-button c-button--secondary" ${busy ? 'disabled' : ''}>
+              ${wh.status === 'broken' ? 'URL を設定し直す' : 'URL を変更'}</button>
+            <button type="button" data-ps-wh-delete class="c-button c-button--danger" ${busy ? 'disabled' : ''}>連携を解除</button>
+          </div>
+        </div>
+      </div>`;
+}
+
+function _webhookFormHtml(form, wh) {
+  const svc = WEBHOOK_SERVICES.find(x => x.id === form.kind) || WEBHOOK_SERVICES[0];
+  const valid = !!detectWebhookKind(form.url);
+  return `
+      <div class="c-settings-list">
+        <div class="c-settings-list__row">
+          ${wh ? '' : `<p class="p-event-settings__toggle-note">タスクの作成・完了・締切が近いタスクを、団体の Discord や Slack のチャンネルに投稿します</p>`}
+          <div class="c-settings-card__actions p-event-settings__integration-kinds">
+            ${WEBHOOK_SERVICES.map(x => `
+              <button type="button" data-ps-wh-kind="${x.id}" aria-pressed="${x.id === svc.id}"
+                class="p-event-settings__phase${x.id === svc.id ? ' is-active' : ''}">${_esc(x.label)}</button>`).join('')}
+          </div>
+          <ol class="p-event-settings__integration-steps">
+            ${svc.steps.map(t => `<li>${_esc(t)}</li>`).join('')}
+          </ol>
+          <input data-ps-wh-url type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+            value="${_esc(form.url)}" placeholder="${_esc(svc.placeholder)}"
+            class="c-input c-input--block c-settings-list__input" aria-label="ウェブフック URL">
+          ${form.error ? `<p class="p-event-settings__integration-error" role="alert">${_esc(form.error)}</p>` : ''}
+          <div class="c-settings-card__actions">
+            ${wh ? `<button type="button" data-ps-wh-cancel class="c-settings-card__action c-settings-card__action--cancel">キャンセル</button>` : ''}
+            <button type="button" data-ps-wh-connect class="c-settings-card__action c-settings-card__action--save"
+              ${!valid || form.sending ? 'disabled' : ''}>${form.sending ? '確認中…' : '連携する'}</button>
+          </div>
+        </div>
+      </div>`;
+}
+
 function _leaveSection(p) {
   const isOwner = p.ownerId === state.currentUser?.id;
   if (isOwner) return ''; // オーナーは削除のみ（HOME長押しメニューから）
@@ -729,8 +845,12 @@ function _bindEvents(p, sec) {
   document.querySelectorAll('[data-ps-acc]').forEach(el => {
     el.addEventListener('toggle', () => {
       sec.openSections = { ...(sec.openSections || {}), [el.dataset.psAcc]: el.open };
+      // 外部連携は開いたときに初めて取りに行く
+      if (el.dataset.psAcc === 'integrations' && el.open && !sec.webhookLoaded) _ensureWebhook(p, sec);
     });
   });
+
+  _bindIntegration(p, sec);
 
   // ── 行のタップで編集 ──
   // プロフィール設定・イベント管理・メンバー管理の各行は、どこをタップしても
@@ -1188,6 +1308,86 @@ function _roleLabel(role) {
     case 'member': return 'メンバー';
     default: return role;
   }
+}
+
+// ── 外部連携 ──
+function _bindIntegration(p, sec) {
+  const form = sec.webhookForm;
+  document.querySelectorAll('[data-ps-wh-kind]').forEach(btn => btn.addEventListener('click', () => {
+    if (!form) return;
+    form.kind = btn.dataset.psWhKind;
+    form.error = null;
+    state.render();
+  }));
+  // ★入力中は描き直さない。値を sec に写し、ボタンの disabled だけ切り替える
+  document.querySelector('[data-ps-wh-url]')?.addEventListener('input', (e) => {
+    if (!form) return;
+    form.url = e.target.value;
+    const btn = document.querySelector('[data-ps-wh-connect]');
+    if (btn && !form.sending) btn.disabled = !detectWebhookKind(form.url);
+  });
+  document.querySelector('[data-ps-wh-connect]')?.addEventListener('click', async () => {
+    if (!form || form.sending) return;
+    const url = String(form.url || '').trim();
+    if (!detectWebhookKind(url)) return;
+    form.sending = true; form.error = null;
+    state.render();
+    const r = await api.saveWebhook(p.id, { url });
+    form.sending = false;
+    if (r?.ok) {
+      sec.webhook = r.webhook;
+      sec.webhookForm = null;
+      window._app?.showToast(`${_serviceLabel(r.webhook?.kind)} と連携しました`);
+    } else {
+      form.error = r?.error || '連携できませんでした。URL を確かめてください';
+    }
+    state.render();
+  });
+  document.querySelector('[data-ps-wh-cancel]')?.addEventListener('click', () => {
+    sec.webhookForm = null;
+    state.render();
+  });
+  document.querySelector('[data-ps-wh-change]')?.addEventListener('click', () => {
+    sec.webhookForm = { kind: sec.webhook?.kind || 'discord', url: '' };
+    state.render();
+  });
+  document.querySelectorAll('[data-ps-wh-notify]').forEach(btn => btn.addEventListener('click', async () => {
+    const wh = sec.webhook;
+    if (!wh) return;
+    const key = btn.dataset.psWhNotify;
+    const prev = { ...wh.notify };
+    wh.notify = { ...prev, [key]: !prev[key] };
+    state.render();
+    const r = await api.saveWebhook(p.id, { notify: wh.notify });
+    if (r?.ok) sec.webhook = r.webhook;
+    else { wh.notify = prev; window._app?.showToast('設定を保存できませんでした'); }
+    state.render();
+  }));
+  document.querySelector('[data-ps-wh-test]')?.addEventListener('click', async () => {
+    if (sec.webhookBusy) return;
+    sec.webhookBusy = 'test';
+    state.render();
+    const r = await api.testWebhook(p.id);
+    sec.webhookBusy = null;
+    if (r?.webhook) sec.webhook = r.webhook;
+    window._app?.showToast(r?.ok ? 'テスト投稿を送りました' : '送信できませんでした。URL を設定し直してください');
+    state.render();
+  });
+  document.querySelector('[data-ps-wh-delete]')?.addEventListener('click', async () => {
+    if (sec.webhookBusy) return;
+    const ok = await showConfirmDialog({
+      message: `${_serviceLabel(sec.webhook?.kind)} との連携を解除しますか？チャンネルへの投稿が止まります`,
+      confirmLabel: '解除する', cancelLabel: 'キャンセル', destructive: true,
+    });
+    if (!ok) return;
+    sec.webhookBusy = 'delete';
+    state.render();
+    const r = await api.deleteWebhook(p.id);
+    sec.webhookBusy = null;
+    if (r?.ok) { sec.webhook = null; sec.webhookForm = null; window._app?.showToast('連携を解除しました'); }
+    else window._app?.showToast('解除できませんでした');
+    state.render();
+  });
 }
 
 function _esc(s) {
