@@ -656,3 +656,30 @@
   height: 48px;
   margin-bottom: var(--space-4);
 }
+
+/* ==========================================================================
+   STEP 7：Discord / Slack と連携（発行の手順＋URL の入力欄）と、招待画面の結果の1行
+   ========================================================================== */
+.p-create-event__integration {
+  margin-top: var(--space-2);
+}
+
+.p-create-event__integration-steps {
+  margin-bottom: var(--space-3);
+  padding-left: var(--space-5);
+  list-style: decimal;
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+
+.p-create-event__integration-result {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.p-create-event__integration-result.is-failed {
+  color: var(--color-danger);
+}

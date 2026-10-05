@@ -1,14 +1,15 @@
-// ===== イベント作成画面（7ステップ）=====
+// ===== イベント作成画面（8ステップ）=====
 // STEP 1  イベント名                      CREATE_EVENT_INFO
 // STEP 2  どんなイベントを計画中？        CREATE_EVENT_TYPE
 // STEP 3  どのくらいの人に来てほしい？    CREATE_EVENT_SCALE
 // STEP 4  開催日はいつ？                  CREATE_EVENT_DATES
 // STEP 5  一言で言うとどんなイベント？    CREATE_EVENT_CATCHPHRASE（旧キャッチコピー）
 // STEP 6  なんでやりたい？（意気込み）    CREATE_EVENT_MOTIVATION
-// STEP 7  招待リンク                      CREATE_EVENT_INVITE
+// STEP 7  チャットと連携（Discord / Slack） CREATE_EVENT_INTEGRATION
+// STEP 8  招待リンク                      CREATE_EVENT_INVITE
 //
-// 進捗の分母は 6（STEP 7 の招待リンクは「完了」扱いで分母から外す）。
-// STEP 4〜6 はすべてスキップ可能。STEP 2・3 は選んだ瞬間に次へ自動遷移する。
+// 進捗の分母は 7（STEP 8 の招待リンクは「完了」扱いで分母から外す）。
+// STEP 4〜7 はすべてスキップ可能。STEP 2・3 は選んだ瞬間に次へ自動遷移する。
 // イベントの説明（description）の入力欄は作成フローから外した。フィールド自体は
 // 残っており、イベント設定から編集できる（proposalEngine の detectCategory と
 // AI プロンプトが参照するため消してはいけない）。
@@ -19,17 +20,17 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { Components } from '../components.js';
 import { getConsecutiveGroups } from '../utils.js';
-import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, CATCHPHRASE_EXAMPLES } from '../constants.js';
+import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, CATCHPHRASE_EXAMPLES, WEBHOOK_SERVICES, detectWebhookKind } from '../constants.js';
 import { logEvent } from '../logger.js';
 
-const TOTAL_STEPS = 6;   // 招待リンク（STEP 7）は分母に含めない
+const TOTAL_STEPS = 7;   // 招待リンク（STEP 8）は分母に含めない
 
-/** 進捗インジケーター。STEP 7 では step > total にして全ドットを「完了」表示にする */
+/** 進捗インジケーター。STEP 8 では step > total にして全ドットを「完了」表示にする */
 function _steps(step, label) {
   return Components.StepIndicator(step, TOTAL_STEPS, { compact: true, label });
 }
 
-/** 選択式・入力式ステップの共通の外枠（STEP 2/3/5/6 で使う） */
+/** 選択式・入力式ステップの共通の外枠（STEP 2/3/5/6/7 で使う） */
 function _stepShell({ step, stepLabel, heading, sub = '', body, footer }) {
   // スタイル: public/css/object/project/_create-event.css
   return `
@@ -70,7 +71,7 @@ export function renderCreateEventInfo(container) {
           <p class="p-create-event__note">あとで変更できます</p>
         </div>
         <div class="p-create-event__footer p-create-event__footer--tight">
-          ${_steps(1, 'イベント作成（1/6）')}
+          ${_steps(1, 'イベント作成（1/7）')}
           <button type="button" id="cp-info-next" onclick="window._app.tryProceedFromInfo()"
             class="c-button c-button--primary p-create-event__next" ${canNext ? '' : 'disabled'}>次へ</button>
           <button type="button" onclick="window._app.setView('HOME')"
@@ -95,7 +96,7 @@ export function renderCreateEventType(container) {
     </button>`).join('');
 
   container.innerHTML = _stepShell({
-    step: 2, stepLabel: 'イベント作成（2/6）',
+    step: 2, stepLabel: 'イベント作成（2/7）',
     heading: 'どんなイベントを計画中？',
     sub: 'ぴったりの提案を出すために使います<br>あとで変更できます',
     body,
@@ -122,7 +123,7 @@ export function renderCreateEventScale(container) {
     </button>`).join('');
 
   container.innerHTML = _stepShell({
-    step: 3, stepLabel: 'イベント作成（3/6）',
+    step: 3, stepLabel: 'イベント作成（3/7）',
     heading: 'どのくらいの人に<br>来てほしい？',
     sub: '決まっていなければ、いまの気持ちで',
     body,
@@ -226,7 +227,7 @@ export function renderCreateEventDates(container) {
         </div>
 
         <div class="p-create-event__footer">
-          ${_steps(4, 'イベント作成（4/6）')}
+          ${_steps(4, 'イベント作成（4/7）')}
           <button type="button" id="cp-dates-next" onclick="window._app.tryProceedFromDates()"
             class="c-button c-button--primary p-create-event__next" ${canNext ? '' : 'disabled'}>次へ</button>
           <button type="button" onclick="window._app.skipStep('dates')"
@@ -380,7 +381,7 @@ export function renderCreateEventCatchphrase(container) {
     </div>`;
 
   container.innerHTML = _stepShell({
-    step: 5, stepLabel: 'イベント作成（5/6）',
+    step: 5, stepLabel: 'イベント作成（5/7）',
     heading: '一言で言うと<br>どんなイベント？',
     sub: '招待した相手に表示されます<br>あとで変更できます',
     body,
@@ -455,7 +456,7 @@ export function renderCreateEventMotivation(container) {
     </div>`;
 
   container.innerHTML = _stepShell({
-    step: 6, stepLabel: 'イベント作成（6/6）',
+    step: 6, stepLabel: 'イベント作成（6/7）',
     heading: 'リーダーとしての<br>意気込みは？',
     sub: '当てはまるものを選んでね（複数可）<br>参加してくれた仲間に届きます',
     body,
@@ -497,7 +498,65 @@ export function renderCreateEventMotivation(container) {
 }
 
 // =====================================================
-// STEP 7: 招待リンク発行（画面到達と同時に自動で作成＋発行）
+// STEP 7: Discord / Slack と連携するか（スキップ可）
+// ★URL は秘密情報。draftEvent に持つが、_createEventAndReturnId の newProject には載せない
+//   （載せると CRDT に入り、全メンバー・SSE に配られる）。登録は招待画面で eventId を得てから
+//   PUT /api/events/:id/webhook で行う（_createAndIssueInvite）
+// ★入力中は描き直さない（STEP 6 と同じ。ボタンの disabled だけ DOM で切り替える）
+// =====================================================
+export function renderCreateEventIntegration(container) {
+  const d = state.draftEvent;
+  const kind = d.webhookKind;
+  const svc = WEBHOOK_SERVICES.find(x => x.id === kind);
+  const valid = !!detectWebhookKind(d.webhookUrl);
+
+  const body = `
+    ${WEBHOOK_SERVICES.map(x => `
+      <button type="button" data-cp-wh-kind="${x.id}"
+        class="p-create-event__choice${kind === x.id ? ' is-selected' : ''}">
+        <span class="p-create-event__choice-label">${_esc(x.label)}</span>
+      </button>`).join('')}
+    ${svc ? `
+      <div class="p-create-event__integration">
+        <ol class="p-create-event__integration-steps">
+          ${svc.steps.map(t => `<li>${_esc(t)}</li>`).join('')}
+        </ol>
+        <input id="cp-wh-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+          value="${_esc(d.webhookUrl || '')}" placeholder="${_esc(svc.placeholder)}"
+          aria-label="ウェブフック URL" class="c-input c-input--block p-create-event__input">
+        <p class="p-create-event__note">イベントを作るときに、確認の投稿を送ります</p>
+      </div>` : ''}`;
+
+  container.innerHTML = _stepShell({
+    step: 7, stepLabel: 'イベント作成（7/7）',
+    heading: 'Discord や Slack に<br>更新を流しますか？',
+    sub: 'タスクの作成・完了・締切をチャンネルに投稿します<br>あとで設定からも連携できます',
+    body,
+    footer: `
+      <button type="button" id="cp-wh-next" onclick="window._app.proceedFromIntegration()"
+        class="c-button c-button--primary p-create-event__next" ${valid ? '' : 'disabled'}>次へ</button>
+      <button type="button" onclick="window._app.skipStep('integration')"
+        class="p-create-event__skip">スキップする</button>
+      <button type="button" onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
+        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
+  });
+
+  container.querySelectorAll('[data-cp-wh-kind]').forEach(el =>
+    el.addEventListener('click', () => {
+      d.webhookKind = el.dataset.cpWhKind;
+      state.render();
+      document.getElementById('cp-wh-url')?.focus();
+    })
+  );
+  container.querySelector('#cp-wh-url')?.addEventListener('input', (e) => {
+    d.webhookUrl = e.target.value;
+    const btn = document.getElementById('cp-wh-next');
+    if (btn) btn.disabled = !detectWebhookKind(d.webhookUrl);
+  });
+}
+
+// =====================================================
+// STEP 8: 招待リンク発行（画面到達と同時に自動で作成＋発行）
 // =====================================================
 export function renderCreateEventInvite(container) {
   const sec = state.createEventInviteScreen || (state.createEventInviteScreen = {});
@@ -519,7 +578,7 @@ export function renderCreateEventInvite(container) {
 
         ${sec.creating ? _renderCreating()
           : sec.error    ? _renderError(sec.error)
-                         : _renderShare(sec.inviteUrl)}
+                         : _renderShare(sec.inviteUrl, sec)}
 
         <div class="p-create-event__footer">
           ${_steps(TOTAL_STEPS + 1, '完了')}
@@ -530,7 +589,7 @@ export function renderCreateEventInvite(container) {
             <button type="button" id="cpi-retry"
               class="c-button c-button--primary p-create-event__next">もう一度試す</button>
           ` : ''}
-          <button type="button" onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
+          <button type="button" onclick="window._app.setView('CREATE_EVENT_INTEGRATION')"
             class="c-button c-button--secondary p-create-event__back" ${sec.creating ? 'disabled' : ''}>戻る</button>
         </div>
       </main>
@@ -571,9 +630,16 @@ function _renderError(msg) {
     </div>`;
 }
 
-function _renderShare(url) {
+function _renderShare(url, sec = {}) {
+  const svc = WEBHOOK_SERVICES.find(x => x.id === sec.webhookKind)?.label || '';
+  const whLine = sec.webhookResult === 'ok'
+    ? `<p class="p-create-event__integration-result">${_esc(svc)} と連携しました</p>`
+    : sec.webhookResult === 'failed'
+      ? `<p class="p-create-event__integration-result is-failed">${_esc(svc)} への連携に失敗しました。イベント設定の「外部連携」から設定し直せます</p>`
+      : '';
   return `
     <p class="p-create-event__done">✓ イベントを作成しました</p>
+    ${whLine}
     <p class="p-create-event__share-lead">
       下のリンクをメンバーに送って<br>
       参加してもらいましょう
@@ -606,6 +672,18 @@ async function _createAndIssueInvite() {
       state.render();
       return;
     }
+    sec.eventId = eventId;
+
+    // STEP 7 で URL を入れていれば連携する（確認の投稿が届いたときだけ保存される）。
+    // ★失敗してもイベント作成と招待リンク発行は止めない。再試行で2回目は呼ばない
+    const dw = state.draftEvent || {};
+    if (dw.webhookUrl && !sec.webhookResult) {
+      sec.webhookKind = detectWebhookKind(dw.webhookUrl);
+      try {
+        const w = await api.saveWebhook(eventId, { url: dw.webhookUrl.trim() });
+        sec.webhookResult = w?.ok ? 'ok' : 'failed';
+      } catch { sec.webhookResult = 'failed'; }
+    }
 
     const r = await api.createInvite(eventId);
     if (!r.ok) {
@@ -631,6 +709,7 @@ async function _createAndIssueInvite() {
       hasCatchphrase:     !!(d.catchphrase || '').trim(),
       motivationTagCount: d.motivationTags?.length || 0,
       hasMotivationText:  !!(d.motivationText || '').trim(),
+      hasWebhook:         !!d.webhookUrl,
     });
 
     state.render();

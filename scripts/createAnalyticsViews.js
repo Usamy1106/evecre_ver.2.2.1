@@ -385,7 +385,7 @@ const SURVEY_SUMMARY_PIPELINE = [
 // ── ビュー: イベント作成フローのファネル ────────────────────────
 // signup_funnel と同じ考え方。1ドキュメント=1回のイベント作成試行。
 // ★sessionId で束ねる（作成途中はイベントがまだ存在せず projectId が null のため）。
-// STEP は 'name' / 'type' / 'scale' / 'dates' / 'catchphrase' / 'motivation'。
+// STEP は 'name' / 'type' / 'scale' / 'dates' / 'catchphrase' / 'motivation' / 'integration'（Discord / Slack と連携）。
 const EVENT_CREATE_FUNNEL_PIPELINE = [
   { $match: { event: { $in: [
     'event_create_started', 'event_create_step_completed', 'event_create_step_skipped',
@@ -405,6 +405,7 @@ const EVENT_CREATE_FUNNEL_PIPELINE = [
       hasCatchphrase:     { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.hasCatchphrase', null ] } },
       motivationTagCount: { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.motivationTagCount', null ] } },
       hasMotivationText:  { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.hasMotivationText', null ] } },
+      hasWebhook:         { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, '$props.hasWebhook', null ] } },
       usedSuggestion:     { $max: { $cond: [ { $eq: [ '$event', 'catchphrase_suggestion_used' ] }, true, false ] } },
       completed:          { $max: { $cond: [ { $eq: [ '$event', 'event_create_completed' ] }, true, false ] } },
   } },

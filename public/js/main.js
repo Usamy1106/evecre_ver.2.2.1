@@ -10,7 +10,7 @@ import { renderHome }               from './views/home.js';
 import {
   renderCreateEventInfo, renderCreateEventType, renderCreateEventScale,
   renderCreateEventDates, renderCreateEventCatchphrase, renderCreateEventMotivation,
-  renderCreateEventInvite,
+  renderCreateEventIntegration, renderCreateEventInvite,
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
@@ -59,7 +59,7 @@ import { openEventCalendarSheet } from './modals/eventCalendarSheet.js';
 import { checkPurposeReminderModal } from './modals/purposeReminderModal.js';
 import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/leaderMotivationModal.js';
 import { openJoinFormModal } from './modals/joinFormModal.js';
-import { SKILL_TAGS } from './constants.js';
+import { SKILL_TAGS, detectWebhookKind } from './constants.js';
 import { Components, initImageFallback } from './components.js';
 import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
@@ -120,6 +120,7 @@ registerRenderer('CREATE_EVENT_SCALE',       renderCreateEventScale);
 registerRenderer('CREATE_EVENT_DATES',       renderCreateEventDates);
 registerRenderer('CREATE_EVENT_CATCHPHRASE', renderCreateEventCatchphrase);
 registerRenderer('CREATE_EVENT_MOTIVATION',  renderCreateEventMotivation);
+registerRenderer('CREATE_EVENT_INTEGRATION', renderCreateEventIntegration);
 registerRenderer('CREATE_EVENT_INVITE',      renderCreateEventInvite);
 registerRenderer('MAIN_BOARD',            renderMainBoard);
 registerRenderer('EVENT_SETTINGS',      renderEventSettings);
@@ -380,6 +381,16 @@ window._app = {
       tagCount: state.draftEvent.motivationTags?.length || 0,
       hasText:  !!state.draftEvent.motivationText,
     });
+    state.setView('CREATE_EVENT_INTEGRATION');
+  },
+  // STEP 7：Discord / Slack と連携する。★URL が形に合わなければ進めない（ボタンも disabled）
+  proceedFromIntegration: () => {
+    const d = state.draftEvent;
+    d.webhookUrl = String(d.webhookUrl || '').trim();
+    const kind = detectWebhookKind(d.webhookUrl);
+    if (!kind) return;
+    d.webhookKind = kind;
+    logEvent('event_create_step_completed', { step: 'integration', kind });
     state.setView('CREATE_EVENT_INVITE');
   },
 
@@ -389,7 +400,8 @@ window._app = {
     logEvent('event_create_step_skipped', { step });
     if (step === 'dates')      { d.dates = [];          state.setView('CREATE_EVENT_CATCHPHRASE'); }
     if (step === 'catchphrase'){ d.catchphrase = '';    state.setView('CREATE_EVENT_MOTIVATION'); }
-    if (step === 'motivation') { d.motivationTags = []; d.motivationText = ''; state.setView('CREATE_EVENT_INVITE'); }
+    if (step === 'motivation') { d.motivationTags = []; d.motivationText = ''; state.setView('CREATE_EVENT_INTEGRATION'); }
+    if (step === 'integration'){ d.webhookUrl = ''; d.webhookKind = null; state.setView('CREATE_EVENT_INVITE'); }
   },
 
   // --- カレンダー ---

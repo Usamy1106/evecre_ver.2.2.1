@@ -32,6 +32,8 @@ function newDraftEvent() {
     name: '', description: '', dates: [], seedType: 'jack',
     eventType: null, expectedScale: null, catchphrase: '',
     motivationTags: [], motivationText: '',
+    // STEP 7（Discord / Slack と連携）。★秘密情報。_createEventAndReturnId の newProject に載せないこと
+    webhookUrl: '', webhookKind: null,
   };
 }
 
@@ -1038,6 +1040,9 @@ export const state = {
     // 作成フローで聞いた任意項目。未入力のものは newProject に載せない
     // （undefined は flatToCrdt が落とすが、空文字/空配列は「入力された空」として
     //   保存されてしまうため、ここで明示的に除外して既存イベントと同じ形にする）
+    // ★draftEvent.webhookUrl（Discord / Slack の URL）はここで拾わない。newProject に載ると CRDT に入り、
+    //   全メンバーと SSE に配られる。登録は招待画面で PUT /api/events/:id/webhook から（createEvent.js）。
+    //   ★`...draft` のようにまとめて写す書き方に変えないこと
     const d = this.draftEvent;
     const optional = {};
     if (d.eventType)      optional.eventType      = d.eventType;
