@@ -566,6 +566,10 @@ export function renderCreateEventInvite(container) {
   if (!sec.inviteUrl && !sec.creating && !sec.error) {
     sec.creating = true;
     _createAndIssueInvite();
+  } else if (sec.inviteUrl) {
+    // ★イベントを作ったあとに「戻る」で STEP 7 へ戻り、URL を入れて来たとき。
+    //   イベントは作り直さないので、連携だけここで登録する（以前はこの経路で登録されなかった）
+    _registerWebhook(sec);
   }
 
   container.innerHTML = `
@@ -576,14 +580,14 @@ export function renderCreateEventInvite(container) {
       <main class="p-create-event__main p-create-event__main--wide u-page-transition">
         <h2 class="p-create-event__heading p-create-event__heading--spaced">チームメンバーを招待しよう！</h2>
 
-        ${sec.creating ? _renderCreating()
+        ${sec.creating ? _renderCreating(sec)
           : sec.error    ? _renderError(sec.error)
                          : _renderShare(sec.inviteUrl, sec)}
 
         <div class="p-create-event__footer">
           ${_steps(TOTAL_STEPS + 1, '完了')}
           ${sec.inviteUrl ? `
-            <button type="button" id="cpi-finish"
+            <button type="button" id="cpi-finish" ${sec.webhookSaving ? 'disabled' : ''}
               class="c-button c-button--primary p-create-event__next">イベント画面へ</button>
           ` : sec.error ? `
             <button type="button" id="cpi-retry"
@@ -613,12 +617,44 @@ export function renderCreateEventInvite(container) {
   );
 }
 
-function _renderCreating() {
+function _renderCreating(sec = {}) {
+  const text = sec.webhookSaving
+    ? `${_webhookLabel(sec)} と連携しています…`
+    : 'イベントを作成中…';
   return `
     <div class="p-create-event__state">
       <div class="c-spinner p-create-event__state-spinner"></div>
-      <p class="p-create-event__state-text">イベントを作成中…</p>
+      <p class="p-create-event__state-text">${_esc(text)}</p>
     </div>`;
+}
+
+function _webhookLabel(sec) {
+  return WEBHOOK_SERVICES.find(x => x.id === sec.webhookKind)?.label || 'チャット';
+}
+
+/**
+ * STEP 7 で入れた URL を登録する（確認の投稿が届いたときだけ保存される）。
+ * ★イベントができてから呼ぶ。同じ URL は2回送らない（描き直しのたびに送らない）。
+ *   失敗してもイベント作成と招待リンク発行は止めない。送っている間はスピナーを出す
+ *   （確認の投稿を待つので数秒かかる。サーバーのタイムアウトは 5 秒）
+ */
+async function _registerWebhook(sec) {
+  const url = String(state.draftEvent?.webhookUrl || '').trim();
+  if (!url || !sec.eventId || sec.webhookSaving || sec.webhookTriedUrl === url) return;
+  sec.webhookTriedUrl = url;
+  sec.webhookSaving = true;
+  sec.webhookKind = detectWebhookKind(url);
+  sec.webhookResult = null;
+  state.render();
+  try {
+    const w = await api.saveWebhook(sec.eventId, { url });
+    sec.webhookResult = w?.ok ? 'ok' : 'failed';
+  } catch {
+    sec.webhookResult = 'failed';
+  }
+  sec.webhookSaving = false;
+  // 画面を離れていたら描き直さない（次の作成フローの画面を巻き込まない）
+  if (state.createEventInviteScreen === sec) state.render();
 }
 
 function _renderError(msg) {
@@ -631,8 +667,12 @@ function _renderError(msg) {
 }
 
 function _renderShare(url, sec = {}) {
-  const svc = WEBHOOK_SERVICES.find(x => x.id === sec.webhookKind)?.label || '';
-  const whLine = sec.webhookResult === 'ok'
+  const svc = _webhookLabel(sec);
+  const whLine = sec.webhookSaving
+    ? `<p class="p-create-event__integration-result">
+         <span class="c-spinner__inline"><span class="c-spinner c-spinner--xs"></span>${_esc(svc)} と連携しています…</span>
+       </p>`
+    : sec.webhookResult === 'ok'
     ? `<p class="p-create-event__integration-result">${_esc(svc)} と連携しました</p>`
     : sec.webhookResult === 'failed'
       ? `<p class="p-create-event__integration-result is-failed">${_esc(svc)} への連携に失敗しました。イベント設定の「外部連携」から設定し直せます</p>`
@@ -674,16 +714,8 @@ async function _createAndIssueInvite() {
     }
     sec.eventId = eventId;
 
-    // STEP 7 で URL を入れていれば連携する（確認の投稿が届いたときだけ保存される）。
-    // ★失敗してもイベント作成と招待リンク発行は止めない。再試行で2回目は呼ばない
-    const dw = state.draftEvent || {};
-    if (dw.webhookUrl && !sec.webhookResult) {
-      sec.webhookKind = detectWebhookKind(dw.webhookUrl);
-      try {
-        const w = await api.saveWebhook(eventId, { url: dw.webhookUrl.trim() });
-        sec.webhookResult = w?.ok ? 'ok' : 'failed';
-      } catch { sec.webhookResult = 'failed'; }
-    }
+    // STEP 7 で URL を入れていれば連携する（_registerWebhook。同じ URL は2回送らない）
+    await _registerWebhook(sec);
 
     const r = await api.createInvite(eventId);
     if (!r.ok) {
