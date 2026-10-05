@@ -28,6 +28,9 @@ const pushClient       = require('./lib/pushClient');
 const pushScheduler    = require('./lib/pushScheduler');
 const pushRules        = require('./lib/pushRules');
 const pushDispatchLog  = require('./lib/pushDispatchLog');
+const webhookStore     = require('./lib/webhookStore');
+const webhookClient    = require('./lib/webhookClient');
+const webhookScheduler = require('./lib/webhookScheduler');
 const eventLogStore    = require('./lib/eventLogStore');
 const surveyStore     = require('./lib/surveyStore');
 const r2               = require('./lib/r2');
@@ -187,6 +190,20 @@ const otpLimiter = rateLimit({
   legacyHeaders:  false,
   skip:           _skipInDev,
   message: { ok: false, error: 'リクエストが多すぎます。しばらく待ってから再試行してください。', code: 'rate_limited' },
+});
+
+/**
+ * 外部連携（Discord / Slack）の URL 登録・テスト送信：10回 / 10分 / ユーザー。
+ * ★通知のオン／オフの切り替えには掛けない（スイッチを何度か触るだけで当たるため）。
+ */
+const webhookLimiter = rateLimit({
+  windowMs:       10 * 60 * 1000,
+  max:            10,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  skip:           _skipInDev,
+  keyGenerator:   (req) => `u:${req.user?.id || 'anon'}`,
+  message: { ok: false, error: '操作が多すぎます。しばらく待ってから再試行してください。', code: 'rate_limited' },
 });
 
 // ヘルスチェック（Render がデプロイ成功の確認に使う）
@@ -936,6 +953,45 @@ function _resolveAssigneeIds(m) {
 /** 通知タップ時の遷移先。既存のディープリンク形式を再利用する */
 function _missionUrl(eventId, missionId) {
   return `/m/${eventId}/${missionId}`;
+}
+
+// ===== 外部連携（Discord / Slack の Incoming Webhook）=====
+// ★URL は event_webhooks（webhookStore）にだけ持つ秘密情報。CRDT・SSE・/api/data・公開データに載せない。
+// ★どれも保存が成功した後に fire-and-forget で呼ぶ（中で必ず catch。本処理を止めない）。
+
+/**
+ * タスクの作成・完了を投稿する。
+ * @param {'created'|'cleared'} type
+ * @param {{ eventId, eventName, actorName, items: {id, title, assigneeIds?}[] }} o
+ *   created は items を1通にまとめる。cleared は呼び出し側が1件ずつ呼ぶ
+ */
+async function _postMissionWebhook(type, { eventId, eventName, actorName, items }) {
+  try {
+    if (!items || items.length === 0) return;
+    const doc = await webhookStore.get(eventId);
+    if (!doc || doc.status !== 'ok') return;
+    if (webhookStore.normalizeNotify(doc.notify)[type] !== true) return;
+
+    const uids = [...new Set(items.flatMap(i => i.assigneeIds || []))];
+    const users = uids.length ? await userStore.findManyByIds(uids) : [];
+    const nameOf = new Map(users.map(u => [u.id, u.username]));
+    const lines = items.map(i => {
+      const names = (i.assigneeIds || []).map(id => nameOf.get(id)).filter(Boolean);
+      return {
+        text: i.title || '(無題のタスク)',
+        url:  `${doc.origin || ''}${_missionUrl(eventId, i.id)}`,
+        note: names.length ? `担当：${names.join('、')}` : '',
+      };
+    });
+    const verb = type === 'created' ? '作成' : '完了';
+    await webhookClient.send(eventId, {
+      title:  `${actorName}さんがタスクを${verb}しました`,
+      lines,
+      footer: eventName || '',
+    });
+  } catch (e) {
+    console.error('[webhook] mission post error:', e.message);
+  }
 }
 
 /**
@@ -1741,6 +1797,7 @@ app.delete('/api/account', requireAuth, async (req, res) => {
         await eventLogStore.deleteByProject(p.id);
         await inviteStore.deleteForProject(p.id);
         await chatStore.deleteAllForEvent(p.id);
+        await webhookStore.remove(p.id);   // 外部連携（Discord / Slack の URL）も残さない
         eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
         summary.eventsDeleted++;
         continue;
@@ -1937,6 +1994,132 @@ app.post('/api/push/run-slot', requireAuth, async (req, res) => {
     res.json({ ok: true, summary });
   } catch (e) {
     console.error('POST /api/push/run-slot error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ===== 外部連携（Discord / Slack の Incoming Webhook）=====
+// ★すべて管理者（canManage）だけ。URL はクライアントへ生で返さない（webhookStore.toClient の伏せ字のみ）。
+
+/** 管理者として対象イベントを読む。だめなら res に返して null */
+async function _loadEventForWebhook(req, res) {
+  const p = await eventStore.loadEvent(req.params.id);
+  if (!p) { res.status(404).json({ ok: false, error: 'not_found' }); return null; }
+  if (!eventStore.isMember(p, req.user.id) || !eventStore.canManage(p, req.user.id)) {
+    res.status(403).json({ ok: false, error: 'forbidden' }); return null;
+  }
+  return p;
+}
+
+app.get('/api/events/:id/webhook', requireAuth, async (req, res) => {
+  try {
+    const p = await _loadEventForWebhook(req, res);
+    if (!p) return;
+    res.json({ ok: true, webhook: webhookStore.toClient(await webhookStore.get(p.id)) });
+  } catch (e) {
+    console.error('GET webhook error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// body { url?, notify? }。url があれば検証 → 確認メッセージを送り、届いたときだけ保存する
+app.put('/api/events/:id/webhook', requireAuth,
+  (req, res, next) => (req.body?.url != null ? webhookLimiter(req, res, next) : next()),
+  async (req, res) => {
+    try {
+      const p = await _loadEventForWebhook(req, res);
+      if (!p) return;
+      const eventName = p.fields?.name?.v ?? '';
+      const current = await webhookStore.get(p.id);
+
+      if (req.body?.url != null) {
+        const url  = String(req.body.url).trim();
+        const kind = webhookClient.detectKind(url);
+        if (!kind) {
+          return res.status(400).json({ ok: false, error: 'Discord か Slack のウェブフック URL を入力してください', code: 'invalid_url' });
+        }
+        const r = await webhookClient.sendRaw(kind, url, {
+          title:  'イベクリと連携しました',
+          lines:  [{ text: `「${eventName}」の更新をこのチャンネルに投稿します（タスクの作成・完了・締切）` }],
+          footer: eventName,
+        });
+        if (!r.ok) {
+          return res.status(400).json({ ok: false, error: 'このURLには送信できませんでした', code: r.error });
+        }
+        const doc = await webhookStore.upsert(p.id, {
+          kind, url,
+          origin:    `${req.protocol}://${req.get('host')}`,
+          notify:    webhookStore.normalizeNotify(req.body?.notify, current?.notify),
+          createdBy: req.user.id,
+        });
+        logServerEvent(p.id, req.user.id, 'webhook_connected', { kind, replaced: !!current });
+        return res.json({ ok: true, webhook: webhookStore.toClient(doc) });
+      }
+
+      if (!current) return res.status(404).json({ ok: false, error: '連携が設定されていません' });
+      const notify = webhookStore.normalizeNotify(req.body?.notify, current.notify);
+      const doc = await webhookStore.upsert(p.id, { notify });
+      logServerEvent(p.id, req.user.id, 'webhook_notify_changed', notify);
+      res.json({ ok: true, webhook: webhookStore.toClient(doc) });
+    } catch (e) {
+      console.error('PUT webhook error:', e);
+      res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+    }
+  });
+
+// テスト送信。★壊れている（broken）ときも送ってみる。届いたら ok に戻す
+app.post('/api/events/:id/webhook/test', requireAuth, webhookLimiter, async (req, res) => {
+  try {
+    const p = await _loadEventForWebhook(req, res);
+    if (!p) return;
+    const doc = await webhookStore.get(p.id);
+    if (!doc) return res.status(404).json({ ok: false, error: '連携が設定されていません' });
+    const eventName = p.fields?.name?.v ?? '';
+    const r = await webhookClient.sendRaw(doc.kind, doc.url, {
+      title: 'テスト送信', lines: [{ text: 'イベクリからのテスト投稿です' }], footer: eventName,
+    });
+    if (r.ok) await webhookStore.setStatus(p.id, 'ok');
+    else if (r.broken) await webhookStore.setStatus(p.id, 'broken', r.error);
+    logServerEvent(p.id, req.user.id, 'webhook_test_sent', { ok: r.ok, error: r.error || null });
+    res.json({ ok: r.ok, error: r.ok ? undefined : '送信できませんでした', code: r.error,
+      webhook: webhookStore.toClient(await webhookStore.get(p.id)) });
+  } catch (e) {
+    console.error('POST webhook test error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+app.delete('/api/events/:id/webhook', requireAuth, async (req, res) => {
+  try {
+    const p = await _loadEventForWebhook(req, res);
+    if (!p) return;
+    await webhookStore.remove(p.id);
+    logServerEvent(p.id, req.user.id, 'webhook_disconnected', {});
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE webhook error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
+  }
+});
+
+// 締切のまとめ投稿の手動実行（検証用）。権限の絞り方は /api/push/run-slot と同じ。既定は dryRun
+app.post('/api/webhook/run-deadline', requireAuth, async (req, res) => {
+  try {
+    let allowed = IS_DEV;
+    if (!allowed) {
+      const mine = await eventStore.listEventsForUser(req.user.id);
+      allowed = mine.some(p => eventStore.canManage(p, req.user.id));
+    }
+    if (!allowed) return res.status(403).json({ ok: false, error: 'forbidden' });
+    const dryRun = req.body?.dryRun !== false;
+    const dateJst = req.body?.date ? String(req.body.date) : null;
+    if (dateJst && !/^\d{4}-\d{2}-\d{2}$/.test(dateJst)) {
+      return res.status(400).json({ ok: false, error: 'invalid_date' });
+    }
+    const summary = await webhookScheduler.runDeadline({ dryRun, dateJst });
+    res.json({ ok: true, summary });
+  } catch (e) {
+    console.error('POST /api/webhook/run-deadline error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });
@@ -2497,6 +2680,9 @@ async function _saveIncomingEvents(req, incoming, current, now) {
     const notifications = [];
     // push はアプリ内通知と宛先が異なるため別配列に積み、保存成功後に送る
     const pushJobs = [];
+    // 外部連携（Discord / Slack）へ流すぶん。作成は1通にまとめ、完了は1件ずつ送る
+    const webhookCreated = [];
+    const webhookCleared = [];
     for (const m of (incomingP.missions || [])) {
       const prev = prevMissionsMap[m.id];
       const projectMembers = (existing.members || []).map(x => x.userId);
@@ -2546,6 +2732,7 @@ async function _saveIncomingEvents(req, incoming, current, now) {
       const prevStatus = prev?.status || 'yet';
       const newStatus  = m.status     || 'yet';
       if (prevStatus !== 'cleared' && newStatus === 'cleared') {
+        webhookCleared.push({ id: m.id, title: m.title });
         // push は管理者だけに鳴らす（アプリ内通知は従来どおり全メンバー）
         pushJobs.push({
           userIds: _getManagerIds(existing).filter(uid => uid !== req.user.id),
@@ -2583,6 +2770,8 @@ async function _saveIncomingEvents(req, incoming, current, now) {
 
       // (D) 新規ミッション作成 / (F) 既存ミッションの内容変更
       if (!prev) {
+        // ★新規イベントの作成（上の created のループ）は通らない＝初期タスクは投稿されない（意図どおり）
+        webhookCreated.push({ id: m.id, title: m.title, assigneeIds: _resolveAssigneeIds(m) });
         // アプリ内通知は従来どおり全メンバー（実行者除く）
         notifications.push({
           userIds: projectMembers.filter(uid => uid !== req.user.id),
@@ -2683,6 +2872,13 @@ async function _saveIncomingEvents(req, incoming, current, now) {
     for (const j of pushJobs) {
       _sendMissionPush(j.userIds, incomingP.id, j.missionId, j.title, j.body);
     }
+    // 外部連携も保存が成功してから（fire-and-forget）
+    if (webhookCreated.length > 0 || webhookCleared.length > 0) {
+      const eventName = existing.fields?.name?.v ?? incomingP.name;
+      const base = { eventId: incomingP.id, eventName, actorName: req.user.username };
+      _postMissionWebhook('created', { ...base, items: webhookCreated });
+      for (const c of webhookCleared) _postMissionWebhook('cleared', { ...base, items: [c] });
+    }
     savedIds.push(incomingP.id);
   }
 
@@ -2734,6 +2930,7 @@ app.put('/api/data', requireAuth, async (req, res) => {
         await eventLogStore.deleteByProject(p.id);
         await inviteStore.deleteForProject(p.id);
         await chatStore.deleteAllForEvent(p.id);
+        await webhookStore.remove(p.id);   // 外部連携（Discord / Slack の URL）も残さない
         eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
       } else if (role === 'member') {
         p.members = p.members.filter(m => m.userId !== req.user.id);
@@ -3552,6 +3749,11 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         'ミッションが完了しました',
         `${req.user.username}さんが「${m.title}」を完了しました！`,
       );
+      // 外部連携（Discord / Slack）。個別完了は全員が終わったときだけここに来る
+      _postMissionWebhook('cleared', {
+        eventId: p.id, eventName: p.fields?.name?.v ?? '', actorName: req.user.username,
+        items: [{ id: mid, title: m.title }],
+      });
     }
     // ★引いたオブジェクトを返す。クライアントは完了トーストの文言に使う
     //   （アップグレードが起きたことが伝わらないと動機づけにならない）。
@@ -4575,6 +4777,8 @@ async function start() {
     // 定期通知（13:00 / 21:45 JST）。起動時キャッチアップも中で行う。
     // ★slot 判定はサーバのローカル時刻なので TZ=Asia/Tokyo が前提。
     pushScheduler.start();
+    // 外部連携（Discord / Slack）の締切のまとめ投稿（09:00 JST）。同じく TZ 前提
+    webhookScheduler.start();
     if (IS_DEV) console.log(`   開発モード: OTPはサーバーログ＆画面にも表示されます\n`);
   });
 

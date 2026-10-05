@@ -1841,6 +1841,11 @@ const _LOG_LABELS = {
   claim_applied:          '担当に応募した',
   claim_unapplied:        '応募を取り消した',
   claim_selected:         '担当を選定した',
+  // 外部連携（Discord / Slack。サーバー記録）
+  webhook_connected:      'Discord・Slack と連携した',
+  webhook_disconnected:   'Discord・Slack との連携を解除した',
+  webhook_notify_changed: 'Discord・Slack に投稿する内容を変更した',
+  webhook_test_sent:      'Discord・Slack にテスト送信した',
 };
 
 function _logLabel(ev) { return _LOG_LABELS[ev] || ev; }
