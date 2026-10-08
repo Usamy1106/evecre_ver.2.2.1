@@ -130,7 +130,7 @@
 
 /* 表示の切り替え（カレンダー｜ガント）。操作列の左端（私の／みんなのより前。2026-09-28）。
    ★「私の／みんなの」のセグメンテッドコントロールと形を分ける：
-   アイコン＋ラベルの小さな枠付きボタンの組。選んでいる方だけ青い枠と淡い青の塗り */
+   アイコン＋ラベルの小さな枠付きボタンの組。選んでいる方だけブランドの緑の枠と淡い緑の塗り */
 .p-board-dash__views {
   display: flex;
   flex-shrink: 0;
@@ -165,6 +165,16 @@
 .p-board-dash__view-icon {
   width: 16px;
   height: 16px;
+}
+
+/* 素材の SVG を型抜きにして、ボタンの文字色（ふだん muted／選択中 brand-green）で塗る。
+   ★mask は素材の不透明度だけを使う。濃淡は SVG 側の fill-opacity で持たせる（icon-Calender-default.svg） */
+.p-board-dash__view-icon--mask {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: var(--view-icon) center / contain no-repeat;
+  mask: var(--view-icon) center / contain no-repeat;
 }
 
 /* 中身。★スクロールするのはここ（カレンダーは sticky で上に残る） */

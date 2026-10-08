@@ -695,11 +695,13 @@ function _renderDashboardMain(p, mainLayout) {
   //   こちらはアイコン＋ラベルの小さな枠付きボタンの組にして、操作列の左端（私の／みんなのより前）に置く（2026-09-28）
   //   ★data-log は付けない（setBoardPanelView が board_panel_switched を記録する。二重に数えない）
   // icon … 画像のパス（/images/icon/…）か、線の SVG の中身（素材の無いガントだけ）
+  // ★画像は <img> にしない。CSS の mask で型抜きし、ボタンの文字色（ふだん muted／選択中 brand-green）で塗る。
+  //   <img> だと素材の色のまま変わらない（素材の濃淡は SVG の不透明度で持たせてある）
   const viewButton = (id, label, icon) => `
     <button type="button" role="tab" aria-selected="${view === id}" onclick="window._app.setBoardPanelView('${id}')"
       class="p-board-dash__view${view === id ? ' is-active' : ''}">
       ${icon.startsWith('/images/')
-        ? `<img src="${icon}" class="p-board-dash__view-icon" alt="">`
+        ? `<span class="p-board-dash__view-icon p-board-dash__view-icon--mask" style="--view-icon: url('${icon}')" aria-hidden="true"></span>`
         : `<svg class="p-board-dash__view-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>`}
       ${label}
