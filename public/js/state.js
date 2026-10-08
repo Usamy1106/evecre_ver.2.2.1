@@ -1083,8 +1083,6 @@ export const state = {
       proposals: [], // 固定枠は廃止。3枠すべて作成直後の初回 _checkProposalCycle で AI 生成する
                      // （生成が返るまで mainBoard がローディングカードを出す。静的提案は出さない）
       lastProposalClearedTime: null,
-      likes: 0,
-      hasLiked: false,
       ...optional,   // eventType / expectedScale / catchphrase / motivation*（入力があるものだけ）
       motivationReactions: [],   // CRDT対象外。専用エンドポイントの $addToSet / $pull でのみ更新する
       // 自分をオーナーとしてメンバーに含める（サーバー側でも同じ処理が走る）

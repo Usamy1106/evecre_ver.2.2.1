@@ -1212,8 +1212,6 @@ window._app = {
   // 画面・タブを離れるときに state.setView / setTab から呼ぶ（描き直しはしない）
   finishArchiveEditing: () => finishArchiveEditing(),
 
-  // --- いいね ---
-
   // --- イベント作成フォーム ---
   updateDraftInfo: (field, value) => updateDraftInfo(field, value),
 
@@ -1773,7 +1771,6 @@ const _LOG_LABELS = {
   mission_deleted:        'タスクを削除した',
   proposal_accepted:      'AI提案を採用した',
   proposal_help_viewed:   'AI提案の詳細を見た',
-  like_given:             'いいねした',
   invite_issued:          '招待リンクを発行した',
   invite_code_copied:     '招待コードをコピー',
   invite_shared:          '招待を共有した',
