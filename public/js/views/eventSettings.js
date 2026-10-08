@@ -59,7 +59,7 @@ export function renderEventSettings(container) {
       <header class="l-header l-header--sub">
         <button type="button" onclick="window._app.setView('MAIN_BOARD', '${p.id}')"
           class="l-header__back" aria-label="メインボードへ戻る">
-          <img src="/images/icon/iocn-Chevron.svg" class="l-header__back-icon" alt="">
+          <img src="/images/icon/icon-Chevron.svg" class="l-header__back-icon" alt="">
         </button>
         <h1 class="l-header__heading">イベント設定</h1>
       </header>

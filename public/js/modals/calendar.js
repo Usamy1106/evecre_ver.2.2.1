@@ -278,14 +278,14 @@ function _renderCalendarInner(target) {
           <div class="p-date-picker__nav${view === 'gantt' ? ' u-hidden' : ''}">
             <button onclick="window._app.moveCalendarMonth(-1, '${target}')"
               class="p-date-picker__arrow" aria-label="前の月">
-              <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon">
+              <img src="/images/icon/icon-Chevron.svg" class="p-date-picker__arrow-icon">
             </button>
             <!-- ★見出しが「スケジュールを設定」なので、月はここに出す。
                  これが無いと、矢印で送ったあと今どの月を見ているか分からない。 -->
             <span class="p-date-picker__month" aria-live="polite">${monthLabel}</span>
             <button onclick="window._app.moveCalendarMonth(1, '${target}')"
               class="p-date-picker__arrow" aria-label="次の月">
-              <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon p-date-picker__arrow-icon--next">
+              <img src="/images/icon/icon-Chevron.svg" class="p-date-picker__arrow-icon p-date-picker__arrow-icon--next">
             </button>
           </div>
         </div>
@@ -312,11 +312,11 @@ function _renderCalendarInner(target) {
           <div class="p-date-picker__nav">
             <button onclick="window._app.moveCalendarMonth(-1, '${target}')"
               class="p-date-picker__arrow">
-              <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon">
+              <img src="/images/icon/icon-Chevron.svg" class="p-date-picker__arrow-icon">
             </button>
             <button onclick="window._app.moveCalendarMonth(1, '${target}')"
               class="p-date-picker__arrow">
-              <img src="/images/icon/iocn-Chevron.svg" class="p-date-picker__arrow-icon p-date-picker__arrow-icon--next">
+              <img src="/images/icon/icon-Chevron.svg" class="p-date-picker__arrow-icon p-date-picker__arrow-icon--next">
             </button>
           </div>
         </div>

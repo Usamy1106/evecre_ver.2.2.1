@@ -207,11 +207,11 @@ export function renderCreateEventDates(container) {
         <div class="p-create-event__calendar">
           <div class="p-create-event__calendar-head">
             <button type="button" id="cp-cal-prev" class="p-create-event__calendar-nav" aria-label="前の月">
-              <img src="/images/icon/iocn-Chevron.svg" class="p-create-event__calendar-nav-icon" alt="">
+              <img src="/images/icon/icon-Chevron.svg" class="p-create-event__calendar-nav-icon" alt="">
             </button>
             <h3 class="p-create-event__calendar-month">${year}年 ${month + 1}月</h3>
             <button type="button" id="cp-cal-next" class="p-create-event__calendar-nav" aria-label="次の月">
-              <img src="/images/icon/iocn-Chevron.svg" class="p-create-event__calendar-nav-icon p-create-event__calendar-nav-icon--next" alt="">
+              <img src="/images/icon/icon-Chevron.svg" class="p-create-event__calendar-nav-icon p-create-event__calendar-nav-icon--next" alt="">
             </button>
           </div>
           <div class="p-create-event__weekdays">

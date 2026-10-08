@@ -924,7 +924,7 @@ function _renderMainTab(p) {
     <div class="p-main-board__filter-row">
       ${tagChipsHtml}
       <button type="button" onclick="window._app.toggleSortMenu(event)" class="p-main-board__sort" aria-label="並び替え">
-        <img src="/images/icon/icon-Filter.svg" class="p-main-board__sort-icon" alt="">
+        <img src="/images/icon/icon-Fileter.svg" class="p-main-board__sort-icon" alt="">
       </button>
     </div>`;
 
@@ -1121,7 +1121,7 @@ function _renderMainTab(p) {
   const dateChipHtml = `
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
           class="p-main-board__date-chip${dashLayout ? '' : ' p-main-board__date-chip--header'}">
-          <img src="/images/icon/icon-Calender.svg" class="p-main-board__date-icon" alt="">
+          <img src="/images/icon/icon-Calender-pressed.svg" class="p-main-board__date-icon" alt="">
           ${_dateChip}
         </div>`;
   // ★スマホ：通知・フィードバック・設定の丸いボタンを右端に縦に並べる（2026-09-28。以前は日付チップの行の右端に
@@ -1130,7 +1130,7 @@ function _renderMainTab(p) {
       <div class="p-main-board__side-actions">
         <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
           data-log="notif_open" class="p-main-board__notif" aria-label="通知">
-          <img src="/images/icon/icon-Notification.svg" width="20" height="20" alt="">
+          <img src="/images/icon/icon-Notification-default.svg" width="20" height="20" alt="">
           ${Components.unreadCountFor(p.id) > 0
             ? `<span class="p-main-board__notif-badge">${Components.badgeText(Components.unreadCountFor(p.id))}</span>`
             : ''}
@@ -1524,7 +1524,7 @@ function _renderArchiveTab(p) {
       <div class="p-archive__head">
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
           class="p-archive__days">
-          <img src="/images/icon/icon-Calender.svg" class="p-archive__days-icon" alt="">
+          <img src="/images/icon/icon-Calender-pressed.svg" class="p-archive__days-icon" alt="">
           ${hasDatesA
             ? `<span class="p-archive__days-text">あと <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
             : `<span class="p-archive__days-text p-archive__days-text--muted">開催日未設定</span>`}

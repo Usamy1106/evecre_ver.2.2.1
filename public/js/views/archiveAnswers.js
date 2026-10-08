@@ -147,7 +147,7 @@ export function renderArchiveAnswers(container) {
       <header class="l-header l-header--sub">
         <button type="button" onclick="window._app.backToArchive()"
           class="l-header__back" aria-label="アーカイブへ戻る">
-          <img src="/images/icon/iocn-Chevron.svg" class="l-header__back-icon" alt="">
+          <img src="/images/icon/icon-Chevron.svg" class="l-header__back-icon" alt="">
         </button>
         <h1 class="l-header__heading">参加時の回答</h1>
       </header>

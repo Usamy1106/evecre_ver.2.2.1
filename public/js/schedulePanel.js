@@ -207,11 +207,11 @@ function _renderCalendar(ctx) {
   return `
     <div class="p-schedule__cal-nav">
       <button id="mb-cal-prev" class="p-schedule__cal-arrow">
-        <img src="/images/icon/iocn-Chevron.svg" class="p-schedule__cal-arrow-icon">
+        <img src="/images/icon/icon-Chevron.svg" class="p-schedule__cal-arrow-icon">
       </button>
       <h3 class="heading-r p-schedule__section-title">${year}年 ${month + 1}月</h3>
       <button id="mb-cal-next" class="p-schedule__cal-arrow">
-        <img src="/images/icon/iocn-Chevron.svg" class="p-schedule__cal-arrow-icon p-schedule__cal-arrow-icon--next">
+        <img src="/images/icon/icon-Chevron.svg" class="p-schedule__cal-arrow-icon p-schedule__cal-arrow-icon--next">
       </button>
     </div>
     <div class="p-schedule__week">
@@ -232,7 +232,7 @@ function _renderCalendar(ctx) {
       </p>
       ${state.canManageCurrentEvent() ? `
         <button id="mb-dates-edit" class="p-schedule__cal-edit" data-log="event_dates_edit_open">
-          <img src="/images/icon/icon-Calender.svg" alt="" class="p-schedule__cal-edit-icon">
+          <img src="/images/icon/icon-Calender-pressed.svg" alt="" class="p-schedule__cal-edit-icon">
           ${projDates.size > 0 ? '開催日を編集' : '開催日を設定'}
         </button>` : ''}
     `}`;

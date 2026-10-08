@@ -22,7 +22,7 @@ export function renderAccount(container) {
     <div class="p-account u-page-transition">
       <header class="l-header l-header--sub">
         <button type="button" onclick="window._app.setView('HOME')" class="l-header__back" aria-label="ホームへ戻る">
-          <img src="/images/icon/iocn-Chevron.svg" class="l-header__back-icon" alt="">
+          <img src="/images/icon/icon-Chevron.svg" class="l-header__back-icon" alt="">
         </button>
         <h1 class="l-header__heading">アカウント設定</h1>
       </header>
