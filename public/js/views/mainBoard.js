@@ -2169,7 +2169,8 @@ function _notifIcon(type) {
     case 'self_claimed':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
     case 'motivation_reaction':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#EE3E12" stroke-width="2.5"><path d="M12 2s4 4 4 8a4 4 0 0 1-8 0c0-1.5.7-2.8 1.5-3.8"/><path d="M12 22a6 6 0 0 0 6-6c0-2-1-3.5-2-5 0 2-1.5 3-3 3s-3-1-3-3c-1 1.5-2 3-2 5a6 6 0 0 0 4 6z"/></svg>`;
+      // 素材の縦横比（160.78:186.79）を保つ。背景の円は .p-notification__icon（--notif-color）のまま
+      return `<img src="/images/icon/icon-fire.svg" width="16" height="19" alt="">`;
     default:
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`;
   }
