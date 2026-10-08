@@ -232,7 +232,7 @@ function _renderCalendar(ctx) {
       </p>
       ${state.canManageCurrentEvent() ? `
         <button id="mb-dates-edit" class="p-schedule__cal-edit" data-log="event_dates_edit_open">
-          <img src="/images/icon/icon-Calender-pressed.svg" alt="" class="p-schedule__cal-edit-icon">
+          <img src="/images/icon/icon-edit.svg" alt="" class="p-schedule__cal-edit-icon">
           ${projDates.size > 0 ? '開催日を編集' : '開催日を設定'}
         </button>` : ''}
     `}`;

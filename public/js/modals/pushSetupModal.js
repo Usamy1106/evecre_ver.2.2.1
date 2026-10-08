@@ -129,20 +129,14 @@ export function pushSetupContentHtml(phase) {
   const st = getPushState();
   if (st === 'denied') {
     return `
-      <p class="p-push-setup__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg></p>
+      <p class="p-push-setup__icon"><img src="/images/icon/icon-Notification-default.svg" width="20" height="20" alt=""></p>
       <h3 class="heading-r p-push-setup__title">通知がブロックされています</h3>
       <p class="p-push-setup__text p-push-setup__text--strong">
         ブラウザ（または端末）の設定で、<br>このサイトの通知を「許可」に変更すると受け取れます。
       </p>`;
   }
   return `
-    <p class="p-push-setup__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg></p>
+    <p class="p-push-setup__icon"><img src="/images/icon/icon-Notification-default.svg" width="20" height="20" alt=""></p>
     <h3 class="heading-r p-push-setup__title">通知を受け取りますか？</h3>
     <p class="p-push-setup__text">
       やることを割り当てられたときや<br>締め切りが近いときにお知らせします
@@ -302,10 +296,7 @@ export function pushBannerHtml() {
   const denied = getPushState() === 'denied';
   return `
     <div class="p-push-banner">
-      <span class="p-push-banner__icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg></span>
+      <span class="p-push-banner__icon"><img src="/images/icon/icon-Notification-default.svg" width="20" height="20" alt=""></span>
       <button id="push-banner-open" class="p-push-banner__open">
         <p class="p-push-banner__title">${_esc(denied ? '通知がオフになっています' : '通知をオンにしませんか？')}</p>
         <p class="p-push-banner__sub">

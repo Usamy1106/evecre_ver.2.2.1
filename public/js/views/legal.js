@@ -36,9 +36,7 @@ export async function renderLegal(container) {
     <div class="p-legal u-page-transition">
       <header class="p-legal__header">
         <button type="button" id="legal-back" class="p-legal__back" aria-label="戻る">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
+          <img src="/images/icon/icon-Chevron.svg" width="20" height="20" alt="">
         </button>
         <h1 class="p-legal__title">${_esc(doc.title)}</h1>
       </header>

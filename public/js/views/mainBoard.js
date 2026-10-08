@@ -694,16 +694,19 @@ function _renderDashboardMain(p, mainLayout) {
   //   見た目を分ける（2026-09-27 の要望）。同じ形が2つ並ぶと、どちらが表示でどちらが絞り込みか分からない。
   //   こちらはアイコン＋ラベルの小さな枠付きボタンの組にして、操作列の左端（私の／みんなのより前）に置く（2026-09-28）
   //   ★data-log は付けない（setBoardPanelView が board_panel_switched を記録する。二重に数えない）
+  // icon … 画像のパス（/images/icon/…）か、線の SVG の中身（素材の無いガントだけ）
   const viewButton = (id, label, icon) => `
     <button type="button" role="tab" aria-selected="${view === id}" onclick="window._app.setBoardPanelView('${id}')"
       class="p-board-dash__view${view === id ? ' is-active' : ''}">
-      <svg class="p-board-dash__view-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>
+      ${icon.startsWith('/images/')
+        ? `<img src="${icon}" class="p-board-dash__view-icon" alt="">`
+        : `<svg class="p-board-dash__view-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>`}
       ${label}
     </button>`;
   const viewSwitchHtml = `
     <div class="p-board-dash__views" role="tablist" aria-label="表示の切り替え">
-      ${viewButton('calendar', 'カレンダー', '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>')}
+      ${viewButton('calendar', 'カレンダー', '/images/icon/icon-Calender-default.svg')}
       ${viewButton('gantt', 'ガント', '<line x1="4" y1="6" x2="14" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="6" y1="18" x2="16" y2="18"/>')}
     </div>`;
 
@@ -1319,10 +1322,7 @@ function _renderAnnounceCards(p, meId) {
   const cardHtml = (m, withDesc) => `
     <div ${_cardClick(m)} class="p-main-board__announce-card">
       <div class="p-main-board__announce-body">
-        <svg class="p-main-board__announce-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-        </svg>
+        <img src="/images/icon/icon-Notification-default.svg" class="p-main-board__announce-icon" width="14" height="14" alt="">
         <div class="p-main-board__announce-main">
           <p class="p-main-board__announce-title">${_esc(m.title)}</p>
           ${withDesc && m.description
@@ -1349,10 +1349,7 @@ function _renderAnnounceCards(p, meId) {
       <button type="button" onclick="window._app.toggleAnnounceList()"
         class="p-main-board__announce-toggle">
         <span class="p-main-board__announce-toggle-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
+          <img src="/images/icon/icon-Notification-default.svg" width="14" height="14" alt="">
           ${_announceExpanded ? '他のアナウンスを隠す' : `他のアナウンス${rest.length}件を見る`}
         </span>
         <svg class="p-main-board__announce-chevron${_announceExpanded ? ' is-open' : ''}"
@@ -1539,10 +1536,7 @@ function _renderArchiveTab(p) {
           ${canMgr && !editing ? `
             <button type="button" onclick="window._app.toggleArchiveEditing()" data-log="archive_edit_toggle"
               class="p-archive__edit-toggle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-              </svg>
+              <img src="/images/icon/icon-edit.svg" width="16" height="16" alt="">
               編集する
             </button>` : ''}
         </div>

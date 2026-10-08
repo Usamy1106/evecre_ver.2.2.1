@@ -4905,8 +4905,8 @@ body {
 }
 
 .p-main-board__sort-icon {
-  width: 20px;
-  height: 16px;
+  width: 24px;
+  height: 20px;
 }
 
 /* 私のミッション / 全てのミッション の切り替え */
@@ -5598,8 +5598,8 @@ body {
 }
 
 .p-archive__copy-icon {
-  width: 13px;
-  height: 13px;
+  width: 24px;
+  height: 24px;
 }
 
 /* --- 文書 ---------------------------------------------------------------- */
@@ -8680,8 +8680,8 @@ body {
 }
 
 .p-schedule__copy-icon {
-  width: 13px;
-  height: 13px;
+  width: 24px;
+  height: 24px;
 }
 
 .p-schedule__title {
