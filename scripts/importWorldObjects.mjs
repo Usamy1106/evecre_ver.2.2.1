@@ -1,7 +1,8 @@
 // scripts/importWorldObjects.mjs — 草木の素材（WorldSpawnedObjects）を取り込む
 //
 // 使い方：
-//   1. public/images/bg/<テーマ>/WorldSpawnedObjects/ に支給の png を置く（名前は <テーマ>-<番号>.png）
+//   1. public/images/bg/<テーマ>/world-spawned-objects/ に支給の png を置く（名前は <テーマ>-<番号>.png）
+//      ★ファイル名・フォルダ名はすべて小文字（例：morning-meadow-1.png）。大文字の名前は小文字に直して書き出す
 //   2. npm i --no-save sharp && npm run bg:objects
 //      （または SHARP_DIR=<sharp を入れたディレクトリ> npm run bg:objects）
 //   → 同じ名前の .webp を書き出し、最後に npm run bg:manifest を流す
@@ -92,13 +93,14 @@ function knockOutWhite(data, w, h) {
 }
 
 const sharp = await loadSharp();
-const themes = fs.readdirSync(BG_DIR).filter(t => fs.existsSync(path.join(BG_DIR, t, 'WorldSpawnedObjects')));
+const SUB = 'world-spawned-objects';   // ★genBgManifest.mjs の LAYERS と同じフォルダ名
+const themes = fs.readdirSync(BG_DIR).filter(t => fs.existsSync(path.join(BG_DIR, t, SUB)));
 let count = 0;
 for (const t of themes) {
-  const dir = path.join(BG_DIR, t, 'WorldSpawnedObjects');
+  const dir = path.join(BG_DIR, t, SUB);
   for (const f of fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.png')).sort()) {
     const src = path.join(dir, f);
-    const out = path.join(dir, f.replace(/\.png$/i, '.webp'));
+    const out = path.join(dir, f.replace(/\.png$/i, '.webp').toLowerCase());
     const meta = await sharp(src).metadata();
     let img;
     let note;
@@ -117,7 +119,7 @@ for (const t of themes) {
   }
 }
 if (count === 0) {
-  console.log('png が見つかりませんでした（public/images/bg/<テーマ>/WorldSpawnedObjects/*.png）');
+  console.log('png が見つかりませんでした（public/images/bg/<テーマ>/world-spawned-objects/*.png）');
   process.exit(0);
 }
 // 素材の一覧（寸法・ハッシュ）を作り直す。★流さないと古い絵が出続ける（immutable 配信のため）

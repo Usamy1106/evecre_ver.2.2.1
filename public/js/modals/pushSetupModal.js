@@ -129,14 +129,14 @@ export function pushSetupContentHtml(phase) {
   const st = getPushState();
   if (st === 'denied') {
     return `
-      <p class="p-push-setup__icon"><img src="/images/icon/icon-Notification-default.svg" width="20" height="20" alt=""></p>
+      <p class="p-push-setup__icon"><img src="/images/icon/icon-notification-default.svg" width="20" height="20" alt=""></p>
       <h3 class="heading-r p-push-setup__title">通知がブロックされています</h3>
       <p class="p-push-setup__text p-push-setup__text--strong">
         ブラウザ（または端末）の設定で、<br>このサイトの通知を「許可」に変更すると受け取れます。
       </p>`;
   }
   return `
-    <p class="p-push-setup__icon"><img src="/images/icon/icon-Notification-default.svg" width="20" height="20" alt=""></p>
+    <p class="p-push-setup__icon"><img src="/images/icon/icon-notification-default.svg" width="20" height="20" alt=""></p>
     <h3 class="heading-r p-push-setup__title">通知を受け取りますか？</h3>
     <p class="p-push-setup__text">
       やることを割り当てられたときや<br>締め切りが近いときにお知らせします
@@ -296,7 +296,7 @@ export function pushBannerHtml() {
   const denied = getPushState() === 'denied';
   return `
     <div class="p-push-banner">
-      <span class="p-push-banner__icon"><img src="/images/icon/icon-Notification-pressed.svg" width="20" height="20" alt=""></span>
+      <span class="p-push-banner__icon"><img src="/images/icon/icon-notification-pressed.svg" width="20" height="20" alt=""></span>
       <button id="push-banner-open" class="p-push-banner__open">
         <p class="p-push-banner__title">${_esc(denied ? '通知がオフになっています' : '通知をオンにしませんか？')}</p>
         <p class="p-push-banner__sub">

@@ -91,7 +91,7 @@ export function showCoachMark(o) {
     ${o.finger ? `
       <!-- ★指は穴に隣接させる。コピー文の中に置くと穴から離れて「どこを指しているか」が伝わらない -->
       <div data-coach-finger class="c-coach-mark__finger">
-        <img src="/images/icon/icon-Hand.svg" class="c-coach-finger" width="27" height="36" alt=""
+        <img src="/images/icon/icon-hand.svg" class="c-coach-finger" width="27" height="36" alt=""
           style="filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));">
         ${o.hint ? `<span class="c-coach-mark__finger-hint">${_esc(o.hint)}</span>` : ''}
       </div>` : ''}`;

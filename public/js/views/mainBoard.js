@@ -553,7 +553,7 @@ function _characterBoxHtml(ch, idx, opt) {
       ${opt.help ? `
         <button type="button" onclick="${opt.help}"
           class="p-main-board__proposal-help" aria-label="この提案について">
-          <img src="/images/icon/icon-Help.svg" class="p-main-board__proposal-help-icon" alt="">
+          <img src="/images/icon/icon-help.svg" class="p-main-board__proposal-help-icon" alt="">
         </button>` : ''}
     </div>`;
 }
@@ -708,7 +708,7 @@ function _renderDashboardMain(p, mainLayout) {
     </button>`;
   const viewSwitchHtml = `
     <div class="p-board-dash__views" role="tablist" aria-label="表示の切り替え">
-      ${viewButton('calendar', 'カレンダー', '/images/icon/icon-Calender-default.svg')}
+      ${viewButton('calendar', 'カレンダー', '/images/icon/icon-calendar-default.svg')}
       ${viewButton('gantt', 'ガント', '<line x1="4" y1="6" x2="14" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="6" y1="18" x2="16" y2="18"/>')}
     </div>`;
 
@@ -760,7 +760,7 @@ function _renderDashboardMain(p, mainLayout) {
             ${mainLayout.tagFilterHtml}
             <button type="button" onclick="window._app.copySchedule('schedule')"
               data-log="schedule_copy" class="p-schedule__copy p-board-dash__copy" aria-label="予定をコピー">
-              <img src="/images/icon/icon-Link.svg" alt="" class="p-schedule__copy-icon">
+              <img src="/images/icon/icon-link.svg" alt="" class="p-schedule__copy-icon">
               予定をコピー
             </button>
           </div>
@@ -929,7 +929,7 @@ function _renderMainTab(p) {
     <div class="p-main-board__filter-row">
       ${tagChipsHtml}
       <button type="button" onclick="window._app.toggleSortMenu(event)" class="p-main-board__sort" aria-label="並び替え">
-        <img src="/images/icon/icon-Fileter.svg" class="p-main-board__sort-icon" alt="">
+        <img src="/images/icon/icon-filter.svg" class="p-main-board__sort-icon" alt="">
       </button>
     </div>`;
 
@@ -1126,7 +1126,7 @@ function _renderMainTab(p) {
   const dateChipHtml = `
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
           class="p-main-board__date-chip${dashLayout ? '' : ' p-main-board__date-chip--header'}">
-          <img src="/images/icon/icon-Calender-pressed.svg" class="p-main-board__date-icon" alt="">
+          <img src="/images/icon/icon-calendar-pressed.svg" class="p-main-board__date-icon" alt="">
           ${_dateChip}
         </div>`;
   // ★スマホ：通知・フィードバック・設定の丸いボタンを右端に縦に並べる（2026-09-28。以前は日付チップの行の右端に
@@ -1135,7 +1135,7 @@ function _renderMainTab(p) {
       <div class="p-main-board__side-actions">
         <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
           data-log="notif_open" class="p-main-board__notif" aria-label="通知">
-          <img src="/images/icon/icon-Notification-default.svg" width="20" height="20" alt="">
+          <img src="/images/icon/icon-notification-default.svg" width="20" height="20" alt="">
           ${Components.unreadCountFor(p.id) > 0
             ? `<span class="p-main-board__notif-badge">${Components.badgeText(Components.unreadCountFor(p.id))}</span>`
             : ''}
@@ -1149,7 +1149,7 @@ function _renderMainTab(p) {
         </a>
         <button type="button" onclick="window._app.toggleProjectMenu(event)"
           data-log="header_project_menu" class="p-main-board__notif" aria-label="設定">
-          <img src="/images/icon/icon-Setting.svg" class="p-main-board__side-icon" alt="">
+          <img src="/images/icon/icon-setting.svg" class="p-main-board__side-icon" alt="">
         </button>
       </div>`;
   // 上部固定領域：日付チップ（広い画面のみ）・通知などの丸ボタン（スマホのみ）・お知らせ・各バナー（スクロールしない）
@@ -1324,7 +1324,7 @@ function _renderAnnounceCards(p, meId) {
   const cardHtml = (m, withDesc) => `
     <div ${_cardClick(m)} class="p-main-board__announce-card">
       <div class="p-main-board__announce-body">
-        <img src="/images/icon/icon-Notification-default.svg" class="p-main-board__announce-icon" width="14" height="14" alt="">
+        <img src="/images/icon/icon-notification-default.svg" class="p-main-board__announce-icon" width="14" height="14" alt="">
         <div class="p-main-board__announce-main">
           <p class="p-main-board__announce-title">${_esc(m.title)}</p>
           ${withDesc && m.description
@@ -1351,7 +1351,7 @@ function _renderAnnounceCards(p, meId) {
       <button type="button" onclick="window._app.toggleAnnounceList()"
         class="p-main-board__announce-toggle">
         <span class="p-main-board__announce-toggle-label">
-          <img src="/images/icon/icon-Notification-default.svg" width="14" height="14" alt="">
+          <img src="/images/icon/icon-notification-default.svg" width="14" height="14" alt="">
           ${_announceExpanded ? '他のアナウンスを隠す' : `他のアナウンス${rest.length}件を見る`}
         </span>
         <svg class="p-main-board__announce-chevron${_announceExpanded ? ' is-open' : ''}"
@@ -1523,7 +1523,7 @@ function _renderArchiveTab(p) {
       <div class="p-archive__head">
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
           class="p-archive__days">
-          <img src="/images/icon/icon-Calender-pressed.svg" class="p-archive__days-icon" alt="">
+          <img src="/images/icon/icon-calendar-pressed.svg" class="p-archive__days-icon" alt="">
           ${hasDatesA
             ? `<span class="p-archive__days-text">あと <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
             : `<span class="p-archive__days-text p-archive__days-text--muted">開催日未設定</span>`}
@@ -1532,7 +1532,7 @@ function _renderArchiveTab(p) {
           <!-- ★コピーされるのは「未完了・締め切りあり」全件（記録の中身ではない）。 -->
           <button type="button" onclick="window._app.copySchedule('archive')"
             data-log="schedule_copy" class="p-archive__copy" aria-label="予定をコピー">
-            <img src="/images/icon/icon-Link.svg" alt="" class="p-archive__copy-icon">
+            <img src="/images/icon/icon-link.svg" alt="" class="p-archive__copy-icon">
             予定をコピー
           </button>
           ${canMgr && !editing ? `

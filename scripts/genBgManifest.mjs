@@ -23,15 +23,22 @@ const ROOT   = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BG_DIR = path.join(ROOT, 'public/images/bg');
 const OUT    = path.join(ROOT, 'public/js/mountainAssets.generated.js');
 
-// テーマ配下に置く層＝**フォルダ名そのまま**。★増やすときはここに足す。
+// テーマ配下に置く層。key＝マニフェストとコードでの名前、dir＝フォルダ名。★増やすときはここに足す。
 //   フォルダが無い／空のテーマは空配列になり、「その層を使わない」の意味になる。
+// ★画像のファイル名・フォルダ名は**すべて小文字（単語はハイフン区切り）**（2026-10-12）。
+//   Mac は大文字小文字を区別しないが本番の Linux は区別するので、混ぜると本番だけ画像が消える。
+//   check:flocss が public/images の名前を検査する。コード上の名前（key）はファイル名ではないのでそのまま
 // ★WorldSpawnedObjects … 地形の上に生やすもの（草・木など）。旧 `plant`。
 //   `mountainObjects.js`（ミッション完了時に出るオブジェクト）とは**別物**なので
 //   混同しないこと。あちらは submissions に保存される記念碑で、こちらは景色の一部。
-const LAYERS = ['landform', 'WorldSpawnedObjects', 'phenomenon'];
+const LAYERS = [
+  { key: 'landform',            dir: 'landform' },
+  { key: 'WorldSpawnedObjects', dir: 'world-spawned-objects' },
+  { key: 'phenomenon',          dir: 'phenomenon' },
+];
 // テーマに属さない共通素材。キー＝マニフェストでの名前、値＝ bg/ からのフォルダ
 // ★summitMask … 山頂のシルエット（開催後、いちばん上の地形をこの形で切り抜く。2026-09-28）。黒＝地面
-const SHARED = { cloud: 'cloud', summitMask: 'Summit/musk' };
+const SHARED = { cloud: 'cloud', summitMask: 'summit/musk' };
 
 // ── webp の寸法を読む ────────────────────────────────────────
 // RIFF コンテナの中に VP8（非可逆）/ VP8L（可逆）/ VP8X（拡張）のいずれかが入る。
@@ -149,7 +156,7 @@ for (const name of entries) {
   const themeDir = path.join(BG_DIR, name);
   if (!fs.existsSync(path.join(themeDir, 'landform'))) continue;   // テーマではない
   themes[name] = {};
-  for (const layer of LAYERS) themes[name][layer] = collect(path.join(themeDir, layer));
+  for (const { key, dir } of LAYERS) themes[name][key] = collect(path.join(themeDir, dir));
 }
 
 const shared = {};
@@ -176,12 +183,12 @@ export const BG_ASSETS = {
 `;
 
 for (const [theme, layers] of Object.entries(themes)) {
-  body += `  ${theme}: {\n`;
-  for (const layer of LAYERS) {
-    const list = layers[layer] || [];
+  body += `  ${j(theme)}: {\n`;   // ★テーマ名（＝フォルダ名）はハイフンを含むので引用符で囲む
+  for (const { key } of LAYERS) {
+    const list = layers[key] || [];
     body += list.length === 0
-      ? `    ${layer}: [],\n`
-      : `    ${layer}: [\n${rows(list)}\n    ],\n`;
+      ? `    ${key}: [],\n`
+      : `    ${key}: [\n${rows(list)}\n    ],\n`;
   }
   body += `  },\n`;
 }
@@ -205,9 +212,12 @@ export const BG_SHARED_DIR = ${j(SHARED)};
  *  ★?v=<中身のハッシュ> を必ず付ける。/images/bg/ は immutable で1年キャッシュ
  *    しているので、これが無いと**同じ名前で中身を差し替えても古い絵が出続ける**。
  *    ハッシュなので、変わったファイルだけが更新される。 */
+// 層の名前 → フォルダ名（★フォルダ名は小文字・ハイフン区切り。コードは層の名前で呼ぶ）
+export const BG_LAYER_DIR = ${j(Object.fromEntries(LAYERS.map(l => [l.key, l.dir])))};
+
 export function bgUrl(theme, layer, file, v) {
   const base = theme
-    ? \`/images/bg/\${theme}/\${layer}/\${file}\`
+    ? \`/images/bg/\${theme}/\${BG_LAYER_DIR[layer] || layer}/\${file}\`
     : \`/images/bg/\${layer}/\${file}\`;
   return v ? \`\${base}?v=\${v}\` : base;
 }
@@ -218,7 +228,7 @@ fs.writeFileSync(OUT, body);
 const count = (o) => Object.values(o).reduce((s, v) => s + (Array.isArray(v) ? v.length : count(v)), 0);
 console.log(`書き出し: ${path.relative(ROOT, OUT)}`);
 for (const [t, layers] of Object.entries(themes)) {
-  console.log(`  ${t}: ` + LAYERS.map(l => `${l} ${layers[l].length}`).join(' / '));
+  console.log(`  ${t}: ` + LAYERS.map(l => `${l.key} ${layers[l.key].length}`).join(' / '));
 }
 for (const [n, list] of Object.entries(shared)) console.log(`  ${n}（共通）: ${list.length}`);
 console.log(`  合計 ${count(themes) + count(shared)} 件`);

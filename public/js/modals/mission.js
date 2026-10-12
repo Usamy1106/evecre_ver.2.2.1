@@ -407,7 +407,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
           <label class="heading-rs p-mission-form__label">タスクの実施期間</label>
           <p class="p-mission-form__note">タスクを行う期間を設定します。</p>
           <div class="p-mission-form__date" onclick="window._app.openCalendarModal('mission')">
-            <img src="/images/icon/icon-Calender-pressed.svg" class="p-mission-form__date-icon">
+            <img src="/images/icon/icon-calendar-pressed.svg" class="p-mission-form__date-icon">
             <span class="p-mission-form__date-text">${dateDisplay}</span>
           </div>
         </div>
@@ -529,7 +529,7 @@ function _renderDetailTab(isEdit) {
             <div>
               <label class="p-mission-form__sub-label">応募期限（任意）</label>
               <div class="p-mission-form__date p-mission-form__date--flush" onclick="window._app.openCalendarModal('claimDeadline')">
-                <img src="/images/icon/icon-Calender-pressed.svg" class="p-mission-form__date-icon">
+                <img src="/images/icon/icon-calendar-pressed.svg" class="p-mission-form__date-icon">
                 ${deadlineDisplay
                   ? `<span class="p-mission-form__date-text p-mission-form__date-text--set">${_esc(deadlineDisplay)} 23:59 まで</span>`
                   : `<span class="p-mission-form__date-text">カレンダーから設定する</span>`}
@@ -618,7 +618,7 @@ export function showProposalHelp(e, proposalId) {
         </svg>
       </button>
       <div class="p-main-board__help-head">
-        <img src="/images/icon/icon-Help.svg" class="p-main-board__help-icon">
+        <img src="/images/icon/icon-help.svg" class="p-main-board__help-icon">
         <h3 class="c-modal__title c-modal__title--tight">提案のヒント</h3>
       </div>
       <div class="p-main-board__help-box">
@@ -870,7 +870,7 @@ function _renderAssigneeSelect() {
     <button type="button" onclick="window._app.openAssigneeSheet()"
       class="c-input p-assignee__trigger">
       <span class="p-assignee__trigger-label${hasValue ? ' is-set' : ''}">${_esc(label)}</span>
-      <img src="/images/icon/icon-Chevron.svg" class="p-assignee__chevron">
+      <img src="/images/icon/icon-chevron.svg" class="p-assignee__chevron">
     </button>`;
 }
 

@@ -78,7 +78,7 @@ export function renderMissionReflect(appEl) {
       <header class="p-mission-reflect__header">
         <button type="button" onclick="window._app.closeMissionReflect()" data-log="reflect_back"
           class="p-mission-reflect__round-button" aria-label="戻る">
-          <img src="/images/icon/icon-Chevron.svg" width="18" height="18" alt="">
+          <img src="/images/icon/icon-chevron.svg" width="18" height="18" alt="">
         </button>
       </header>
 

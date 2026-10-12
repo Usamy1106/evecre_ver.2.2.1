@@ -83,7 +83,7 @@ function _shell(inner, { back = null } = {}) {
       <main class="p-signup__main">
         ${back ? `
           <button type="button" id="su-back" class="p-signup__back" aria-label="戻る">
-            <img src="/images/icon/icon-Chevron.svg" width="22" height="22" alt="">
+            <img src="/images/icon/icon-chevron.svg" width="22" height="22" alt="">
           </button>` : '<div class="p-signup__back-spacer"></div>'}
         ${inner}
       </main>

@@ -19,7 +19,7 @@
 
 export const BG_THEMES = [
   {
-    id: 'MorningMeadow',
+    id: 'morning-meadow',
     // 開催後、山頂のシルエットで切り抜いた先に見える空の色（仮。「頂上から見た風景」の素材ができたら差し込む）
     sky: '#DCEEF7',
 
@@ -38,7 +38,7 @@ export const BG_THEMES = [
     //
     // ★密度の目安：**(countMin + countMax) ÷ 2 ÷ every** 本を植えようとし、置き場所が
     //   見つからない・天井を超える分を諦めるので、実際はその6〜8割になる。
-    //   2026-09-19 の調整：MorningMeadow 0〜2本 / WindyMeadow 0〜3本（大きめの草木）で、
+    //   2026-09-19 の調整：morning-meadow 0〜2本 / windy-meadow 0〜3本（大きめの草木）で、
     //   見えている地形1枚あたり 0.6〜0.9 本・1イベント最大 40 本前後。
     //   （一度 5〜7本＝1枚あたり3〜4本にしたが、多すぎたので戻した）
     //   countMin を 0 にすると、1本も生えない地形が混ざって疎密ができる。
@@ -81,7 +81,7 @@ export const BG_THEMES = [
   },
 
   {
-    id: 'WindyMeadow',
+    id: 'windy-meadow',
     sky: '#D6ECF6',
     // ★「風」のテーマなので地形は間隔を広めに取り、雲を多く・速く流す。
     landform: { advanceMin: 460, advanceMax: 760 },
@@ -93,10 +93,10 @@ export const BG_THEMES = [
   },
 
   {
-    id: 'SnowyMountain',
+    id: 'snowy-mountain',
     sky: '#E3EEF6',
     // ★雪山。地形をやや詰めて険しく見せる。草木は生えないので
-    //   WorldSpawnedObjects フォルダを空にしてある（設定も null）。
+    //   world-spawned-objects フォルダを空にしてある（設定も null）。
     landform: { advanceMin: 400, advanceMax: 760 },
     WorldSpawnedObjects: null,
     phenomenon: null,

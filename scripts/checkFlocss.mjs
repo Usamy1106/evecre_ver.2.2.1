@@ -1024,5 +1024,23 @@ ok('★同じ id をファイル跨ぎで使っていない', clashes.length ===
 console.log('  ⚠️ 既知: auth.js の死にコード renderCreateAccountInfo が signup.js と'
   + ' id を共有している（ca-google-section / ca-google-btn）。削除の判断待ち。');
 
+// ★画像のファイル名・フォルダ名は**すべて小文字**（2026-10-12。単語はハイフン区切り：icon-notification.svg /
+//   morning-meadow-1-b-o.webp）。Mac は大文字小文字を区別しないので手元では出るが、本番の Linux は区別し、
+//   混ぜると本番だけ画像が消える。★大文字だけ変えるときは git mv で記録も直すこと（git が気づかない）
+{
+  const IMG_ROOT = path.join(ROOT, 'public/images');
+  const upper = [];
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.name.startsWith('.')) continue;
+      const rel = path.relative(IMG_ROOT, path.join(dir, e.name));
+      if (/[A-Z]/.test(e.name)) upper.push(rel);
+      if (e.isDirectory()) walk(path.join(dir, e.name));
+    }
+  };
+  walk(IMG_ROOT);
+  ok('★public/images の下のファイル名・フォルダ名がすべて小文字', upper.length === 0, upper.slice(0, 5).join(', '));
+}
+
 console.log(`\n結果: ${pass} passed / ${fail} failed`);
 process.exit(fail ? 1 : 0);

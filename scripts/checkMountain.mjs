@@ -67,7 +67,7 @@ const plantsCollide = (a, b) =>
 const MAX_DRIFT = K('MAX_DRIFT');
 
 // 素材の一覧と調整値。★テスト側に複製せず、実装と同じものを読む
-const { BG_ASSETS, BG_SHARED, BG_SHARED_DIR } = await import(pathToFileURL(path.join(ROOT, 'public/js/mountainAssets.generated.js')).href);
+const { BG_ASSETS, BG_SHARED, BG_SHARED_DIR, BG_LAYER_DIR } = await import(pathToFileURL(path.join(ROOT, 'public/js/mountainAssets.generated.js')).href);
 const { BG_THEMES } = await import(pathToFileURL(path.join(ROOT, 'public/js/mountainThemes.js')).href);
 const themeCfg = (id) => BG_THEMES.find(t => t.id === id);
 const colorOf = (pt) => { const a = BG_ASSETS[pt.theme].landform.find(x => x.f === pt.file); return a.c || a.n; };
@@ -136,7 +136,7 @@ function build(done, eventId = 'ev1', dates = [], opts = {}) {
       // ★絵の URL は data-lf-img（描画時は下から LF_EAGER 枚だけ --lf-img も入る）。
       //   2026-09-20 に「見えるぶんだけ敷く」へ変えたので、style からは読めない。
       const box = /data-lf-y="(\d+)" data-lf-h="(\d+)"\s+data-lf-img="\/images\/bg\/([^/]+)\/landform\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?z-index:(\d+)/.exec(chunk);
-      const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/WorldSpawnedObjects\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
+      const plants = [...chunk.matchAll(/class="p-mountain__plant" src="\/images\/bg\/([^/]+)\/world-spawned-objects\/([^"?]+)(?:\?v=[0-9a-f]+)?"[\s\S]*?style="--pl-x:(\d+);--pl-y:(\d+);--pl-w:(\d+);--pl-h:(\d+)"/g)]
         .map(m => ({ theme: m[1], file: m[2], x: +m[3], y: +m[4], w: +m[5], h: +m[6] }));
       return { y: +box[1], h: +box[2], theme: box[3], file: box[4], z: +box[5], plants };
     }),
@@ -442,7 +442,7 @@ section('[C] 遠近（大きさ・不透明度・振れ幅）が画面位置に�
   const after  = build(8, 'evA', ['2020-01-01']);
   ok('★開催前は切り抜かない', !/p-mountain__terrain--summit/.test(before.html));
   ok('★開催後は山頂のシルエットで切り抜く',
-    /p-mountain__terrain--summit/.test(after.html) && /--summit-mask:url\('\/images\/bg\/Summit\/musk\/musk-\d+\.svg\?v=[0-9a-f]{8}'\)/.test(after.html));
+    /p-mountain__terrain--summit/.test(after.html) && /--summit-mask:url\('\/images\/bg\/summit\/musk\/musk-\d+\.svg\?v=[0-9a-f]{8}'\)/.test(after.html));
   ok('★開催後は空の色を渡す（開催前は渡さない）', /--mtn-sky:#[0-9A-Fa-f]{6}/.test(after.html) && !/--mtn-sky:#/.test(before.html));
   const used = new Set(['a','b','c','d','e','f','g','h','i','j'].map(ev => (/musk-\d+/.exec(build(3, ev, ['2020-01-01']).html) || [])[0]));
   ok('シルエットは複数種類が出る', used.size >= 2, [...used].join(','));
@@ -1112,12 +1112,13 @@ section('[J] 地形は background-image ＋「見えるぶんだけ敷く」（�
 
   // ユニーク素材が少ないという前提（＝lazy をやめてよい根拠）が崩れていないか
   {
+    // ★置き場所はテーマ名とフォルダの対応表から引く（ファイル名からテーマを推測しない。テーマ名はハイフンを含む）
     const light = [
-      ...Object.values(BG_ASSETS).flatMap(t => t.WorldSpawnedObjects),
-      ...BG_SHARED.cloud,
+      ...Object.entries(BG_ASSETS).flatMap(([t, l]) => l.WorldSpawnedObjects.map(a =>
+        path.join(ROOT, 'public/images/bg', t, BG_LAYER_DIR.WorldSpawnedObjects, a.f))),
+      ...BG_SHARED.cloud.map(a => path.join(ROOT, 'public/images/bg', BG_SHARED_DIR.cloud, a.f)),
     ];
-    const bytes = light.reduce((acc, a) => acc + fs.statSync(
-      path.join(ROOT, 'public/images/bg', a.f.includes('cloud') ? 'cloud' : a.f.split('-')[0] + '/WorldSpawnedObjects', a.f)).size, 0);
+    const bytes = light.reduce((acc, f) => acc + fs.statSync(f).size, 0);
     ok('★植物と雲のユニーク素材が軽い（lazy をやめてよい根拠）',
       bytes <= 300 * 1024, `${light.length}件 / ${(bytes / 1024).toFixed(0)}KB`);
   }
@@ -1140,7 +1141,7 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   const assetsSrc = path.join(ROOT, 'public/js/mountainAssets.generated.js');
   const themesSrc = path.join(ROOT, 'public/js/mountainThemes.js');
 
-  const { BG_ASSETS, BG_SHARED, BG_SHARED_DIR } = await import(pathToFileURL(assetsSrc).href);
+  const { BG_ASSETS, BG_SHARED, BG_SHARED_DIR, BG_LAYER_DIR } = await import(pathToFileURL(assetsSrc).href);
   const { BG_THEMES } = await import(pathToFileURL(themesSrc).href);
 
   const listOnDisk = (dir) => fs.existsSync(dir)
@@ -1152,10 +1153,10 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   const allEntries = [];
   for (const [theme, layers] of Object.entries(BG_ASSETS)) {
     for (const [layer, list] of Object.entries(layers)) {
-      const disk = listOnDisk(path.join(BG_DIR, theme, layer));
+      const disk = listOnDisk(path.join(BG_DIR, theme, BG_LAYER_DIR[layer] || layer));
       const manifest = list.map(a => a.f).sort();
       if (disk.join('|') !== manifest.join('|')) mismatch ||= `${theme}/${layer}: disk ${disk.length} / manifest ${manifest.length}`;
-      for (const a of list) allEntries.push({ ...a, dir: path.join(BG_DIR, theme, layer), theme, layer });
+      for (const a of list) allEntries.push({ ...a, dir: path.join(BG_DIR, theme, BG_LAYER_DIR[layer] || layer), theme, layer });
     }
   }
   for (const [name, list] of Object.entries(BG_SHARED)) {
@@ -1224,7 +1225,7 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   //   支給の png が白い背景で塗られていて、山の上に白い四角が出た。取り込みは npm run bg:objects
   //   （白い背景を透明にしてから webp にする）。webp の透明は VP8X の ALPHA フラグ（0x10）か、可逆の VP8L で持つ。
   //   svg は対象外（背景を描いていなければ透明）
-  const opaquePlants = allEntries.filter(a => a.dir.endsWith('WorldSpawnedObjects') && a.f.endsWith('.webp')).filter(a => {
+  const opaquePlants = allEntries.filter(a => a.layer === 'WorldSpawnedObjects' && a.f.endsWith('.webp')).filter(a => {
     const b = fs.readFileSync(path.join(a.dir, a.f));
     const chunk = b.toString('ascii', 12, 16);
     if (chunk === 'VP8X') return (b[20] & 0x10) === 0;
@@ -1253,7 +1254,7 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   //     ゼロ埋めも不要（番号は識別子としてしか使わず、並びは番号順に取っている）。
   //   ★傾きは r（右肩上がり）/ l（左肩上がり）/ o（その他）の1文字。
   //     色と同じく「続けない」ために使うので、1枚でも外れると静かに漏れる
-  //     （実際に `MorningMeadow-9-bl.webp` とハイフンが1つ足りない1枚があった）。
+  //     （実際に `MorningMeadow-9-bl.webp`（現 morning-meadow-…）とハイフンが1つ足りない1枚があった）。
   //   ★組み立てた名前と完全一致で見る。部分一致だと `-landform-` が混ざっても
   //     素通りし、テーマごとに命名が割れる（実際に1テーマだけ割れた）。
   const lfNamed = landforms.filter(a => a.f !== `${a.theme}-${Number(a.n)}-${a.c}-${a.s}.webp`);
@@ -1290,8 +1291,9 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   ok('landform の通し番号が重複していない', dupN.length === 0, dupN.join(', '));
 
   // ★過去に cloud のファイル名へ改行文字が混入し、URL にできない状態だった。その再発防止。
-  const badName = allEntries.filter(a => !/^[A-Za-z0-9._-]+$/.test(a.f));
-  ok('★ファイル名が [A-Za-z0-9._-] だけでできている（改行・空白の混入なし）',
+  // ★大文字も使わない（2026-10-12）。Mac は区別しないが本番の Linux は区別し、混ぜると本番だけ画像が消える
+  const badName = allEntries.filter(a => !/^[a-z0-9._-]+$/.test(a.f));
+  ok('★ファイル名が小文字の [a-z0-9._-] だけでできている（大文字・改行・空白の混入なし）',
     badName.length === 0, badName.map(a => JSON.stringify(a.f)).join(', '));
 
   const totalMB = allEntries.reduce((s, a) => s + fs.statSync(path.join(a.dir, a.f)).size, 0) / 1024 / 1024;

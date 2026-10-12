@@ -207,11 +207,11 @@ function _renderCalendar(ctx) {
   return `
     <div class="p-schedule__cal-nav">
       <button id="mb-cal-prev" class="p-schedule__cal-arrow">
-        <img src="/images/icon/icon-Chevron.svg" class="p-schedule__cal-arrow-icon">
+        <img src="/images/icon/icon-chevron.svg" class="p-schedule__cal-arrow-icon">
       </button>
       <h3 class="heading-r p-schedule__section-title">${year}年 ${month + 1}月</h3>
       <button id="mb-cal-next" class="p-schedule__cal-arrow">
-        <img src="/images/icon/icon-Chevron.svg" class="p-schedule__cal-arrow-icon p-schedule__cal-arrow-icon--next">
+        <img src="/images/icon/icon-chevron.svg" class="p-schedule__cal-arrow-icon p-schedule__cal-arrow-icon--next">
       </button>
     </div>
     <div class="p-schedule__week">

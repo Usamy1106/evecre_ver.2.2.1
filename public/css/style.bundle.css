@@ -5396,7 +5396,7 @@ body {
   gap: var(--space-3);
 }
 
-/* ★icon-Help.svg は提案ボックス用に白（#fff）になっている。ここは明るい背景の
+/* ★icon-help.svg は提案ボックス用に白（#fff）になっている。ここは明るい背景の
    モーダル見出しなので、そのままだと見えない。フィルタで暗く戻す。
    ★ファイルを2つに分けなかったのは、白い方が主用途で、暗いのはここ1箇所だけのため。 */
 .p-main-board__help-icon {
@@ -16288,7 +16288,7 @@ body {
 }
 
 /* ★ヘルプは白（提案ボックスの中は体の色で塗られているため）。
-   同じ icon-Help.svg を使う「提案のヒント」モーダル側は明るい背景なので、
+   同じ icon-help.svg を使う「提案のヒント」モーダル側は明るい背景なので、
    そちらだけ _main-board.css で暗く戻している。 */
 .p-char .p-main-board__proposal-help {
   z-index: 2;
@@ -17281,7 +17281,7 @@ body {
 }
 
 /* 素材の SVG を型抜きにして、ボタンの文字色（ふだん muted／選択中 brand-green）で塗る。
-   ★mask は素材の不透明度だけを使う。濃淡は SVG 側の fill-opacity で持たせる（icon-Calender-default.svg） */
+   ★mask は素材の不透明度だけを使う。濃淡は SVG 側の fill-opacity で持たせる（icon-calendar-default.svg） */
 .p-board-dash__view-icon--mask {
   display: inline-block;
   flex-shrink: 0;

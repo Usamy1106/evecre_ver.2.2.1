@@ -168,7 +168,7 @@
 }
 
 /* 素材の SVG を型抜きにして、ボタンの文字色（ふだん muted／選択中 brand-green）で塗る。
-   ★mask は素材の不透明度だけを使う。濃淡は SVG 側の fill-opacity で持たせる（icon-Calender-default.svg） */
+   ★mask は素材の不透明度だけを使う。濃淡は SVG 側の fill-opacity で持たせる（icon-calendar-default.svg） */
 .p-board-dash__view-icon--mask {
   display: inline-block;
   flex-shrink: 0;

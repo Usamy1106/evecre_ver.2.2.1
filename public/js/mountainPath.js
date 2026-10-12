@@ -639,8 +639,8 @@ function _landformPlan(eventId, needTopArt) {
     // ★seed に帯の番号 b を必ず入れる。テーマIDだけだと、同じテーマが再登場した
     //   帯で**まったく同じ並び**が繰り返される（bands.indexOf で書いて踏んだ）。
     // ★「同じ色」はテーマの中でだけ意味を持つ。色サフィックスは全テーマ共通の
-    //   a / b / c なので、テーマ名で修飾しないと「MorningMeadow の b」と
-    //   「WindyMeadow の b」が同じ色とみなされ、帯の境目で無関係に候補が弾かれる。
+    //   a / b / c なので、テーマ名で修飾しないと「morning-meadow の b」と
+    //   「windy-meadow の b」が同じ色とみなされ、帯の境目で無関係に候補が弾かれる。
     // ★1段目＝色（テーマで修飾する）／2段目＝傾き（r / l / o）。
     //   傾きは**テーマで修飾しない**。色と違って「右肩上がり」はどのテーマでも
     //   同じ意味なので、帯の境目でも続けたくない。
@@ -991,7 +991,7 @@ function _renderBgLayer(p, canvasH, isSummit, clearedCount) {
   //   - 開催後、この端末の看板に重なるもの … 看板の文字を読めることを優先する
   //   ★この2つ以外で端末ごとに草木を変えないこと。
   const ceiling = parts.length ? Math.max(...parts.map(q => q.y + q.h)) : 0;
-  // ★開催後は、いちばん上の地形を山頂のシルエット（Summit/musk）で切り抜く（2026-09-28）。
+  // ★開催後は、いちばん上の地形を山頂のシルエット（summit/musk）で切り抜く（2026-09-28）。
   //   切り抜きの帯（シルエットの高さ）より上に頭が出る草木は空に浮くので描かない。
   const mask = (isSummit && parts.length) ? _pickSummitMask(eventId) : null;
   const maskRatio = mask ? mask.h / mask.w : 0;

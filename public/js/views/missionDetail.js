@@ -84,7 +84,7 @@ export function renderMissionDetail(appEl) {
       <header class="p-mission-detail__header">
         <button type="button" onclick="window._app.closeMissionDetail()" data-log="mission_detail_back"
           class="p-mission-detail__round-button" aria-label="戻る">
-          <img src="/images/icon/icon-Chevron.svg" width="18" height="18" alt="">
+          <img src="/images/icon/icon-chevron.svg" width="18" height="18" alt="">
         </button>
         ${canMgr ? `
         <button type="button" onclick="window._app.toggleMissionMenu(event, '${m.id}')" data-log="mission_detail_menu"

@@ -90,7 +90,7 @@ export const Components = {
             <button type="button" onclick="window._app.openJoinByCodeModal()"
               data-log="home_join_by_code" class="l-header__action l-header__action--join"
               aria-label="イベントに参加">
-              <img src="/images/icon/icon-Join.svg" alt="" class="l-header__action-icon">
+              <img src="/images/icon/icon-join.svg" alt="" class="l-header__action-icon">
               <span class="l-header__action-label">イベントに参加</span>
             </button>
           </div>
@@ -102,7 +102,7 @@ export const Components = {
         <div class="l-header__group">
           <button type="button" onclick="window._app.setView('HOME')" data-log="header_back_home"
             class="l-header__back">
-            <img src="/images/icon/icon-Chevron.svg" class="l-header__back-icon" alt="">
+            <img src="/images/icon/icon-chevron.svg" class="l-header__back-icon" alt="">
           </button>
           <!-- ★タイトル横の山イラストは削除した（MountainMini はホームのグリッド等では継続使用）-->
           <span class="l-header__title">${_escText(project.name)}</span>
@@ -117,7 +117,7 @@ export const Components = {
           </a>
           <button type="button" onclick="window._app.toggleProjectMenu(event)" id="project-menu-btn"
             data-log="header_project_menu" class="l-header__action">
-            <img src="/images/icon/icon-Setting.svg" class="l-header__action-image" alt="">
+            <img src="/images/icon/icon-setting.svg" class="l-header__action-image" alt="">
           </button>
         </div>`}
       </header>`;
@@ -139,15 +139,15 @@ export const Components = {
       <nav class="l-rail" aria-label="イベントのメニュー">
         <button type="button" onclick="window._app.setTab('MAIN')" data-log="rail_main"
           class="l-rail__item${on('MAIN')}" aria-label="メインボード" title="メインボード">
-          <img src="/images/icon/icon-Mainboard-${active === 'MAIN' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
+          <img src="/images/icon/icon-mainboard-${active === 'MAIN' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
         </button>
         <button type="button" onclick="window._app.setTab('ARCHIVE')" data-log="rail_archive"
           class="l-rail__item${on('ARCHIVE')}" aria-label="アーカイブ" title="アーカイブ">
-          <img src="/images/icon/icon-Archive-${active === 'ARCHIVE' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
+          <img src="/images/icon/icon-archive-${active === 'ARCHIVE' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
         </button>
         <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry data-log="notif_open"
           class="l-rail__item${on('NOTIFICATIONS')}" aria-label="通知" title="通知">
-          <img src="/images/icon/icon-Notification-${active === 'NOTIFICATIONS' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
+          <img src="/images/icon/icon-notification-${active === 'NOTIFICATIONS' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
           ${unread > 0 ? `<span class="p-main-board__notif-badge">${this.badgeText(unread)}</span>` : ''}
         </button>
         <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
@@ -159,7 +159,7 @@ export const Components = {
         </a>
         <button type="button" onclick="window._app.toggleProjectMenu(event)" data-log="header_project_menu"
           class="l-rail__item" aria-label="イベント設定" title="設定">
-          <img src="/images/icon/icon-Setting.svg" class="l-rail__icon" alt="">
+          <img src="/images/icon/icon-setting.svg" class="l-rail__icon" alt="">
         </button>
       </nav>`;
   },
@@ -178,12 +178,12 @@ export const Components = {
       <nav class="l-tabs">
         <div onclick="window._app.setTab('MAIN')"
           class="l-tabs__item l-tabs__item--main${on('MAIN')}">
-          <img src="/images/icon/icon-Mainboard-${active === 'MAIN' ? 'pressed' : 'default'}.svg" class="l-tabs__icon" alt="">
+          <img src="/images/icon/icon-mainboard-${active === 'MAIN' ? 'pressed' : 'default'}.svg" class="l-tabs__icon" alt="">
           <span class="l-tabs__label">メインボード</span>
         </div>
         <div onclick="window._app.setTab('ARCHIVE')"
           class="l-tabs__item l-tabs__item--archive${on('ARCHIVE')}">
-          <img src="/images/icon/icon-Archive-${active === 'ARCHIVE' ? 'pressed' : 'default'}.svg" class="l-tabs__icon" alt="">
+          <img src="/images/icon/icon-archive-${active === 'ARCHIVE' ? 'pressed' : 'default'}.svg" class="l-tabs__icon" alt="">
           <span class="l-tabs__label">アーカイブ</span>
         </div>
       </nav>`;

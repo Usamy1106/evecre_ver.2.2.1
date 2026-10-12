@@ -19,7 +19,7 @@ export function renderProjectDetail(container) {
         <div class="p-project-detail__header-inner">
           <button type="button" onclick="window._app.setView('HOME')"
             class="p-project-detail__round-button" aria-label="ホームへ戻る">
-            <img src="/images/icon/icon-Chevron.svg" width="20" height="20" alt="">
+            <img src="/images/icon/icon-chevron.svg" width="20" height="20" alt="">
           </button>
           <div class="p-project-detail__titles">
             <h1 class="p-project-detail__name">${_esc(folder.name)}</h1>

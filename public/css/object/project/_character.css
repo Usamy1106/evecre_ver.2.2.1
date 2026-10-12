@@ -195,7 +195,7 @@
 }
 
 /* ★ヘルプは白（提案ボックスの中は体の色で塗られているため）。
-   同じ icon-Help.svg を使う「提案のヒント」モーダル側は明るい背景なので、
+   同じ icon-help.svg を使う「提案のヒント」モーダル側は明るい背景なので、
    そちらだけ _main-board.css で暗く戻している。 */
 .p-char .p-main-board__proposal-help {
   z-index: 2;
