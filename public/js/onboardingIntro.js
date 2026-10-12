@@ -244,6 +244,9 @@ export function checkIntro() {
 //   ★onboarding.js の L1 と同じ中身に保つこと（同じ「進め方」を2か所で出している）
 // ★出口は最後の「わかった」だけ。閉じるボタンも背景タップも置かない
 //   （置くと②へ進まないまま放置され、状態が宙ぶらりんになる）。
+// ★招待された管理者には「やることリストを作ろう」から（＝先頭2つを出さない）。
+//   招待・役割を決めるのはイベントを作った人の仕事なので（2026-10-12）。L1 も同じ
+export const USAGE_OWNER_ONLY = 2;
 const USAGE_PAGES = [
   { title: 'メンバーを招待しよう',     body: '一緒にイベントをつくる仲間を招待して、準備を始めよう。' },
   { title: '役割を決めよう',           body: 'メンバーそれぞれの役割を決めて、得意なことを活かそう。' },
@@ -270,18 +273,20 @@ export function showUsageModal() {
   //     （ページ番号も localStorage に持たない。中途半端な再開をさせない）。
   //     ②③も同じ考え方（②は最後のコーチマーク、③は目的をタップしたときだけ進む）。
   let page = 0;
+  const pNow  = state.events.find(x => x.id === state.selectedEventId);
+  const pages = isJoinedManager(state.currentUser?.id, pNow) ? USAGE_PAGES.slice(USAGE_OWNER_ONLY) : USAGE_PAGES;
 
   const paint = () => {
-    const isLast = page === USAGE_PAGES.length - 1;
+    const isLast = page === pages.length - 1;
     overlay.innerHTML = `
       <div class="c-modal u-animate-fade">
         <p class="c-modal__eyebrow">イベントづくりの進め方</p>
         <div class="c-modal__stage">
           <span class="c-modal__stage-num">${page + 1}</span>
-          <p class="c-modal__stage-title">${USAGE_PAGES[page].title}</p>
-          <p class="c-modal__stage-text">${USAGE_PAGES[page].body}</p>
+          <p class="c-modal__stage-title">${pages[page].title}</p>
+          <p class="c-modal__stage-text">${pages[page].body}</p>
         </div>
-        ${Components.StepIndicator(page + 1, USAGE_PAGES.length)}
+        ${Components.StepIndicator(page + 1, pages.length)}
         <button data-intro="next" class="c-button c-button--primary c-modal__button c-modal__button--roomy">${
           isLast ? 'わかった' : '次へ'}</button>
       </div>`;

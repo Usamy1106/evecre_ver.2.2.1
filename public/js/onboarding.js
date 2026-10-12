@@ -15,7 +15,7 @@
 import { state } from './state.js';
 import { SKILL_TAGS, MOTIVATION_CARDS } from './constants.js';
 import { getArchiveSummary, getArchiveVenue, getEventMainVisual, todayStr, isAfterEventDates } from './utils.js';
-import { isIntroEligible, getIntroState, hasStartedIntroElsewhere } from './onboardingIntro.js';
+import { isIntroEligible, getIntroState, hasStartedIntroElsewhere, USAGE_OWNER_ONLY } from './onboardingIntro.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
 import { isJoinWelcomePending } from './modals/joinWelcomeModal.js';
@@ -302,6 +302,16 @@ function _myCompleted(p, userId) {
     ));
 }
 
+// L1（リーダー向けの進め方）。★onboardingIntro.js の USAGE_PAGES と同じ中身に保つこと（2026-10-12 に差し替え）。
+// ★先頭 USAGE_OWNER_ONLY 個（招待・役割）はイベントを作った人だけに出す
+const _L1_STEPS = [
+  ['メンバーを招待しよう',   '一緒にイベントをつくる仲間を招待して、準備を始めよう。'],
+  ['役割を決めよう',         'メンバーそれぞれの役割を決めて、得意なことを活かそう。'],
+  ['やることリストを作ろう', '開催までの予定を立て、必要なタスクをメンバーに割り当てよう。'],
+  ['進捗をチェックしよう',   'タスクの進み具合やメンバーからの提出を確認しよう。'],
+  ['振り返りを残そう',       'できたことや反省点を記録して、次のイベントに活かそう。'],
+];
+
 const STEPS = [
   {
     // ★参加は承認制の1本道。リーダーが承認しない限りメンバーは1人も入れないのに、
@@ -413,17 +423,11 @@ const STEPS = [
     //   2箇所で出しているので、片方だけ変えると人によって説明が食い違う。
     //   ★ここは1枚のモーダル（openOnboardingModal）なので3つ並べて出す。
     //     めくる形にするのは初期オンボーディング側だけ。
-    build: () => ({
+    build: (ctx) => ({
       eyebrow: 'イベントづくりの進め方',
-      title: 'イベントづくりは<br>5つのステップで進みます',
-      // ★2026-10-12 に文面を差し替え。onboardingIntro.js の USAGE_PAGES と同じ中身
-      steps: [
-        ['メンバーを招待しよう',   '一緒にイベントをつくる仲間を招待して、準備を始めよう。'],
-        ['役割を決めよう',         'メンバーそれぞれの役割を決めて、得意なことを活かそう。'],
-        ['やることリストを作ろう', '開催までの予定を立て、必要なタスクをメンバーに割り当てよう。'],
-        ['進捗をチェックしよう',   'タスクの進み具合やメンバーからの提出を確認しよう。'],
-        ['振り返りを残そう',       'できたことや反省点を記録して、次のイベントに活かそう。'],
-      ],
+      // ★招待された管理者には「やることリストを作ろう」から（先頭2つは作った人だけ。onboardingIntro.js の USAGE_OWNER_ONLY）
+      steps: _L1_STEPS.slice(ctx.p.ownerId === ctx.userId ? 0 : USAGE_OWNER_ONLY),
+      title: `イベントづくりは<br>${_L1_STEPS.length - (ctx.p.ownerId === ctx.userId ? 0 : USAGE_OWNER_ONLY)}つのステップで進みます`,
       // ★自動作成される「このイベントの目的・目標を決めよう」が既に入っているので、
       //   「最初の1件を作ろう」は不正確。「作ってみよう」に留める。
       body: 'やることを書き出してスケジュールを作ってみましょう。',

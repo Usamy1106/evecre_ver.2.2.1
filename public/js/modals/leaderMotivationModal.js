@@ -192,11 +192,12 @@ function _openModal(p) {
   // 背景タップでも閉じられる（overlay.onclick）。
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
-      <h3 class="c-modal__title c-modal__title--wide">「${_esc(p.name || 'イベント')}」に<br>ようこそ！</h3>
+      <!-- ★見出しに「ようこそ」を使わない。直前に「ようこそ」モーダル（joinWelcomeModal）が出ている（2026-10-12）-->
+      <h3 class="c-modal__title c-modal__title--wide">リーダーの意気込み</h3>
 
       <div class="p-invite__motivation">
         <p class="p-invite__motivation-label">
-          ${_esc(_leaderName(p))}さんの意気込み
+          ${_esc(_leaderName(p))}さんより
         </p>
         ${p.catchphrase ? `
           <p class="p-invite__catchphrase">${_esc(p.catchphrase)}</p>

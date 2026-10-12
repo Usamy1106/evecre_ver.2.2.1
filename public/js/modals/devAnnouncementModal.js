@@ -60,7 +60,10 @@ function _openModal() {
   const overlay = document.createElement('div');
   overlay.id = 'dev-announcement-overlay';
   overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  // ★閉じたら描き直す。お知らせの裏で待っていた自動モーダル（参加した人の「ようこそ」→ 進め方 → 🔥 など）は
+  //   render() 駆動なので、呼ばないと次の操作まで出ない（2026-10-12）
+  const closeOverlay = () => { overlay.remove(); state.render(); };
+  overlay.onclick = (e) => { if (e.target === overlay) closeOverlay(); };
   document.body.appendChild(overlay);
 
   _renderPage(overlay, pages, 0);
@@ -71,6 +74,8 @@ function _openModal() {
  * （毎回 fadeIn させると切り替えがちらつくため）。
  */
 function _renderPage(overlay, pages, index, opts = {}) {
+  // ★閉じたら描き直す（_openModal の closeOverlay と同じ。裏で待っている自動モーダルを出すため）
+  const closeOverlay = () => { overlay.remove(); state.render(); };
   const page   = pages[index];
   const isLast = index === pages.length - 1;
   const multi  = pages.length > 1;
@@ -101,7 +106,7 @@ function _renderPage(overlay, pages, index, opts = {}) {
 
     const body = overlay.querySelector('[data-psm-body]');
     const advance = () => {
-      if (isLast) { overlay.remove(); return; }
+      if (isLast) { closeOverlay(); return; }
       _renderPage(overlay, pages, index + 1);
     };
     bindPushSetupContent(body, {
@@ -158,10 +163,10 @@ function _renderPage(overlay, pages, index, opts = {}) {
     </div>`;
 
   overlay.querySelector('[data-action="next"]').onclick = () => {
-    if (isLast) { overlay.remove(); return; }
+    if (isLast) { closeOverlay(); return; }
     _renderPage(overlay, pages, index + 1);
   };
-  overlay.querySelector('[data-action="close"]')?.addEventListener('click', () => overlay.remove());
+  overlay.querySelector('[data-action="close"]')?.addEventListener('click', () => closeOverlay());
 
   // 同じモーダル内で通知セットアップに切り替える（お知らせは閉じない）
   overlay.querySelector('[data-action="push-setup"]')?.addEventListener('click', () => {
@@ -176,7 +181,7 @@ function _renderPage(overlay, pages, index, opts = {}) {
     canPrev: index > 0,
     // 送り出した向きと逆側から新しいカードが入ってくる
     onNext: () => {
-      if (isLast) { overlay.remove(); return; }
+      if (isLast) { closeOverlay(); return; }
       _renderPage(overlay, pages, index + 1, { enterFrom: 'right' });
     },
     onPrev: () => _renderPage(overlay, pages, index - 1, { enterFrom: 'left' }),
