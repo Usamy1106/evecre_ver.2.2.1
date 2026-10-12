@@ -1247,22 +1247,23 @@ function _renderExperience(container, d) {
 
 // ----- STEP 8：診断（内部2問）-----
 // 1問ずつ出し、二択を大きなカードで並べる（診断コンテンツらしい見せ方）。
+// 選択肢の絵は public/images/illustration/ のイラスト（2026-10-12 に絵文字から差し替え）。
 
 const QUIZ = [
   {
     key: 'workStylePlanning',
     title: 'イベント準備、<br>あなたはどっち？',
     options: [
-      ['planner', '計画を立てて\nから動きたい', '📋'],
-      ['mover',   'とりあえず動いて\nから考える',   '🏃'],
+      ['planner', '計画を立てて\nから動きたい', '/images/illustration/illustration-planners.webp'],
+      ['mover',   'とりあえず動いて\nから考える',   '/images/illustration/illustration-doer.webp'],
     ],
   },
   {
     key: 'workStyleSocial',
     title: '作業するなら<br>どっち？',
     options: [
-      ['group', '大勢で\nワイワイ',  '🎉'],
-      ['solo',  '少人数で\n黙々',    '🎧'],
+      ['group', '大勢で\nワイワイ',  '/images/illustration/illustration-many.webp'],
+      ['solo',  '少人数で\n黙々',    '/images/illustration/illustration-few.webp'],
     ],
   },
 ];
@@ -1280,10 +1281,10 @@ function _renderQuiz(container, d) {
     <h1 class="p-signup__question p-signup__question--wide">${q.title}</h1>
 
     <div class="p-signup__quiz-options">
-      ${q.options.map(([id, label, emoji]) => `
+      ${q.options.map(([id, label, art]) => `
         <button type="button" data-choice="${_esc(id)}"
           class="p-signup__quiz-option${selected === id ? ' is-selected' : ''}">
-          <span class="p-signup__quiz-emoji">${emoji}</span>
+          <img src="${art}" class="p-signup__quiz-art" width="96" height="96" alt="">
           <span class="p-signup__quiz-label">${_esc(label)}</span>
         </button>`).join('')}
     </div>

@@ -573,9 +573,10 @@
   background-color: var(--color-primary-pale);
 }
 
-.p-signup__quiz-emoji {
-  font-size: 40px;
-  line-height: 1;
+.p-signup__quiz-art {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
 }
 
 .p-signup__quiz-label {
