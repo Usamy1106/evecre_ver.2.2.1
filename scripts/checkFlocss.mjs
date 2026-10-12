@@ -488,7 +488,10 @@ section('[B] 実機で見つかった不具合');
     // ★切り出しは STEPS 配列の中だけに閉じること。配列の外まで見ると、
     //   最後のステップ（M4）の本文に checkOnboarding の `step.oncePerUser` が
     //   紛れ込んで誤検知する（実際に踏んだ）。
-    const stepsSrc = ob.slice(ob.indexOf('const STEPS = ['), ob.indexOf('\n];'));
+    const stepsStart = ob.indexOf('const STEPS = [');
+    // ★終わりは STEPS の開始より**後ろ**で探す。前に別の配列（_L1_STEPS など）があると、
+    //   その終わりを拾って切り出しが空になり、全項目が落ちる（2026-10-12 に実際に踏んだ）
+    const stepsSrc = ob.slice(stepsStart, ob.indexOf('\n];', stepsStart));
     /** そのステップ定義の本文（次の `id:` まで）を取り出す */
     const stepBody = (id) => {
       const i = stepsSrc.indexOf(`id: '${id}',`);
