@@ -77,16 +77,22 @@ export function openOnboardingModal(o) {
 
   logEvent('onboarding_shown', { stepId: o.stepId, role: o.role, experience: o.density });
 
+  // ★参加した人の進め方（M1／L1）を閉じたら描き直す。次の🔥（リーダーの意気込み）の判定は
+  //   render() 駆動なので、呼ばないと「あとで」「わかった」で閉じたあと🔥が出ない
+  const _afterClose = () => { if (o.stepId === 'M1' || o.stepId === 'L1') state.render(); };
+
   function _dismiss() {
     logEvent('onboarding_dismissed', { stepId: o.stepId });
     overlay.remove();
+    _afterClose();
   }
 
   overlay.querySelector('[data-ob="close"]')?.addEventListener('click', _dismiss);
   overlay.querySelector('[data-ob="primary"]').onclick = () => {
     logEvent('onboarding_action', { stepId: o.stepId });
     overlay.remove();
-    _runAction(o.action, o.actionArg);
+    if (o.action) _runAction(o.action, o.actionArg);
+    else _afterClose();
   };
 }
 

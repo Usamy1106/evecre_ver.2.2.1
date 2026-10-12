@@ -1247,6 +1247,12 @@ export const state = {
       setTimeout(() => window._app?.checkEventDateReminderModal?.(), 900);
     }
 
+    // ★参加した人への「ようこそ」（役割の明示）。参加者の歓迎の先頭（ようこそ → 進め方 → 🔥）。
+    //   表示可否はモーダル側（joinWelcomeModal.js）。後ろの段階はこれが済むまで順番を譲る
+    if (this.currentView === 'MAIN_BOARD' && this.selectedEventId) {
+      setTimeout(() => window._app?.checkJoinWelcomeModal?.(), 150);
+    }
+
     // 参加が承認されてイベントページに入った直後、リーダーの意気込みを見せて🔥を送れるようにする。
     // 表示可否（意気込みの有無・オーナー本人か・既読か）はモーダル側が判定する。
     // ★他モーダルより先に出す（歓迎の演出なので、入った直後に見せたい）。

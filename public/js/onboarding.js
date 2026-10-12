@@ -18,6 +18,8 @@ import { getArchiveSummary, getArchiveVenue, getEventMainVisual, todayStr, isAft
 import { isIntroEligible, getIntroState, hasStartedIntroElsewhere } from './onboardingIntro.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { openOnboardingModal } from './modals/onboardingModal.js';
+import { isJoinWelcomePending } from './modals/joinWelcomeModal.js';
+import { addMotivationWaitProbe } from './modals/leaderMotivationModal.js';
 
 // ── 濃度 ────────────────────────────────────────────────────
 // ★アカウント作成時の申告（users.eventExperience）ではなく、**実際に作ったイベント数**で決める。
@@ -643,6 +645,46 @@ function _escapeName(s) {
  * ★state.render() からのみ呼ぶこと。
  * 条件を満たすステップのうち、優先度が最も高い1件だけを表示する。
  */
+function _ctxFor(p, userId) {
+  const canManage = state.canManageCurrentEvent(p.id);
+  const role      = canManage ? 'leader' : 'member';
+  const density   = densityForEvent(userId, state.events, p);
+  return { ctx: { p, userId, canManage, density }, role, density };
+}
+
+/** そのステップを今出してよいか（既読・生涯1回・開催後・条件）。★副作用なし */
+function _canShow(step, ctx, role, density) {
+  const { p, userId } = ctx;
+  if (step.role !== 'any' && step.role !== role) return false;
+  if (!step.densities.includes(density)) return false;
+  // 通常はイベントごとに一度きり。repeatEveryMs があるステップは、その間隔を空けて再表示する
+  if (step.repeatEveryMs) {
+    if (Date.now() - lastSeenAt(userId, p.id, step.id) < step.repeatEveryMs) return false;
+  } else if (isSeen(userId, p.id, step.id)) {
+    return false;
+  }
+  // ★アプリの使い方の説明は**ユーザー生涯で1回**。他のイベントで見ていたら出さない。
+  //   ここは既読判定の**後**に置く（前に置いても結果は同じだが、走査は
+  //   localStorage 全件なので、安いイベント別の判定で先に落としたほうがよい）。
+  if (step.oncePerUser && isSeenElsewhere(userId, p.id, step.id)) return false;
+  // ★開催日を過ぎたイベントでは、やることが残っていない案内を出さない。
+  //   ここで弾くと markSeen も走らないので、日程を後ろへ延ばせばまた出る。
+  if (step.hideAfterEvent && isAfterEventDates(p)) return false;
+  try { return !!step.match(ctx); } catch (_) { return false; }
+}
+
+/**
+ * 参加した人向けの進め方（メンバー＝M1／リーダー＝L1）がこれから出るか（副作用なし）。
+ * ★🔥（リーダーの意気込み）はこれが終わるのを待つ（ようこそ → 進め方 → 🔥。2026-10-12）
+ */
+export function isJoinStepsPending(p, userId) {
+  if (!p || !userId || p.ownerId === userId) return false;
+  if (!(p.members || []).some(m => m.userId === userId)) return false;
+  const { ctx, role, density } = _ctxFor(p, userId);
+  return STEPS.some(step => (step.id === 'M1' || step.id === 'L1') && _canShow(step, ctx, role, density));
+}
+addMotivationWaitProbe(isJoinStepsPending);
+
 export function checkOnboarding() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p || !state.currentUser) return;
@@ -661,31 +703,13 @@ export function checkOnboarding() {
   //   二度と出なくなる。実際にその報告を受けた。
   const me = (p.members || []).find(m => m.userId === userId);
   if (!me) return;
+  // ★参加した人の歓迎は「ようこそ → 進め方（M1／L1）→ 🔥」の順（2026-10-12）。ようこそを先に
+  if (isJoinWelcomePending(p, userId)) return;
 
-  const canManage = state.canManageCurrentEvent(p.id);
-  const role      = canManage ? 'leader' : 'member';
-  const density   = densityForEvent(userId, state.events, p);
-  const ctx = { p, userId, canManage, density };
+  const { ctx, role, density } = _ctxFor(p, userId);
 
   for (const step of STEPS) {
-    if (step.role !== 'any' && step.role !== role) continue;
-    if (!step.densities.includes(density)) continue;
-    // 通常はイベントごとに一度きり。repeatEveryMs があるステップは、その間隔を空けて再表示する
-    if (step.repeatEveryMs) {
-      if (Date.now() - lastSeenAt(userId, p.id, step.id) < step.repeatEveryMs) continue;
-    } else if (isSeen(userId, p.id, step.id)) {
-      continue;
-    }
-    // ★アプリの使い方の説明は**ユーザー生涯で1回**。他のイベントで見ていたら出さない。
-    //   ここは既読判定の**後**に置く（前に置いても結果は同じだが、走査は
-    //   localStorage 全件なので、安いイベント別の判定で先に落としたほうがよい）。
-    if (step.oncePerUser && isSeenElsewhere(userId, p.id, step.id)) continue;
-    // ★開催日を過ぎたイベントでは、やることが残っていない案内を出さない。
-    //   ここで弾くと markSeen も走らないので、日程を後ろへ延ばせばまた出る。
-    if (step.hideAfterEvent && isAfterEventDates(p)) continue;
-    let hit = false;
-    try { hit = !!step.match(ctx); } catch (_) { hit = false; }
-    if (!hit) continue;
+    if (!_canShow(step, ctx, role, density)) continue;
 
     markSeen(userId, p.id, step.id);
     openOnboardingModal({ stepId: step.id, role, density, ...step.build(ctx) });

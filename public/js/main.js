@@ -58,6 +58,7 @@ import { openJoinByCodeModal } from './modals/joinByCodeModal.js';
 import { openEventCalendarSheet } from './modals/eventCalendarSheet.js';
 import { checkPurposeReminderModal } from './modals/purposeReminderModal.js';
 import { checkLeaderMotivationModal, openLeaderMotivationModal } from './modals/leaderMotivationModal.js';
+import { checkJoinWelcomeModal } from './modals/joinWelcomeModal.js';
 import { openJoinFormModal } from './modals/joinFormModal.js';
 import { SKILL_TAGS, detectWebhookKind } from './constants.js';
 import { Components, initImageFallback } from './components.js';
@@ -1094,6 +1095,7 @@ window._app = {
   // --- 目的リマインドモーダル（全メンバー向け）---
   checkPurposeReminderModal: () => checkPurposeReminderModal(),
   // 参加直後にリーダーの意気込みを見せて🔥を送れるようにする（表示可否はモーダル側が判定）
+  checkJoinWelcomeModal: () => checkJoinWelcomeModal(),
   checkLeaderMotivationModal: () => checkLeaderMotivationModal(),
   // オンボーディング（表示可否・優先度は onboarding.js が判定する）
   checkOnboarding: () => checkOnboarding(),
@@ -1850,6 +1852,8 @@ const _LOG_LABELS = {
   claim_applied:          '担当に応募した',
   claim_unapplied:        '応募を取り消した',
   claim_selected:         '担当を選定した',
+  join_welcome_shown:     '参加した人に「ようこそ」を出した',
+  join_welcome_next:      '「ようこそ」を読んで次へ進んだ',
   // 外部連携（Discord / Slack。サーバー記録）
   webhook_connected:      'Discord・Slack と連携した',
   webhook_disconnected:   'Discord・Slack との連携を解除した',

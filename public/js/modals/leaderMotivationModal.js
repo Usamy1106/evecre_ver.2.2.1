@@ -19,6 +19,16 @@ import { isAnyAutoModalOpen } from '../modalGuard.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 import { MOTIVATION_CARDS } from '../constants.js';
+import { isJoinWelcomePending } from './joinWelcomeModal.js';
+
+// ★参加した人の歓迎は「ようこそ → 進め方（STEP）→ 🔥」の順（2026-10-12）。🔥は最後。
+//   進め方がまだ残っているかは、それぞれの持ち主（onboardingIntro.js の①／onboarding.js の M1・L1）が
+//   ここへ判定を登録する（循環 import を避けるため。modalGuard の setIntroRunningProbe と同じ形）
+const _waitProbes = [];
+export function addMotivationWaitProbe(fn) { _waitProbes.push(fn); }
+function _stepsPending(p, userId) {
+  return _waitProbes.some(fn => { try { return !!fn(p, userId); } catch (_) { return false; } });
+}
 
 const OVERLAY_ID = 'leader-motivation-overlay';
 
@@ -45,9 +55,9 @@ function _leaderName(p) {
 /**
  * このユーザー×イベントで、これから🔥を出す予定が残っているか。
  *
- * ★歓迎は「🔥 → 使い方 → 機能紹介」の順に見せたい。初期オンボーディング
- *   （onboardingIntro）は進行中に他のモーダルを全部止めるので、先に走ると
- *   🔥が永久に出なくなる。あちらがこれを見て順番を譲る。
+ * ★歓迎は「ようこそ → 進め方 → 🔥 → コーチマーク」の順（2026-10-12 に🔥を先頭から移した）。
+ *   初期オンボーディング（onboardingIntro）は進行中に他のモーダルを全部止めるので、
+ *   進め方（①）を終えたあと、コーチマーク（②）の前でこれを見て🔥に順番を譲る。
  */
 export function isLeaderMotivationPending(p, userId) {
   if (!p || !userId) return false;
@@ -70,6 +80,9 @@ export function checkLeaderMotivationModal() {
 
   if (!_hasMotivation(p)) return _skip(p.id, 'no_motivation');       // 意気込みが無ければ出さない
   if (p.ownerId === state.currentUser.id) return _skip(p.id, 'owner'); // 書いた本人には見せない
+  // ★ようこそ → 進め方のあと。まだ残っていれば、フラグを立てずに持ち越す
+  if (isJoinWelcomePending(p, state.currentUser.id)) return _skip(p.id, 'waiting_welcome');
+  if (_stepsPending(p, state.currentUser.id)) return _skip(p.id, 'waiting_steps');
 
   const key = _storageKey(state.currentUser.id, p.id);
   // ★localStorage は private ブラウズなどで例外を投げる。素で触ると setTimeout の中で

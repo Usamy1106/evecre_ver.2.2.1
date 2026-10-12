@@ -25,7 +25,8 @@ import { logEvent } from './logger.js';
 import { setIntroRunningProbe } from './modalGuard.js';
 import { showCoachMark, closeCoachMark } from './modals/coachMark.js';
 import { startTooltipTour, closeTooltipTour } from './modals/tooltipTour.js';
-import { isLeaderMotivationPending } from './modals/leaderMotivationModal.js';
+import { isLeaderMotivationPending, addMotivationWaitProbe } from './modals/leaderMotivationModal.js';
+import { isJoinWelcomePending } from './modals/joinWelcomeModal.js';
 
 // ── 進行状態 ────────────────────────────────────────────────
 export const INTRO = {
@@ -162,6 +163,14 @@ export function isJoinedManager(userId, project) {
   return !!project && project.ownerId !== userId;
 }
 
+/** ①進め方がこれから出るか（副作用なし）。🔥はこれが終わるのを待つ */
+export function isIntroUsagePending(p, userId) {
+  if (!p || !userId || !isIntroEligible(userId, p)) return false;
+  const cur = getIntroState(userId, p.id);
+  return (cur === INTRO.NONE || cur === null) && !_seenUsageAsL1(userId);
+}
+addMotivationWaitProbe(isIntroUsagePending);
+
 // ── 進行中フラグ（他モーダルの抑止に使う）──────────────────
 // ★DOM の有無ではなく明示フラグで持つ。②→③のようにモーダルが一瞬いなくなる
 //   タイミングがあり、その隙に他モーダルが割り込むのを防ぐため。
@@ -182,16 +191,18 @@ export function nextIntroStep() {
   const userId = state.currentUser.id;
   if (!isIntroEligible(userId, p)) return null;
 
-  // ★歓迎は「🔥 → 使い方 → 機能紹介」の順。ここが先に走ると進行中フラグで
-  //   他モーダルを全部止めてしまい、🔥が永久に出なくなる。順番を譲る。
-  //   （🔥を閉じると state.render() が走り、次の判定でここへ戻ってくる）
-  if (isLeaderMotivationPending(p, userId)) return null;
+  // ★参加した人の歓迎は「ようこそ → ①進め方 → 🔥 → ②コーチマーク」の順（2026-10-12）。
+  //   ようこそ（joinWelcomeModal）が残っていれば、まず譲る
+  if (isJoinWelcomePending(p, userId)) return null;
 
   const cur = getIntroState(userId, p.id);
+  // ★②へ進む前に🔥（リーダーの意気込み）へ順番を譲る。ここで走ると進行中フラグで
+  //   他モーダルを全部止めてしまい、🔥が出せない（🔥を閉じると state.render() でここへ戻る）
+  const toTour = () => (isLeaderMotivationPending(p, userId) ? null : 'tour');
   // ★L1 で「進め方」を読んだ人には①を出さず、②から始める（②を閉じれば TOUR へ進む）
-  if ((cur === INTRO.NONE || cur === null) && _seenUsageAsL1(userId)) return 'tour';
+  if ((cur === INTRO.NONE || cur === null) && _seenUsageAsL1(userId)) return toTour();
   if (cur === INTRO.NONE || cur === null) return 'usage';    // ①進め方
-  if (cur === INTRO.USAGE) return 'tour';                    // ②主要機能の紹介
+  if (cur === INTRO.USAGE) return toTour();                  // ②主要機能の紹介
   // ③目的の促しは**作成者だけ**。後から参加した管理者には出さない
   if (cur === INTRO.TOUR)  return isJoinedManager(userId, p) ? null : 'purpose';
   return null;
@@ -285,6 +296,14 @@ export function showUsageModal() {
       logEvent('intro_usage_ack');
       advanceIntro(INTRO.USAGE);   // ①済み・②待ち
       overlay.remove();
+      // ★🔥（リーダーの意気込み）がまだなら、②の前に出す（ようこそ → ① → 🔥 → ②）。
+      //   進行中フラグを下ろして描き直し、🔥を閉じたあとの render() で②へ進む
+      const pNow = state.events.find(x => x.id === state.selectedEventId);
+      if (isLeaderMotivationPending(pNow, state.currentUser?.id)) {
+        setIntroRunning(false);
+        state.render();
+        return;
+      }
       // ★閉じるアニメーションと重ならないよう1フレーム置いてから②へ
       requestAnimationFrame(() => showFeatureTour());
     };

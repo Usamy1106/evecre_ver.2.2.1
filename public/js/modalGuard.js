@@ -27,6 +27,7 @@ export const AUTO_MODAL_IDS = [
   'public-basic-info-overlay',     // 宣伝用に公開するかの確認（基礎情報がそろったとき・1回）
   'public-knowledge-overlay',      // タスクも含めて公開するかの確認（振り返りフェーズが終わったとき・1回）
   'welcome-tour-overlay',          // アカウント作成後のオンボーディング（機能紹介3枚 → ホームに置いておこう）
+  'join-welcome-overlay',          // 参加した人への「ようこそ」（役割の明示。参加者の歓迎の先頭）
 ];
 
 // ★初期オンボーディング（onboardingIntro.js）が進行中かを見るためのフック。
