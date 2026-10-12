@@ -226,15 +226,19 @@ export function checkIntro() {
   if (step === 'purpose') { showPurposeCoach(); return; }
 }
 
-// ── ① 「イベントづくりの進め方」モーダル（3枚）──────────────
+// ── ① 「イベントづくりの進め方」モーダル（5枚）──────────────
 // ★1枚に全部を詰め込まず、**1段階につき1枚**めくる形にする。
 //   以前は5つの手順を1枚に並べていたが、文字量が多くて読み飛ばされていた。
+// ★2026-10-12 に文面を差し替えて5段階（見出し＋説明）にした。
+//   ★onboarding.js の L1 と同じ中身に保つこと（同じ「進め方」を2か所で出している）
 // ★出口は最後の「わかった」だけ。閉じるボタンも背景タップも置かない
 //   （置くと②へ進まないまま放置され、状態が宙ぶらりんになる）。
 const USAGE_PAGES = [
-  '目的や目標、概要を決めよう',
-  'いつ、誰が、何をするかタスクを作ろう',
-  '進捗をチェックしよう',
+  { title: 'メンバーを招待しよう',     body: '一緒にイベントをつくる仲間を招待して、準備を始めよう。' },
+  { title: '役割を決めよう',           body: 'メンバーそれぞれの役割を決めて、得意なことを活かそう。' },
+  { title: 'やることリストを作ろう',   body: '開催までの予定を立て、必要なタスクをメンバーに割り当てよう。' },
+  { title: '進捗をチェックしよう',     body: 'タスクの進み具合やメンバーからの提出を確認しよう。' },
+  { title: '振り返りを残そう',         body: 'できたことや反省点を記録して、次のイベントに活かそう。' },
 ];
 
 export function showUsageModal() {
@@ -263,7 +267,8 @@ export function showUsageModal() {
         <p class="c-modal__eyebrow">イベントづくりの進め方</p>
         <div class="c-modal__stage">
           <span class="c-modal__stage-num">${page + 1}</span>
-          <p class="c-modal__stage-title">${USAGE_PAGES[page]}</p>
+          <p class="c-modal__stage-title">${USAGE_PAGES[page].title}</p>
+          <p class="c-modal__stage-text">${USAGE_PAGES[page].body}</p>
         </div>
         ${Components.StepIndicator(page + 1, USAGE_PAGES.length)}
         <button data-intro="next" class="c-button c-button--primary c-modal__button c-modal__button--roomy">${

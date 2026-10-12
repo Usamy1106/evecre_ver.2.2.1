@@ -239,6 +239,16 @@
   text-align: center;
 }
 
+/* 見出しの下の説明（初期オンボーディング①）*/
+.c-modal__stage-text {
+  margin-top: calc(var(--space-2) * -1);   /* 見出しとは近づける（stage の gap より詰める）*/
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+  text-align: center;
+  text-wrap: balance;   /* 行末に「う。」だけが残らないよう、行の長さをそろえる */
+}
+
 /* --- 手順のリスト（オンボーディング）------------------------------------- */
 
 .c-modal__steps {
