@@ -28,6 +28,11 @@
   padding: var(--space-6);
 }
 
+/* 中身をなるべく画面いっぱいに出す（ようこそ画面・通知のセットアップ。操作の写真を大きく見せる）*/
+.c-overlay--snug {
+  padding-inline: var(--space-2);
+}
+
 /* ★justify-content を忘れないこと。中身（c-dialog）は max-width を持つので、
    指定しないと画面が広いときに左へ寄る（実際にそのバグを出した）。 */
 .c-overlay--bottom {

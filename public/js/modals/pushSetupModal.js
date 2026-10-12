@@ -15,6 +15,7 @@
 import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
+import { openPushSetupTour } from './welcomeTourModal.js';
 import {
   getPushState, enablePush, hasSubscription, isStandalone, isIOS, isSmallScreen,
   canPromptInstall, promptInstall,
@@ -34,30 +35,10 @@ async function _savePreference(value) {
   catch (e) { console.warn('[push-setup] 意向の保存に失敗:', e); }
 }
 
-function _close(id) { document.getElementById(id)?.remove(); }
-
-/** 共通の器（下からせり上がるシート） */
-function _sheet(id, inner) {
-  _close(id);
-  const overlay = document.createElement('div');
-  overlay.id = id;
-  // スタイル: public/css/object/project/_push-setup.css
-  overlay.className = 'c-overlay c-overlay--bottom c-overlay--push-setup';
-  overlay.innerHTML = `
-    <div data-sheet class="p-push-setup__sheet u-animate-fade">
-      <div data-sheet-handle class="c-sheet__handle p-push-setup__handle">
-        <div class="c-sheet__grip c-sheet__grip--sm"></div>
-      </div>
-      ${inner}
-    </div>`;
-  document.body.appendChild(overlay);
-  return overlay;
-}
-
 // ── 中身（お知らせモーダルからも埋め込めるよう、HTML と配線を分けてある）──
 //
-// startPushSetupFlow() は下からせり上がるシートとして出し、
-// devAnnouncementModal は同じ中身をお知らせのページとして差し込む。
+// startPushSetupFlow() は welcomeTourModal.js の openPushSetupTour（④⑤と同じ見た目のモーダル）を出し、
+// devAnnouncementModal は下の中身をお知らせのページとして差し込む。
 
 /** いまこの端末で案内すべき段階 */
 export function pushSetupPhase() {
@@ -199,10 +180,8 @@ export function recordPushSkipped() {
 
 // ── 呼び出し口 ──────────────────────────────────────────────
 
-const SHEET_ID = 'push-setup-modal';
-
 /**
- * 端末の状態に応じて必要な案内だけをシートで出す。
+ * 端末の状態に応じて必要な案内だけをモーダルで出す（welcomeTourModal.js の openPushSetupTour）。
  * HOME のバナーと、アカウント作成の完了直後から呼ぶ。
  *
  * 分岐（pushSetupPhase）:
@@ -225,36 +204,9 @@ export async function startPushSetupFlow({ source = 'unknown', silent = false } 
   if (silent && (phase === 'done' || phase === 'unsupported')) return;
 
   logEvent('push_setup_started', { source, phase });
-
-  const advanceable = phase === 'install' && !isIOS();   // Android 等は続けて通知へ
-  const overlay = _sheet(SHEET_ID, `
-    <div data-psm-body>${pushSetupContentHtml(phase)}</div>
-    <button data-psm="later" class="p-push-setup__later">
-      ${(phase === 'done' || phase === 'unsupported') ? '閉じる' : 'あとで'}
-    </button>
-  `);
-
-  const body = overlay.querySelector('[data-psm-body]');
-  const finish = () => { _close(SHEET_ID); state.render(); };
-
-  const goNotify = () => {
-    body.innerHTML = pushSetupContentHtml('notify');
-    bindPushSetupContent(body, { phase: 'notify', onAdvance: finish });
-  };
-
-  bindPushSetupContent(body, {
-    phase,
-    onAdvance: () => {
-      if (advanceable) { goNotify(); return; }
-      finish();
-    },
-  });
-
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) finish(); });
-  overlay.querySelector('[data-psm="later"]').onclick = () => {
-    if (phase !== 'done' && phase !== 'unsupported') recordPushSkipped();
-    finish();
-  };
+  // ★2026-10-12：下からせり上がるシート（p-push-setup__sheet）をやめ、④⑤と同じ見た目のモーダルにした
+  //   （1枚目＝ホームに置いておこう →「次へ」→ 2枚目＝通知をオンにする）。本体は welcomeTourModal.js
+  openPushSetupTour({ source, phase });
 }
 
 /** いま HOME に通知バナーを出すべきか（同期判定用のキャッシュを見る） */

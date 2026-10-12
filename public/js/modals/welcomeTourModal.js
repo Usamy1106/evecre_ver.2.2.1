@@ -15,7 +15,8 @@
 import { state } from '../state.js';
 import { WELCOME_TOUR } from '../welcomeTour.js';
 import { isStandalone, isIOS, isSmallScreen, canPromptInstall, promptInstall } from '../push.js';
-import { startPushSetupFlow } from './pushSetupModal.js';
+import { startPushSetupFlow, bindPushSetupContent, recordPushSkipped } from './pushSetupModal.js';
+import { getPushState } from '../push.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
 import { logEvent } from '../logger.js';
 
@@ -74,7 +75,7 @@ export function openWelcomeTour() {
   if (document.getElementById(WELCOME_TOUR_ID)) return;
   const overlay = document.createElement('div');
   overlay.id = WELCOME_TOUR_ID;
-  overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
+  overlay.className = 'c-overlay c-overlay--center c-overlay--snug c-overlay--blur c-overlay--auto';
   document.body.appendChild(overlay);
   logEvent('welcome_tour_shown');
   _showPage(overlay, 0);
@@ -124,31 +125,7 @@ function _showPage(overlay, idx) {
 function _showHomeAdd(overlay, variant) {
   const d = WELCOME_TOUR.homeAdd[variant];
   logEvent('home_add_prompt_shown', { variant });
-  let extra = '';
-  if (variant === 'android') {
-    extra = `
-      <ul class="p-welcome-tour__benefits">
-        ${d.benefits.map(b => `
-          <li class="p-welcome-tour__benefit">
-            ${_img(b.icon, 'p-welcome-tour__benefit-icon')}
-            <span class="p-welcome-tour__benefit-label">${_lines(b.label)}</span>
-          </li>`).join('')}
-      </ul>
-      <p class="p-welcome-tour__note u-hidden" data-welcome-fallback>${_esc(d.fallback)}</p>`;
-  } else {
-    extra = `
-      <div class="p-welcome-tour__howto">
-        <p class="p-welcome-tour__howto-title">${_esc(d.stepsTitle)}</p>
-        <ol class="p-welcome-tour__steps">
-          ${d.steps.map((st, i) => `
-            <li class="p-welcome-tour__step">
-              ${_img(st.art, 'p-welcome-tour__step-image')}
-              <span class="p-welcome-tour__step-num">STEP ${i + 1}</span>
-              <span class="p-welcome-tour__step-label">${_esc(st.label)}</span>
-            </li>`).join('')}
-        </ol>
-      </div>`;
-  }
+  const extra = _homeAddExtra(variant);
   overlay.innerHTML = _frame({
     id: d.id, art: d.art, title: d.title, body: d.body, extra,
     footer: `
@@ -182,10 +159,135 @@ function _showHomeAdd(overlay, variant) {
   };
 }
 
+/** ④⑤の補足（Android＝メリット4つ／iPhone＝操作の写真3枚を3列で）。通知のモーダルの1枚目でも使う */
+function _homeAddExtra(variant) {
+  const d = WELCOME_TOUR.homeAdd[variant];
+  let extra = '';
+  if (variant === 'android') {
+    extra = `
+      <ul class="p-welcome-tour__benefits">
+        ${d.benefits.map(b => `
+          <li class="p-welcome-tour__benefit">
+            ${_img(b.icon, 'p-welcome-tour__benefit-icon')}
+            <span class="p-welcome-tour__benefit-label">${_lines(b.label)}</span>
+          </li>`).join('')}
+      </ul>
+      <p class="p-welcome-tour__note u-hidden" data-welcome-fallback>${_esc(d.fallback)}</p>`;
+  } else {
+    extra = `
+      <div class="p-welcome-tour__howto">
+        <p class="p-welcome-tour__howto-title">${_esc(d.stepsTitle)}</p>
+        <ol class="p-welcome-tour__steps">
+          ${d.steps.map((st, i) => `
+            <li class="p-welcome-tour__step">
+              ${_img(st.art, 'p-welcome-tour__step-image')}
+              <span class="p-welcome-tour__step-num">STEP ${i + 1}</span>
+              <span class="p-welcome-tour__step-label">${_esc(st.label)}</span>
+            </li>`).join('')}
+        </ol>
+      </div>`;
+  }
+  return extra;
+}
+
 function _finish(overlay, reason) {
   const uid = state.currentUser?.id;
   if (uid) _set(_key(uid), 'done');
   logEvent('welcome_tour_finished', { reason });
   overlay.remove();
   state.render();
+}
+
+// ── 通知のセットアップ（HOME の「通知をオンにしませんか？」のバナーなどから。2026-10-12）──────────
+// 旧・下からせり上がるシート（p-push-setup__sheet）の後継。④⑤と同じ見た目のモーダルで：
+//   1枚目＝ホームに置いておこう（④ Android／⑤ iPhone と同じ中身）→「次へ」
+//   2枚目＝通知をオンにする（ボタンでその場で許可を求める）
+// ★ホーム画面への追加が要らない端末（追加済み・PC など＝ homeAddVariant() が null）は2枚目から
+// ★iPhone / iPad をブラウザのまま開いているときは、通知の許可そのものができない（ホーム画面に追加が必須）。
+//   2枚目ではボタンを出さず、追加したアイコンから開くよう案内する
+// ★通知の許可（enablePush）はボタンの click から同期で呼ぶ（bindPushSetupContent が担う）
+export const PUSH_SETUP_ID = 'push-setup-modal';
+
+/**
+ * @param {{ source?: string, phase: 'install'|'notify'|'done'|'unsupported' }} o
+ */
+export function openPushSetupTour({ source = 'unknown', phase }) {
+  document.getElementById(PUSH_SETUP_ID)?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = PUSH_SETUP_ID;
+  // ★c-overlay--push-setup：アカウントを作った次の回にも自動で出るので、ほかの画面より前に重ねる（旧シートと同じ）
+  overlay.className = 'c-overlay c-overlay--center c-overlay--snug c-overlay--blur c-overlay--auto c-overlay--push-setup';
+  document.body.appendChild(overlay);
+
+  const variant = phase === 'install' ? homeAddVariant() : null;
+  const pages = [...(variant ? ['home'] : []), 'notify'];
+  const close = (reason) => {
+    logEvent('push_setup_closed', { source, reason });
+    overlay.remove();
+    state.render();
+  };
+  const later = () => {
+    if (phase !== 'done' && phase !== 'unsupported') recordPushSkipped();
+    close('later');
+  };
+  const dots = (idx) => pages.length < 2 ? '' : `
+    <div class="p-welcome-tour__dots" role="img" aria-label="${idx + 1} / ${pages.length}">
+      ${pages.map((_, i) => `<span class="p-welcome-tour__dot${i === idx ? ' is-active' : ''}" aria-hidden="true"></span>`).join('')}
+    </div>`;
+
+  const show = (idx) => {
+    const n = WELCOME_TOUR.notify;
+    if (pages[idx] === 'home') {
+      const d = WELCOME_TOUR.homeAdd[variant];
+      overlay.innerHTML = _frame({
+        id: `push-${d.id}`, art: d.art, title: d.title, body: d.body, extra: _homeAddExtra(variant),
+        footer: `
+          ${dots(idx)}
+          <div class="p-welcome-tour__actions">
+            <button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-push-next>${_esc(n.next)}</button>
+            <button type="button" class="p-welcome-tour__later" data-push-later>${_esc(n.later)}</button>
+          </div>`,
+      });
+      overlay.querySelector('[data-push-next]').onclick = () => {
+        logEvent('push_setup_page', { source, page: 2 });
+        show(idx + 1);
+      };
+      overlay.querySelector('[data-push-later]').onclick = later;
+      return;
+    }
+
+    // 2枚目：通知をオンにする
+    const iosBrowser = isIOS() && !isStandalone();
+    const st = getPushState();
+    const msg = phase === 'done' ? n.done
+      : phase === 'unsupported' ? n.unsupported
+      : iosBrowser ? n.iosNotInstalled
+      : st === 'denied' ? n.denied
+      : null;
+    const canEnable = !msg;
+    overlay.innerHTML = _frame({
+      id: 'push-notify', art: n.art, title: n.title, body: msg || n.body,
+      extra: canEnable ? '<p data-psm="error" class="p-welcome-tour__note u-hidden"></p>' : '',
+      footer: `
+        ${dots(idx)}
+        <div class="p-welcome-tour__actions">
+          ${canEnable
+            ? `<button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-psm="enable">${_esc(n.primary)}</button>
+               <button type="button" class="p-welcome-tour__later" data-push-later>${_esc(n.later)}</button>`
+            : `<button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-push-close>${_esc(n.close)}</button>`}
+        </div>`,
+    });
+    overlay.querySelector('[data-push-later]')?.addEventListener('click', later);
+    overlay.querySelector('[data-push-close]')?.addEventListener('click', () => {
+      // ★iPhone のブラウザのままは「あとで」と同じく、追加してから入れる人として記録する
+      if (iosBrowser && phase !== 'done' && phase !== 'unsupported') recordPushSkipped();
+      close('closed');
+    });
+    if (canEnable) {
+      bindPushSetupContent(overlay, { phase: 'notify', onAdvance: () => close('enabled') });
+    }
+  };
+
+  logEvent('push_setup_shown', { source, phase, pages: pages.length });
+  show(0);
 }

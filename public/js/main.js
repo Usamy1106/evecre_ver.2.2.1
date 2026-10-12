@@ -1762,6 +1762,9 @@ const _LOG_LABELS = {
   onboarding_shown:       'オンボーディングを表示',
   onboarding_action:      'オンボーディングのボタンを押した',
   onboarding_page:        'オンボーディングの次のページへ進んだ',
+  push_setup_shown:       '通知のセットアップを開いた',
+  push_setup_page:        '通知のセットアップで次へ進んだ',
+  push_setup_closed:      '通知のセットアップを閉じた',
   onboarding_dismissed:   'オンボーディングを閉じた',
 
   join_form_shown:        '参加申請フォームを表示',

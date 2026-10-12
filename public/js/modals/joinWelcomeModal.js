@@ -69,6 +69,7 @@ function _open(p, userId) {
   overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade" role="dialog" aria-modal="true" aria-labelledby="join-welcome-title">
+      <img src="/images/onboarding/onboarding-welcome.webp" class="c-modal__stage-art" width="1081" height="721" alt="">
       <p class="c-modal__eyebrow">ようこそ</p>
       <h3 id="join-welcome-title" class="c-modal__title c-modal__title--wide">「${_esc(p.name || 'イベント')}」へ<br>ようこそ！</h3>
       ${roles.length ? `

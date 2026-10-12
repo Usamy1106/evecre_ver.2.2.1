@@ -17,7 +17,7 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 384px;
+  max-width: var(--sheet-max-width);   /* ★横幅は大きめ（2026-10-12）。スマホでは画面いっぱい、広い画面ではシートと同じ幅 */
   max-height: 92vh;
   overflow-y: auto;
   padding: var(--space-6) var(--space-4) var(--space-5);
@@ -181,7 +181,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-2);
+  padding: var(--space-1);   /* 3列なので詰めて、操作の写真を大きく見せる */
   border-radius: var(--radius-md);
   background-color: var(--color-bg);
   text-align: center;

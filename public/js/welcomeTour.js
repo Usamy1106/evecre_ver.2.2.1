@@ -79,10 +79,9 @@ export const WELCOME_TOUR = {
       stepsTitle: 'ホーム画面への追加方法',
       // art … 各 STEP の操作説明の画像。空文字なら出さない
       // ★画面の写真は iPhone の Safari のもの（Android 向けの④には出さない）。下に3列で横並び。
-      // ★ファイル名の番号と手順の順番は一致しない（screen2＝共有、screen1＝ホーム画面に追加、screen3＝追加）
       steps: [
-        { art: '/images/onboarding/onboarding-addhome-screen2.webp', label: '共有ボタンをタップ' },
-        { art: '/images/onboarding/onboarding-addhome-screen1.webp', label: '「ホーム画面に追加」を選択' },
+        { art: '/images/onboarding/onboarding-addhome-screen1.webp', label: '共有ボタンをタップ' },
+        { art: '/images/onboarding/onboarding-addhome-screen2.webp', label: '「ホーム画面に追加」を選択' },
         { art: '/images/onboarding/onboarding-addhome-screen3.webp', label: '「追加」をタップ' },
       ],
       primary: 'やり方を確認する',
@@ -90,5 +89,24 @@ export const WELCOME_TOUR = {
       // 「やり方を確認する」で開く説明のページ（動画など）。空文字なら、既存の追加方法の案内（pushSetupModal）を開く
       guideUrl: '',
     },
+  },
+
+  // ── 通知のセットアップ（HOME の「通知をオンにしませんか？」のバナーなどから。2026-10-12）──────────
+  // 1枚目＝上の homeAdd（④⑤）と同じ中身で「次へ」／2枚目＝ここ（その場で通知をオンにする）。
+  // ★すでにホーム画面から開いている・PC など、追加の案内が要らない端末は2枚目から始まる
+  notify: {
+    id: 'notify',
+    art: '/images/onboarding/onboarding-addhome.webp',
+    title: ['通知をオンにしよう'],
+    body: ['担当を割り当てられたときや、', '締め切りが近いときにお知らせします。'],
+    primary: '通知をオンにする',
+    next: '次へ',
+    later: 'あとで',
+    // iPhone / iPad のブラウザのまま（ホーム画面に追加していない）ときは、通知をオンにできない
+    iosNotInstalled: ['ホーム画面に追加したイベクリのアイコンから開くと、', '通知をオンにできます。'],
+    denied: ['通知がブロックされています。', 'ブラウザ（または端末）の設定で、このサイトの通知を「許可」にしてください。'],
+    done: ['通知はオンになっています。', 'アカウント設定からいつでも変更できます。'],
+    unsupported: ['このブラウザは通知に対応していません。', 'Chrome や Safari でお試しください。'],
+    close: '閉じる',
   },
 };

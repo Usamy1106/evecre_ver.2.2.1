@@ -1,28 +1,14 @@
 /* ==========================================================================
    Object / Project / push-setup — 通知セットアップの案内
    使用箇所: public/js/modals/pushSetupModal.js
-     - シート表示（アカウント作成の完了直後 / HOME のバナー）
-     - 開発者からのお知らせへの埋め込み（action: 'push-setup'）
-   ★同じ中身を3箇所から呼ぶ。ここを直せば3箇所とも変わる。
+     - 開発者からのお知らせへの埋め込み（action: 'push-setup'）と HOME のバナー
+     ★2026-10-12：下からせり上がるシート（p-push-setup__sheet）は廃止。HOME のバナーなどからは
+       ④⑤と同じ見た目のモーダル（welcomeTourModal.js の openPushSetupTour。CSS は _welcome-tour.css）を出す
 
    ★本番の利用者は iOS が6割で、iOS はホーム画面に追加しない限り通知が
      一切届かない。追加率がそのまま通知の到達率になるので、手順の文字を
      小さくしたり畳んだりしないこと。
    ========================================================================== */
-
-.p-push-setup__sheet {
-  width: 100%;
-  max-width: 512px;
-  padding: var(--space-5) var(--space-6) var(--space-10);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  background-color: var(--white);
-}
-
-/* つまみは他のシートより小さめ・下の余白は広め（元の値のまま）*/
-.p-push-setup__handle {
-  margin-top: calc(var(--space-2) * -1);
-  padding-bottom: var(--space-4);
-}
 
 .p-push-setup__icon {
   margin-bottom: var(--space-2);
@@ -120,14 +106,6 @@
 
 /* ★「あとで」では通知の許可を求めないこと（一度ブロックされると
    プログラムからは二度と出せない）。目立たない見た目にしてある。 */
-.p-push-setup__later {
-  width: 100%;
-  padding-block: var(--space-3);
-  font-size: 13px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
 /* --- HOME のバナー --------------------------------------------------------
    未購読のときだけ出る。× で閉じると7日間出ない。 */
 
