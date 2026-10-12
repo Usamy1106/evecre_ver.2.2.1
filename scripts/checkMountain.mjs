@@ -1220,6 +1220,20 @@ section('[H] ★生成マニフェストが実ファイルと一致する');
   ok(`1枚あたり ${MAX_KB}KB 以下`, heavy.length === 0,
     heavy.map(a => `${a.f} ${(fs.statSync(path.join(a.dir, a.f)).size / 1024 | 0)}KB`).join(', '));
 
+  // ★草木（WorldSpawnedObjects）は背景が透明であること（2026-10-12）。
+  //   支給の png が白い背景で塗られていて、山の上に白い四角が出た。取り込みは npm run bg:objects
+  //   （白い背景を透明にしてから webp にする）。webp の透明は VP8X の ALPHA フラグ（0x10）か、可逆の VP8L で持つ。
+  //   svg は対象外（背景を描いていなければ透明）
+  const opaquePlants = allEntries.filter(a => a.dir.endsWith('WorldSpawnedObjects') && a.f.endsWith('.webp')).filter(a => {
+    const b = fs.readFileSync(path.join(a.dir, a.f));
+    const chunk = b.toString('ascii', 12, 16);
+    if (chunk === 'VP8X') return (b[20] & 0x10) === 0;
+    if (chunk === 'VP8L') return ((b[24] >> 4) & 1) === 0;   // VP8L ヘッダの alpha_is_used ビット
+    return true;   // VP8（非可逆・透明なし）
+  });
+  ok('★草木（WorldSpawnedObjects）の webp が透明の情報を持っている（白い背景のまま入れていない）',
+    opaquePlants.length === 0, opaquePlants.map(a => a.f).join(', '));
+
   // ★幅そのものは自由（書き出し解像度は問わない）。効くのは**縦横比**だけ。
   //   正規化後の高さが設計上の3種（1481 / 1781 / 2241）から外れていたら、
   //   縦横比を変えて書き出している＝重ねしろの前提が崩れる。
