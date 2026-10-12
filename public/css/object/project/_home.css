@@ -94,21 +94,9 @@
 
 /* ★エンプティーステート画像は後日支給予定。それまではプレースホルダー */
 .p-home__empty-art {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 128px;
-  height: 128px;
-  border-radius: var(--radius-full);
-  background-color: var(--button-secondary);
-}
-
-.p-home__empty-art-inner {
-  width: 80px;
-  height: 80px;
-  border-radius: var(--radius-lg);
-  background-color: var(--color-border);
-  opacity: .5;
+  width: 100%;
+  max-width: 280px;
+  height: auto;   /* ★素材（emptystate-home.webp）の縦横比のまま。背景は透明なので地を敷かない */
 }
 
 .p-home__empty-icon {

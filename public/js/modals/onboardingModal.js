@@ -8,6 +8,7 @@
 import { state } from '../state.js';
 import { logEvent } from '../logger.js';
 import { openInviteIssueModal } from './inviteIssueModal.js';
+import { Components } from '../components.js';
 
 const OVERLAY_ID = 'onboarding-overlay';
 
@@ -24,7 +25,8 @@ function _esc(s) {
  * @param {string} o.density
  * @param {string} [o.eyebrow] 小見出し
  * @param {string} o.title     見出し（<br> 可・自前の文言なので raw で入れる）
- * @param {Array<[string,string]>} [o.steps] 5ステップ等の箇条
+ * @param {Array<[string,string,string?]>} [o.steps] 5ステップ等の箇条。3つ目は画像のパス（任意）。
+ *        ★画像のある手順は**1枚ずつめくる形**で出す（初期オンボーディング①と同じ見た目。M1・L1。2026-10-12）
  * @param {string} [o.body]    本文
  * @param {string} o.primary   主ボタンの文言
  * @param {string} [o.action]  主ボタンの動作（'openMissionModal' など。省略で閉じるだけ）
@@ -53,7 +55,32 @@ export function openOnboardingModal(o) {
       </div>
     </div>`).join('');
 
-  overlay.innerHTML = `
+  // ★画像のある手順は1枚ずつめくる（並べると画像が小さくなって見えないため）
+  const paged = (o.steps || []).some(st => st[2]);
+  let page = 0;
+  const pagedHtml = () => {
+    const [label, desc, art] = o.steps[page];
+    const isLast = page === o.steps.length - 1;
+    return `
+    <div class="c-modal u-animate-fade">
+      ${o.eyebrow ? `<p class="c-modal__eyebrow">${_esc(o.eyebrow)}</p>` : ''}
+      <!-- ★title は _esc しないこと（下の通常表示と同じ理由。<br> を含む）-->
+      <h3 class="c-modal__title c-modal__title--wide">${o.title}</h3>
+      <div class="c-modal__stage">
+        ${art ? `<img src="${_esc(art)}" class="c-modal__stage-art" width="765" height="601" alt="">` : ''}
+        <span class="c-modal__stage-num">${page + 1}</span>
+        <p class="c-modal__stage-title">${_esc(label)}</p>
+        <p class="c-modal__stage-text">${_esc(desc)}</p>
+      </div>
+      ${Components.StepIndicator(page + 1, o.steps.length)}
+      ${isLast && o.body ? `<p class="c-modal__lead">${_esc(o.body)}</p>` : ''}
+      <button type="button" data-ob="${isLast ? 'primary' : 'next'}" class="c-button c-button--primary c-modal__button c-modal__button--roomy">${_esc(isLast ? o.primary : '次へ')}</button>
+      ${o.dismissible === false ? '' : '<button type="button" data-ob="close" class="c-modal__button--quiet">あとで</button>'}
+    </div>`;
+  };
+
+  if (paged) overlay.innerHTML = pagedHtml();
+  else overlay.innerHTML = `
     <div class="c-modal c-modal--scroll u-animate-fade">
       ${o.emoji ? `<p class="c-modal__emoji">${o.emoji}</p>` : ''}
       ${o.eyebrow ? `<p class="c-modal__eyebrow">${_esc(o.eyebrow)}</p>` : ''}
@@ -87,13 +114,23 @@ export function openOnboardingModal(o) {
     _afterClose();
   }
 
-  overlay.querySelector('[data-ob="close"]')?.addEventListener('click', _dismiss);
-  overlay.querySelector('[data-ob="primary"]').onclick = () => {
-    logEvent('onboarding_action', { stepId: o.stepId });
-    overlay.remove();
-    if (o.action) _runAction(o.action, o.actionArg);
-    else _afterClose();
+  const bind = () => {
+    overlay.querySelector('[data-ob="close"]')?.addEventListener('click', _dismiss);
+    overlay.querySelector('[data-ob="next"]')?.addEventListener('click', () => {
+      page++;
+      logEvent('onboarding_page', { stepId: o.stepId, page: page + 1 });
+      overlay.innerHTML = pagedHtml();
+      bind();
+    });
+    const primary = overlay.querySelector('[data-ob="primary"]');
+    if (primary) primary.onclick = () => {
+      logEvent('onboarding_action', { stepId: o.stepId });
+      overlay.remove();
+      if (o.action) _runAction(o.action, o.actionArg);
+      else _afterClose();
+    };
   };
+  bind();
 }
 
 /** 主ボタンの動作。増えたらここに1行足す（モーダル側に処理を書かない） */

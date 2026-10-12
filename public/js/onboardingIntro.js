@@ -248,11 +248,11 @@ export function checkIntro() {
 //   招待・役割を決めるのはイベントを作った人の仕事なので（2026-10-12）。L1 も同じ
 export const USAGE_OWNER_ONLY = 2;
 const USAGE_PAGES = [
-  { title: 'メンバーを招待しよう',     body: '一緒にイベントをつくる仲間を招待して、準備を始めよう。' },
-  { title: '役割を決めよう',           body: 'メンバーそれぞれの役割を決めて、得意なことを活かそう。' },
-  { title: 'やることリストを作ろう',   body: '開催までの予定を立て、必要なタスクをメンバーに割り当てよう。' },
-  { title: '進捗をチェックしよう',     body: 'タスクの進み具合やメンバーからの提出を確認しよう。' },
-  { title: '振り返りを残そう',         body: 'できたことや反省点を記録して、次のイベントに活かそう。' },
+  { title: 'メンバーを招待しよう',     body: '一緒にイベントをつくる仲間を招待して、準備を始めよう。',       art: '/images/onboarding/onboarding-invite.webp' },
+  { title: '役割を決めよう',           body: 'メンバーそれぞれの役割を決めて、得意なことを活かそう。',       art: '/images/onboarding/onboarding-role.webp' },
+  { title: 'やることリストを作ろう',   body: '開催までの予定を立て、必要なタスクをメンバーに割り当てよう。', art: '/images/onboarding/onboarding-plan.webp' },
+  { title: '進捗をチェックしよう',     body: 'タスクの進み具合やメンバーからの提出を確認しよう。',           art: '/images/onboarding/onboarding-check.webp' },
+  { title: '振り返りを残そう',         body: 'できたことや反省点を記録して、次のイベントに活かそう。',       art: '/images/onboarding/onboarding-review.webp' },
 ];
 
 export function showUsageModal() {
@@ -282,6 +282,7 @@ export function showUsageModal() {
       <div class="c-modal u-animate-fade">
         <p class="c-modal__eyebrow">イベントづくりの進め方</p>
         <div class="c-modal__stage">
+          ${pages[page].art ? `<img src="${pages[page].art}" class="c-modal__stage-art" width="765" height="601" alt="">` : ''}
           <span class="c-modal__stage-num">${page + 1}</span>
           <p class="c-modal__stage-title">${pages[page].title}</p>
           <p class="c-modal__stage-text">${pages[page].body}</p>

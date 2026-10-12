@@ -2187,6 +2187,13 @@ body {
   text-align: center;
 }
 
+/* 段階のイラスト（初期オンボーディング①・M1・L1。背景は透明の webp）*/
+.c-modal__stage-art {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+}
+
 /* 見出しの下の説明（初期オンボーディング①）*/
 .c-modal__stage-text {
   margin-top: calc(var(--space-2) * -1);   /* 見出しとは近づける（stage の gap より詰める）*/
@@ -9758,6 +9765,11 @@ body {
   object-fit: contain;
 }
 
+/* 画像が入ったら地を敷かない（素材の背景は透明。地の色が四角く見えないように）*/
+.p-welcome-tour__art:has(.p-welcome-tour__art-image) {
+  background-color: transparent;
+}
+
 .p-welcome-tour__title {
   margin-top: var(--space-5);
   color: var(--color-text);
@@ -9873,25 +9885,25 @@ body {
 }
 
 .p-welcome-tour__steps {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));   /* 操作の写真を下に3列で横並び（2026-10-12）*/
   gap: var(--space-2);
   margin-top: var(--space-3);
 }
 
 .p-welcome-tour__step {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-3);
+  gap: var(--space-1);
+  padding: var(--space-2);
   border-radius: var(--radius-md);
   background-color: var(--color-bg);
+  text-align: center;
 }
 
-/* 操作説明の画像。★STEP の上に置く（行いっぱい） */
+/* 操作説明の画像。★STEP の番号と文言の上に置く */
 .p-welcome-tour__step-image {
-  flex-basis: 100%;
   width: 100%;
   border-radius: var(--radius-sm);
 }
@@ -9904,8 +9916,9 @@ body {
 
 .p-welcome-tour__step-label {
   color: var(--color-text);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-xs);   /* 3列に並べるので小さめ */
   font-weight: var(--font-weight-bold);
+  line-height: 1.4;
 }
 
 /* --- ④⑤：メインボタンと「あとで」------------------------------------------------ */
@@ -15269,21 +15282,9 @@ body {
 
 /* ★エンプティーステート画像は後日支給予定。それまではプレースホルダー */
 .p-home__empty-art {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 128px;
-  height: 128px;
-  border-radius: var(--radius-full);
-  background-color: var(--button-secondary);
-}
-
-.p-home__empty-art-inner {
-  width: 80px;
-  height: 80px;
-  border-radius: var(--radius-lg);
-  background-color: var(--color-border);
-  opacity: .5;
+  width: 100%;
+  max-width: 280px;
+  height: auto;   /* ★素材（emptystate-home.webp）の縦横比のまま。背景は透明なので地を敷かない */
 }
 
 .p-home__empty-icon {

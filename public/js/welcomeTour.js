@@ -19,7 +19,7 @@ export const WELCOME_TOUR = {
     // 2026-10-12 に文面を差し替え（①仲間と一緒に／②提案／③振り返り）
     {
       id: 'team',
-      art: '',
+      art: '/images/onboarding/onboarding-together.webp',
       title: ['仲間と一緒に', 'ミッションを進めよう'],
       body: [
         '役割を分担し、やることを共有。',
@@ -29,7 +29,7 @@ export const WELCOME_TOUR = {
     },
     {
       id: 'proposal',
-      art: '',
+      art: '/images/onboarding/onboarding-suggests.webp',
       title: ['提案を活用しよう'],
       body: [
         '活動に合わせたアイデアや',
@@ -39,7 +39,7 @@ export const WELCOME_TOUR = {
     },
     {
       id: 'reflect',
-      art: '',
+      art: '/images/onboarding/onboarding-inheriting.webp',
       title: ['振り返りを、', '次のイベントに活かそう'],
       body: [
         'できたことや気づきを記録して、',
@@ -55,7 +55,7 @@ export const WELCOME_TOUR = {
     // Android / Chrome など、ブラウザからインストールの確認を出せる環境
     android: {
       id: 'home-android',
-      art: '',
+      art: '/images/onboarding/onboarding-addhome.webp',
       title: ['イベクリをホームに置いておこう'],
       body: ['ホーム画面に追加すると、', 'タスクやお知らせを', 'すぐにチェックできます。'],
       // メリット（横並び4つ）。icon は空文字なら出さない
@@ -73,15 +73,17 @@ export const WELCOME_TOUR = {
     // iPhone / Safari。ブラウザから直接追加できないので、手順を案内する
     ios: {
       id: 'home-ios',
-      art: '',
+      art: '/images/onboarding/onboarding-addhome.webp',
       title: ['イベクリをホームに置いておこう'],
       body: ['ホーム画面に追加すると、', 'タスクの通知や開催までの進み具合を', 'すぐにチェックできます。'],
       stepsTitle: 'ホーム画面への追加方法',
       // art … 各 STEP の操作説明の画像。空文字なら出さない
+      // ★画面の写真は iPhone の Safari のもの（Android 向けの④には出さない）。下に3列で横並び。
+      // ★ファイル名の番号と手順の順番は一致しない（screen2＝共有、screen1＝ホーム画面に追加、screen3＝追加）
       steps: [
-        { art: '', label: '共有ボタンをタップ' },
-        { art: '', label: '「ホーム画面に追加」を選択' },
-        { art: '', label: '「追加」をタップ' },
+        { art: '/images/onboarding/onboarding-addhome-screen2.webp', label: '共有ボタンをタップ' },
+        { art: '/images/onboarding/onboarding-addhome-screen1.webp', label: '「ホーム画面に追加」を選択' },
+        { art: '/images/onboarding/onboarding-addhome-screen3.webp', label: '「追加」をタップ' },
       ],
       primary: 'やり方を確認する',
       later: 'あとで',

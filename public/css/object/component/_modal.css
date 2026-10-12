@@ -239,6 +239,13 @@
   text-align: center;
 }
 
+/* 段階のイラスト（初期オンボーディング①・M1・L1。背景は透明の webp）*/
+.c-modal__stage-art {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+}
+
 /* 見出しの下の説明（初期オンボーディング①）*/
 .c-modal__stage-text {
   margin-top: calc(var(--space-2) * -1);   /* 見出しとは近づける（stage の gap より詰める）*/

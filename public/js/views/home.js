@@ -163,10 +163,7 @@ function _renderEventsTab() {
 
   if (isEmpty) return `
     <div class="p-home__empty">
-      <!-- エンプティーステート画像は後日支給予定。それまではプレースホルダー正方形 -->
-      <div class="p-home__empty-art">
-        <div class="p-home__empty-art-inner"></div>
-      </div>
+      <img src="/images/emptystate/emptystate-home.webp" class="p-home__empty-art" width="881" height="468" alt="">
       <div>
         <p class="p-home__empty-title">イベントを始めよう</p>
         <p class="p-home__empty-text">新しいイベントを作成するか<br>招待コードで参加しましょう</p>
@@ -206,9 +203,7 @@ function _renderProjectsTab() {
   if (folders.length === 0) return `
     <div class="p-home__empty p-home__empty--folders">
       <div class="p-home__empty-icon">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
+        <img src="/images/icon/icon-archive-default.svg" width="36" height="36" alt="">
       </div>
       <p class="p-home__empty-title">プロジェクトを作ろう</p>
       <p class="p-home__empty-text p-home__empty-text--tight">複数のイベントを1つにまとめて<br>管理できます</p>
