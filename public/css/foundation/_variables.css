@@ -12,7 +12,7 @@
        ここだけ変えると画面内で色が食い違う。
        検出コマンド： grep -rniE '#(f9b900|22ac38|009fe5)' public lib
        ★2026-10-13 に青 #209DDB → #009fe5、黄 #F5B600 → #f9b900 へ変更（JS の直書きと警告の黄の派生色も追従）。
-         キャラクター・マスの SVG（public/images/character・front/tile-image.svg）は素材なので旧色のまま
+         キャラクター・マスの SVG（public/images/character・front/tile-image.svg）も同じ日に新しい色へ置き換えた
        ★rgba() の派生色（--color-primary-* / --color-success-* / --color-warning-*）と
        ライム前提だった緑の派生色も同時に追従させること（2026-08-25 に実施済み）。 */
   --create-yellow: #f9b900;

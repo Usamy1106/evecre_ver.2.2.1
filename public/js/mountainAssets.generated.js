@@ -105,9 +105,9 @@ export const BG_ASSETS = {
     WorldSpawnedObjects: [
       {"n":"1","w":993,"h":873,"f":"windy-meadow-1.webp","v":"7bec68af"},
       {"n":"2","w":710,"h":873,"f":"windy-meadow-2.webp","v":"fa54baf4"},
-      {"n":"3","w":450,"h":871,"f":"windy-meadow-3.webp","v":"16686a26"},
-      {"n":"4","w":450,"h":871,"f":"windy-meadow-4.webp","v":"630a7fa5"},
-      {"n":"5","w":451,"h":871,"f":"windy-meadow-5.webp","v":"fa27d6d0"},
+      {"n":"3","w":450,"h":871,"f":"windy-meadow-3.webp","v":"106ab479"},
+      {"n":"4","w":450,"h":871,"f":"windy-meadow-4.webp","v":"88b37431"},
+      {"n":"5","w":451,"h":871,"f":"windy-meadow-5.webp","v":"32b99a72"},
     ],
     phenomenon: [],
   },

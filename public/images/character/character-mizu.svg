@@ -7,11 +7,11 @@
       }
 
       .cls-2 {
-        fill: #f5b600;
+        fill: #f9b900;
       }
 
       .cls-3 {
-        fill: #209ddb;
+        fill: #009fe5;
         filter: url(#drop-shadow-1);
       }
     </style>
