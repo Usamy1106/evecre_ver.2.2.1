@@ -2,7 +2,7 @@
 import { state } from '../state.js';
 import { Components } from '../components.js';
 import { bindEventLongPress, bindFolderLongPress } from '../modals/eventActions.js';
-import { pushBannerHtml, bindPushBanner } from '../modals/pushSetupModal.js';
+import { homeAddBannerHtml, bindHomeAddBanner } from '../modals/pushSetupModal.js';
 import { pickCharacterTip, characterTipHtml } from '../character.js';
 
 /**
@@ -28,7 +28,7 @@ export function renderHome(container) {
       <!-- 通知が未設定の人へのバナー（閉じると7日間は出ない）。
            iOS は6割を占め、ホーム画面に追加しないと通知が届かないため、
            HOME から辿り直せる導線を常設している -->
-      <div class="p-home__notice">${pushBannerHtml()}</div>
+      <div class="p-home__notice">${homeAddBannerHtml()}</div>
       ${state.pendingApprovalMessage ? _pendingApprovalCard() : ''}
       ${_incomingRequestsCard()}
       <nav class="p-home__tabs">
@@ -46,7 +46,7 @@ export function renderHome(container) {
       ${showTip ? characterTipHtml(state.homeTip) : ''}
     </div>`;
 
-  bindPushBanner();
+  bindHomeAddBanner();
 
   bindEventLongPress();
   bindFolderLongPress();

@@ -17,7 +17,7 @@
        ここだけ変えると画面内で色が食い違う。
        検出コマンド： grep -rniE '#(f9b900|22ac38|009fe5)' public lib
        ★2026-10-13 に青 #209DDB → #009fe5、黄 #F5B600 → #f9b900 へ変更（JS の直書きと警告の黄の派生色も追従）。
-         キャラクター・マスの SVG（public/images/character・front/tile-image.svg）は素材なので旧色のまま
+         キャラクター・マスの SVG（public/images/character・front/tile-image.svg）も同じ日に新しい色へ置き換えた
        ★rgba() の派生色（--color-primary-* / --color-success-* / --color-warning-*）と
        ライム前提だった緑の派生色も同時に追従させること（2026-08-25 に実施済み）。 */
   --create-yellow: #f9b900;
@@ -1585,7 +1585,7 @@ body {
 /* ===== object/component/_icon.css ===== */
 /* ==========================================================================
    Object / Component / icon — 素材の SVG を文字の色で塗るアイコン
-   使用箇所: 予定をコピー（アーカイブ・スケジュールシート・広い画面の右列）／開催日を編集／アーカイブの「編集する」／通知をオンにしませんか？のバナー
+   使用箇所: 予定をコピー（アーカイブ・スケジュールシート・広い画面の右列）／開催日を編集／アーカイブの「編集する」／「イベクリをホームに置こう」のバナー／柱の進み具合の編集（ペン）
 
    ★<img> で置くと SVG に書かれた色（#484545）のままで、ボタンの文字の色に追従しない。
      素材を CSS の mask で型抜きし、background-color: currentColor で塗る
@@ -2106,12 +2106,6 @@ body {
   text-align: left;
 }
 
-.c-modal__quote--bordered {
-  margin-bottom: 28px;
-  padding: var(--space-5);
-  border: 1px solid var(--bg-textbox);
-}
-
 .c-modal__quote-label {
   margin-bottom: var(--space-1);
   font-size: 10px;
@@ -2239,11 +2233,6 @@ body {
 
 .c-modal__steps {
   margin-bottom: var(--space-5);
-}
-
-/* 下にボタンが続くときはもう少し離す */
-.c-modal__steps--roomy {
-  margin-bottom: var(--space-6);
 }
 
 .c-modal__steps > * + * {
@@ -2491,13 +2480,6 @@ body {
   height: 6px;
   border-radius: var(--radius-full);
   background-color: var(--bg-textbox);
-}
-
-/* 小さめのつまみ（通知セットアップ）。意図的な差には見えないが、
-   このフェーズは見た目を変えない方針なので元の値のまま残してある。 */
-.c-sheet__grip--sm {
-  width: 40px;
-  height: 4px;
 }
 
 /* ===== object/component/_dialog.css ===== */
@@ -3684,18 +3666,6 @@ body {
 /* 数件で収まることが多い一覧（承認待ち）は中身なりに伸ばし、上限だけ決める */
 .c-list-sheet--capped { max-height: 70vh; }
 
-/* 見出しと一覧を分けずに、シート全体をそのままスクロールさせるタイプ */
-.c-list-sheet--scroll {
-  max-height: 80vh;
-  padding: var(--space-6);
-  overflow-y: auto;
-}
-
-/* 入力欄だけを置くタイプ（提案の送信）*/
-.c-list-sheet--form {
-  padding: var(--space-6);
-}
-
 .c-list-sheet__head {
   flex-shrink: 0;
   padding: var(--space-5) var(--space-6) var(--space-4);
@@ -3712,14 +3682,6 @@ body {
   margin: 0 auto var(--space-5);
   border-radius: var(--radius-full);
   background-color: var(--bg-textbox);
-}
-
-/* --scroll / --form のときは見出しの上に置くだけのつまみ */
-.c-list-sheet__handle {
-  display: flex;
-  justify-content: center;
-  padding-top: var(--space-1);
-  padding-bottom: var(--space-4);
 }
 
 .c-list-sheet__title {
@@ -3746,10 +3708,6 @@ body {
   text-align: center;
 }
 
-.c-list-sheet__empty--tight {
-  padding-block: var(--space-4);
-}
-
 /* --- 1件ぶんのカード ------------------------------------------------------ */
 
 .c-list-sheet__card {
@@ -3758,24 +3716,6 @@ body {
   border: 1px solid var(--bg-textbox);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg);
-}
-
-.c-list-sheet__card-meta {
-  margin-bottom: var(--space-1);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.c-list-sheet__card-title {
-  margin-bottom: var(--space-2);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-.c-list-sheet__card-title--roomy {
-  margin-bottom: var(--space-3);
 }
 
 /* ===== object/component/_file-card.css ===== */
@@ -4939,19 +4879,6 @@ body {
    キャラクター（会議している／寝ている）で埋める（_character.css）。 */
 
 /* --- ミッション一覧 ------------------------------------------------------ */
-
-.p-main-board__section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-}
-
-.p-main-board__section-title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-}
 
 /* ★margin-left:auto は「ラベルが1つ以下でチップを出さない」ときに効く。
    チップがあるときは .p-main-board__tag-filter の flex:1 が押し出す。 */
@@ -7022,10 +6949,6 @@ body {
   text-align: center;
 }
 
-.p-signup__lead--relaxed {
-  line-height: 1.625;
-}
-
 .p-signup__note {
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-heavy);
@@ -7082,14 +7005,6 @@ body {
 
 .p-signup__text-button--spaced {
   margin-bottom: var(--space-8);
-}
-
-.p-signup__skip {
-  width: 100%;
-  padding-block: var(--space-2);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
 }
 
 .p-signup__footer {
@@ -8569,15 +8484,6 @@ body {
   color: var(--color-primary);
 }
 
-.p-invite__later {
-  width: 100%;
-  margin-top: var(--space-2);
-  padding-block: var(--space-3);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
 .p-invite__close {
   width: 100%;
   padding-block: var(--space-3);
@@ -9637,16 +9543,16 @@ body {
 /* ==========================================================================
    Object / Project / push-setup — 通知セットアップの案内
    使用箇所: public/js/modals/pushSetupModal.js
-     - 開発者からのお知らせへの埋め込み（action: 'push-setup'）と HOME のバナー
-     ★2026-10-12：下からせり上がるシート（p-push-setup__sheet）は廃止。HOME のバナーなどからは
-       ④⑤と同じ見た目のモーダル（welcomeTourModal.js の openPushSetupTour。CSS は _welcome-tour.css）を出す
+     - 開発者からのお知らせへの埋め込み（action: 'push-setup'）と HOME のバナー「イベクリをホームに置こう」
+     ★2026-10-12：下からせり上がるシート（p-push-setup__sheet）は廃止。モーダルは _welcome-tour.css
+     ★2026-10-13：HOME のバナーは通知ではなく「イベクリをホームに置こう」（クラス名 p-push-banner は据え置き）
 
    ★本番の利用者は iOS が6割で、iOS はホーム画面に追加しない限り通知が
      一切届かない。追加率がそのまま通知の到達率になるので、手順の文字を
      小さくしたり畳んだりしないこと。
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
-     public/js/modals/pushSetupModal.js … pushBannerHtml / pushSetupContentHtml
+     public/js/modals/pushSetupModal.js … homeAddBannerHtml / pushSetupContentHtml
    ========================================================================== */
 
 .p-push-setup__icon {
@@ -9745,8 +9651,8 @@ body {
 
 /* ★「あとで」では通知の許可を求めないこと（一度ブロックされると
    プログラムからは二度と出せない）。目立たない見た目にしてある。 */
-/* --- HOME のバナー --------------------------------------------------------
-   未購読のときだけ出る。× で閉じると7日間出ない。 */
+/* --- HOME のバナー「イベクリをホームに置こう」------------------------------
+   ホーム画面に追加できる端末で、まだホーム画面から開いていないときだけ出る。× で閉じると7日間出ない。 */
 
 .p-push-banner {
   display: flex;
@@ -9765,7 +9671,7 @@ body {
   color: var(--color-primary);
 }
 
-/* ベルは文字と同じ緑で塗る（c-icon）。塗りは素材の fill-opacity で薄く、線は濃く（icon-notification-tint.svg） */
+/* ホームのアイコンは文字と同じ緑で塗る（c-icon。icon-home-default.svg） */
 .p-push-banner__icon-image {
   width: 20px;
   height: 20px;
@@ -11426,29 +11332,6 @@ body {
   accent-color: var(--color-primary);
 }
 
-.p-assignee__applicant-avatar {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: var(--radius-full);
-  object-fit: cover;
-}
-
-/* 画像が無い人は頭文字を丸で出す */
-.p-assignee__applicant-initial {
-  display: flex;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
-  background-color: var(--color-primary-tint);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
-}
-
 .p-assignee__applicant-body {
   min-width: 0;
   flex: 1;
@@ -11755,20 +11638,6 @@ body {
   min-width: 0;
   align-items: center;
   gap: var(--space-3);
-}
-
-.p-member-manage__avatar {
-  display: flex;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
-  background-color: var(--color-primary);
-  font-size: 13px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-inverse);
 }
 
 .p-member-manage__username {
@@ -12768,105 +12637,6 @@ body {
 .p-mission-detail__send:active {
   transform: scale(.95);
 }
-
-/* --- 振り返り（任意入力）--------------------------------------------------
-   使用箇所: public/js/views/missionDetail.js（_renderReflectionInput / _reflectionHtml）
-
-   ★既定で畳んでおく。完了フローの主動線は「入力 → 完了する」で、ここを開かなくても
-     完了できる。必須にすると完了率が落ちるため、開かせる圧をかけないこと。
-   ★<details>/<summary> の素の見た目に頼らず、開閉の三角は自前で描いている
-     （ブラウザごとに位置と大きさが違うため）。 */
-
-.p-mission-detail__reflect {
-  margin-top: var(--space-4);
-  border: 1px solid var(--bg-textbox);
-  border-radius: var(--radius-md);
-  background-color: var(--color-bg);
-}
-
-.p-mission-detail__reflect-summary {
-  display: flex;
-  align-items: center;
-  padding: var(--space-3) var(--space-4);
-  gap: var(--space-2);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-  /* 既定の三角を消して自前のものに差し替える */
-  list-style: none;
-}
-
-.p-mission-detail__reflect-summary::-webkit-details-marker {
-  display: none;
-}
-
-/* 自前の開閉マーク。閉じているときは右向き、開いたら下向き */
-.p-mission-detail__reflect-summary::before {
-  content: '';
-  width: 0;
-  height: 0;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  border-left: 6px solid var(--color-text-muted);
-  transition: transform var(--duration-fast) var(--ease);
-}
-
-.p-mission-detail__reflect[open] .p-mission-detail__reflect-summary::before {
-  transform: rotate(90deg);
-}
-
-/* 「あとで引き継ぎに使えます」。書く理由を添えておく */
-.p-mission-detail__reflect-note {
-  margin-left: auto;
-  font-size: 10px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.p-mission-detail__reflect-label {
-  display: block;
-  padding: 0 var(--space-4);
-  margin-bottom: var(--space-1);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.p-mission-detail__reflect-input {
-  display: block;
-  width: calc(100% - var(--space-4) * 2);
-  margin: 0 var(--space-4) var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border: none;
-  /* ★16px 未満にしないこと。iOS Safari がタップ時に自動ズームし、
-     戻す手段が無いのでユーザビリティが落ちる（実際に指摘を受けた）。 */
-  font-size: var(--font-size-lg);
-  resize: none;
-}
-
-.p-mission-detail__reflect-input:focus {
-  outline: none;
-}
-
-.p-mission-detail__reflect-share {
-  display: flex;
-  align-items: center;
-  padding: 0 var(--space-4) var(--space-4);
-  gap: var(--space-2);
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-.p-mission-detail__reflect-check {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  accent-color: var(--color-primary);
-}
-
 /* --- 振り返りの読み取り表示 ----------------------------------------------- */
 
 .p-mission-detail__reflect-view {
@@ -13764,108 +13534,84 @@ body {
      スマホ: 上部固定領域のバナー類の先頭（右の丸ボタンの列の横）
      広い画面: 右列の目的のボックスの下（.p-board-dash__pillars）
 
+   ★2026-10-13 に「見出し＋3行」（約115px）から「3列のキャラ＋名前＋細いバー」（約60px（名前が2行で約74px））へ詰めた。
+     見出し・開閉は持たない（畳まない）。編集はペンのアイコンだけ（管理者）。
+   ★柱は順番のキャラ（1つ目 mizu・2つ目 mori・3つ目 iwa。pillarChars.js と同じ）。バーもキャラの色で塗る。
    ★柱の名前は省略しない（text-overflow: ellipsis を付けない。長ければ折り返す）。
    ★バーは割合。★★0件は 0% と別の見た目（文字「0件」を警告色、バーは破線の枠だけ）。
-   ★柱には色を付けない。バーは主色の1色だけ（タグの色と意味を混ぜない）。
-   ★高さはおよそ 100px（見出し1行＋柱3行）に収める。
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
-     public/js/views/mainBoard.js … _pillarBoardHtml / togglePillarBoard
+     public/js/views/mainBoard.js … _pillarBoardHtml
    ========================================================================== */
 
 .p-pillar-board {
-  padding: 6px var(--space-3) var(--space-2);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-1);
   border-radius: var(--radius-md);
   background-color: var(--color-surface);
   box-shadow: var(--shadow-sm);
 }
 
-.p-pillar-board__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.p-pillar-board__toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-text);
-}
-
-.p-pillar-board__title {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-}
-
-.p-pillar-board__chevron {
-  color: var(--color-text-muted);
-  transition: transform var(--duration-fast) var(--ease);
-}
-
-.p-pillar-board.is-collapsed .p-pillar-board__chevron {
-  transform: rotate(-90deg);
-}
-
-.p-pillar-board__edit {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-muted);
-}
-
-.p-pillar-board__rows {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin-top: 2px;
-}
-
-.p-pillar-board.is-collapsed .p-pillar-board__rows {
-  display: none;
-}
-
-/* 1行：名前（折り返す）・数（右端）／その下にバー */
-.p-pillar-board__row {
+.p-pillar-board__cols {
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: baseline;
-  column-gap: var(--space-2);
-  row-gap: 2px;
-  width: 100%;
-  padding: 2px var(--space-1) 3px;
+  flex: 1;
+  grid-template-columns: repeat(var(--pillar-cols, 3), minmax(0, 1fr));
+  min-width: 0;
+  gap: 2px;
+}
+
+/* 1列：キャラと数（1段目）／名前（列の幅いっぱいで折り返す）／バー。
+   ★名前をキャラの横に置かないこと。スマホの列は約88px しかなく、横に置くと1行4〜5文字で何行にも折り返す */
+.p-pillar-board__col {
+  --pillar-color: var(--create-blue);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  /* 名前の段が伸びる＝名前の行数が列ごとに違ってもバーの高さがそろう */
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "char count"
+    "name name"
+    "bar  bar";
+  align-content: start;
+  align-items: center;
+  column-gap: 4px;
+  row-gap: 3px;
+  min-width: 0;
+  padding: 3px var(--space-1) 4px;
   border-radius: var(--radius-sm);
   text-align: left;
 }
 
+.p-pillar-board__col--mori { --pillar-color: var(--create-green); }
+.p-pillar-board__col--iwa  { --pillar-color: var(--create-yellow); }
+
 /* 絞り込み中の柱 */
-.p-pillar-board__row.is-active {
+.p-pillar-board__col.is-active {
   background-color: var(--color-primary-tint2);
 }
 
+.p-pillar-board__char {
+  grid-area: char;
+  width: 20px;
+  height: auto;
+}
+
 .p-pillar-board__name {
+  grid-area: name;
+  align-self: start;
   min-width: 0;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
-  line-height: 1.35;
+  line-height: 1.3;
   color: var(--color-text);
   overflow-wrap: anywhere;
 }
 
-.p-pillar-board__count {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-soft);
-}
-
-/* ★0件（タスクすら立っていない）は警告色の文字 */
-.p-pillar-board__row.is-empty .p-pillar-board__count {
-  color: var(--color-danger);
-}
-
 .p-pillar-board__bar {
-  grid-column: 1 / -1;
+  grid-area: bar;
+  align-self: end;
   height: 4px;
   overflow: hidden;
   border-radius: var(--radius-full);
@@ -13877,13 +13623,45 @@ body {
   width: var(--pillar-pct, 0%);
   height: 100%;
   border-radius: inherit;
-  background-color: var(--color-primary);
+  background-color: var(--pillar-color);
+}
+
+.p-pillar-board__count {
+  grid-area: count;
+  justify-self: end;
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-soft);
+}
+
+/* ★0件（タスクすら立っていない）は警告色の文字 */
+.p-pillar-board__col.is-empty .p-pillar-board__count {
+  color: var(--color-danger);
 }
 
 /* ★0件のバーは塗りの無い破線の枠（0% の「灰色の空のバー」と見分ける） */
-.p-pillar-board__row.is-empty .p-pillar-board__bar {
+.p-pillar-board__col.is-empty .p-pillar-board__bar {
   border: 1px dashed var(--color-danger-half);
   background-color: transparent;
+}
+
+/* 編集（管理者だけ）。ペンのアイコンだけで、右上に小さく */
+.p-pillar-board__edit {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+}
+
+.p-pillar-board__edit-icon {
+  width: 14px;
+  height: 14px;
 }
 
 /* ===== object/project/_pillar-assign.css ===== */
@@ -14167,10 +13945,6 @@ body {
 .p-create-event__body {
   width: 100%;
   max-width: 384px;
-}
-
-.p-create-event__body--full {
-  max-width: none;
 }
 
 /* 画面下に貼り付く操作列（進捗ドット＋ボタン）*/
@@ -15338,15 +15112,6 @@ body {
 
 .p-auth__dev-hint code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-/* 戻るボタン（入口画面へ）。アカウント作成側（p-signup__back）と同じ形 */
-.p-auth__back {
-  align-self: flex-start;
-  margin-bottom: var(--space-1);
-  margin-left: calc(var(--space-2) * -1);
-  padding: var(--space-2);
-  color: var(--color-text);
 }
 
 /* ===== object/project/_home.css ===== */

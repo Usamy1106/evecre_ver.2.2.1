@@ -10,12 +10,13 @@
 //   'pending'（アカウント作成を完了した）→ 'done'（最後まで進んだ／あとで）。
 //   ★pending をアカウント作成の完了で立てるので、途中で再読み込みしても最初から出直せる。
 // ★通知許可とお知らせ（devAnnouncement）は、アカウント作成直後には出さない（state.js）。
-//   次に開いたとき（再ログイン・再読み込み）に出す。ここは「次に通知の案内を出す」印を立てるだけ。
+//   次に開いたとき（再ログイン・再読み込み）に出す。通知は pushSetupModal.js の checkPushPromptOnLaunch が判定する
+//   （2026-10-13 に「次に通知の案内を出す」印 evecre:pushAfterSignup は廃止。未購読なら次の回に出すので印は要らない）
 
 import { state } from '../state.js';
 import { WELCOME_TOUR } from '../welcomeTour.js';
 import { isStandalone, isIOS, isSmallScreen, canPromptInstall, promptInstall } from '../push.js';
-import { startPushSetupFlow, bindPushSetupContent, recordPushSkipped } from './pushSetupModal.js';
+import { bindPushSetupContent, recordPushSkipped, snoozePushPrompt } from './pushSetupModal.js';
 import { getPushState } from '../push.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
 import { logEvent } from '../logger.js';
@@ -23,8 +24,6 @@ import { logEvent } from '../logger.js';
 export const WELCOME_TOUR_ID = 'welcome-tour-overlay';
 
 const _key = (userId) => `evecre:welcomeTour:v1:${userId}`;
-// 通知の案内を「次に開いたとき」に出す印（state.js が読む）
-export const PUSH_AFTER_SIGNUP_KEY = (userId) => `evecre:pushAfterSignup:v1:${userId}`;
 
 function _get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
 function _set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
@@ -33,7 +32,6 @@ function _set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
 export function markWelcomeTourPending(userId) {
   if (!userId) return;
   _set(_key(userId), 'pending');
-  _set(PUSH_AFTER_SIGNUP_KEY(userId), '1');
 }
 
 export function isWelcomeTourPending(userId) {
@@ -122,11 +120,21 @@ function _showPage(overlay, idx) {
 
 // ── ④⑤ ホームに置いておこう ─────────────────────────────────
 function _showHomeAdd(overlay, variant) {
+  _renderHomeAdd(overlay, variant, 'welcome', (reason) => _finish(overlay, reason));
+}
+
+/**
+ * ホームに置いておこう の1枚（④ Android／⑤ iPhone）。ようこそ画面と HOME のバナーで共用する。
+ * @param {string} source  計測用（welcome / home_banner）
+ * @param {(reason: string) => void} done  閉じるとき
+ * ★2026-10-13：iPhone のボタンは「わかった」（閉じるだけ）。以前は通知のセットアップを開いており、
+ *   同じ「ホームに置いておこう」がもう一度出ていた。guideUrl があればそのページを開く
+ */
+function _renderHomeAdd(overlay, variant, source, done) {
   const d = WELCOME_TOUR.homeAdd[variant];
-  logEvent('home_add_prompt_shown', { variant });
-  const extra = _homeAddExtra(variant);
+  logEvent('home_add_prompt_shown', { variant, source });
   overlay.innerHTML = _frame({
-    id: d.id, art: d.art, title: d.title, body: d.body, extra,
+    id: d.id, art: d.art, title: d.title, body: d.body, extra: _homeAddExtra(variant),
     footer: `
       <div class="p-welcome-tour__actions">
         <button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-welcome-primary>${_esc(d.primary)}</button>
@@ -135,30 +143,48 @@ function _showHomeAdd(overlay, variant) {
   });
 
   overlay.querySelector('[data-welcome-later]').onclick = () => {
-    logEvent('home_add_later', { variant });
-    _finish(overlay, 'later');
+    logEvent('home_add_later', { variant, source });
+    done('later');
   };
   overlay.querySelector('[data-welcome-primary]').onclick = async () => {
-    logEvent('home_add_tapped', { variant });
+    logEvent('home_add_tapped', { variant, source });
     if (variant === 'android') {
       // ★ユーザー操作の中で呼ぶ（インストールの確認はタップ起点でないと出ない）
       const outcome = await promptInstall();
-      if (outcome === 'accepted' || outcome === 'dismissed') { _finish(overlay, `install_${outcome}`); return; }
+      if (outcome === 'accepted' || outcome === 'dismissed') { done(`install_${outcome}`); return; }
       // 確認を出せないブラウザ：モーダルの中に手順を出して、閉じない（あとでで抜けられる）
       overlay.querySelector('[data-welcome-fallback]')?.classList.remove('u-hidden');
       return;
     }
-    // iOS：説明のページがあれば開き、無ければ既存の追加方法の案内を出す
+    // iOS：説明のページがあれば開く。無ければ閉じる（手順はこの画面の写真で伝えてある）
     if (d.guideUrl) {
       window.open(d.guideUrl, '_blank', 'noopener');
       return;
     }
-    _finish(overlay, 'ios_guide');
-    startPushSetupFlow({ source: 'welcome_ios_guide' });
+    done('ios_ok');
   };
 }
 
-/** ④⑤の補足（Android＝メリット4つ／iPhone＝操作の写真3枚を3列で）。通知のモーダルの1枚目でも使う */
+// ── HOME のバナー「イベクリをホームに置こう」から開く（2026-10-13）─────────────
+// ★通知より先に、ホーム画面への追加を勧める。通知の許可は次に開いたときに自動で聞く
+//   （pushSetupModal.js の checkPushPromptOnLaunch。iPhone は追加したアイコンから開かないと許可できない）
+export const HOME_ADD_ID = 'home-add-modal';
+
+export function openHomeAddModal({ source = 'home_banner' } = {}) {
+  const variant = homeAddVariant();
+  if (!variant) return;
+  document.getElementById(HOME_ADD_ID)?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = HOME_ADD_ID;
+  overlay.className = 'c-overlay c-overlay--center c-overlay--snug c-overlay--blur c-overlay--auto';
+  document.body.appendChild(overlay);
+  _renderHomeAdd(overlay, variant, source, () => {
+    overlay.remove();
+    state.render();
+  });
+}
+
+/** ④⑤の補足（Android＝メリット4つ／iPhone＝操作の写真3枚を3列で） */
 function _homeAddExtra(variant) {
   const d = WELCOME_TOUR.homeAdd[variant];
   let extra = '';
@@ -197,14 +223,13 @@ function _finish(overlay, reason) {
   state.render();
 }
 
-// ── 通知のセットアップ（HOME の「通知をオンにしませんか？」のバナーなどから。2026-10-12）──────────
-// 旧・下からせり上がるシート（p-push-setup__sheet）の後継。④⑤と同じ見た目のモーダルで：
-//   1枚目＝ホームに置いておこう（④ Android／⑤ iPhone と同じ中身）→「次へ」
-//   2枚目＝通知をオンにする（ボタンでその場で許可を求める）
-// ★ホーム画面への追加が要らない端末（追加済み・PC など＝ homeAddVariant() が null）は2枚目から
+// ── 通知のセットアップ（次に開いたときに自動で出す。2026-10-13）─────────────────
+// 旧・下からせり上がるシート（p-push-setup__sheet）の後継。④⑤と同じ見た目のモーダルで、通知をオンにする1枚だけ。
+// ★2026-10-13：以前の1枚目「ホームに置いておこう」は外した（ホーム画面への追加は HOME のバナー openHomeAddModal が担う）
 // ★iPhone / iPad をブラウザのまま開いているときは、通知の許可そのものができない（ホーム画面に追加が必須）。
-//   2枚目ではボタンを出さず、追加したアイコンから開くよう案内する
+//   ボタンを出さず、追加したアイコンから開くよう案内する
 // ★通知の許可（enablePush）はボタンの click から同期で呼ぶ（bindPushSetupContent が担う）
+// ★「あとで」は7日間出さない（snoozePushPrompt）
 export const PUSH_SETUP_ID = 'push-setup-modal';
 
 /**
@@ -214,79 +239,49 @@ export function openPushSetupTour({ source = 'unknown', phase }) {
   document.getElementById(PUSH_SETUP_ID)?.remove();
   const overlay = document.createElement('div');
   overlay.id = PUSH_SETUP_ID;
-  // ★c-overlay--push-setup：アカウントを作った次の回にも自動で出るので、ほかの画面より前に重ねる（旧シートと同じ）
+  // ★c-overlay--push-setup：次に開いたときに自動で出るので、ほかの画面より前に重ねる（旧シートと同じ）
   overlay.className = 'c-overlay c-overlay--center c-overlay--snug c-overlay--blur c-overlay--auto c-overlay--push-setup';
   document.body.appendChild(overlay);
 
-  const variant = phase === 'install' ? homeAddVariant() : null;
-  const pages = [...(variant ? ['home'] : []), 'notify'];
   const close = (reason) => {
     logEvent('push_setup_closed', { source, reason });
     overlay.remove();
     state.render();
   };
   const later = () => {
-    if (phase !== 'done' && phase !== 'unsupported') recordPushSkipped();
+    if (phase !== 'done' && phase !== 'unsupported') { recordPushSkipped(); snoozePushPrompt(); }
     close('later');
   };
-  const dots = (idx) => pages.length < 2 ? '' : `
-    <div class="p-welcome-tour__dots" role="img" aria-label="${idx + 1} / ${pages.length}">
-      ${pages.map((_, i) => `<span class="p-welcome-tour__dot${i === idx ? ' is-active' : ''}" aria-hidden="true"></span>`).join('')}
-    </div>`;
 
-  const show = (idx) => {
-    const n = WELCOME_TOUR.notify;
-    if (pages[idx] === 'home') {
-      const d = WELCOME_TOUR.homeAdd[variant];
-      overlay.innerHTML = _frame({
-        id: `push-${d.id}`, art: d.art, title: d.title, body: d.body, extra: _homeAddExtra(variant),
-        footer: `
-          ${dots(idx)}
-          <div class="p-welcome-tour__actions">
-            <button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-push-next>${_esc(n.next)}</button>
-            <button type="button" class="p-welcome-tour__later" data-push-later>${_esc(n.later)}</button>
-          </div>`,
-      });
-      overlay.querySelector('[data-push-next]').onclick = () => {
-        logEvent('push_setup_page', { source, page: 2 });
-        show(idx + 1);
-      };
-      overlay.querySelector('[data-push-later]').onclick = later;
-      return;
-    }
+  const n = WELCOME_TOUR.notify;
+  const iosBrowser = isIOS() && !isStandalone();
+  const st = getPushState();
+  const msg = phase === 'done' ? n.done
+    : phase === 'unsupported' ? n.unsupported
+    : iosBrowser ? n.iosNotInstalled
+    : st === 'denied' ? n.denied
+    : null;
+  const canEnable = !msg;
+  overlay.innerHTML = _frame({
+    id: 'push-notify', art: n.art, title: n.title, body: msg || n.body,
+    extra: canEnable ? '<p data-psm="error" class="p-welcome-tour__note u-hidden"></p>' : '',
+    footer: `
+      <div class="p-welcome-tour__actions">
+        ${canEnable
+          ? `<button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-psm="enable">${_esc(n.primary)}</button>
+             <button type="button" class="p-welcome-tour__later" data-push-later>${_esc(n.later)}</button>`
+          : `<button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-push-close>${_esc(n.close)}</button>`}
+      </div>`,
+  });
+  overlay.querySelector('[data-push-later]')?.addEventListener('click', later);
+  overlay.querySelector('[data-push-close]')?.addEventListener('click', () => {
+    // ★iPhone のブラウザのままは「あとで」と同じく、追加してから入れる人として記録する
+    if (iosBrowser && phase !== 'done' && phase !== 'unsupported') { recordPushSkipped(); snoozePushPrompt(); }
+    close('closed');
+  });
+  if (canEnable) {
+    bindPushSetupContent(overlay, { phase: 'notify', onAdvance: () => close('enabled') });
+  }
 
-    // 2枚目：通知をオンにする
-    const iosBrowser = isIOS() && !isStandalone();
-    const st = getPushState();
-    const msg = phase === 'done' ? n.done
-      : phase === 'unsupported' ? n.unsupported
-      : iosBrowser ? n.iosNotInstalled
-      : st === 'denied' ? n.denied
-      : null;
-    const canEnable = !msg;
-    overlay.innerHTML = _frame({
-      id: 'push-notify', art: n.art, title: n.title, body: msg || n.body,
-      extra: canEnable ? '<p data-psm="error" class="p-welcome-tour__note u-hidden"></p>' : '',
-      footer: `
-        ${dots(idx)}
-        <div class="p-welcome-tour__actions">
-          ${canEnable
-            ? `<button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-psm="enable">${_esc(n.primary)}</button>
-               <button type="button" class="p-welcome-tour__later" data-push-later>${_esc(n.later)}</button>`
-            : `<button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-push-close>${_esc(n.close)}</button>`}
-        </div>`,
-    });
-    overlay.querySelector('[data-push-later]')?.addEventListener('click', later);
-    overlay.querySelector('[data-push-close]')?.addEventListener('click', () => {
-      // ★iPhone のブラウザのままは「あとで」と同じく、追加してから入れる人として記録する
-      if (iosBrowser && phase !== 'done' && phase !== 'unsupported') recordPushSkipped();
-      close('closed');
-    });
-    if (canEnable) {
-      bindPushSetupContent(overlay, { phase: 'notify', onAdvance: () => close('enabled') });
-    }
-  };
-
-  logEvent('push_setup_shown', { source, phase, pages: pages.length });
-  show(0);
+  logEvent('push_setup_shown', { source, phase });
 }

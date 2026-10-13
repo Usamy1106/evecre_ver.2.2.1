@@ -1,9 +1,9 @@
-// ===== 通知セットアップのモーダル（ホーム画面追加 → 通知許可） =====
+// ===== 通知セットアップ（ホーム画面追加のバナー・通知許可のモーダル） =====
 //
-// 3箇所から同じ導線を呼べるようにまとめてある：
-//   1. アカウント作成の完了直後（HOME 着地時）
-//   2. HOME の「通知をオンにする」バナーのタップ
-//   3. 開発者からのお知らせのボタン（既存ユーザー向けの案内）
+// ★2026-10-13：通知より先に「イベクリをホームに置こう」。
+//   1. HOME のバナー「イベクリをホームに置こう」→ ホームに置いておこう のモーダル（welcomeTourModal.js の openHomeAddModal）
+//   2. 通知の許可は、次に開いたとき（再ログイン・再読み込み）にモーダルで聞く（checkPushPromptOnLaunch → openPushSetupTour）
+//   3. 開発者からのお知らせのボタン（既存ユーザー向けの案内。下の pushSetupContentHtml を埋め込む）
 //
 // ★オンボーディングの途中では出さない。iOS はホーム画面に追加しないと
 //   通知の許可自体ができず、作成途中に Safari の共有シートへ誘導すると
@@ -15,13 +15,14 @@
 import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
-import { openPushSetupTour } from './welcomeTourModal.js';
+import { openPushSetupTour, openHomeAddModal, homeAddVariant } from './welcomeTourModal.js';
+import { isAnyAutoModalOpen } from '../modalGuard.js';
 import {
   getPushState, enablePush, hasSubscription, isStandalone, isIOS, isSmallScreen,
   canPromptInstall, promptInstall,
 } from '../push.js';
 
-// バナーを閉じてから再表示するまでの日数
+// バナー・通知の案内を閉じてから再表示するまでの日数
 export const BANNER_SNOOZE_DAYS = 7;
 
 function _esc(s) {
@@ -37,7 +38,7 @@ async function _savePreference(value) {
 
 // ── 中身（お知らせモーダルからも埋め込めるよう、HTML と配線を分けてある）──
 //
-// startPushSetupFlow() は welcomeTourModal.js の openPushSetupTour（④⑤と同じ見た目のモーダル）を出し、
+// 通知のモーダルは welcomeTourModal.js の openPushSetupTour（④⑤と同じ見た目）。
 // devAnnouncementModal は下の中身をお知らせのページとして差し込む。
 
 /** いまこの端末で案内すべき段階 */
@@ -180,88 +181,75 @@ export function recordPushSkipped() {
 
 // ── 呼び出し口 ──────────────────────────────────────────────
 
-/**
- * 端末の状態に応じて必要な案内だけをモーダルで出す（welcomeTourModal.js の openPushSetupTour）。
- * HOME のバナーと、アカウント作成の完了直後から呼ぶ。
- *
- * 分岐（pushSetupPhase）:
- *   done        … すでにオン。明示的に呼ばれたときだけ「オンです」と表示する
- *                 ★以前はここで黙って return していたため、バナーやボタンを
- *                   押しても無反応に見えるという不具合になっていた
- *   install     … 小画面かつ未追加 → ホーム画面への追加を案内
- *                 iOS はここで終わり（追加しないと許可自体できないため、
- *                 アイコンから開き直した次回に notify が出る）
- *   notify      … 通知の許可
- *
- * @param {{source?: string, silent?: boolean}} opts
- *   silent … 自動起動（作成直後）で、案内不要なら何も出さない
- */
-export async function startPushSetupFlow({ source = 'unknown', silent = false } = {}) {
-  if (state.pushSubscribed === null) await refreshPushSubscribed();
-  const phase = pushSetupPhase();
+// ── 通知の案内を「次に開いたとき」に出す（2026-10-13）─────────────────────
+// ★HOME のバナーは通知ではなく「イベクリをホームに置こう」（下の homeAddBannerHtml）。
+//   通知の許可は、ページを開き直したとき（再ログイン・再読み込み・ホーム画面のアイコンから開いた）に
+//   モーダルで1回だけ聞く。アカウントを作ったその回とオンボーディングの途中は出さない（state.js が弾く）
+// ★出すのは「いまこの端末で許可を求められる」ときだけ（phase === 'notify' かつ拒否されていない）。
+//   iPhone をブラウザのまま開いているときは許可できないので出さない（先にホームに置いてもらう）
+// ★「あとで」から7日間は出さない（snoozePushPrompt）。アカウント設定で自分でオフにした直後も同じ
+const PUSH_PROMPT_SNOOZE_KEY = (uid) => `evecre:pushBanner:dismissedAt:${uid}`;   // ★キー名は旧バナーのまま（既存の「あとで」を引き継ぐ）
 
-  // 自動起動のときは、すでにオン／非対応なら黙って何もしない
-  if (silent && (phase === 'done' || phase === 'unsupported')) return;
-
-  logEvent('push_setup_started', { source, phase });
-  // ★2026-10-12：下からせり上がるシート（p-push-setup__sheet）をやめ、④⑤と同じ見た目のモーダルにした
-  //   （1枚目＝ホームに置いておこう →「次へ」→ 2枚目＝通知をオンにする）。本体は welcomeTourModal.js
-  openPushSetupTour({ source, phase });
-}
-
-/** いま HOME に通知バナーを出すべきか（同期判定用のキャッシュを見る） */
-export function shouldShowPushBanner() {
-  if (!state.currentUser) return false;
-  if (getPushState() === 'unsupported') return false;
-  // ★false は「購読が無い」だけでなく「許可を取り消された」も含む
-  //   （refreshPushSubscribed が両方を見ている）。オンにした後オフにした人も対象。
-  if (state.pushSubscribed === true) return false;      // 実際に届く状態
-  if (state.pushSubscribed === null) return false;      // 未判定のうちは出さない（ちらつき防止）
-  const key = `evecre:pushBanner:dismissedAt:${state.currentUser.id}`;
-  const at = Number(localStorage.getItem(key) || 0);
-  if (!at) return true;
-  return (Date.now() - at) > BANNER_SNOOZE_DAYS * 24 * 60 * 60 * 1000;
+function _isPushPromptSnoozed(uid) {
+  try {
+    const at = Number(localStorage.getItem(PUSH_PROMPT_SNOOZE_KEY(uid)) || 0);
+    return !!at && (Date.now() - at) <= BANNER_SNOOZE_DAYS * 24 * 60 * 60 * 1000;
+  } catch (_) { return false; }
 }
 
 /**
- * バナーを BANNER_SNOOZE_DAYS 日ぶん出さないようにする（記録のみ）。
+ * 通知の案内を BANNER_SNOOZE_DAYS 日ぶん出さないようにする（記録のみ）。
  * ★アカウント設定から自分でオフにした直後にも使う。自分で切ったそばから
- *   「オンにしませんか？」と出すと、操作を否定されたように見えるため。
+ *   「オンにしよう」と出すと、操作を否定されたように見えるため。
  */
-export function snoozePushBanner() {
+export function snoozePushPrompt() {
   if (!state.currentUser) return;
-  localStorage.setItem(`evecre:pushBanner:dismissedAt:${state.currentUser.id}`, String(Date.now()));
+  try { localStorage.setItem(PUSH_PROMPT_SNOOZE_KEY(state.currentUser.id), String(Date.now())); } catch (_) {}
 }
 
-/** バナーの × を押したとき */
-export function dismissPushBanner() {
-  if (!state.currentUser) return;
-  snoozePushBanner();
-  logEvent('push_banner_dismissed');
-  state.render();
+/**
+ * ページを開いたときに1回だけ呼ぶ（state.js）。出せないとき（ほかのモーダルが出ている）は false を返し、次の render で呼び直させる
+ * @returns {Promise<boolean>} 判定を終えたか
+ */
+export async function checkPushPromptOnLaunch() {
+  const uid = state.currentUser?.id;
+  if (!uid) return true;
+  if (state.pushSubscribed === null) await refreshPushSubscribed();
+  if (pushSetupPhase() !== 'notify' || getPushState() === 'denied') return true;
+  if (_isPushPromptSnoozed(uid)) return true;
+  if (document.getElementById('push-setup-modal')) return true;
+  if (isAnyAutoModalOpen('push-setup-modal') || document.querySelector('.c-overlay')) return false;
+  logEvent('push_setup_started', { source: 'next_session', phase: 'notify' });
+  openPushSetupTour({ source: 'next_session', phase: 'notify' });
+  return true;
+}
+
+// ── HOME のバナー「イベクリをホームに置こう」（2026-10-13。旧「通知をオンにしませんか？」）──────
+// ★出すのは、ホーム画面に追加できる端末で、まだホーム画面から開いていないとき（homeAddVariant が null でない）
+// ★× で7日間出さない（evecre:homeBanner:dismissedAt:{userId}）
+const HOME_BANNER_KEY = (uid) => `evecre:homeBanner:dismissedAt:${uid}`;
+
+function shouldShowHomeAddBanner() {
+  if (!state.currentUser) return false;
+  if (!homeAddVariant()) return false;
+  try {
+    const at = Number(localStorage.getItem(HOME_BANNER_KEY(state.currentUser.id)) || 0);
+    if (!at) return true;
+    return (Date.now() - at) > BANNER_SNOOZE_DAYS * 24 * 60 * 60 * 1000;
+  } catch (_) { return true; }
 }
 
 /** HOME に出すバナーの HTML（出さないときは空文字） */
-export function pushBannerHtml() {
-  if (!shouldShowPushBanner()) return '';
-  // ★「一度オンにしてから、ブラウザ／OS の設定でオフに戻した」人はここに来る。
-  const denied = getPushState() === 'denied';
+export function homeAddBannerHtml() {
+  if (!shouldShowHomeAddBanner()) return '';
   return `
     <div class="p-push-banner">
-      <span class="p-push-banner__icon"><span class="c-icon p-push-banner__icon-image" style="--icon:url('/images/icon/icon-notification-tint.svg')" aria-hidden="true"></span></span>
-      <button id="push-banner-open" class="p-push-banner__open">
-        <p class="p-push-banner__title">${_esc(denied ? '通知がオフになっています' : '通知をオンにしませんか？')}</p>
-        <p class="p-push-banner__sub">
-          ${_esc(denied
-            // ★一度ブロックされるとプログラムからは二度と許可を求められない。
-            //   「オンにしよう」と誘っても何も起きないので、設定から戻す旨を伝える。
-            ? 'ブラウザの設定から通知を許可できます'
-            : (isIOS() && !isStandalone())
-              ? 'ホーム画面に追加すると受け取れます'
-              : '締め切りや割り当てをお知らせします')}
-        </p>
+      <span class="p-push-banner__icon"><span class="c-icon p-push-banner__icon-image" style="--icon:url('/images/icon/icon-home-default.svg')" aria-hidden="true"></span></span>
+      <button id="home-banner-open" class="p-push-banner__open" data-log="home_banner_open">
+        <p class="p-push-banner__title">イベクリをホームに置こう</p>
+        <p class="p-push-banner__sub">アプリのようにすぐ開けて、お知らせも受け取れます</p>
       </button>
-      <button id="push-banner-close" class="p-push-banner__close" aria-label="閉じる">
+      <button id="home-banner-close" class="p-push-banner__close" aria-label="閉じる">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2.5" stroke-linecap="round">
           <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
@@ -270,12 +258,16 @@ export function pushBannerHtml() {
 }
 
 /** バナーのイベント配線（HOME の描画後に呼ぶ） */
-export function bindPushBanner() {
-  document.getElementById('push-banner-open')?.addEventListener('click', () => {
-    logEvent('push_banner_tapped');
-    startPushSetupFlow({ source: 'home_banner' });
+export function bindHomeAddBanner() {
+  document.getElementById('home-banner-open')?.addEventListener('click', () => {
+    openHomeAddModal({ source: 'home_banner' });
   });
-  document.getElementById('push-banner-close')?.addEventListener('click', dismissPushBanner);
+  document.getElementById('home-banner-close')?.addEventListener('click', () => {
+    if (!state.currentUser) return;
+    try { localStorage.setItem(HOME_BANNER_KEY(state.currentUser.id), String(Date.now())); } catch (_) {}
+    logEvent('home_banner_dismissed');
+    state.render();
+  });
 }
 
 /**

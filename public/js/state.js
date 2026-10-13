@@ -575,6 +575,7 @@ export const state = {
     this.selectedEventId = null;
     this.boardPanelView = null;   // 右列の表示はユーザーごとに覚えている。次の人の分を読み直す
     this._signupSession = false;  // 次に入る人は「作ったその回」ではない
+    this._pushPromptChecked = false;  // 再ログインしたら通知の案内をもう一度判定する
     this._devAnnouncementChecked = false;
     // ★入口へ戻す。別のアカウントで入り直す人も、新しく作る人もここから分かれる
     this.currentView = 'WELCOME';
@@ -1305,14 +1306,17 @@ export const state = {
       setTimeout(() => window._app?.checkWelcomeTour?.(), 400);
     }
 
-    // 通知許可の案内（ホーム画面追加 → 通知許可。modals/pushSetupModal.js）。
-    // ★アカウントを作ったその回には出さない。**次に開いたとき**（再ログイン・再読み込み）に1回だけ出す（2026-09-30）。
-    //   印はオンボーディングと一緒に立つ（markWelcomeTourPending）。オンボーディングが終わってから
-    // ★招待リンクから来た人には、参加申請を先に済ませてもらう
-    if (this.currentView === 'HOME' && _uid && !this._signupSession && !_welcomePending &&
-        !this.pendingJoinConfirm && window._app?.consumePushAfterSignup?.(_uid)) {
-      // silent:true … すでにオン／非対応なら何も出さない（自動起動のため）
-      setTimeout(() => window._app?.startPushSetup?.('after_signup_next_session', true), 600);
+    // 通知許可の案内（modals/pushSetupModal.js の checkPushPromptOnLaunch）。
+    // ★ページを開いたとき（再ログイン・再読み込み・ホーム画面のアイコンから開いた）に1回だけ判定する（2026-10-13）。
+    //   アカウントを作ったその回・オンボーディングの途中・招待の参加申請の前は出さない（次の render で判定し直す）
+    // ★ほかのモーダルが出ていて出せなかったときは印を戻し、次の render で判定し直す
+    if (this.currentView === 'HOME' && _uid && !this._pushPromptChecked && !this._signupSession &&
+        !_welcomePending && !this.pendingJoinConfirm) {
+      this._pushPromptChecked = true;
+      setTimeout(async () => {
+        const done = await window._app?.checkPushPromptOnLaunch?.();
+        if (done === false) this._pushPromptChecked = false;
+      }, 600);
     }
 
     // 開発者からのお知らせモーダル（全ユーザー・セッション1回、イベント非依存）。

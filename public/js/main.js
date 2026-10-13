@@ -22,7 +22,7 @@ import { renderAccount } from './views/account.js';
 import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/passwordReset.js';
 import { renderLegal } from './views/legal.js';
 import { renderConnectionError } from './views/connectionError.js';
-import { startPushSetupFlow, refreshPushSubscribed } from './modals/pushSetupModal.js';
+import { refreshPushSubscribed, checkPushPromptOnLaunch } from './modals/pushSetupModal.js';
 import { renderMissionReflect, saveMissionReflect, skipMissionReflect } from './views/missionReflect.js';
 import { renderPillarEdit } from './views/pillarEdit.js';
 import { renderPillarAssign } from './views/pillarAssign.js';
@@ -72,7 +72,7 @@ import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js'
 import { checkPublicBasicInfoModal, openPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkPublicKnowledgeModal } from './modals/publicKnowledgeModal.js';
 import { checkDeveloperAnnouncementModal } from './modals/devAnnouncementModal.js';
-import { checkWelcomeTour, isWelcomeTourPending, markWelcomeTourPending, PUSH_AFTER_SIGNUP_KEY } from './modals/welcomeTourModal.js';
+import { checkWelcomeTour, isWelcomeTourPending, markWelcomeTourPending } from './modals/welcomeTourModal.js';
 // ★暫定：既存メンバーのスキル回収。回収が済んだらこの import ごと削除する
 import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
@@ -279,7 +279,8 @@ window._app = {
   // --- state 委譲 ---
   setView: (view, id) => state.setView(view, id),
   // 通知セットアップ（ホーム画面追加 → 通知許可）。HOME のバナー・お知らせのボタンから呼ぶ
-  startPushSetup: (source, silent) => startPushSetupFlow({ source, silent }),
+  // 通知の許可を次に開いたときに聞く（state.js。false＝ほかのモーダルが出ていて出せなかった）
+  checkPushPromptOnLaunch: () => checkPushPromptOnLaunch(),
   setTab: async (tab) => {
     // ★アーカイブの編集モードは、別のタブへ移ったら解除する（保存待ちを保存し終えてから移る）
     if (state.archiveEditing && state.mainBoardTab === 'ARCHIVE' && tab !== 'ARCHIVE') {
@@ -1137,14 +1138,6 @@ window._app = {
   checkWelcomeTour: () => checkWelcomeTour(),
   isWelcomeTourPending: (uid) => isWelcomeTourPending(uid),
   markWelcomeTourPending: (uid) => markWelcomeTourPending(uid),
-  // 「次に開いたときに通知の案内を出す」印を1回だけ取り出す（state.js）
-  consumePushAfterSignup: (uid) => {
-    try {
-      if (!uid || localStorage.getItem(PUSH_AFTER_SIGNUP_KEY(uid)) !== '1') return false;
-      localStorage.removeItem(PUSH_AFTER_SIGNUP_KEY(uid));
-      return true;
-    } catch (_) { return false; }
-  },
   // ★暫定：既存メンバーのスキル回収。回収が済んだらこの行ごと削除する
   checkSkillCollectModal: () => checkSkillCollectModal(),
 
@@ -1840,6 +1833,7 @@ const _LOG_LABELS = {
   push_setup_started:     '通知の設定を開いた',
   push_banner_tapped:     '通知バナーをタップ',
   push_banner_dismissed:  '通知バナーを閉じた',
+  home_banner_dismissed:  '「ホームに置こう」バナーを閉じた',
   push_enable_tap:        '通知をオンにするを押した',
   push_disable_tap:       '通知をオフにするを押した',
   push_enabled:           '通知をオンにした',

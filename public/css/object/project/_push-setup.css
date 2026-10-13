@@ -1,16 +1,16 @@
 /* ==========================================================================
    Object / Project / push-setup — 通知セットアップの案内
    使用箇所: public/js/modals/pushSetupModal.js
-     - 開発者からのお知らせへの埋め込み（action: 'push-setup'）と HOME のバナー
-     ★2026-10-12：下からせり上がるシート（p-push-setup__sheet）は廃止。HOME のバナーなどからは
-       ④⑤と同じ見た目のモーダル（welcomeTourModal.js の openPushSetupTour。CSS は _welcome-tour.css）を出す
+     - 開発者からのお知らせへの埋め込み（action: 'push-setup'）と HOME のバナー「イベクリをホームに置こう」
+     ★2026-10-12：下からせり上がるシート（p-push-setup__sheet）は廃止。モーダルは _welcome-tour.css
+     ★2026-10-13：HOME のバナーは通知ではなく「イベクリをホームに置こう」（クラス名 p-push-banner は据え置き）
 
    ★本番の利用者は iOS が6割で、iOS はホーム画面に追加しない限り通知が
      一切届かない。追加率がそのまま通知の到達率になるので、手順の文字を
      小さくしたり畳んだりしないこと。
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
-     public/js/modals/pushSetupModal.js … pushBannerHtml / pushSetupContentHtml
+     public/js/modals/pushSetupModal.js … homeAddBannerHtml / pushSetupContentHtml
    ========================================================================== */
 
 .p-push-setup__icon {
@@ -109,8 +109,8 @@
 
 /* ★「あとで」では通知の許可を求めないこと（一度ブロックされると
    プログラムからは二度と出せない）。目立たない見た目にしてある。 */
-/* --- HOME のバナー --------------------------------------------------------
-   未購読のときだけ出る。× で閉じると7日間出ない。 */
+/* --- HOME のバナー「イベクリをホームに置こう」------------------------------
+   ホーム画面に追加できる端末で、まだホーム画面から開いていないときだけ出る。× で閉じると7日間出ない。 */
 
 .p-push-banner {
   display: flex;
@@ -129,7 +129,7 @@
   color: var(--color-primary);
 }
 
-/* ベルは文字と同じ緑で塗る（c-icon）。塗りは素材の fill-opacity で薄く、線は濃く（icon-notification-tint.svg） */
+/* ホームのアイコンは文字と同じ緑で塗る（c-icon。icon-home-default.svg） */
 .p-push-banner__icon-image {
   width: 20px;
   height: 20px;

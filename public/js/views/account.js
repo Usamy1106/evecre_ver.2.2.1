@@ -8,7 +8,7 @@ import {
   getPushState, hasSubscription, enablePush, disablePush, isStandalone, isIOS, isMacDesktop,
 } from '../push.js';
 import { bindTapToEdit } from '../utils.js';
-import { refreshPushSubscribed, snoozePushBanner } from '../modals/pushSetupModal.js';
+import { refreshPushSubscribed, snoozePushPrompt } from '../modals/pushSetupModal.js';
 
 /**
  * アカウント設定画面
@@ -416,7 +416,7 @@ function _bindEvents() {
     await refreshPushSubscribed();
     // ★自分の意思でオフにした直後にバナーで催促しない。× で閉じたときと同じ
     //   スヌーズを掛けて、しばらく経ってから改めて促す。
-    if (wasOn) snoozePushBanner();
+    if (wasOn) snoozePushPrompt();
     _toast(wasOn ? '通知をオフにしました' : '通知をオンにしました');
     state.render();
   });
