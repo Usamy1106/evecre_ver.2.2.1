@@ -316,19 +316,6 @@
 
 /* --- ミッション一覧 ------------------------------------------------------ */
 
-.p-main-board__section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-3);
-}
-
-.p-main-board__section-title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-}
-
 /* ★margin-left:auto は「ラベルが1つ以下でチップを出さない」ときに効く。
    チップがあるときは .p-main-board__tag-filter の flex:1 が押し出す。 */
 .p-main-board__sort {

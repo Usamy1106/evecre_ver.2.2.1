@@ -21,18 +21,6 @@
 /* 数件で収まることが多い一覧（承認待ち）は中身なりに伸ばし、上限だけ決める */
 .c-list-sheet--capped { max-height: 70vh; }
 
-/* 見出しと一覧を分けずに、シート全体をそのままスクロールさせるタイプ */
-.c-list-sheet--scroll {
-  max-height: 80vh;
-  padding: var(--space-6);
-  overflow-y: auto;
-}
-
-/* 入力欄だけを置くタイプ（提案の送信）*/
-.c-list-sheet--form {
-  padding: var(--space-6);
-}
-
 .c-list-sheet__head {
   flex-shrink: 0;
   padding: var(--space-5) var(--space-6) var(--space-4);
@@ -49,14 +37,6 @@
   margin: 0 auto var(--space-5);
   border-radius: var(--radius-full);
   background-color: var(--bg-textbox);
-}
-
-/* --scroll / --form のときは見出しの上に置くだけのつまみ */
-.c-list-sheet__handle {
-  display: flex;
-  justify-content: center;
-  padding-top: var(--space-1);
-  padding-bottom: var(--space-4);
 }
 
 .c-list-sheet__title {
@@ -83,10 +63,6 @@
   text-align: center;
 }
 
-.c-list-sheet__empty--tight {
-  padding-block: var(--space-4);
-}
-
 /* --- 1件ぶんのカード ------------------------------------------------------ */
 
 .c-list-sheet__card {
@@ -95,23 +71,5 @@
   border: 1px solid var(--bg-textbox);
   border-radius: var(--radius-lg);
   background-color: var(--color-bg);
-}
-
-.c-list-sheet__card-meta {
-  margin-bottom: var(--space-1);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.c-list-sheet__card-title {
-  margin-bottom: var(--space-2);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-.c-list-sheet__card-title--roomy {
-  margin-bottom: var(--space-3);
 }
 

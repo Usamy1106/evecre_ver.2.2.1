@@ -319,15 +319,6 @@
   color: var(--color-primary);
 }
 
-.p-invite__later {
-  width: 100%;
-  margin-top: var(--space-2);
-  padding-block: var(--space-3);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
 .p-invite__close {
   width: 100%;
   padding-block: var(--space-3);

@@ -81,10 +81,6 @@
   max-width: 384px;
 }
 
-.p-create-event__body--full {
-  max-width: none;
-}
-
 /* 画面下に貼り付く操作列（進捗ドット＋ボタン）*/
 .p-create-event__footer {
   width: 100%;

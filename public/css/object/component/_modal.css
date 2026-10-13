@@ -127,12 +127,6 @@
   text-align: left;
 }
 
-.c-modal__quote--bordered {
-  margin-bottom: 28px;
-  padding: var(--space-5);
-  border: 1px solid var(--bg-textbox);
-}
-
 .c-modal__quote-label {
   margin-bottom: var(--space-1);
   font-size: 10px;
@@ -260,11 +254,6 @@
 
 .c-modal__steps {
   margin-bottom: var(--space-5);
-}
-
-/* 下にボタンが続くときはもう少し離す */
-.c-modal__steps--roomy {
-  margin-bottom: var(--space-6);
 }
 
 .c-modal__steps > * + * {

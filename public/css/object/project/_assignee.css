@@ -364,29 +364,6 @@
   accent-color: var(--color-primary);
 }
 
-.p-assignee__applicant-avatar {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: var(--radius-full);
-  object-fit: cover;
-}
-
-/* 画像が無い人は頭文字を丸で出す */
-.p-assignee__applicant-initial {
-  display: flex;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
-  background-color: var(--color-primary-tint);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
-}
-
 .p-assignee__applicant-body {
   min-width: 0;
   flex: 1;
