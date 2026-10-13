@@ -2,7 +2,7 @@
    Project / welcome-tour — アカウント作成後のオンボーディング（5枚）
    使用箇所: public/js/modals/welcomeTourModal.js（文言と画像のパスは public/js/welcomeTour.js）
 
-   ★1つの枠の中身を差し替えて進む。並び：ロゴ → イラスト → 見出し → 説明文 → 補足（メリット・手順）
+   ★1つの枠の中身を差し替えて進む。並び：イラスト → 見出し → 説明文 → 補足（メリット・手順）
      → ページネーション／メインボタン → あとで
    ★画像は後から差し替える。パスが空のときは <img> を出さないが、イラストの枠（__art）は確保する
      （画像が入っても見出しの位置が動かないように）。枠の大きさは --welcome-art-* で調整する。
@@ -11,7 +11,6 @@
 .p-welcome-tour {
   --welcome-art-ratio: 4 / 3;       /* イラストの枠の縦横比 */
   --welcome-art-max-width: 280px;   /* イラストの枠の最大幅 */
-  --welcome-logo-size: 40px;
 
   display: flex;
   flex-direction: column;
@@ -25,12 +24,6 @@
   background-color: var(--color-surface);
   box-shadow: var(--shadow-2xl);
   text-align: center;
-}
-
-.p-welcome-tour__logo {
-  width: var(--welcome-logo-size);
-  height: var(--welcome-logo-size);
-  border-radius: var(--radius-md);
 }
 
 /* イラストの枠。★画像が無いあいだは淡い地だけ見せる（仮画像は置かない） */

@@ -3,16 +3,13 @@
 // アカウント作成の完了後に出す5枚（機能紹介3枚 → ホームに置いておこう（Android か iOS のどちらか））。
 // 表示と遷移は modals/welcomeTourModal.js。**このファイルはデータだけ**（文言・画像を差し替えるのはここ）。
 //
-// ★画像のパス（logo / art / benefits[].icon / steps[].art）は空文字なら出さない（仮画像を置かない）。
+// ★画像のパス（art / benefits[].icon / steps[].art）は空文字なら出さない（仮画像を置かない）。
 //   用意できたら `/images/...` のパスを入れるだけで表示される。枠の大きさは CSS が決めている
 //   （object/project/_welcome-tour.css の --welcome-art-*）。
 // ★見出し（title）・説明文（body）は**1行ずつの配列**。改行の位置をここで決める。
 // ★文言に HTML は書かない（表示側がエスケープする）。
 
 export const WELCOME_TOUR = {
-  // 全モーダル共通のロゴ（いちばん上）。空文字なら出さない
-  logo: '/images/icon/evecre-icon-192.png',
-
   // ── 機能紹介（1 → 2 → 3）──────────────────────────────
   // next … 右下のボタン。最後の1枚は「はじめる」＝ここで機能紹介を終え、ホームに置いておこうへ進む
   pages: [

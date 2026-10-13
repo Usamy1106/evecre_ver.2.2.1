@@ -85,7 +85,6 @@ export function openWelcomeTour() {
 function _frame({ id, art, title, body, extra = '', footer }) {
   return `
     <div class="p-welcome-tour u-animate-fade" role="dialog" aria-modal="true" aria-labelledby="welcome-tour-title" data-welcome-page="${_esc(id)}">
-      ${_img(WELCOME_TOUR.logo, 'p-welcome-tour__logo', 'イベクリ')}
       <div class="p-welcome-tour__art">${_img(art, 'p-welcome-tour__art-image')}</div>
       <h2 id="welcome-tour-title" class="p-welcome-tour__title">${_lines(title)}</h2>
       <p class="p-welcome-tour__body">${_lines(body)}</p>
