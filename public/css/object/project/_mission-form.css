@@ -7,6 +7,10 @@
      いる。初期オンボーディング③のツールチップが掴むので消さないこと。
    ★タグの色はイベントごとにユーザーが作れるので、--tag-color / --tag-tint
      で渡す（tint は色の 10% 塗り）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/mission.js … _renderBasicTab / _renderDetailTab / _renderPillarStep / _submitButtonHtml
+                                   openMissionModal / renderMissionModalContent
    ========================================================================== */
 
 /* --- ヘッダー ------------------------------------------------------------- */
@@ -203,7 +207,12 @@
 .p-mission-form__date-icon {
   width: 16px;
   height: 16px;
-  opacity: .4;
+  opacity: .4;   /* 未設定のときは文字（薄いグレー）に合わせて薄く */
+}
+
+/* 設定済み（is-set）は文字が濃くなるので、アイコンも濃くする */
+.p-mission-form__date.is-set .p-mission-form__date-icon {
+  opacity: 1;
 }
 
 .p-mission-form__date-text {

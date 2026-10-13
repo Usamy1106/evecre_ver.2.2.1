@@ -406,7 +406,7 @@ function _renderBasicTab(isEdit, dateDisplay) {
         <div data-coach="schedule" data-field="dates">
           <label class="heading-rs p-mission-form__label">タスクの実施期間</label>
           <p class="p-mission-form__note">タスクを行う期間を設定します。</p>
-          <div class="p-mission-form__date" onclick="window._app.openCalendarModal('mission')">
+          <div class="p-mission-form__date${state.draftMission.dates?.length ? ' is-set' : ''}" onclick="window._app.openCalendarModal('mission')">
             <img src="/images/icon/icon-calendar-pressed.svg" class="p-mission-form__date-icon">
             <span class="p-mission-form__date-text">${dateDisplay}</span>
           </div>
@@ -528,7 +528,7 @@ function _renderDetailTab(isEdit) {
             <!-- 応募期限（カレンダーUIで設定） -->
             <div>
               <label class="p-mission-form__sub-label">応募期限（任意）</label>
-              <div class="p-mission-form__date p-mission-form__date--flush" onclick="window._app.openCalendarModal('claimDeadline')">
+              <div class="p-mission-form__date p-mission-form__date--flush${deadlineDisplay ? ' is-set' : ''}" onclick="window._app.openCalendarModal('claimDeadline')">
                 <img src="/images/icon/icon-calendar-pressed.svg" class="p-mission-form__date-icon">
                 ${deadlineDisplay
                   ? `<span class="p-mission-form__date-text p-mission-form__date-text--set">${_esc(deadlineDisplay)} 23:59 まで</span>`

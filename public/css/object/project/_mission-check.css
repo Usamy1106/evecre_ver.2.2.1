@@ -6,6 +6,10 @@
      「このまま作成する」を必ず読める形で残すこと（塗りは無いが薄くしない）。
    ★目立たせる（is-attention）はフォーム側の欄に付く。ここに一緒に置いてある
      のは、出どころが同じで追いやすいため。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/mission.js … _renderBasicTab / _renderDetailTab
+     public/js/modals/missionCheckModal.js … _open
    ========================================================================== */
 
 .p-mission-check {

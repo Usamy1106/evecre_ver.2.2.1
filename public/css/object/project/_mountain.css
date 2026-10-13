@@ -18,6 +18,10 @@
      ただしマス数はミッション数に応じて増え、完了相当のマスは塗りつぶす。
      全体に pointer-events:none を敷いているのは、裏側にあるこの層が
      手前のコンテンツ（提案・ミッション一覧）の操作を奪わないため。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/mountainPath.js … _renderBgLayer / _revealAllLandforms / _revealLandformsByRect
+                                 initMountainPathSync / renderMountainBg / renderMountainScrollWindow / (トップレベル)
    ========================================================================== */
 
 .p-mountain {

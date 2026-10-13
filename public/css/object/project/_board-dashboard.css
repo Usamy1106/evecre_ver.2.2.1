@@ -9,6 +9,15 @@
      右＝やること×カレンダー／ガント（上の操作列は共通）。
    ★ブレイクポイントに頼らない：右列のカレンダーとカードは、横に入れば並べ・入らなければ積む（flex-wrap）。
    ★スタイルシートの最後のほうに置く（_main-board / _mountain / _character / _schedule を上書きするため）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/archiveInlineEdit.js … _bindTapToExit
+     public/js/components.js … BoardRail / refreshNotifBadge
+     public/js/modals/calendar.js … _renderCalendarInner
+     public/js/modals/eventCalendarSheet.js … _render
+     public/js/mountainPath.js … renderMountainBg
+     public/js/views/mainBoard.js … _initMissionPanelGesture / _renderDashboardMain / _renderMainTab
+                                    _withMonthHeadings / renderMainBoard
    ========================================================================== */
 
 /* 左端の列（position: fixed）のぶんだけ中身を右へずらす */

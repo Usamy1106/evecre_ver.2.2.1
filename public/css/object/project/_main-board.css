@@ -9,6 +9,15 @@
      下部パネルと FAB は layout/_fixed-bottom.css。
 
    ★通知タブ・アーカイブタブは従来どおりページスクロール（3層構成は MAIN だけ）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/archiveInlineEdit.js … _bindTapToExit
+     public/js/components.js … BoardRail / refreshNotifBadge
+     public/js/modals/mission.js … showProposalHelp
+     public/js/views/mainBoard.js … _characterBoxHtml / _initMissionPanelGesture / _missionDeadlineText
+                                    _renderAnnounceCards / _renderClaimAnnouncementBanner / _renderDashboardMain
+                                    _renderMainTab / _renderPendingMembersBanner / _resolveUserChips
+                                    _withMonthHeadings / renderMainBoard
    ========================================================================== */
 
 .p-main-board {
@@ -164,6 +173,11 @@
 .p-main-board__date-icon {
   width: 16px;
   height: 16px;
+}
+
+/* 開催日未設定・開催後（文字が薄いとき）はアイコンも薄く。★薄さはタスク作成の日付欄と同じ */
+.p-main-board__date-icon.is-muted {
+  opacity: .4;
 }
 
 .p-main-board__date-text {

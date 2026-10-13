@@ -11,6 +11,13 @@
 
    ★ミッションのタグ色（--tag-color）と完了時の薄さ（--gantt-opacity）は
      1行ごとに違うのでインラインで渡す。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/calendar.js … _renderCalendarInner
+     public/js/modals/eventCalendarSheet.js … _render
+     public/js/schedulePanel.js … _bindDateEditDrag / _renderCalendar / _renderCalendarView / _renderGanttView
+                                  _renderMissionRow / _renderSections / scheduleCalendarHtml
+     public/js/views/mainBoard.js … _renderDashboardMain
    ========================================================================== */
 
 .p-schedule {

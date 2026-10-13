@@ -5,6 +5,12 @@
    ★このファイルは過去に閉じタグの取り残しで全体が壊れたことがある。
      マークアップを触ったら node --check と配信確認（curl）を必ず通すこと。
    ★行の形は c-settings-list（Component）。ここには画面固有のものだけを置く。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/eventSettings.js … _accordion / _eventManagementSection / _integrationSection
+                                        _leaveSection / _membersAvatarsSection / _profileSection
+                                        _renderRoleAddForm / _userManagementSection / _webhookFormHtml
+                                        renderEventSettings
    ========================================================================== */
 
 .p-event-settings {

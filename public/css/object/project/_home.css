@@ -6,6 +6,10 @@
      イベント → ヘッダーの「イベントを作成」／空状態のボタン
      プロジェクト → プロジェクトタブ見出し横の「＋新規作成」／空状態のボタン
      ここを消すと空のプロジェクトを作る手段が無くなる。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/home.js … _incomingRequestsCard / _pendingApprovalCard / _renderEventsTab / _renderGrid
+                               _renderProjectsTab / renderHome
    ========================================================================== */
 
 .p-home {

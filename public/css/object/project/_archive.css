@@ -8,6 +8,16 @@
      編集モード（.p-archive--editing。管理者のみ）でも囲みは出さない。書ける欄は白い地＋フォーカス中の青い線だけ。
    ★基礎情報の読み書きは utils.js の getter / setter に集約してあり、ここは表示だけ。
    ★ペンのアイコン（Components.PenIcon）は編集モードでだけ出る。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/archiveInlineEdit.js … _bindTapToExit / bindArchiveTapToEdit / (トップレベル)
+     public/js/main.js … jumpToArchiveEntry
+     public/js/modals/helpers.js … _openArchiveImageDialog / openEditModal
+     public/js/modals/reflectionEditModal.js … openReflectionEditModal
+     public/js/views/mainBoard.js … _archiveEntryTitleHtml / _archiveIndividualHtml / _archivePublicBannerHtml
+                                    _archiveSubmissionEditHtml / _archiveSubmissionHtml / _renderArchiveEntry
+                                    _renderArchivePendingEntry / _renderArchiveTab / _scrollToArchiveEntry
+                                    _segmentsHtml / renderMainBoard / (トップレベル)
    ========================================================================== */
 
 .p-archive {
@@ -60,6 +70,11 @@
 .p-archive__days-icon {
   width: 14px;
   height: 14px;
+}
+
+/* 開催日未設定（文字が薄いとき）はアイコンも薄く */
+.p-archive__days-icon.is-muted {
+  opacity: .4;
 }
 
 .p-archive__days-text {

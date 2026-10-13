@@ -1126,7 +1126,7 @@ function _renderMainTab(p) {
   const dateChipHtml = `
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
           class="p-main-board__date-chip${dashLayout ? '' : ' p-main-board__date-chip--header'}">
-          <img src="/images/icon/icon-calendar-pressed.svg" class="p-main-board__date-icon" alt="">
+          <img src="/images/icon/icon-calendar-pressed.svg" class="p-main-board__date-icon${_dateChip.includes('date-text--muted') ? ' is-muted' : ''}" alt="">
           ${_dateChip}
         </div>`;
   // ★スマホ：通知・フィードバック・設定の丸いボタンを右端に縦に並べる（2026-09-28。以前は日付チップの行の右端に
@@ -1523,7 +1523,7 @@ function _renderArchiveTab(p) {
       <div class="p-archive__head">
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
           class="p-archive__days">
-          <img src="/images/icon/icon-calendar-pressed.svg" class="p-archive__days-icon" alt="">
+          <img src="/images/icon/icon-calendar-pressed.svg" class="p-archive__days-icon${hasDatesA ? '' : ' is-muted'}" alt="">
           ${hasDatesA
             ? `<span class="p-archive__days-text">あと <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
             : `<span class="p-archive__days-text p-archive__days-text--muted">開催日未設定</span>`}

@@ -248,7 +248,7 @@ export function pushBannerHtml() {
   const denied = getPushState() === 'denied';
   return `
     <div class="p-push-banner">
-      <span class="p-push-banner__icon"><img src="/images/icon/icon-notification-pressed.svg" width="20" height="20" alt=""></span>
+      <span class="p-push-banner__icon"><span class="c-icon p-push-banner__icon-image" style="--icon:url('/images/icon/icon-notification-tint.svg')" aria-hidden="true"></span></span>
       <button id="push-banner-open" class="p-push-banner__open">
         <p class="p-push-banner__title">${_esc(denied ? '通知がオフになっています' : '通知をオンにしませんか？')}</p>
         <p class="p-push-banner__sub">

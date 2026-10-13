@@ -5,6 +5,11 @@
 
    ★ログイン前の画面はヘッダーもタブも無い。中央1カラムに見出し・説明・
      フォームを縦に積むだけなので、画面ごとに書かずここへまとめる。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/auth.js … _inviteContextBanner / _setupGoogleSignIn / renderCreateAccountInfo / renderLogin
+     public/js/views/passwordReset.js … _confirmForm / _doneBlock / _formBlock / _sentBlock / _verifyErrorBlock
+                                        renderPasswordResetConfirm / renderPasswordResetRequest
    ========================================================================== */
 
 .p-auth {

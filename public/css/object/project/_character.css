@@ -19,6 +19,11 @@
      .p-char__face  … 瞬き（scaleY で潰す）
      .p-char__iris  … 視線（translate）
      .p-char__badge … icon-suggest の出現
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/character.js … characterFigureHtml / characterTipHtml / sleepBubbleHtml
+     public/js/pillarChars.js … pillarCharHtml
+     public/js/views/mainBoard.js … _characterBoxHtml / _initMissionPanelGesture / _renderMainTab / (トップレベル)
    ========================================================================== */
 
 /* ==========================================================================

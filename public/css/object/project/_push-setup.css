@@ -8,6 +8,9 @@
    ★本番の利用者は iOS が6割で、iOS はホーム画面に追加しない限り通知が
      一切届かない。追加率がそのまま通知の到達率になるので、手順の文字を
      小さくしたり畳んだりしないこと。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/pushSetupModal.js … pushBannerHtml / pushSetupContentHtml
    ========================================================================== */
 
 .p-push-setup__icon {
@@ -121,8 +124,15 @@
 }
 
 .p-push-banner__icon {
+  display: flex;
   flex-shrink: 0;
   color: var(--color-primary);
+}
+
+/* ベルは文字と同じ緑で塗る（c-icon）。塗りは素材の fill-opacity で薄く、線は濃く（icon-notification-tint.svg） */
+.p-push-banner__icon-image {
+  width: 20px;
+  height: 20px;
 }
 
 .p-push-banner__open {

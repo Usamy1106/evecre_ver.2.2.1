@@ -1585,7 +1585,7 @@ body {
 /* ===== object/component/_icon.css ===== */
 /* ==========================================================================
    Object / Component / icon — 素材の SVG を文字の色で塗るアイコン
-   使用箇所: 予定をコピー（アーカイブ・スケジュールシート・広い画面の右列）／開催日を編集／アーカイブの「編集する」
+   使用箇所: 予定をコピー（アーカイブ・スケジュールシート・広い画面の右列）／開催日を編集／アーカイブの「編集する」／通知をオンにしませんか？のバナー
 
    ★<img> で置くと SVG に書かれた色（#484545）のままで、ボタンの文字の色に追従しない。
      素材を CSS の mask で型抜きし、background-color: currentColor で塗る
@@ -4633,6 +4633,15 @@ body {
      下部パネルと FAB は layout/_fixed-bottom.css。
 
    ★通知タブ・アーカイブタブは従来どおりページスクロール（3層構成は MAIN だけ）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/archiveInlineEdit.js … _bindTapToExit
+     public/js/components.js … BoardRail / refreshNotifBadge
+     public/js/modals/mission.js … showProposalHelp
+     public/js/views/mainBoard.js … _characterBoxHtml / _initMissionPanelGesture / _missionDeadlineText
+                                    _renderAnnounceCards / _renderClaimAnnouncementBanner / _renderDashboardMain
+                                    _renderMainTab / _renderPendingMembersBanner / _resolveUserChips
+                                    _withMonthHeadings / renderMainBoard
    ========================================================================== */
 
 .p-main-board {
@@ -4788,6 +4797,11 @@ body {
 .p-main-board__date-icon {
   width: 16px;
   height: 16px;
+}
+
+/* 開催日未設定・開催後（文字が薄いとき）はアイコンも薄く。★薄さはタスク作成の日付欄と同じ */
+.p-main-board__date-icon.is-muted {
+  opacity: .4;
 }
 
 .p-main-board__date-text {
@@ -5496,6 +5510,16 @@ body {
      編集モード（.p-archive--editing。管理者のみ）でも囲みは出さない。書ける欄は白い地＋フォーカス中の青い線だけ。
    ★基礎情報の読み書きは utils.js の getter / setter に集約してあり、ここは表示だけ。
    ★ペンのアイコン（Components.PenIcon）は編集モードでだけ出る。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/archiveInlineEdit.js … _bindTapToExit / bindArchiveTapToEdit / (トップレベル)
+     public/js/main.js … jumpToArchiveEntry
+     public/js/modals/helpers.js … _openArchiveImageDialog / openEditModal
+     public/js/modals/reflectionEditModal.js … openReflectionEditModal
+     public/js/views/mainBoard.js … _archiveEntryTitleHtml / _archiveIndividualHtml / _archivePublicBannerHtml
+                                    _archiveSubmissionEditHtml / _archiveSubmissionHtml / _renderArchiveEntry
+                                    _renderArchivePendingEntry / _renderArchiveTab / _scrollToArchiveEntry
+                                    _segmentsHtml / renderMainBoard / (トップレベル)
    ========================================================================== */
 
 .p-archive {
@@ -5548,6 +5572,11 @@ body {
 .p-archive__days-icon {
   width: 14px;
   height: 14px;
+}
+
+/* 開催日未設定（文字が薄いとき）はアイコンも薄く */
+.p-archive__days-icon.is-muted {
+  opacity: .4;
 }
 
 .p-archive__days-text {
@@ -6587,6 +6616,10 @@ body {
      「すべて既読」も現在のイベントぶんだけを既読にする。
    ★p-notification__swipe-card は views/mainBoard.js が横スワイプの対象として掴む目印。
      クラス名を変えるならそちらも直すこと。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/mainBoard.js … _notifIcon / _notifRowHtml / _renderNotifGroups / _renderNotificationsTab
+                                    toggleNotifGroup / (トップレベル)
    ========================================================================== */
 
 .p-notification {
@@ -6936,6 +6969,11 @@ body {
      まとめて保存すると途中離脱で全部消える。
    ★ログイン前の共通ガワ（p-auth）とは別。こちらは戻るボタン付きで
      1問ずつ出す形なので、独立させてある。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/signup.js … _choice / _otherErrorsHtml / _renderAvatar / _renderChannel / _renderComplete
+                                 _renderEmail / _renderEntry / _renderExperience / _renderName / _renderOtp
+                                 _renderPassword / _renderQuiz / _shell / _skipButton / _updateStrength
    ========================================================================== */
 
 .p-signup {
@@ -7629,6 +7667,10 @@ body {
      ただしマス数はミッション数に応じて増え、完了相当のマスは塗りつぶす。
      全体に pointer-events:none を敷いているのは、裏側にあるこの層が
      手前のコンテンツ（提案・ミッション一覧）の操作を奪わないため。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/mountainPath.js … _renderBgLayer / _revealAllLandforms / _revealLandformsByRect
+                                 initMountainPathSync / renderMountainBg / renderMountainScrollWindow / (トップレベル)
    ========================================================================== */
 
 .p-mountain {
@@ -8213,6 +8255,11 @@ body {
 
    ★🔥ボタンを置くのは参加確認モーダル（ログイン済み）だけ。認証前の
      招待バナーでは押せないのでボタン自体を出さない。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/inviteIssueModal.js … _render
+     public/js/modals/joinByCodeModal.js … _renderConfirm / _renderInput
+     public/js/modals/leaderMotivationModal.js … _openModal
    ========================================================================== */
 
 .p-invite__motivation {
@@ -8560,6 +8607,9 @@ body {
      （swipeCard.js を共用）。ただし通知セットアップの案内ページは
      スワイプ無効（誤操作で飛ばさないため）。
    ★既読は「開いた時点」で記録する。途中で閉じても同じ version は再表示しない。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/devAnnouncementModal.js … _renderPage
    ========================================================================== */
 
 .p-announcement {
@@ -8686,6 +8736,13 @@ body {
 
    ★ミッションのタグ色（--tag-color）と完了時の薄さ（--gantt-opacity）は
      1行ごとに違うのでインラインで渡す。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/calendar.js … _renderCalendarInner
+     public/js/modals/eventCalendarSheet.js … _render
+     public/js/schedulePanel.js … _bindDateEditDrag / _renderCalendar / _renderCalendarView / _renderGanttView
+                                  _renderMissionRow / _renderSections / scheduleCalendarHtml
+     public/js/views/mainBoard.js … _renderDashboardMain
    ========================================================================== */
 
 .p-schedule {
@@ -9293,6 +9350,9 @@ body {
    ★マスの状態は is-selected（選んだ日）と is-event（イベントの開催日）の
      2つで、重ねて付く。以前は Tailwind のクラスを JS で付け外ししており、
      選択を外したときに開催日の色まで消えていた。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/calendar.js … _renderCalendarInner / _renderDateTimeList
    ========================================================================== */
 
 .p-date-picker__sheet {
@@ -9584,6 +9644,9 @@ body {
    ★本番の利用者は iOS が6割で、iOS はホーム画面に追加しない限り通知が
      一切届かない。追加率がそのまま通知の到達率になるので、手順の文字を
      小さくしたり畳んだりしないこと。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/pushSetupModal.js … pushBannerHtml / pushSetupContentHtml
    ========================================================================== */
 
 .p-push-setup__icon {
@@ -9697,8 +9760,15 @@ body {
 }
 
 .p-push-banner__icon {
+  display: flex;
   flex-shrink: 0;
   color: var(--color-primary);
+}
+
+/* ベルは文字と同じ緑で塗る（c-icon）。塗りは素材の fill-opacity で薄く、線は濃く（icon-notification-tint.svg） */
+.p-push-banner__icon-image {
+  width: 20px;
+  height: 20px;
 }
 
 .p-push-banner__open {
@@ -9736,6 +9806,10 @@ body {
      → ページネーション／メインボタン → あとで
    ★画像は後から差し替える。パスが空のときは <img> を出さないが、イラストの枠（__art）は確保する
      （画像が入っても見出しの位置が動かないように）。枠の大きさは --welcome-art-* で調整する。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/welcomeTourModal.js … _frame / _homeAddExtra / _showHomeAdd / _showPage
+                                            openPushSetupTour
    ========================================================================== */
 
 .p-welcome-tour {
@@ -9957,6 +10031,12 @@ body {
    ★このファイルは過去に閉じタグの取り残しで全体が壊れたことがある。
      マークアップを触ったら node --check と配信確認（curl）を必ず通すこと。
    ★行の形は c-settings-list（Component）。ここには画面固有のものだけを置く。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/eventSettings.js … _accordion / _eventManagementSection / _integrationSection
+                                        _leaveSection / _membersAvatarsSection / _profileSection
+                                        _renderRoleAddForm / _userManagementSection / _webhookFormHtml
+                                        renderEventSettings
    ========================================================================== */
 
 .p-event-settings {
@@ -10464,6 +10544,10 @@ body {
      いる。初期オンボーディング③のツールチップが掴むので消さないこと。
    ★タグの色はイベントごとにユーザーが作れるので、--tag-color / --tag-tint
      で渡す（tint は色の 10% 塗り）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/mission.js … _renderBasicTab / _renderDetailTab / _renderPillarStep / _submitButtonHtml
+                                   openMissionModal / renderMissionModalContent
    ========================================================================== */
 
 /* --- ヘッダー ------------------------------------------------------------- */
@@ -10660,7 +10744,12 @@ body {
 .p-mission-form__date-icon {
   width: 16px;
   height: 16px;
-  opacity: .4;
+  opacity: .4;   /* 未設定のときは文字（薄いグレー）に合わせて薄く */
+}
+
+/* 設定済み（is-set）は文字が濃くなるので、アイコンも濃くする */
+.p-mission-form__date.is-set .p-mission-form__date-icon {
+  opacity: 1;
 }
 
 .p-mission-form__date-text {
@@ -10891,6 +10980,10 @@ body {
      「このまま作成する」を必ず読める形で残すこと（塗りは無いが薄くしない）。
    ★目立たせる（is-attention）はフォーム側の欄に付く。ここに一緒に置いてある
      のは、出どころが同じで追いやすいため。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/mission.js … _renderBasicTab / _renderDetailTab
+     public/js/modals/missionCheckModal.js … _open
    ========================================================================== */
 
 .p-mission-check {
@@ -10978,6 +11071,10 @@ body {
      おすすめの行も同じ属性を使うので、ハンドラは1つで足りている。
    ★おすすめを出す根拠が無いときは、おすすめの塊ごと出さない
      （判定は assigneeSuggest.js。ここでは空になった場合の見た目を持たない）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/mission.js … _assigneePickZone / _assigneeSuggestHtml / _renderAssigneeSelect
+                                   _renderAssigneeSheetList / openAssigneeSheet / openSelectClaimModal
    ========================================================================== */
 
 /* --- 作成モーダルの「担当者」欄 -------------------------------------------- */
@@ -11409,6 +11506,9 @@ body {
 
    ★同じ色は選べない（既に使われている色は × を出して押せなくする）。
      色で見分ける前提の機能なので、重複を許すとタグの意味が消える。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/mission.js … _renderTagColorGrid / openTagCreator
    ========================================================================== */
 
 .p-tag-creator__sheet {
@@ -11510,6 +11610,9 @@ body {
      members へ引き継ぐのはサーバー側の仕事。ここは表示だけを持つ。
    ★申請者カードの HTML は「SSE で増えたとき」と「シートを開いたとき」の
      2箇所で組み立てられる。片方だけ直さないこと（main.js を参照）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/main.js … _openApproveModal / _pendingAnswersHtml / editArchiveItem
    ========================================================================== */
 
 .p-member-manage__lead {
@@ -11760,6 +11863,9 @@ body {
 
    ★ここは「どの画面にも属さない共通の器」だけを置く。画面ごとの見た目は
      それぞれの p- ファイルへ。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/main.js … _openEventLogSheet / _openNewProjectModal / openJoinEventModal / openVerifyModal
    ========================================================================== */
 
 /* --- ユーザーメニュー ----------------------------------------------------- */
@@ -11950,6 +12056,11 @@ body {
      initClearDraft が参照）。**id を変えると完了とドラフト保存が壊れる。**
    ★チャット欄だけ独立スクロールにしてある（長くなっても上部の完了入力欄が
      押し出されない）。高さは max-height:45vh。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/missionDetail.js … _fmtClearedContent / _reflectionHtml / _renderChatMessage
+                                        _renderChatSection / _renderClearInput / _renderClearSection
+                                        _renderIndividualSection / _renderMissionInfo / renderMissionDetail
    ========================================================================== */
 
 .p-mission-detail {
@@ -12805,6 +12916,9 @@ body {
    ★成否で演出の「量」に差をつけない。違うのは質（向き・速さ・色）だけ。
      祝福されない側が無反応だと、正直な報告が損をして実態が集まらなくなる。
    ★animate するのは transform と opacity だけ。粒は16個以内・1秒以内に消える。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/missionReflect.js … renderMissionReflect
    ========================================================================== */
 
 .p-mission-reflect {
@@ -13094,6 +13208,9 @@ body {
    目的（def-1）を支える「柱」を最大3つ決めるページ。モーダルではないので暗幕は無い。
    ★柱には色を付けない（タグの色と意味が混ざる。名前・数値で読ませる）。
    ★入力欄の文字は 16px 以上（iOS のズーム対策。c-input が持っている）
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/pillarEdit.js … renderPillarEdit
    ========================================================================== */
 
 .p-pillar-edit {
@@ -13335,6 +13452,13 @@ body {
    ★体と目は .p-char（_character.css）の部品をそのまま使う。ここでは大きさと名前・選択の見た目だけを持つ。
    ★キャラの色はラベルの色と重なる（了承済み）。
    ★animate するのは transform と opacity だけ。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/character.js … characterFigureHtml / characterTipHtml
+     public/js/modals/mission.js … _renderPillarStep / (トップレベル)
+     public/js/pillarChars.js … pillarCharHtml / pillarSlotHtml
+     public/js/views/mainBoard.js … _characterBoxHtml
+     public/js/views/pillarEdit.js … _bind / renderPillarEdit
    ========================================================================== */
 
 /* 横並び（柱の設定ページ・広い画面のタスク作成） */
@@ -13493,6 +13617,9 @@ body {
    ★決まっていないときは点線の枠で「決める」を促す（塗りの強さで状態を分ける）。
    ★柱を立てる入口はこの箱の中（.p-purpose__pillar-cta）。目的が決まっていて柱が無いときだけ。
    ★外側は div、押せるものは中の2つの button（入れ子にしない）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/mainBoard.js … _purposeBoxHtml
    ========================================================================== */
 
 .p-purpose {
@@ -13641,6 +13768,9 @@ body {
    ★バーは割合。★★0件は 0% と別の見た目（文字「0件」を警告色、バーは破線の枠だけ）。
    ★柱には色を付けない。バーは主色の1色だけ（タグの色と意味を混ぜない）。
    ★高さはおよそ 100px（見出し1行＋柱3行）に収める。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/mainBoard.js … _pillarBoardHtml / togglePillarBoard
    ========================================================================== */
 
 .p-pillar-board {
@@ -13764,6 +13894,9 @@ body {
    柱を保存した直後に、既存のタスクをまとめて柱へ振り分ける。スキップできる（「あとで」）。
    ★柱には色を付けない（タスク作成の柱のチップと同じ見た目）。
    ★保存ボタンは画面の下に残す（タスクが多くても押しに戻らなくてよいように）
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/pillarAssign.js … renderPillarAssign
    ========================================================================== */
 
 .p-pillar-assign {
@@ -13883,6 +14016,9 @@ body {
 
    ヘッダー画像・タイトル・概要・期間・場所を「設定済み／未設定」で並べ、足りないものを伝える。
    ★全部そろっていなくても公開できる（2026-10-02）。未設定は止めるためではなく知らせるために出す
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/publicBasicInfoModal.js … _open
    ========================================================================== */
 
 .p-public-basic__list {
@@ -13958,6 +14094,13 @@ body {
    6 意気込み / 7 招待リンク。4〜6 はスキップ可、2・3 は選んだ瞬間に次へ進む。
 
    ★進捗の分母は6（STEP 7 は「完了」扱いで分母外）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/createEvent.js … _renderCreating / _renderError / _renderShare / _stepShell
+                                      renderCreateEventCatchphrase / renderCreateEventDates
+                                      renderCreateEventInfo / renderCreateEventIntegration
+                                      renderCreateEventInvite / renderCreateEventMotivation
+                                      renderCreateEventScale / renderCreateEventType
    ========================================================================== */
 
 .p-create-event {
@@ -14643,6 +14786,10 @@ body {
 
    ★上から「認証」「プロフィール」「本人確認まわり」「通知」、最後に
      ログアウトと退会。取り消せない操作ほど下に置いてある。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/account.js … _avatarSection / _dangerZoneSection / _macNotificationNotice
+                                  _notificationSection / _verifySection / renderAccount
    ========================================================================== */
 
 .p-account {
@@ -14894,6 +15041,10 @@ body {
      「新規登録」→ CREATE_ACCOUNT_INFO、「ログイン」→ LOGIN へ分かれる。
    ★招待リンクから来た人にはこの画面にも招待バナー（p-auth__invite）が出る。
      何に参加しようとしているのか分からないまま登録させないため。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/connectionError.js … renderConnectionError / (トップレベル)
+     public/js/views/welcome.js … renderWelcome
    ========================================================================== */
 
 .p-welcome {
@@ -14968,6 +15119,11 @@ body {
 
    ★ログイン前の画面はヘッダーもタブも無い。中央1カラムに見出し・説明・
      フォームを縦に積むだけなので、画面ごとに書かずここへまとめる。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/auth.js … _inviteContextBanner / _setupGoogleSignIn / renderCreateAccountInfo / renderLogin
+     public/js/views/passwordReset.js … _confirmForm / _doneBlock / _formBlock / _sentBlock / _verifyErrorBlock
+                                        renderPasswordResetConfirm / renderPasswordResetRequest
    ========================================================================== */
 
 .p-auth {
@@ -15202,6 +15358,10 @@ body {
      イベント → ヘッダーの「イベントを作成」／空状態のボタン
      プロジェクト → プロジェクトタブ見出し横の「＋新規作成」／空状態のボタン
      ここを消すと空のプロジェクトを作る手段が無くなる。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/home.js … _incomingRequestsCard / _pendingApprovalCard / _renderEventsTab / _renderGrid
+                               _renderProjectsTab / renderHome
    ========================================================================== */
 
 .p-home {
@@ -15713,6 +15873,9 @@ body {
    ★右下の＋ボタン（FAB）は廃止済み。イベントを足す導線はヘッダーの
      「＋イベント」（そのままこのフォルダに格納される）と、HOME で作成 →
      イベント長押し →「プロジェクトに追加」の2つ。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/projectDetail.js … _renderEventList / renderProjectDetail
    ========================================================================== */
 
 .p-project-detail {
@@ -15938,6 +16101,10 @@ body {
    ★Tailwind の Preflight が見出し・リストの既定スタイルを消しているため、
      サイズや行頭記号はここで明示している。Preflight が外れる Phase 5 でも
      見た目が変わらないよう、既定値に頼らず全部書いてある。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/markdown.js … mdToHtml / (トップレベル)
+     public/js/views/legal.js … renderLegal
    ========================================================================== */
 
 .p-legal {
@@ -16131,6 +16298,11 @@ body {
      .p-char__face  … 瞬き（scaleY で潰す）
      .p-char__iris  … 視線（translate）
      .p-char__badge … icon-suggest の出現
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/character.js … characterFigureHtml / characterTipHtml / sleepBubbleHtml
+     public/js/pillarChars.js … pillarCharHtml
+     public/js/views/mainBoard.js … _characterBoxHtml / _initMissionPanelGesture / _renderMainTab / (トップレベル)
    ========================================================================== */
 
 /* ==========================================================================
@@ -16665,6 +16837,9 @@ body {
    ★中身は「タイプ（診断の回答）」「意気込み」「できること」「やってみたいこと」の
      4ブロックで、どれも未回答がありうる。JS 側が空のブロックを出さないので、
      ここでは「あるものだけが並ぶ」前提でよい。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/userProfileModal.js … _chipsHtml / openUserProfileModal
    ========================================================================== */
 
 .p-user-profile__head {
@@ -16792,6 +16967,9 @@ body {
    参加申請フォームの回答を「ユーザー別」「質問別」の2つの見方で並べる。
    ★得意（青）とやってみたい（緑）の色分けは参加申請フォーム・ユーザー紹介
      モーダルと揃えること。同じ回答が画面ごとに違う色だと本人が混乱する。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/archiveAnswers.js … _byQuestion / _byUser / _chips / renderArchiveAnswers
    ========================================================================== */
 
 .p-answers__main {
@@ -17011,6 +17189,9 @@ body {
      モバイル前提の端末に chart ライブラリを載せる価値がない。
    ★棒の長さは「最大値に対する割合」。合計に対する割合にすると、1人が
      突出したときに他の全員がほぼ0幅になって差が読めなくなる。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/archiveStats.js … _bar / _memberChart / renderArchiveStats
    ========================================================================== */
 
 .p-stats__main {
@@ -17141,6 +17322,15 @@ body {
      右＝やること×カレンダー／ガント（上の操作列は共通）。
    ★ブレイクポイントに頼らない：右列のカレンダーとカードは、横に入れば並べ・入らなければ積む（flex-wrap）。
    ★スタイルシートの最後のほうに置く（_main-board / _mountain / _character / _schedule を上書きするため）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/archiveInlineEdit.js … _bindTapToExit
+     public/js/components.js … BoardRail / refreshNotifBadge
+     public/js/modals/calendar.js … _renderCalendarInner
+     public/js/modals/eventCalendarSheet.js … _render
+     public/js/mountainPath.js … renderMountainBg
+     public/js/views/mainBoard.js … _initMissionPanelGesture / _renderDashboardMain / _renderMainTab
+                                    _withMonthHeadings / renderMainBoard
    ========================================================================== */
 
 /* 左端の列（position: fixed）のぶんだけ中身を右へずらす */

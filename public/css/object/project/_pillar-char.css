@@ -7,6 +7,13 @@
    ★体と目は .p-char（_character.css）の部品をそのまま使う。ここでは大きさと名前・選択の見た目だけを持つ。
    ★キャラの色はラベルの色と重なる（了承済み）。
    ★animate するのは transform と opacity だけ。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/character.js … characterFigureHtml / characterTipHtml
+     public/js/modals/mission.js … _renderPillarStep / (トップレベル)
+     public/js/pillarChars.js … pillarCharHtml / pillarSlotHtml
+     public/js/views/mainBoard.js … _characterBoxHtml
+     public/js/views/pillarEdit.js … _bind / renderPillarEdit
    ========================================================================== */
 
 /* 横並び（柱の設定ページ・広い画面のタスク作成） */

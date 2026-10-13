@@ -10,6 +10,11 @@
      initClearDraft が参照）。**id を変えると完了とドラフト保存が壊れる。**
    ★チャット欄だけ独立スクロールにしてある（長くなっても上部の完了入力欄が
      押し出されない）。高さは max-height:45vh。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/missionDetail.js … _fmtClearedContent / _reflectionHtml / _renderChatMessage
+                                        _renderChatSection / _renderClearInput / _renderClearSection
+                                        _renderIndividualSection / _renderMissionInfo / renderMissionDetail
    ========================================================================== */
 
 .p-mission-detail {

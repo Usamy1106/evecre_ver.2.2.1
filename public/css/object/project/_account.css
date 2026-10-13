@@ -4,6 +4,10 @@
 
    ★上から「認証」「プロフィール」「本人確認まわり」「通知」、最後に
      ログアウトと退会。取り消せない操作ほど下に置いてある。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/account.js … _avatarSection / _dangerZoneSection / _macNotificationNotice
+                                  _notificationSection / _verifySection / renderAccount
    ========================================================================== */
 
 .p-account {

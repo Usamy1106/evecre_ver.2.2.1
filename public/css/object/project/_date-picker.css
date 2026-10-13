@@ -8,6 +8,9 @@
    ★マスの状態は is-selected（選んだ日）と is-event（イベントの開催日）の
      2つで、重ねて付く。以前は Tailwind のクラスを JS で付け外ししており、
      選択を外したときに開催日の色まで消えていた。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/calendar.js … _renderCalendarInner / _renderDateTimeList
    ========================================================================== */
 
 .p-date-picker__sheet {

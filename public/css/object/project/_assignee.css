@@ -9,6 +9,10 @@
      おすすめの行も同じ属性を使うので、ハンドラは1つで足りている。
    ★おすすめを出す根拠が無いときは、おすすめの塊ごと出さない
      （判定は assigneeSuggest.js。ここでは空になった場合の見た目を持たない）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/mission.js … _assigneePickZone / _assigneeSuggestHtml / _renderAssigneeSelect
+                                   _renderAssigneeSheetList / openAssigneeSheet / openSelectClaimModal
    ========================================================================== */
 
 /* --- 作成モーダルの「担当者」欄 -------------------------------------------- */

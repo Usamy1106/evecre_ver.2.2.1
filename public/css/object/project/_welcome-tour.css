@@ -6,6 +6,10 @@
      → ページネーション／メインボタン → あとで
    ★画像は後から差し替える。パスが空のときは <img> を出さないが、イラストの枠（__art）は確保する
      （画像が入っても見出しの位置が動かないように）。枠の大きさは --welcome-art-* で調整する。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/welcomeTourModal.js … _frame / _homeAddExtra / _showHomeAdd / _showPage
+                                            openPushSetupTour
    ========================================================================== */
 
 .p-welcome-tour {

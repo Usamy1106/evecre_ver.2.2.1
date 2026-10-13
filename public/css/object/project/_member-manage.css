@@ -8,6 +8,9 @@
      members へ引き継ぐのはサーバー側の仕事。ここは表示だけを持つ。
    ★申請者カードの HTML は「SSE で増えたとき」と「シートを開いたとき」の
      2箇所で組み立てられる。片方だけ直さないこと（main.js を参照）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/main.js … _openApproveModal / _pendingAnswersHtml / editArchiveItem
    ========================================================================== */
 
 .p-member-manage__lead {

@@ -5,6 +5,11 @@
 
    ★🔥ボタンを置くのは参加確認モーダル（ログイン済み）だけ。認証前の
      招待バナーでは押せないのでボタン自体を出さない。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/modals/inviteIssueModal.js … _render
+     public/js/modals/joinByCodeModal.js … _renderConfirm / _renderInput
+     public/js/modals/leaderMotivationModal.js … _openModal
    ========================================================================== */
 
 .p-invite__motivation {

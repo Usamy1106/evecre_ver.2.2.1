@@ -6,6 +6,10 @@
      「新規登録」→ CREATE_ACCOUNT_INFO、「ログイン」→ LOGIN へ分かれる。
    ★招待リンクから来た人にはこの画面にも招待バナー（p-auth__invite）が出る。
      何に参加しようとしているのか分からないまま登録させないため。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/connectionError.js … renderConnectionError / (トップレベル)
+     public/js/views/welcome.js … renderWelcome
    ========================================================================== */
 
 .p-welcome {

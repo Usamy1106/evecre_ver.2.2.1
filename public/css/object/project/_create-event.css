@@ -6,6 +6,13 @@
    6 意気込み / 7 招待リンク。4〜6 はスキップ可、2・3 は選んだ瞬間に次へ進む。
 
    ★進捗の分母は6（STEP 7 は「完了」扱いで分母外）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/createEvent.js … _renderCreating / _renderError / _renderShare / _stepShell
+                                      renderCreateEventCatchphrase / renderCreateEventDates
+                                      renderCreateEventInfo / renderCreateEventIntegration
+                                      renderCreateEventInvite / renderCreateEventMotivation
+                                      renderCreateEventScale / renderCreateEventType
    ========================================================================== */
 
 .p-create-event {

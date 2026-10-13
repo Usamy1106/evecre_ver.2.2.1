@@ -8,6 +8,10 @@
      「すべて既読」も現在のイベントぶんだけを既読にする。
    ★p-notification__swipe-card は views/mainBoard.js が横スワイプの対象として掴む目印。
      クラス名を変えるならそちらも直すこと。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/mainBoard.js … _notifIcon / _notifRowHtml / _renderNotifGroups / _renderNotificationsTab
+                                    toggleNotifGroup / (トップレベル)
    ========================================================================== */
 
 .p-notification {

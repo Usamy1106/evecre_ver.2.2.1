@@ -9,6 +9,11 @@
      まとめて保存すると途中離脱で全部消える。
    ★ログイン前の共通ガワ（p-auth）とは別。こちらは戻るボタン付きで
      1問ずつ出す形なので、独立させてある。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
+     public/js/views/signup.js … _choice / _otherErrorsHtml / _renderAvatar / _renderChannel / _renderComplete
+                                 _renderEmail / _renderEntry / _renderExperience / _renderName / _renderOtp
+                                 _renderPassword / _renderQuiz / _shell / _skipButton / _updateStrength
    ========================================================================== */
 
 .p-signup {
