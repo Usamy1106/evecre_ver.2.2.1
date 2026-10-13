@@ -1079,7 +1079,7 @@ window._app = {
         <h3 class="c-modal__title">${_escH(config.title)}</h3>
         <p class="c-modal__text">${_escH(config.desc)}</p>
         <div class="c-modal__actions">
-          <button data-action="skip" class="c-button c-button--secondary c-modal__button">後で</button>
+          <button data-action="skip" class="c-button c-button--secondary c-modal__button">スキップ</button>
           <button data-action="go" class="c-modal__button c-modal__button--accent c-modal__button--shadow"
             style="--accent:${_escH(config.color)}">${_escH(config.action)}</button>
         </div>
@@ -1799,7 +1799,7 @@ const _LOG_LABELS = {
   leader_motivation_failed:  '★意気込みモーダルの表示に失敗した',
   reflect_outcome_picked:  '振り返りで成否を選んだ',
   reflect_saved:           '振り返りを書いた（完了直後）',
-  reflect_skipped:         '振り返りを「今はしない」で閉じた',
+  reflect_skipped:         '振り返りを「あとで」で閉じた',
   pillar_edit_opened:      '柱の編集ページを開いた',
   pillars_saved:           '柱を保存した',
   pillar_filtered:         '柱でタスクを絞り込んだ',

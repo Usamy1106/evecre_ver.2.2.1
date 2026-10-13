@@ -60,7 +60,7 @@ export function renderPillarAssign(appEl) {
     <div class="p-pillar-assign">
       <header class="p-pillar-assign__header">
         <h1 class="p-pillar-assign__heading">タスクを柱に振り分ける</h1>
-        <button type="button" data-assign-later data-log="pillar_assign_later" class="p-pillar-assign__later">後で</button>
+        <button type="button" data-assign-later data-log="pillar_assign_later" class="p-pillar-assign__later">あとで</button>
       </header>
 
       <div class="p-pillar-assign__body">

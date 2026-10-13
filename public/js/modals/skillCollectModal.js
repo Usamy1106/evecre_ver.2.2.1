@@ -155,7 +155,7 @@ export function openSkillCollectModal(project) {
             ${ctx.saving ? '保存中…' : (isGood ? '次へ' : '保存する')}
           </button>
           <button type="button" data-sc="${isGood ? 'later' : 'back'}" class="c-step-modal__secondary">
-            ${isGood ? '後で' : '戻る'}
+            ${isGood ? 'あとで' : '戻る'}
           </button>
         </div>
       </div>`;

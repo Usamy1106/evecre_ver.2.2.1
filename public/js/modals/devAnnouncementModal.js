@@ -157,7 +157,7 @@ function _renderPage(overlay, pages, index, opts = {}) {
         </button>
         ${!isLast && !page.action ? `
           <button data-action="close" class="p-announcement__skip">
-            後で
+            スキップ
           </button>` : ''}
       </div>
     </div>`;

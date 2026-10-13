@@ -75,7 +75,7 @@ export function openOnboardingModal(o) {
       ${Components.StepIndicator(page + 1, o.steps.length)}
       ${isLast && o.body ? `<p class="c-modal__lead">${_esc(o.body)}</p>` : ''}
       <button type="button" data-ob="${isLast ? 'primary' : 'next'}" class="c-button c-button--primary c-modal__button c-modal__button--roomy">${_esc(isLast ? o.primary : '次へ')}</button>
-      ${o.dismissible === false ? '' : '<button type="button" data-ob="close" class="c-modal__button--quiet">後で</button>'}
+      ${o.dismissible === false ? '' : '<button type="button" data-ob="close" class="c-modal__button--quiet">あとで</button>'}
     </div>`;
   };
 
@@ -98,7 +98,7 @@ export function openOnboardingModal(o) {
       <!-- ★dismissible: false のステップでは「あとで」を出さない。
            主ボタンを押しても閉じるだけ（action 無し）の案内で、選択肢が2つあると
            「どちらを押すべきか」を考えさせるだけになるため（L1 がこれ）。 -->
-      ${o.dismissible === false ? '' : '<button type="button" data-ob="close" class="c-modal__button--quiet">後で</button>'}
+      ${o.dismissible === false ? '' : '<button type="button" data-ob="close" class="c-modal__button--quiet">あとで</button>'}
     </div>`;
   document.body.appendChild(overlay);
 
