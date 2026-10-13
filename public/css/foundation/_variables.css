@@ -10,17 +10,19 @@
        移行が終わるまでは同じ HEX が JS に散らばっており（constants.js の
        LABEL_CONFIG、main.js の通知カード、signup.js のタグ等）、
        ここだけ変えると画面内で色が食い違う。
-       検出コマンド： grep -rniE '#(F5B600|22AC38|209DDB)' public lib
+       検出コマンド： grep -rniE '#(f9b900|22ac38|009fe5)' public lib
+       ★2026-10-13 に青 #209DDB → #009fe5、黄 #F5B600 → #f9b900 へ変更（JS の直書きと警告の黄の派生色も追従）。
+         キャラクター・マスの SVG（public/images/character・front/tile-image.svg）は素材なので旧色のまま
        ★rgba() の派生色（--color-primary-* / --color-success-* / --color-warning-*）と
        ライム前提だった緑の派生色も同時に追従させること（2026-08-25 に実施済み）。 */
-  --create-yellow: #F5B600;
-  --create-green: #22AC38;
-  --create-blue: #209DDB;
+  --create-yellow: #f9b900;
+  --create-green: #22ac38;
+  --create-blue: #009fe5;
   /* ブランドカラー（2026-09-29 に青 #209DDB から変更）。★ボタン・タブ・リンク・入力欄の枠など「操作の色」は
      これ（--color-primary）。★--create-blue は分類の青（ラベル「運営」・キャラ「みず」・タグの色の候補・
      通知の種類の色分けなど）として残している。混ぜないこと。
      ★直書きの箇所（theme-color・offline.html・メール・一部の SVG）も一緒に変えること：
-       grep -rniE '#22AC38|34, 172, 56' public lib */
+       grep -rniE '#22ac38|34, 172, 56' public lib */
   --brand-green: #22AC38;
   --create-red: #EE3E12;
   --primary-black: #484545;
@@ -69,8 +71,8 @@
   --color-danger-half: rgba(238, 62, 18, .3);
   --color-success-tint: rgba(40, 171, 61, .2);
   --color-success-tint2: #DBF5DF;
-  --color-warning-half2: rgba(245, 182, 0, .6);
-  --color-warning-faint: rgba(245, 182, 0, .3);
+  --color-warning-half2: rgba(249, 185, 0, .6);
+  --color-warning-faint: rgba(249, 185, 0, .3);
   --color-success-half: rgba(40, 171, 61, .6);
   --color-danger-half2: rgba(238, 62, 18, .4);
   --color-danger-pale2: #FFF0ED;   /* --color-danger-pale と近い。統合は Phase 5 で判断 */
@@ -79,7 +81,7 @@
   --color-text-soft: #6B6B6B;      /* 本文より少し薄い文字 */
   /* 通知アイコンの背景（種類ごとに色を変える。20% の淡い塗り）*/
   --color-primary-tint: rgba(48, 162, 61, .2);
-  --color-warning-tint: rgba(245, 182, 0, .2);
+  --color-warning-tint: rgba(249, 185, 0, .2);
   --color-danger-tint2: rgba(238, 62, 18, .2);
   --color-violet-tint: rgba(167, 139, 250, .2);
 
@@ -118,7 +120,7 @@
        --tile-ratio / --tile-top-cy も直すこと**（完了のチェックがずれる）。 */
   --mtn-tile: url("/images/front/tile-image.svg");
   --color-primary-quarter: rgba(48, 162, 61, .25);
-  --color-warning-quarter: rgba(245, 182, 0, .25);
+  --color-warning-quarter: rgba(249, 185, 0, .25);
   /* --- 下部パネル（メインボード）-------------------------------------------
      ★--color-bg（アプリ全体の地色）とは絶対に共用しないこと。
        --color-bg は 33ファイル・65箇所（ヘッダー・タブ・全モーダル・全シート・
@@ -135,7 +137,7 @@
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
   --color-alert: #E74C3C;          /* 締め切り超過・当日 */
   --color-warning-pale2: #FFF8E1;  /* --color-warning-pale と近い。統合は Phase 5 で判断 */
-  --color-warning-half: rgba(245, 182, 0, .5);
+  --color-warning-half: rgba(249, 185, 0, .5);
   --color-bg-translucent: rgba(253, 251, 248, .95);
   --color-primary-pale3: #F2F9F3;  /* 押したリアクション。他の pale と近い（統合は Phase 5）*/
   --color-primary-half: rgba(48, 162, 61, .3);
@@ -303,7 +305,8 @@
        --color-bg の上に重ねた形（background-image のグラデーション＋地色）で塗ること */
   --board-dash-bg: #88c95E;
   /* 左端の列で、いま開いているタブのボタンの地色（2026-10-02）*/
-  --rail-active-bg: #fef6d5;
+  --rail-default-bg: #fef6d5;
+  --rail-active-bg: #ffe372;
   /* ダッシュボード表示の左列（山と提案）の幅。左端の列を除いた残りの半分（右列と半々。2026-09-27）。
      ★山の素材は 900px 幅で書き出しているので、高解像度の画面で左列が 450px を超えると少しぼやける。
        気になるようなら素材を広めに書き出し直す（ART_W は変えないこと。mountainPath.js）*/

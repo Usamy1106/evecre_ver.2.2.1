@@ -213,8 +213,8 @@ export const JOIN_MESSAGE_EXAMPLES = [
 //     （赤い体のキャラが無い。色の不一致は許容と判断済み）。
 //   ここを変えるときは PROPOSAL_CHARACTERS の domains も一緒に見直すこと。
 export const LABEL_CONFIG = {
-  '企画': { color: '#F5B600' },
-  '運営': { color: '#209DDB' },
+  '企画': { color: '#f9b900' },
+  '運営': { color: '#009fe5' },
   '制作': { color: '#28AB3D' },
   '広報': { color: '#EE3E12' },
 };

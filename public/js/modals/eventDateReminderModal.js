@@ -93,13 +93,13 @@ function _openDayStartModal() {
 function _openArchiveReminderModal() {
   const overlay = _buildOverlay({
     bgColor: '#E8F7FD',
-    color: '#209DDB',
+    color: '#009fe5',
     iconPath: `<path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>`,
     title: 'イベントお疲れさまでした！',
     desc: 'アーカイブから、イベントの振り返りをしよう！',
     buttonsHtml: `<div class="c-modal__actions">
       <button data-action="close" class="c-button c-button--secondary c-modal__button">閉じる</button>
-      <button data-action="go" class="c-modal__button c-modal__button--accent" style="--accent:#209DDB">アーカイブを見る</button>
+      <button data-action="go" class="c-modal__button c-modal__button--accent" style="--accent:#009fe5">アーカイブを見る</button>
     </div>`,
   });
   overlay.querySelector('[data-action="close"]').onclick = () => overlay.remove();

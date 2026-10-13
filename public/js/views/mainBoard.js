@@ -2151,7 +2151,7 @@ function _notifIcon(type) {
     case 'mission_cleared':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
     case 'assigned_to_me':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#209DDB" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#009fe5" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
     case 'someone_claimed':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
     case 'assignment_decided':
@@ -2159,7 +2159,7 @@ function _notifIcon(type) {
     case 'member_joined':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>`;
     case 'role_assigned':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#209DDB" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7"/><polyline points="15 17 17 19 21 15"/></svg>`;
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#009fe5" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7"/><polyline points="15 17 17 19 21 15"/></svg>`;
     case 'mission_created':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
     case 'mission_updated':

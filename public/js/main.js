@@ -1042,7 +1042,7 @@ window._app = {
     if (pendingMembers.length > 0) {
       config = {
         icon: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>`,
-        color: '#F5B600', bgColor: '#FFF8E1',
+        color: '#f9b900', bgColor: '#FFF8E1',
         title: '参加申請が届いています',
         desc:  `${pendingMembers.length}件の参加申請があります。承認または拒否してください。`,
         action: '承認リストを開く',
@@ -1051,7 +1051,7 @@ window._app = {
     } else if (claimMissions.length > 0) {
       config = {
         icon: `<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>`,
-        color: '#209DDB', bgColor: '#E8F7FD',
+        color: '#009fe5', bgColor: '#E8F7FD',
         title: '担当申請があります',
         desc:  `${claimMissions.length}件のタスクに担当申請が届いています。`,
         action: '通知タブで確認する',

@@ -826,6 +826,7 @@
 .p-main-board__help-icon {
   width: 24px;
   height: 24px;
+  margin-bottom: var(--space-3);
   filter: brightness(0) saturate(100%) opacity(.75);
 }
 

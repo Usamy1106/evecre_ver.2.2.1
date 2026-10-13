@@ -359,8 +359,8 @@ function _renderBasicTab(isEdit, dateDisplay) {
   const starButtons = [1, 2, 3, 4, 5].map(v =>
     `<button onclick="window._app.setMissionPriority(${v})" class="p-mission-form__star">
       <svg width="32" height="32" viewBox="0 0 24 24"
-        fill="${state.draftMission.priority >= v ? '#F5B600' : 'none'}"
-        stroke="${state.draftMission.priority >= v ? '#F5B600' : '#E1DFDC'}"
+        fill="${state.draftMission.priority >= v ? '#f9b900' : 'none'}"
+        stroke="${state.draftMission.priority >= v ? '#f9b900' : '#E1DFDC'}"
         stroke-width="1.5">
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
       </svg>
@@ -1196,7 +1196,7 @@ export function closeAssigneeSheet() {
 // =====================================================
 // 利用可能なカラーパレット（重複なし）
 const TAG_PALETTE = [
-  '#209DDB', '#EE3E12', '#F5B600', '#28AB3D',
+  '#009fe5', '#EE3E12', '#f9b900', '#28AB3D',
   '#7C4DFF', '#FF6B9D', '#00BFA5', '#FF7043',
   '#5C6BC0', '#26A69A', '#EC407A', '#FFA726',
 ];
