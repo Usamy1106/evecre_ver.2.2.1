@@ -1,0 +1,21 @@
+/* ==========================================================================
+   Object / Component / icon — 素材の SVG を文字の色で塗るアイコン
+   使用箇所: 予定をコピー（アーカイブ・スケジュールシート・広い画面の右列）／開催日を編集／アーカイブの「編集する」
+
+   ★<img> で置くと SVG に書かれた色（#484545）のままで、ボタンの文字の色に追従しない。
+     素材を CSS の mask で型抜きし、background-color: currentColor で塗る
+     ＝ 素材は1枚のまま、色はボタンの color が決める（緑の文字なら緑、白抜きのボタンなら白）。
+   ★mask は素材の不透明度だけを使う。濃淡を残したいときは SVG 側の fill-opacity で持たせる
+   使い方：<span class="c-icon" style="--icon:url('/images/icon/icon-edit.svg')" aria-hidden="true"></span>
+           大きさは width / height を各画面のクラスで決める（既定は 1em）
+   ========================================================================== */
+
+.c-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}

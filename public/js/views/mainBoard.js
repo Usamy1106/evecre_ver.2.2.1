@@ -760,7 +760,7 @@ function _renderDashboardMain(p, mainLayout) {
             ${mainLayout.tagFilterHtml}
             <button type="button" onclick="window._app.copySchedule('schedule')"
               data-log="schedule_copy" class="p-schedule__copy p-board-dash__copy" aria-label="予定をコピー">
-              <img src="/images/icon/icon-link.svg" alt="" class="p-schedule__copy-icon">
+              <span class="c-icon p-schedule__copy-icon" style="--icon:url('/images/icon/icon-link.svg')" aria-hidden="true"></span>
               予定をコピー
             </button>
           </div>
@@ -1532,13 +1532,13 @@ function _renderArchiveTab(p) {
           <!-- ★コピーされるのは「未完了・締め切りあり」全件（記録の中身ではない）。 -->
           <button type="button" onclick="window._app.copySchedule('archive')"
             data-log="schedule_copy" class="p-archive__copy" aria-label="予定をコピー">
-            <img src="/images/icon/icon-link.svg" alt="" class="p-archive__copy-icon">
+            <span class="c-icon p-archive__copy-icon" style="--icon:url('/images/icon/icon-link.svg')" aria-hidden="true"></span>
             予定をコピー
           </button>
           ${canMgr && !editing ? `
             <button type="button" onclick="window._app.toggleArchiveEditing()" data-log="archive_edit_toggle"
               class="p-archive__edit-toggle">
-              <img src="/images/icon/icon-edit.svg" width="16" height="16" alt="">
+              <span class="c-icon p-archive__edit-toggle-icon" style="--icon:url('/images/icon/icon-edit.svg')" aria-hidden="true"></span>
               編集する
             </button>` : ''}
         </div>

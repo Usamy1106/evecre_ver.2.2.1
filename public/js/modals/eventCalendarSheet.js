@@ -78,7 +78,7 @@ function _render(overlay, ctx) {
              未完了・締め切りあり全件）。 -->
         <button type="button" onclick="window._app.copySchedule('schedule')"
           data-log="schedule_copy" class="p-schedule__copy" aria-label="予定をコピー">
-          <img src="/images/icon/icon-link.svg" alt="" class="p-schedule__copy-icon">
+          <span class="c-icon p-schedule__copy-icon" style="--icon:url('/images/icon/icon-link.svg')" aria-hidden="true"></span>
           予定をコピー
         </button>
         <div class="p-schedule__switch">

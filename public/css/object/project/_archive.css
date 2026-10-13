@@ -135,6 +135,11 @@
   transition: transform var(--duration-fast) var(--ease);
 }
 
+.p-archive__edit-toggle-icon {
+  width: 16px;
+  height: 16px;
+}
+
 .p-archive__edit-toggle:active {
   transform: scale(.96);
 }
