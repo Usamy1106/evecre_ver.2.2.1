@@ -6122,6 +6122,66 @@ body {
   margin-top: var(--space-1);
 }
 
+/* 入力欄のまとまり（未記入のときは成否を選ぶまで隠す。u-hidden） */
+.p-archive__reflect-fields > * + * {
+  margin-top: var(--space-3);
+}
+
+/* 未記入の振り返り：まず「うまくいった／つまずいた」を選ぶ（2026-10-14）。
+   絵は constants.js の OUTCOME_CHOICES.art（完了後の振り返りページと同じイラスト） */
+.p-archive__outcome-lead {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__outcome-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.p-archive__outcome-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  transition: border-color var(--duration-fast) var(--ease), transform var(--duration-fast) var(--ease);
+}
+
+.p-archive__outcome-chip:hover {
+  border-color: var(--color-primary);
+}
+
+.p-archive__outcome-chip:active {
+  transform: scale(.97);
+}
+
+.p-archive__outcome-art {
+  display: flex;
+  width: 56px;
+  aspect-ratio: 1 / 1;
+  align-items: center;
+  justify-content: center;
+}
+
+.p-archive__outcome-art > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.p-archive__outcome-label {
+  font-size: 13px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
 /* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
 .p-archive__reflect-share {
   margin-top: var(--space-2);
@@ -6454,6 +6514,7 @@ body {
   flex-direction: column;
   gap: var(--space-2);
   margin-top: var(--space-5);
+  margin-inline: var(--space-4);
 }
 
 .p-archive__link {
@@ -9872,8 +9933,6 @@ body {
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1);   /* 3列なので詰めて、操作の写真を大きく見せる */
-  border-radius: var(--radius-md);
-  background-color: var(--color-bg);
   text-align: center;
 }
 

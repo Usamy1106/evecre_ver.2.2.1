@@ -2,7 +2,7 @@
 import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
-import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS } from '../constants.js';
+import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS, OUTCOME_CHOICES } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic } from '../utils.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
@@ -1711,6 +1711,16 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
   const skipReflect = REFLECT_SKIP_MISSION_IDS.includes(m.id);
   const labels = REFLECT_LABELS[cd.outcome] || REFLECT_LABELS.struggle;
   const reflectAttrs = (field) => `data-reflect-mission="${_esc(m.id)}" data-reflect-user="${_esc(userId || '')}" data-reflect-field="${field}"`;
+  // ★未記入（成否も本文も無い）の振り返りは、まず「うまくいった／つまずいた」を選んでもらい、選んだら入力欄を出す（2026-10-14）。
+  //   見出し（困ったこと／効いたこと など）が成否で変わるので、先に成否が無いと何を書けばいいか決まらない。
+  //   選んだ瞬間に archiveInlineEdit.js の _pickOutcome が成否を保存し、見出しを差し替えて欄を出す（描き直さない）
+  const needsOutcome = !cd.outcome && !String(cd.struggle || '').trim() && !String(cd.solution || '').trim();
+  const outcomeChip = (c) => `
+          <button type="button" class="p-archive__outcome-chip" data-reflect-outcome="${c.id}"
+            data-reflect-mission="${_esc(m.id)}" data-reflect-user="${_esc(userId || '')}">
+            <span class="p-archive__outcome-art">${c.art}</span>
+            <span class="p-archive__outcome-label">${_esc(c.label)}</span>
+          </button>`;
   return `
     <div class="p-archive__inline-editor" data-inline-block data-inline-key="sub:${_esc(key)}">
       <div class="c-editor-field">
@@ -1731,13 +1741,20 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
     </div>
     ${skipReflect ? '' : `
       <div class="p-archive__reflect p-archive__reflect--editing" data-inline-block data-inline-key="ref:${_esc(key)}">
-        <label class="p-archive__reflect-label">${labels.struggle}
-          <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('struggle')}>${_esc(cd.struggle || '')}</textarea>
-        </label>
-        <label class="p-archive__reflect-label">${labels.solution}
-          <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('solution')}>${_esc(cd.solution || '')}</textarea>
-        </label>
-        <div class="p-archive__reflect-share">${Components.ShareCheck({ checked: !!cd.shareable, attrs: reflectAttrs('shareable') })}</div>
+        ${needsOutcome ? `
+        <div class="p-archive__outcome" data-reflect-outcome-pick>
+          <p class="p-archive__outcome-lead">振り返り：このタスクはどうでしたか？</p>
+          <div class="p-archive__outcome-choices">${outcomeChip(OUTCOME_CHOICES.success)}${outcomeChip(OUTCOME_CHOICES.struggle)}</div>
+        </div>` : ''}
+        <div class="p-archive__reflect-fields${needsOutcome ? ' u-hidden' : ''}" data-reflect-fields>
+          <label class="p-archive__reflect-label"><span data-reflect-label="struggle">${labels.struggle}</span>
+            <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('struggle')}>${_esc(cd.struggle || '')}</textarea>
+          </label>
+          <label class="p-archive__reflect-label"><span data-reflect-label="solution">${labels.solution}</span>
+            <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('solution')}>${_esc(cd.solution || '')}</textarea>
+          </label>
+          <div class="p-archive__reflect-share">${Components.ShareCheck({ checked: !!cd.shareable, attrs: reflectAttrs('shareable') })}</div>
+        </div>
         <p class="p-archive__save-status" data-save-status></p>
       </div>`}`;
 }

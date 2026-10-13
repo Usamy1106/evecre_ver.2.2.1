@@ -279,15 +279,15 @@ export const SUBMISSION_FILE_MAX_BYTES = 10 * 1024 * 1024;
 
 // ===== 完了後の振り返り：成否の選択肢 =====
 // ★絵（art）はここ1箇所だけに置く。モジュール側・CSS の content に直書きしないこと。
-//   いまの絵文字は**暫定**で、今後オリジナルイラストへ差し替える予定
-//   （差し替えは art を `<img src="/images/outcome/success.svg" alt="">` 等にするだけで済む）。
+//   2026-10-14 に絵文字（🎉 / 🤔）からイラスト（images/illustration/illustration-good / -bad）へ差し替えた。
+//   art は HTML としてそのまま埋め込む（完了後の振り返りページとアーカイブの編集モードで使う）。
 // ★枠は 48〜56px・正方形で確保してある（object/project/_mission-reflect.css）。
 //   イラストに替えてもレイアウトが崩れないようにするため、絵の寸法に合わせた枠にしないこと。
 // ★演出は動き（scale / opacity / 位置）だけで作る。「絵が A から B に変わる」形にしないこと
 //   （差し替える素材が増え、イラスト化のときに破綻する）。
 export const OUTCOME_CHOICES = {
-  success:  { id: 'success',  label: 'うまくいった', art: '🎉' },
-  struggle: { id: 'struggle', label: 'つまずいた',   art: '🤔' },
+  success:  { id: 'success',  label: 'うまくいった', art: '<img src="/images/illustration/illustration-good.webp" alt="" decoding="async">' },
+  struggle: { id: 'struggle', label: 'つまずいた',   art: '<img src="/images/illustration/illustration-bad.webp" alt="" decoding="async">' },
 };
 
 // 選んだ直後に返す一言。

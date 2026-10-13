@@ -166,8 +166,6 @@
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1);   /* 3列なので詰めて、操作の写真を大きく見せる */
-  border-radius: var(--radius-md);
-  background-color: var(--color-bg);
   text-align: center;
 }
 

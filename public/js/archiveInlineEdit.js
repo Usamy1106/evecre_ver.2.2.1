@@ -27,6 +27,7 @@ import { uploadEditorEmbeds, editorContentAndFormat, embedsPayload } from './mod
 import { getArchiveSummary, setArchiveVenue } from './utils.js';
 import { saveSummaryText, savePurposeText, shouldAskPillarsAfterPurpose } from './initialTasks.js';
 import { confirmFirstShare, applyShareConfirmed } from './modals/shareConfirmModal.js';
+import { REFLECT_LABELS } from './constants.js';
 
 const EMBED_SAVE_DELAY_MS = 1200;   // 画像・PDF を動かしたあと、保存するまで待つ時間
 
@@ -260,6 +261,38 @@ function _bindReflection(node) {
   node.addEventListener('focusout', () => { if (node._dirty) _saveReflection(node); });
 }
 
+// 未記入の振り返り：「うまくいった／つまずいた」を選んだら、成否を保存して入力欄を出す（2026-10-14）
+// ★描き直さない（ほかの欄の書きかけを消さない）。見出しを成否のものに差し替え、欄を出してカーソルを置く
+// ★focus はタップのハンドラから同期で当てる（iOS）。保存はそのあと
+async function _pickOutcome(btn) {
+  const p = _event();
+  const block = btn.closest('.p-archive__reflect--editing');
+  if (!p || !block) return;
+  const outcome   = btn.dataset.reflectOutcome;
+  const missionId = btn.dataset.reflectMission;
+  const userId    = btn.dataset.reflectUser || null;
+  const labels = REFLECT_LABELS[outcome] || REFLECT_LABELS.struggle;
+  block.querySelectorAll('[data-reflect-label]').forEach(el => { el.textContent = labels[el.dataset.reflectLabel] || ''; });
+  block.querySelector('[data-reflect-outcome-pick]')?.remove();
+  block.querySelector('[data-reflect-fields]')?.classList.remove('u-hidden');
+  block.querySelector('[data-reflect-field="struggle"]')?.focus({ preventScroll: false });
+  // ★手元のデータにも先に入れる（保存を待つ間に描き直されても、選び直しにならない）
+  const key = userId ? `${missionId}_u_${userId}` : missionId;
+  if (p.clearedData?.[key]) p.clearedData[key].outcome = outcome;
+  logEvent('reflect_outcome_picked', { outcome, source: 'archive' });
+  _status(btn.isConnected ? btn : block, 'saving', '保存中…');
+  const r = await api.updateReflection(p.id, missionId, { outcome, targetUserId: userId || undefined });
+  const host = block.querySelector('[data-reflect-field]') || block;
+  if (!r?.ok) { _status(host, 'error', r?.error || '保存できませんでした'); return; }
+  _status(host, 'saved', '保存しました');
+}
+
+function _bindOutcomePick(btn) {
+  if (btn._bound) return;
+  btn._bound = true;
+  btn.addEventListener('click', () => _pickOutcome(btn));
+}
+
 // ── 公開する関数 ───────────────────────────────────────────
 
 // ── 閲覧中のタップで編集に入る（管理者だけ）──────────────────────
@@ -303,6 +336,10 @@ export function startArchiveEditAt(target) {
     el = [...document.querySelectorAll('.c-editor[data-sub-mission]')]
       .find(x => x.dataset.subMission === missionId && (x.dataset.subUser || '') === userId);
   } else if (kind === 'ref') {
+    // ★未記入なら、入力欄はまだ隠れている（先に成否を選ぶ）。そのときは選ぶ場所まで送るだけ
+    const pick = [...document.querySelectorAll('[data-reflect-outcome="success"]')]
+      .find(x => x.dataset.reflectMission === missionId && (x.dataset.reflectUser || '') === userId);
+    if (pick) { pick.scrollIntoView({ block: 'center' }); return; }
     el = [...document.querySelectorAll('[data-reflect-field="struggle"]')]
       .find(x => x.dataset.reflectMission === missionId && (x.dataset.reflectUser || '') === userId);
   } else {
@@ -360,6 +397,7 @@ export function bindArchiveInlineEditing(root = document) {
   root.querySelectorAll('[data-inline]').forEach(_bindBasic);
   root.querySelectorAll('.c-editor[data-sub-mission]').forEach(_bindSubmission);
   root.querySelectorAll('[data-reflect-field]').forEach(_bindReflection);
+  root.querySelectorAll('[data-reflect-outcome]').forEach(_bindOutcomePick);
 }
 
 // 描き直しで守る欄（フォーカスがある／保存待ち／保存中）
