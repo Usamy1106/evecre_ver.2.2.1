@@ -83,6 +83,16 @@
   gap: var(--space-2);
 }
 
+/* ④（ホームに置いておこう。2026-10-13 にようこそ画面の4枚目にした）は、点がボタンの上に単独で並ぶ。
+   補足（手順の写真・メリット）とくっつかないよう上を空け、下のボタンとの間は少し詰める */
+.p-welcome-tour > .p-welcome-tour__dots {
+  margin-top: var(--space-6);
+}
+
+.p-welcome-tour__dots + .p-welcome-tour__actions {
+  margin-top: var(--space-4);
+}
+
 .p-welcome-tour__dot {
   width: 8px;
   height: 8px;

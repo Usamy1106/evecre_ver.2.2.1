@@ -1,7 +1,7 @@
-// ===== アカウント作成後のオンボーディング（5枚）=====
+// ===== アカウント作成後のオンボーディング（4枚）=====
 //
-// ① 仲間と一緒にミッションを進めよう → ② AIが… → ③ いつでも、どこでも…（はじめる）
-//   → ④ ホームに置いておこう（Android）か ⑤ 同（iOS）。ホーム画面から開いている（追加済み）なら④⑤は出さない。
+// ① 仲間と一緒にミッションを進めよう → ② 提案を活用しよう → ③ 振り返りを、次のイベントに活かそう
+//   → ④ ホームに置いておこう（Android と iOS で中身が違う）。ホーム画面から開いている（追加済み）・PC などでは④を出さず、③が「はじめる」。
 //
 // ★文言と画像のパスは welcomeTour.js（データ）。ここはレイアウトと遷移だけ。
 // ★1つの枠（#welcome-tour-overlay）の中身を差し替えて進む（モーダルを開き直さない）。
@@ -92,50 +92,61 @@ function _frame({ id, art, title, body, extra = '', footer }) {
 }
 
 // ── ①〜③ 機能紹介 ──────────────────────────────────────────
+// ★2026-10-13：ホームに置いておこう は4枚目として同じページ送り（点）の中に入れる。
+//   出す端末（homeAddVariant が null でない）では点を4つにし、③のボタンを「次へ」にする。
+//   出さない端末（ホーム画面から開いている・PC など）は従来どおり3枚で、③が「はじめる」
+function _dotsHtml(idx, total) {
+  const dots = Array.from({ length: total }, (_, i) =>
+    `<span class="p-welcome-tour__dot${i === idx ? ' is-active' : ''}" aria-hidden="true"></span>`).join('');
+  return `<div class="p-welcome-tour__dots" role="img" aria-label="${idx + 1} / ${total}">${dots}</div>`;
+}
+
 function _showPage(overlay, idx) {
   const pages = WELCOME_TOUR.pages;
   const pg = pages[idx];
-  const dots = pages.map((_, i) =>
-    `<span class="p-welcome-tour__dot${i === idx ? ' is-active' : ''}" aria-hidden="true"></span>`).join('');
-  const isLast = idx === pages.length - 1;
+  const variant = homeAddVariant();
+  const total = pages.length + (variant ? 1 : 0);
+  const isLastIntro = idx === pages.length - 1;
+  const isEnd = isLastIntro && !variant;          // ここで終わる（「はじめる」）
+  const label = isLastIntro && variant ? WELCOME_TOUR.homeAddNext : pg.next;
   overlay.innerHTML = _frame({
     id: pg.id, art: pg.art, title: pg.title, body: pg.body,
     footer: `
       <div class="p-welcome-tour__footer">
-        <div class="p-welcome-tour__dots" role="img" aria-label="${idx + 1} / ${pages.length}">${dots}</div>
-        <button type="button" class="p-welcome-tour__next${isLast ? ' p-welcome-tour__next--start' : ''}" data-welcome-next>
-          ${_esc(pg.next)}${isLast ? '' : ' <span aria-hidden="true">→</span>'}
+        ${_dotsHtml(idx, total)}
+        <button type="button" class="p-welcome-tour__next${isEnd ? ' p-welcome-tour__next--start' : ''}" data-welcome-next>
+          ${_esc(label)}${isEnd ? '' : ' <span aria-hidden="true">→</span>'}
         </button>
       </div>`,
   });
   overlay.querySelector('[data-welcome-next]').onclick = () => {
     logEvent('welcome_tour_page', { page: idx + 1, id: pg.id });
-    if (!isLast) { _showPage(overlay, idx + 1); return; }
-    // ③の「はじめる」で機能紹介は終わり。ホームに置いておこう へ（追加済み・対象外なら閉じる）
-    const variant = homeAddVariant();
-    if (variant) _showHomeAdd(overlay, variant);
+    if (!isLastIntro) { _showPage(overlay, idx + 1); return; }
+    if (variant) _showHomeAdd(overlay, variant, _dotsHtml(pages.length, total));
     else _finish(overlay, 'no_home_add');
   };
 }
 
 // ── ④⑤ ホームに置いておこう ─────────────────────────────────
-function _showHomeAdd(overlay, variant) {
-  _renderHomeAdd(overlay, variant, 'welcome', (reason) => _finish(overlay, reason));
+function _showHomeAdd(overlay, variant, dotsHtml = '') {
+  _renderHomeAdd(overlay, variant, 'welcome', (reason) => _finish(overlay, reason), dotsHtml);
 }
 
 /**
  * ホームに置いておこう の1枚（④ Android／⑤ iPhone）。ようこそ画面と HOME のバナーで共用する。
  * @param {string} source  計測用（welcome / home_banner）
  * @param {(reason: string) => void} done  閉じるとき
+ * @param {string} [dotsHtml]  ページ送りの点（ようこそ画面の4枚目のときだけ）
  * ★2026-10-13：iPhone のボタンは「わかった」（閉じるだけ）。以前は通知のセットアップを開いており、
  *   同じ「ホームに置いておこう」がもう一度出ていた。guideUrl があればそのページを開く
  */
-function _renderHomeAdd(overlay, variant, source, done) {
+function _renderHomeAdd(overlay, variant, source, done, dotsHtml = '') {
   const d = WELCOME_TOUR.homeAdd[variant];
   logEvent('home_add_prompt_shown', { variant, source });
   overlay.innerHTML = _frame({
     id: d.id, art: d.art, title: d.title, body: d.body, extra: _homeAddExtra(variant),
     footer: `
+      ${dotsHtml}
       <div class="p-welcome-tour__actions">
         <button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-welcome-primary>${_esc(d.primary)}</button>
         <button type="button" class="p-welcome-tour__later" data-welcome-later>${_esc(d.later)}</button>
