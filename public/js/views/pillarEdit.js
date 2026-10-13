@@ -11,7 +11,7 @@
 //   削除した柱の id は再利用しない（タスクの pillarIds が別の柱を指してしまう）。
 // ★保存済みで、タスクが紐づいている柱を外すときは確認を挟む（その場で。モーダルにしない）。
 //   紐づいていたタスクの pillarIds は書き換えない。存在しない id は pillarIdsOf が数えない。
-// ★保存するまでイベントには書かない（下書き state.pillarDraft だけを触る）。「あとで」で捨てる。
+// ★保存するまでイベントには書かない（下書き state.pillarDraft だけを触る）。「閉じる」で捨てる。
 // ★名前の入力中に描き直さないこと（フォーカスが飛ぶ）。描き直すのは足す・外す・選ぶときだけ。
 
 import { state } from '../state.js';
@@ -95,8 +95,8 @@ export function renderPillarEdit(appEl) {
     <div class="p-pillar-edit">
       <header class="p-pillar-edit__header">
         <h1 class="p-pillar-edit__heading">このイベントの柱</h1>
-        <!-- ★戻るではなく「あとで」（2026-10-02）。柱は決めずに抜けてよい（必須にしない）。下書きは捨てる -->
-        <button type="button" data-pillar-back data-log="pillar_edit_later" class="p-pillar-edit__later">あとで</button>
+        <!-- ★戻るではなく「閉じる」（2026-10-13）。柱は決めずに抜けてよい（必須にしない）。下書きは捨てる -->
+        <button type="button" data-pillar-back data-log="pillar_edit_later" class="p-pillar-edit__later">閉じる</button>
       </header>
 
       <div class="p-pillar-edit__body">

@@ -6,6 +6,7 @@ import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic } from '../utils.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
+import { pillarCharacter } from '../pillarChars.js';
 import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
@@ -620,12 +621,12 @@ function _purposeBoxHtml(p, { compact = false } = {}) {
 // ★バーは割合（完了 / 全件）。件数で描くと母数の違いで印象が歪む。
 // ★★0件（タスクすら立っていない）は 0%（着手前）と別の見た目にする。文字「0件」を警告色で出す。
 //   柱として掲げたのに誰も具体化していない＝迷子が起きている兆候で、0% より深刻。
-// ★既定は開いた状態（畳める）。振り返り欄は畳まれていて入力0件だった前例がある。
+// ★畳まない（見出しも開閉も持たない。2026-10-13 に3列のキャラ＋細いバーへ詰めた）。振り返り欄は畳まれていて入力0件だった前例がある。
+// ★柱は順番のキャラ（1つ目 mizu・2つ目 mori・3つ目 iwa）で見せ、バーもそのキャラの色で塗る（pillarChars.js と同じ対応）。
+// ★名前は省略しない（長ければ折り返す）。
 // ★行のタップでその柱のタスクに絞り込む（見えるだけで終わらせない）。
 // ★集計は p.missions を1周するだけ（柱の数だけ filter を回さない。0.5CPU 環境）。
 //   一覧に出ていない完了済みのタスクも数える（一般メンバーには完了済みが一覧に出ないため、表示用の一覧からは数えない）
-const _pillarBoardCollapsed = new Map();   // eventId → true（畳んだ。画面を開いている間だけ覚える）
-
 function _pillarStats(p, pillars) {
   const stats = new Map(pillars.map(x => [x.id, { total: 0, done: 0 }]));
   for (const m of p.missions || []) {
@@ -645,46 +646,29 @@ function _pillarBoardHtml(p, extraClass = '') {
   const pillars = getPillars(p);
   if (!pillars.length) return '';
   const stats = _pillarStats(p, pillars);
-  const collapsed = _pillarBoardCollapsed.get(p.id) === true;
   const active = state.missionFilterPillar;
-  const rows = pillars.map(x => {
+  const cols = pillars.map((x, i) => {
+    const ch = pillarCharacter(i);
     const st = stats.get(x.id);
     const empty = st.total === 0;
     const pct = empty ? 0 : Math.round((st.done / st.total) * 100);
     const on = active === x.id;
     return `
       <button type="button" onclick="window._app.setMissionFilterPillar('${_esc(x.id)}')" data-log="pillar_row_tap"
-        aria-pressed="${on}" class="p-pillar-board__row${on ? ' is-active' : ''}${empty ? ' is-empty' : ''}">
+        aria-pressed="${on}" class="p-pillar-board__col p-pillar-board__col--${ch.id}${on ? ' is-active' : ''}${empty ? ' is-empty' : ''}">
+        <img class="p-pillar-board__char" src="/images/character/character-${ch.id}.svg" alt="" aria-hidden="true">
         <span class="p-pillar-board__name">${_esc(x.name)}</span>
-        <span class="p-pillar-board__count">${empty ? '0件' : `${st.done}/${st.total}`}</span>
         <span class="p-pillar-board__bar" aria-hidden="true"><span class="p-pillar-board__fill" style="--pillar-pct:${pct}%"></span></span>
+        <span class="p-pillar-board__count">${empty ? '0件' : `${st.done}/${st.total}`}</span>
       </button>`;
   }).join('');
   const canEdit = state.canManageCurrentEvent();
   return `
-    <section class="p-pillar-board${collapsed ? ' is-collapsed' : ''}${extraClass ? ' ' + extraClass : ''}" data-pillar-board="${_esc(p.id)}">
-      <div class="p-pillar-board__head">
-        <button type="button" onclick="window._app.togglePillarBoard('${_esc(p.id)}')" data-log="pillar_board_toggle"
-          aria-expanded="${!collapsed}" class="p-pillar-board__toggle">
-          <span class="p-pillar-board__title">このイベントの柱</span>
-          <svg class="p-pillar-board__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        ${canEdit ? `<button type="button" onclick="window._app.openPillarEdit('board')" data-log="pillar_board_edit"
-          class="p-pillar-board__edit">編集</button>` : ''}
-      </div>
-      <div class="p-pillar-board__rows">${rows}</div>
+    <section class="p-pillar-board${extraClass ? ' ' + extraClass : ''}" aria-label="このイベントの柱">
+      <div class="p-pillar-board__cols" style="--pillar-cols:${pillars.length}">${cols}</div>
+      ${canEdit ? `<button type="button" onclick="window._app.openPillarEdit('board')" data-log="pillar_board_edit"
+        class="p-pillar-board__edit" aria-label="柱を編集"><span class="c-icon p-pillar-board__edit-icon" style="--icon:url('/images/icon/icon-edit.svg')" aria-hidden="true"></span></button>` : ''}
     </section>`;
-}
-
-/** 開閉。★state.render() を呼ばない（クラスの付け外しだけ。描き直すとスクロールが飛ぶ） */
-export function togglePillarBoard(eventId) {
-  const next = !(_pillarBoardCollapsed.get(eventId) === true);
-  _pillarBoardCollapsed.set(eventId, next);
-  document.querySelectorAll(`[data-pillar-board="${CSS.escape(eventId)}"]`).forEach(el => {
-    el.classList.toggle('is-collapsed', next);
-    el.querySelector('.p-pillar-board__toggle')?.setAttribute('aria-expanded', String(!next));
-  });
 }
 
 function _renderDashboardMain(p, mainLayout) {

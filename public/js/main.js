@@ -14,7 +14,7 @@ import {
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
-import { renderMainBoard, togglePillarBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry, showAllArchiveSubmitters, rememberArchiveRow, setBoardPanelView, clearBoardFilterDate } from './views/mainBoard.js';
+import { renderMainBoard, toggleAnnounceList, toggleNotifGroup, jumpToArchiveEntry, showAllArchiveSubmitters, rememberArchiveRow, setBoardPanelView, clearBoardFilterDate } from './views/mainBoard.js';
 import { renderWelcome } from './views/welcome.js';
 import { renderLogin, motivationBlockHtml, inviteMembersHtml } from './views/auth.js';
 import { renderSignup, resumeOnboardingIfNeeded } from './views/signup.js';
@@ -1169,7 +1169,6 @@ window._app = {
     logEvent('pillar_filtered', { on: !!next });
     state.render();
   },
-  togglePillarBoard: (eventId) => togglePillarBoard(eventId),
 
   // --- タスク絞り込みタグ変更 ---
   setMissionFilterTag: (tag) => {
