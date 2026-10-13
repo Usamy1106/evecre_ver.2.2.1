@@ -67,7 +67,7 @@ export function startTooltipTour(o) {
     const isLast = idx === steps.length - 1;
     overlay.innerHTML = `
       <div data-tt-card class="c-tooltip">
-        <button type="button" data-tt="skip" class="c-tooltip__skip">スキップ</button>
+        <button type="button" data-tt="skip" class="c-tooltip__skip">後で</button>
         <p class="c-tooltip__counter">${idx + 1}/${steps.length}</p>
         <p class="c-tooltip__title">${_esc(step.title)}</p>
         <p class="c-tooltip__text">${_esc(step.body)}</p>

@@ -113,7 +113,7 @@ export function renderMissionReflect(appEl) {
         </div>
 
         <button type="button" onclick="window._app.skipMissionReflect()" data-log="reflect_skip"
-          class="p-mission-reflect__skip">今はしない</button>
+          class="p-mission-reflect__skip">後で</button>
       </div>
     </div>`;
 

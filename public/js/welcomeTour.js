@@ -18,7 +18,7 @@ export const WELCOME_TOUR = {
     {
       id: 'team',
       art: '/images/onboarding/onboarding-together.webp',
-      title: ['仲間と一緒に', 'ミッションを進めよう'],
+      title: ['仲間と一緒に', 'イベントをつくろう'],
       body: [
         '役割を分担し、やることを共有。',
         'みんなで協力して目標を目指そう。',
@@ -38,7 +38,7 @@ export const WELCOME_TOUR = {
     {
       id: 'reflect',
       art: '/images/onboarding/onboarding-inheriting.webp',
-      title: ['振り返りを、', '次のイベントに活かそう'],
+      title: ['振り返り、', '次のイベントに活かそう'],
       body: [
         'できたことや気づきを記録して、',
         '次のイベントづくりにつなげよう。',
@@ -49,6 +49,8 @@ export const WELCOME_TOUR = {
 
   // ③から4枚目（ホームに置いておこう）へ進むときの③のボタン
   homeAddNext: '次へ',
+  // 4枚目（iPhone）のボタン。ようこそ画面ではここで終わるので「はじめる」（HOME のバナーから開いたときは下の primary）
+  homeAddLast: 'はじめる',
 
   // ── ホームに置いておこう（端末で出し分ける）──────────────────
   // ★すでにホーム画面から開いている（追加済み）なら、どちらも出さない
@@ -67,7 +69,7 @@ export const WELCOME_TOUR = {
         { icon: '', label: ['アプリのように', 'すぐ開ける'] },
       ],
       primary: 'ホームに追加する',
-      later: 'あとで',
+      later: '後で',
       // ブラウザがインストールの確認を出せなかったとき（Firefox など）にモーダルの中に出す案内
       fallback: 'ブラウザのメニュー（︙）から「ホーム画面に追加」または「アプリをインストール」を選んでください',
     },
@@ -85,10 +87,10 @@ export const WELCOME_TOUR = {
         { art: '/images/onboarding/onboarding-addhome-screen2.webp', label: '「ホーム画面に追加」を選択' },
         { art: '/images/onboarding/onboarding-addhome-screen3.webp', label: '「追加」をタップ' },
       ],
-      // ★2026-10-13：「やり方を確認する」→「わかった」（閉じるだけ。手順は上の写真で伝えている）。
+      // ★2026-10-13：「やり方を確認する」→「閉じる」（閉じるだけ。手順は上の写真で伝えている。ようこそ画面の4枚目では homeAddLast）。
       //   以前は通知のセットアップを開いており、同じ「ホームに置いておこう」がもう一度出ていた
-      primary: 'わかった',
-      later: 'あとで',
+      primary: '閉じる',
+      later: '後で',
       // 説明のページ（動画など）を用意したらここに入れる。入れたらボタンでそのページを開く（文言も「やり方を確認する」などに戻す）
       guideUrl: '',
     },
@@ -103,7 +105,7 @@ export const WELCOME_TOUR = {
     title: ['通知をオンにしよう'],
     body: ['担当を割り当てられたときや、', '締め切りが近いときにお知らせします。'],
     primary: '通知をオンにする',
-    later: 'あとで',
+    later: '後で',
     // iPhone / iPad のブラウザのまま（ホーム画面に追加していない）ときは、通知をオンにできない
     iosNotInstalled: ['ホーム画面に追加したイベクリのアイコンから開くと、', '通知をオンにできます。'],
     denied: ['通知がブロックされています。', 'ブラウザ（または端末）の設定で、このサイトの通知を「許可」にしてください。'],

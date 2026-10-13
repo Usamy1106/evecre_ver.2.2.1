@@ -107,16 +107,14 @@ function _showPage(overlay, idx) {
   const variant = homeAddVariant();
   const total = pages.length + (variant ? 1 : 0);
   const isLastIntro = idx === pages.length - 1;
-  const isEnd = isLastIntro && !variant;          // ここで終わる（「はじめる」）
   const label = isLastIntro && variant ? WELCOME_TOUR.homeAddNext : pg.next;
+  // ★2026-10-13：ほかのモーダルと同じく、点とボタンを左右中央に縦に並べる（以前は点が左・「次へ →」が右）
   overlay.innerHTML = _frame({
     id: pg.id, art: pg.art, title: pg.title, body: pg.body,
     footer: `
-      <div class="p-welcome-tour__footer">
-        ${_dotsHtml(idx, total)}
-        <button type="button" class="p-welcome-tour__next${isEnd ? ' p-welcome-tour__next--start' : ''}" data-welcome-next>
-          ${_esc(label)}${isEnd ? '' : ' <span aria-hidden="true">→</span>'}
-        </button>
+      ${_dotsHtml(idx, total)}
+      <div class="p-welcome-tour__actions">
+        <button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-welcome-next>${_esc(label)}</button>
       </div>`,
   });
   overlay.querySelector('[data-welcome-next]').onclick = () => {
@@ -129,7 +127,7 @@ function _showPage(overlay, idx) {
 
 // ── ④⑤ ホームに置いておこう ─────────────────────────────────
 function _showHomeAdd(overlay, variant, dotsHtml = '') {
-  _renderHomeAdd(overlay, variant, 'welcome', (reason) => _finish(overlay, reason), dotsHtml);
+  _renderHomeAdd(overlay, variant, 'welcome', (reason) => _finish(overlay, reason), dotsHtml, WELCOME_TOUR.homeAddLast);
 }
 
 /**
@@ -137,18 +135,20 @@ function _showHomeAdd(overlay, variant, dotsHtml = '') {
  * @param {string} source  計測用（welcome / home_banner）
  * @param {(reason: string) => void} done  閉じるとき
  * @param {string} [dotsHtml]  ページ送りの点（ようこそ画面の4枚目のときだけ）
+ * @param {string} [lastLabel] iPhone のボタンの文言の差し替え（ようこそ画面の4枚目は「はじめる」）
  * ★2026-10-13：iPhone のボタンは「わかった」（閉じるだけ）。以前は通知のセットアップを開いており、
  *   同じ「ホームに置いておこう」がもう一度出ていた。guideUrl があればそのページを開く
  */
-function _renderHomeAdd(overlay, variant, source, done, dotsHtml = '') {
+function _renderHomeAdd(overlay, variant, source, done, dotsHtml = '', lastLabel = '') {
   const d = WELCOME_TOUR.homeAdd[variant];
+  const primary = variant === 'ios' && !d.guideUrl && lastLabel ? lastLabel : d.primary;
   logEvent('home_add_prompt_shown', { variant, source });
   overlay.innerHTML = _frame({
     id: d.id, art: d.art, title: d.title, body: d.body, extra: _homeAddExtra(variant),
     footer: `
       ${dotsHtml}
       <div class="p-welcome-tour__actions">
-        <button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-welcome-primary>${_esc(d.primary)}</button>
+        <button type="button" class="c-button c-button--primary c-modal__button p-welcome-tour__primary" data-welcome-primary>${_esc(primary)}</button>
         <button type="button" class="p-welcome-tour__later" data-welcome-later>${_esc(d.later)}</button>
       </div>`,
   });

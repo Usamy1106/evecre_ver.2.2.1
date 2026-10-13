@@ -69,22 +69,14 @@
   line-height: 1.7;
 }
 
-/* --- ①〜③：ページネーション（左）と「次へ →」（右）--------------------------- */
-.p-welcome-tour__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  align-self: stretch;
-  margin-top: var(--space-6);
-}
-
+/* --- ページネーション（左右中央。2026-10-13 に①〜③も④と同じ並びにした）------------- */
 .p-welcome-tour__dots {
   display: flex;
   gap: var(--space-2);
 }
 
-/* ④（ホームに置いておこう。2026-10-13 にようこそ画面の4枚目にした）は、点がボタンの上に単独で並ぶ。
-   補足（手順の写真・メリット）とくっつかないよう上を空け、下のボタンとの間は少し詰める */
+/* 点はボタンの上に左右中央で並ぶ（①〜④共通）。
+   上の本文・補足（手順の写真・メリット）とくっつかないよう上を空け、下のボタンとの間は少し詰める */
 .p-welcome-tour > .p-welcome-tour__dots {
   margin-top: var(--space-6);
 }
@@ -102,21 +94,6 @@
 
 .p-welcome-tour__dot.is-active {
   background-color: var(--color-primary);
-}
-
-.p-welcome-tour__next {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-full);
-  color: var(--color-primary);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-heavy);
-}
-
-/* 3枚目の「はじめる」は塗りのボタン（ここで機能紹介が終わる） */
-.p-welcome-tour__next--start {
-  padding-inline: var(--space-6);
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
 }
 
 /* --- ④ Android：メリット（横並び4つ）------------------------------------------ */
@@ -213,7 +190,7 @@
   line-height: 1.4;
 }
 
-/* --- ④⑤：メインボタンと「あとで」------------------------------------------------ */
+/* --- メインボタンと「後で」（①〜④共通）------------------------------------------------ */
 .p-welcome-tour__actions {
   display: flex;
   flex-direction: column;

@@ -559,7 +559,7 @@ function _renderOtp(container, d) {
       </button>`}
 
     <button type="button" id="su-otp-later" class="p-signup__later">
-      あとで認証する
+      後で
     </button>
   `);
 
@@ -980,7 +980,7 @@ function _choice(id, label, selected) {
     </button>`;
 }
 
-function _skipButton(label = 'スキップ') {
+function _skipButton(label = '後で') {
   return `<button type="button" id="su-skip" class="p-signup__later">${label}</button>`;
 }
 
@@ -1001,7 +1001,7 @@ function _renderName(container, d) {
     ${_otherErrorsHtml(d.errors, ['name'])}
 
     <button type="button" id="su-name-next" class="c-button c-button--primary p-signup__submit p-signup__next">次へ</button>
-    ${_skipButton('あとで設定する')}
+    ${_skipButton()}
   `, { back: _canBack(d, 4) });
 
   const input = document.getElementById('su-name');
@@ -1079,7 +1079,7 @@ function _renderAvatar(container, d) {
     ${d.errors.avatar ? `<p class="p-signup__error">${_esc(d.errors.avatar)}</p>` : ''}
 
     <button type="button" id="su-avatar-next" class="c-button c-button--primary p-signup__submit p-signup__next--tight">次へ</button>
-    ${_skipButton('あとで設定する')}
+    ${_skipButton()}
   `, { back: _canBack(d, 5) });
 
   // プリセット一覧はサーバーから取る（ホワイトリストの実体はサーバー側）

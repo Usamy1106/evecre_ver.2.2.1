@@ -1079,7 +1079,7 @@ window._app = {
         <h3 class="c-modal__title">${_escH(config.title)}</h3>
         <p class="c-modal__text">${_escH(config.desc)}</p>
         <div class="c-modal__actions">
-          <button data-action="skip" class="c-button c-button--secondary c-modal__button">スキップ</button>
+          <button data-action="skip" class="c-button c-button--secondary c-modal__button">後で</button>
           <button data-action="go" class="c-modal__button c-modal__button--accent c-modal__button--shadow"
             style="--accent:${_escH(config.color)}">${_escH(config.action)}</button>
         </div>

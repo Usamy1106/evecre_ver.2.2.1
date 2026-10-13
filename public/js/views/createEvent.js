@@ -231,7 +231,7 @@ export function renderCreateEventDates(container) {
           <button type="button" id="cp-dates-next" onclick="window._app.tryProceedFromDates()"
             class="c-button c-button--primary p-create-event__next" ${canNext ? '' : 'disabled'}>次へ</button>
           <button type="button" onclick="window._app.skipStep('dates')"
-            class="p-create-event__skip">あとで決める</button>
+            class="p-create-event__skip">後で</button>
           <button type="button" onclick="window._app.setView('CREATE_EVENT_SCALE')"
             class="c-button c-button--secondary p-create-event__back">戻る</button>
         </div>
@@ -389,7 +389,7 @@ export function renderCreateEventCatchphrase(container) {
       <button onclick="window._app.proceedFromCatchphrase()"
         class="c-button c-button--primary p-create-event__next">次へ</button>
       <button onclick="window._app.skipStep('catchphrase')"
-        class="p-create-event__skip">スキップする</button>
+        class="p-create-event__skip">後で</button>
       <button onclick="window._app.setView('CREATE_EVENT_DATES')"
         class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
@@ -464,7 +464,7 @@ export function renderCreateEventMotivation(container) {
       <button onclick="window._app.proceedFromMotivation()"
         class="c-button c-button--primary p-create-event__next">次へ</button>
       <button onclick="window._app.skipStep('motivation')"
-        class="p-create-event__skip">スキップする</button>
+        class="p-create-event__skip">後で</button>
       <button onclick="window._app.setView('CREATE_EVENT_CATCHPHRASE')"
         class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
@@ -536,7 +536,7 @@ export function renderCreateEventIntegration(container) {
       <button type="button" id="cp-wh-next" onclick="window._app.proceedFromIntegration()"
         class="c-button c-button--primary p-create-event__next" ${valid ? '' : 'disabled'}>次へ</button>
       <button type="button" onclick="window._app.skipStep('integration')"
-        class="p-create-event__skip">スキップする</button>
+        class="p-create-event__skip">後で</button>
       <button type="button" onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
         class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
