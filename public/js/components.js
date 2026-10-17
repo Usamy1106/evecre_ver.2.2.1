@@ -107,7 +107,7 @@ export const Components = {
           <!-- ★タイトル横の山イラストは削除した（MountainMini はホームのグリッド等では継続使用）-->
           <span class="l-header__title">${_escText(project.name)}</span>
         </div>
-        ${opts.compact ? '' : opts.trailing ? `<div class="l-header__actions">${opts.trailing}</div>` : `<div class="l-header__actions">
+        ${opts.compact ? (opts.trailing ? `<div class="l-header__actions">${opts.trailing}</div>` : '') : opts.trailing ? `<div class="l-header__actions">${opts.trailing}</div>` : `<div class="l-header__actions">
           <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
             data-log="header_feedback" class="l-header__action" aria-label="フィードバックを送る">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"

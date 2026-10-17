@@ -238,6 +238,7 @@
   width: 100%;
   max-width: 260px;
   height: auto;
+  margin: 0 auto;
 }
 
 /* 見出しの下の説明（初期オンボーディング①）*/

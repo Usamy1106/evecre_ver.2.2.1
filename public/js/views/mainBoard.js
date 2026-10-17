@@ -205,7 +205,7 @@ export function renderMainBoard(container) {
            合わせるための目印（以前は Tailwind の .sticky を掴んでいた）。
            スタイル: public/css/layout/_header.css の .l-header-stack -->
       <div class="l-header-stack js-mountain-sticky">
-        ${Components.Header(p, { compact: dash, trailing: (!dash && isMain) ? mainLayout.dateChipHtml : '' })}
+        ${Components.Header(p, { compact: dash, trailing: isMain ? mainLayout.dateChipHtml : '' })}
         ${dash ? '' : Components.Tabs(state.mainBoardTab)}
       </div>
       <!-- ★広い画面：タブ・フィードバック・設定・通知は左端の列に並べる（layout/_rail.css） -->
@@ -749,8 +749,6 @@ function _renderDashboardMain(p, mainLayout) {
             </button>
           </div>
         </div>
-        <div class="p-board-dash__purpose-slot">${_purposeBoxHtml(p)}</div>
-        ${_pillarBoardHtml(p, 'p-board-dash__pillars')}
         ${body}
       </section>
     </div>`;
@@ -1105,11 +1103,11 @@ function _renderMainTab(p) {
     // 開催前：保存値 p.daysLeft は stale になるので firstDate から当日基準で再計算する
     return `<span class="p-main-board__date-text">あと <span class="p-main-board__date-count">${calculateDaysLeft(firstDate)}</span> 日</span>`;
   })();
-  // 日付チップ（押すとスケジュール）。★スマホはヘッダーの右端（旧フィードバック・設定の場所）、
-  //   広い画面は左列の上の中央（2026-09-28）
+  // 日付チップ（押すとスケジュール）。★スマホも広い画面もヘッダーの右端（スマホは旧フィードバック・設定の場所。
+  //   広い画面は 2026-10-17 に左列の上の中央から移した。左列の上を目的と柱に空けるため）
   const dateChipHtml = `
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open" data-coach="days-left"
-          class="p-main-board__date-chip${dashLayout ? '' : ' p-main-board__date-chip--header'}">
+          class="p-main-board__date-chip p-main-board__date-chip--header">
           <img src="/images/icon/icon-calendar-pressed.svg" class="p-main-board__date-icon${_dateChip.includes('date-text--muted') ? ' is-muted' : ''}" alt="">
           ${_dateChip}
         </div>`;
@@ -1147,10 +1145,13 @@ function _renderMainTab(p) {
 
       <!-- 応募待ちアナウンスバナー（管理者のみ・該当がある場合のみ表示）-->
       ${pendingClaimMissions.length > 0 ? _renderClaimAnnouncementBanner(p, pendingClaimMissions) : ''}`;
+  // ★広い画面：目的と柱を1つの枠（p-board-dash__goal）にまとめ、左列の上（山の上）に置く（2026-10-17）。
+  //   以前は右列のカレンダーの上にあり、iPad の横表示などで右列のやることの一覧が下に押し出されて見えなかった。
+  //   日付チップはヘッダーの右端へ移した。ベルは出さない（通知の入口は左端の列 Components.BoardRail の1か所）
+  const goalInner = dashLayout ? `${_purposeBoxHtml(p)}${_pillarBoardHtml(p)}` : '';
   const pinnedAux = dashLayout ? `
     <div class="p-main-board__pinned">
-      <!-- ★広い画面（ダッシュボード表示）ではベルを出さない。通知の入口は左端の列（Components.BoardRail）1か所 -->
-      <div class="p-main-board__date-row p-main-board__date-row--center">${dateChipHtml}</div>
+      ${goalInner.trim() ? `<div class="p-board-dash__goal">${goalInner}</div>` : ''}
       ${bannersHtml}
     </div>` : `
     <div class="p-main-board__pinned p-main-board__pinned--side">

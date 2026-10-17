@@ -41,11 +41,6 @@
   min-height: 0;
 }
 
-/* 日付チップを行の中央に（広い画面ではベルが無く、左の空きも要らない） */
-.p-main-board__date-row--center {
-  justify-content: center;
-}
-
 /* 左列の下の台（提案キャラを載せる）。★スマホの下部パネル（layout/_fixed-bottom.css の .l-bottom-panel）と
    同じ「波の装飾＋単色」の2枚重ね。キャラは負のマージンで波に重なる（_character.css の --char-lift）。
    ★キャラが出ないとき（一般メンバー・提案しないイベント）も台だけは出す。出さないと、山の絵が
@@ -289,18 +284,26 @@
   transform: translateX(calc(var(--board-rail-width) / 2));
 }
 
-/* --- 右列：目的のボックスの置き場所（カレンダーの上）。箱の見た目は _purpose.css（スマホと共用）----- */
-.p-board-dash__purpose-slot {
-  flex-shrink: 0;
-  margin: var(--space-3) var(--space-6) var(--space-2);
+/* --- 左列の上（山の上）：目的と柱をつなげた1つの枠（2026-10-17）-------------------------------
+   ★以前は右列のカレンダーの上にあり（.p-board-dash__purpose-slot）、iPad の横表示などでやることの一覧が下に隠れた。
+   ★中の目的のボックス（_purpose.css）と柱の進み具合（_pillar-board.css）はスマホと共用なので、
+     枠の中だけ囲み・左の太線・影を外し、地色はこの枠が持つ（--color-warning-pale2）。柱との間は細い線1本 */
+.p-board-dash__goal {
+  overflow: hidden;
+  border: 1px solid var(--color-warning-faint);
+  border-radius: var(--radius-md);
+  background-color: var(--color-warning-pale2);
 }
 
-.p-board-dash__purpose-slot:empty {
-  display: none;
+.p-board-dash__goal > .p-purpose {
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
 }
 
-/* 柱ごとの進み具合（目的のボックスの下）。★幅と余白は目的のボックスに揃える */
-.p-board-dash__pillars {
-  flex-shrink: 0;
-  margin: 0 var(--space-6) var(--space-2);
+.p-board-dash__goal > .p-pillar-board {
+  border-top: 1px solid var(--color-warning-faint);
+  border-radius: 0;
+  background-color: transparent;
+  box-shadow: none;
 }

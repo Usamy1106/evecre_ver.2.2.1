@@ -99,13 +99,8 @@
    ★5通りに出し分ける（開催前／Day1／中間日／最終日／終了後）。
      押すとカレンダー・ガントのシートが開く。 */
 
-/* 日付チップの行（★広い画面だけ。スマホの日付チップはヘッダーの右端。2026-09-28） */
-.p-main-board__date-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
+/* ★日付チップはスマホも広い画面もヘッダーの右端（.p-main-board__date-chip--header）。
+   広い画面の「日付チップの行」（旧 .p-main-board__date-row）は 2026-10-17 に廃止した */
 
 .p-main-board__notif {
   flex: none;

@@ -1,7 +1,7 @@
 /* ==========================================================================
    Object / Project / purpose — 目的のボックス（メインボード）
    使用箇所: public/js/views/mainBoard.js（_purposeBoxHtml）
-     広い画面＝右列のカレンダーの上（.p-board-dash__purpose-slot）
+     広い画面＝左列の上で柱とつなげた枠の中（.p-board-dash__goal。_board-dashboard.css。2026-10-17）
      スマホ　＝上部固定領域のバナー類の先頭（.p-purpose--compact。2026-10-02 から）
 
    ★目的（def-1 の提出内容）を常に見える場所に置く。押すと def-1 のタスク詳細へ。
