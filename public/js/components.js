@@ -100,7 +100,9 @@ export const Components = {
     return `
       <header class="l-header l-header--event">
         <div class="l-header__group">
-          <button type="button" onclick="window._app.setView('HOME')" data-log="header_back_home"
+          <!-- ★前の画面へ戻る（2026-10-20）。メインボードの中のタブの移り変わりを1つずつさかのぼり、
+               尽きたらメインボードへ入ってきた画面（ホーム／プロジェクト詳細）へ。本体は main.js の boardBack -->
+          <button type="button" onclick="window._app.boardBack()" aria-label="前の画面へ戻る"
             class="l-header__back">
             <img src="/images/icon/icon-chevron.svg" class="l-header__back-icon" alt="">
           </button>

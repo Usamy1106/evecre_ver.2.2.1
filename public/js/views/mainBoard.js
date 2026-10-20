@@ -126,6 +126,18 @@ export function setBoardPanelView(view) {
  * メインボード画面をレンダリングする
  * @param {HTMLElement} container
  */
+// メインボードの中のタブの移り変わり（ヘッダーの戻るボタンでさかのぼる。main.js の boardBack）。
+// ★タブはあちこち（通知・オンボーディング・タスク詳細から戻るとき など）で state.mainBoardTab を直接書き換えるので、
+//   切り替える場所ではなく、描くときに「前と違えば記録する」。戻るボタンで戻った1回は記録しない（_skipPush）
+function _recordBoardTab(eventId, tab) {
+  let t = state._boardTrail;
+  if (!t || t.eventId !== eventId) { state._boardTrail = { eventId, last: tab, stack: [] }; return; }
+  if (t.last === tab) return;
+  if (t._skipPush) t._skipPush = false;
+  else { t.stack.push(t.last); if (t.stack.length > 20) t.stack.shift(); }
+  t.last = tab;
+}
+
 export function renderMainBoard(container) {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p) {
@@ -181,6 +193,7 @@ export function renderMainBoard(container) {
   // マスが色づくところを見せられない。
   if (celebrate) collapseMissionPanel();
 
+  _recordBoardTab(p.id, state.mainBoardTab);
   const isMain = state.mainBoardTab === 'MAIN';
   // ★広い画面（タブレット・PC）では2列のダッシュボード表示（左＝山と提案／右＝やること・カレンダー・ガント）。
   //   スマホの DOM は変えない（分岐はここと _renderDashboardMain だけ）

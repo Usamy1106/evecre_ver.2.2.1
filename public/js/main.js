@@ -296,6 +296,25 @@ window._app = {
     window.scrollTo(0, 0);
   },
 
+  // ヘッダーの戻るボタン（2026-10-20）。メインボードの中で見てきたタブを1つずつさかのぼり、
+  //   尽きたらメインボードへ入ってきた画面（ホーム／プロジェクト詳細）へ戻る。記録は mainBoard.js の _recordBoardTab
+  boardBack: async () => {
+    const t = state._boardTrail;
+    if (t && t.eventId === state.selectedEventId && t.stack.length) {
+      const prev = t.stack.pop();
+      t._skipPush = true;
+      logEvent('header_back', { to: prev });
+      await window._app.setTab(prev);
+      // 移れなかった（アーカイブの保存待ちの最中に押した など）ときは記録を元に戻す
+      if (state.mainBoardTab !== prev) { t.stack.push(prev); t._skipPush = false; }
+      return;
+    }
+    const entry = state.boardEntry;
+    logEvent('header_back', { to: entry?.view || 'HOME' });
+    if (entry?.view === 'PROJECT_DETAIL' && entry.folderId) state.setView('PROJECT_DETAIL', entry.folderId);
+    else state.setView('HOME');
+  },
+
   // --- 招待コード入力・メンバー管理 ---
   openJoinByCodeModal: () => openJoinByCodeModal(),
 
@@ -1833,6 +1852,7 @@ const _LOG_LABELS = {
   push_setup_started:     '通知の設定を開いた',
   push_banner_tapped:     '通知バナーをタップ',
   push_banner_dismissed:  '通知バナーを閉じた',
+  header_back:            'ヘッダーの戻るボタンで戻った',
   home_banner_dismissed:  '「ホームに置こう」バナーを閉じた',
   push_enable_tap:        '通知をオンにするを押した',
   push_disable_tap:       '通知をオフにするを押した',
