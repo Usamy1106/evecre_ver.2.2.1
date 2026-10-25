@@ -169,6 +169,12 @@
   filter: brightness(0);
 }
 
+/* 広い画面のメインボードでは戻るの代わりにホーム（Components.Header の compact。2026-10-25）。枠は戻ると同じ */
+.l-header__home-icon {
+  width: 20px;
+  height: 20px;
+}
+
 .l-header__title {
   max-width: 180px;
   overflow: hidden;

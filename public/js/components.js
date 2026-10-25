@@ -100,12 +100,18 @@ export const Components = {
     return `
       <header class="l-header l-header--event">
         <div class="l-header__group">
-          <!-- ★前の画面へ戻る（2026-10-20）。メインボードの中のタブの移り変わりを1つずつさかのぼり、
-               尽きたらメインボードへ入ってきた画面（ホーム／プロジェクト詳細）へ。本体は main.js の boardBack -->
+          ${opts.compact ? `
+          <!-- ★広い画面のメインボード（compact）は戻るの代わりにホーム（2026-10-25。左端の列の先頭から移した）。
+               ★行き先は常にホーム（goHome）。戻るボタンとは違い、フォルダから入ってもフォルダへは戻らない -->
+          <button type="button" onclick="window._app.goHome()" data-log="header_home" aria-label="ホーム" title="ホーム"
+            class="l-header__back">
+            <img src="/images/icon/icon-home-pressed.svg" class="l-header__home-icon" alt="">
+          </button>` : `
+          <!-- ★戻る。どのタブからでもメインボードへ入ってきた画面（ホーム／プロジェクト詳細）へ（main.js の boardBack） -->
           <button type="button" onclick="window._app.boardBack()" aria-label="前の画面へ戻る"
             class="l-header__back">
             <img src="/images/icon/icon-chevron.svg" class="l-header__back-icon" alt="">
-          </button>
+          </button>`}
           <!-- ★タイトル横の山イラストは削除した（MountainMini はホームのグリッド等では継続使用）-->
           <span class="l-header__title">${_escText(project.name)}</span>
         </div>
@@ -126,7 +132,7 @@ export const Components = {
   },
 
   /**
-   * 広い画面（タブレット・PC）のメインボードの左端の列。上から ホーム／メインボード／アーカイブ／通知／フィードバック／設定。
+   * 広い画面（タブレット・PC）のメインボードの左端の列。上から メインボード／アーカイブ／通知／フィードバック／設定（ホームはヘッダーの左端。2026-10-25）。
    * スタイル: public/css/layout/_rail.css（丸い白地にアイコン。いま開いているタブは塗り）
    * ★スマホでは使わない（スマホはボトムナビ Components.BottomNav。通知もそちら）。
    * ★通知のバッジは [data-notif-entry] で refreshNotifBadge が差し替える（ダッシュボード表示では、ここが唯一の入口）。
@@ -139,10 +145,6 @@ export const Components = {
     const unread = this.unreadCountFor(project?.id);
     return `
       <nav class="l-rail" aria-label="イベントのメニュー">
-        <button type="button" onclick="window._app.goHome()" data-log="rail_home"
-          class="l-rail__item" aria-label="ホーム" title="ホーム">
-          <img src="/images/icon/icon-home-default.svg" class="l-rail__icon" alt="">
-        </button>
         <button type="button" onclick="window._app.setTab('MAIN')" data-log="rail_main"
           class="l-rail__item${on('MAIN')}" aria-label="メインボード" title="メインボード">
           <img src="/images/icon/icon-mainboard-${active === 'MAIN' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
