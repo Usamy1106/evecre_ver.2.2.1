@@ -133,18 +133,6 @@ export function setBoardPanelView(view) {
  * メインボード画面をレンダリングする
  * @param {HTMLElement} container
  */
-// メインボードの中のタブの移り変わり（ヘッダーの戻るボタンでさかのぼる。main.js の boardBack）。
-// ★タブはあちこち（通知・オンボーディング・タスク詳細から戻るとき など）で state.mainBoardTab を直接書き換えるので、
-//   切り替える場所ではなく、描くときに「前と違えば記録する」。戻るボタンで戻った1回は記録しない（_skipPush）
-function _recordBoardTab(eventId, tab) {
-  let t = state._boardTrail;
-  if (!t || t.eventId !== eventId) { state._boardTrail = { eventId, last: tab, stack: [] }; return; }
-  if (t.last === tab) return;
-  if (t._skipPush) t._skipPush = false;
-  else { t.stack.push(t.last); if (t.stack.length > 20) t.stack.shift(); }
-  t.last = tab;
-}
-
 export function renderMainBoard(container) {
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p) {
@@ -200,7 +188,6 @@ export function renderMainBoard(container) {
   // マスが色づくところを見せられない。
   if (celebrate) collapseMissionPanel();
 
-  _recordBoardTab(p.id, state.mainBoardTab);
   const isMain = state.mainBoardTab === 'MAIN';
   // ★広い画面（タブレット・PC）では2列のダッシュボード表示（左＝山と提案／右＝やること・カレンダー・ガント）。
   //   スマホの DOM は変えない（分岐はここと _renderDashboardMain だけ）
@@ -263,8 +250,8 @@ export function renderMainBoard(container) {
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>` : ''}
-      <!-- ★スマホ：ボトムナビ（ホーム／メインボード／アーカイブ）。中身の上に重ねる（下に余白は足さない） -->
-      ${dash ? '' : Components.BottomNav(state.mainBoardTab)}
+      <!-- ★スマホ：ボトムナビ（メインボード／アーカイブ／通知）。中身の上に重ねる（下に余白は足さない） -->
+      ${dash ? '' : Components.BottomNav(p, state.mainBoardTab)}
     </div>`;
 
   // ★配線より先に戻す。実測する対象を入れ替えないため。
@@ -1132,17 +1119,10 @@ function _renderMainTab(p) {
           <img src="/images/icon/icon-calendar-pressed.svg" class="p-main-board__date-icon${_dateChip.includes('date-text--muted') ? ' is-muted' : ''}" alt="">
           ${_dateChip}
         </div>`;
-  // ★スマホ：通知・フィードバック・設定の丸いボタンを右端に縦に並べる（2026-09-28。以前は日付チップの行の右端に
-  //   通知だけ、フィードバックと設定はヘッダーの右端にあった）。通知の入口はここ1か所（[data-notif-entry]）
+  // ★スマホ：フィードバック・設定の丸いボタンを右端に縦に並べる（2026-09-28）。
+  //   ★通知は 2026-10-25 にボトムナビ（Components.BottomNav）へ移した。ここに戻さないこと（入口を2つにしない）
   const sideActionsHtml = `
       <div class="p-main-board__side-actions">
-        <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry
-          data-log="notif_open" class="p-main-board__notif" aria-label="通知">
-          <img src="/images/icon/icon-notification-default.svg" width="20" height="20" alt="">
-          ${Components.unreadCountFor(p.id) > 0
-            ? `<span class="p-main-board__notif-badge">${Components.badgeText(Components.unreadCountFor(p.id))}</span>`
-            : ''}
-        </button>
         <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
           data-log="header_feedback" class="p-main-board__notif" aria-label="フィードバックを送る">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1155,7 +1135,7 @@ function _renderMainTab(p) {
           <img src="/images/icon/icon-setting.svg" class="p-main-board__side-icon" alt="">
         </button>
       </div>`;
-  // 上部固定領域：日付チップ（広い画面のみ）・通知などの丸ボタン（スマホのみ）・お知らせ・各バナー（スクロールしない）
+  // 上部固定領域：日付チップ（広い画面のみ）・フィードバック・設定の丸ボタン（スマホのみ）・お知らせ・各バナー（スクロールしない）
   // ★スマホは「バナー類」と「右端の丸ボタンの列」を横に並べる。ボタンの列は縦に長いので、バナーの上に重ねない
   const bannersHtml = `
       <!-- アナウンスカード -->

@@ -1225,12 +1225,13 @@ body {
 
 /* ===== layout/_bottom-nav.css ===== */
 /* ==========================================================================
-   Layout / bottom-nav — スマホのメインボードのボトムナビ（ホーム／メインボード／アーカイブ）
+   Layout / bottom-nav — スマホのメインボードのボトムナビ（メインボード／アーカイブ／通知）
    使用箇所: public/js/components.js（Components.BottomNav）、views/mainBoard.js
 
    ★2026-10-25 に旧 .l-tabs（ヘッダーの下のタブ。layout/_tabs.css）の後継として足した。
    ★中身の上に重ねて浮かせる。一覧やページの下に、このぶんの余白は足さない（決定済み）。
-   ★広い画面（layoutMode.js の isDashboard）では描かない。ホームは左端の列（layout/_rail.css）の先頭。
+   ★広い画面（layoutMode.js の isDashboard）では描かない（左端の列 layout/_rail.css）。
+   ★未読バッジ（p-main-board__notif-badge）の位置は object/project/_main-board.css が持つ。
    ★アクティブ表示は .is-active。色はタブごとのモディファイアが持つ（旧 .l-tabs と同じ）。
    ========================================================================== */
 
@@ -1258,11 +1259,22 @@ body {
   align-items: center;
   justify-content: center;
   gap: 2px;
+}
+
+/* ★薄くするのはアイコンと文字だけ。ボタンごと薄くすると通知の未読バッジまで薄くなる（2026-10-25）*/
+.l-bottom-nav__icon,
+.l-bottom-nav__label {
   opacity: .4;
 }
 
-.l-bottom-nav__item.is-active {
+.l-bottom-nav__item.is-active .l-bottom-nav__icon,
+.l-bottom-nav__item.is-active .l-bottom-nav__label {
   opacity: 1;
+}
+
+.l-bottom-nav__icon-wrap {
+  position: relative;
+  display: flex;
 }
 
 .l-bottom-nav__icon {
@@ -1283,6 +1295,10 @@ body {
 
 .l-bottom-nav__item--archive.is-active .l-bottom-nav__label {
   color: var(--color-warning);
+}
+
+.l-bottom-nav__item--notifications.is-active .l-bottom-nav__label {
+  color: var(--create-blue);
 }
 
 /* --- ＋ボタン（タスクを作成）はボトムナビの上へ逃がす ---------------------- */
@@ -4633,6 +4649,12 @@ body {
   gap: var(--space-2);
   /* ★タブ（.l-tabs）をボトムナビへ移したぶん上へ詰める（2026-10-25）*/
   padding-top: var(--space-2);
+}
+
+/* ボトムナビ（layout/_bottom-nav.css）の通知の未読バッジ。アイコンの右上に重ねる（2026-10-25）*/
+.p-main-board .l-bottom-nav__icon-wrap .p-main-board__notif-badge {
+  top: -4px;
+  right: -8px;
 }
 
 .p-main-board__pinned--side > * + * {

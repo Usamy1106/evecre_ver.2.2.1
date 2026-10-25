@@ -296,19 +296,11 @@ window._app = {
     window.scrollTo(0, 0);
   },
 
-  // ヘッダーの戻るボタン（2026-10-20）。メインボードの中で見てきたタブを1つずつさかのぼり、
-  //   尽きたらメインボードへ入ってきた画面（ホーム／プロジェクト詳細）へ戻る。記録は mainBoard.js の _recordBoardTab
-  boardBack: async () => {
-    const t = state._boardTrail;
-    if (t && t.eventId === state.selectedEventId && t.stack.length) {
-      const prev = t.stack.pop();
-      t._skipPush = true;
-      logEvent('header_back', { to: prev });
-      await window._app.setTab(prev);
-      // 移れなかった（アーカイブの保存待ちの最中に押した など）ときは記録を元に戻す
-      if (state.mainBoardTab !== prev) { t.stack.push(prev); t._skipPush = false; }
-      return;
-    }
+  // ヘッダーの戻るボタン。★タブ（メインボード／アーカイブ／通知）は同じ階層の兄弟なので、
+  //   どれだけ行き来しても履歴を積まない。戻るはいつも、メインボードへ入ってきた画面（ホーム／プロジェクト詳細）へ
+  //   （2026-10-25。以前は見てきたタブを1つずつさかのぼる履歴型で、出てきたタブに引き戻されていた）
+  //   ★アーカイブの編集中は setView が保存し終えてから移る
+  boardBack: () => {
     const entry = state.boardEntry;
     logEvent('header_back', { to: entry?.view || 'HOME' });
     if (entry?.view === 'PROJECT_DETAIL' && entry.folderId) state.setView('PROJECT_DETAIL', entry.folderId);
@@ -1079,7 +1071,7 @@ window._app = {
         title: '担当申請があります',
         desc:  `${claimMissions.length}件のタスクに担当申請が届いています。`,
         action: '通知タブで確認する',
-        onAction: () => { state.mainBoardTab = 'NOTIFICATIONS'; state.render(); },
+        onAction: () => window._app.setTab('NOTIFICATIONS'),
       };
     }
 

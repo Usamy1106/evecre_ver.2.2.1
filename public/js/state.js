@@ -868,11 +868,13 @@ export const state = {
     if (prevView === 'MAIN_BOARD' && view !== 'MAIN_BOARD') {
       window._app?.abortIntroVisuals?.();
     }
-    // ★ヘッダーの戻るボタン（main.js の boardBack）が最後に戻る先。メインボードへ「外から」入ったときだけ書き換える
-    //   （タスク詳細・イベント設定などから戻ってきたときは、入ってきた元とタブの移り変わりを持ち越す）
-    if (view === 'MAIN_BOARD' && (prevView === 'HOME' || prevView === 'PROJECT_DETAIL' || this._boardTrail?.eventId !== id)) {
-      this.boardEntry = prevView === 'PROJECT_DETAIL' ? { view: 'PROJECT_DETAIL', folderId: this.selectedFolderId } : { view: 'HOME' };
-      this._boardTrail = { eventId: id, last: 'MAIN', stack: [] };
+    // ★ヘッダーの戻るボタン（main.js の boardBack）の戻る先。メインボードへ「外から」入ったときだけ書き換える
+    //   （タスク詳細・イベント設定などから戻ってきたときは、入ってきた元を持ち越す）。
+    //   ★別のイベントを開いたかは boardEntry 自身の eventId で見る（旧 _boardTrail は 2026-10-25 に廃止）
+    if (view === 'MAIN_BOARD' && (prevView === 'HOME' || prevView === 'PROJECT_DETAIL' || this.boardEntry?.eventId !== id)) {
+      this.boardEntry = prevView === 'PROJECT_DETAIL'
+        ? { view: 'PROJECT_DETAIL', folderId: this.selectedFolderId, eventId: id }
+        : { view: 'HOME', eventId: id };
     }
     logEvent('view_changed', { from: prevView, to: view });
     this.currentView = view;

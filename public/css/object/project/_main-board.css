@@ -63,6 +63,12 @@
   padding-top: var(--space-2);
 }
 
+/* ボトムナビ（layout/_bottom-nav.css）の通知の未読バッジ。アイコンの右上に重ねる（2026-10-25）*/
+.p-main-board .l-bottom-nav__icon-wrap .p-main-board__notif-badge {
+  top: -4px;
+  right: -8px;
+}
+
 .p-main-board__pinned--side > * + * {
   margin-top: 0;
 }
