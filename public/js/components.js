@@ -126,9 +126,9 @@ export const Components = {
   },
 
   /**
-   * 広い画面（タブレット・PC）のメインボードの左端の列。上から メインボード／アーカイブ／通知／フィードバック／設定。
+   * 広い画面（タブレット・PC）のメインボードの左端の列。上から ホーム／メインボード／アーカイブ／通知／フィードバック／設定。
    * スタイル: public/css/layout/_rail.css（丸い白地にアイコン。いま開いているタブは塗り）
-   * ★スマホでは使わない（スマホはヘッダーのタブ＋日付チップの行のベル）。
+   * ★スマホでは使わない（スマホはボトムナビ Components.BottomNav ＋右端の丸ボタンのベル）。
    * ★通知のバッジは [data-notif-entry] で refreshNotifBadge が差し替える（ダッシュボード表示では、ここが唯一の入口）。
    * ★フィードバック・設定はヘッダーから移したもの。ヘッダー（compact）には出さない（同じボタンを2つ置かない）。
    * @param {object} project
@@ -139,6 +139,10 @@ export const Components = {
     const unread = this.unreadCountFor(project?.id);
     return `
       <nav class="l-rail" aria-label="イベントのメニュー">
+        <button type="button" onclick="window._app.goHome()" data-log="rail_home"
+          class="l-rail__item" aria-label="ホーム" title="ホーム">
+          <img src="/images/icon/icon-home-default.svg" class="l-rail__icon" alt="">
+        </button>
         <button type="button" onclick="window._app.setTab('MAIN')" data-log="rail_main"
           class="l-rail__item${on('MAIN')}" aria-label="メインボード" title="メインボード">
           <img src="/images/icon/icon-mainboard-${active === 'MAIN' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
@@ -167,27 +171,27 @@ export const Components = {
   },
 
   /**
-   * タブナビゲーション
+   * スマホのメインボードのボトムナビ（ホーム／メインボード／アーカイブ）。2026-10-25。
+   * ★旧 Components.Tabs（ヘッダーの下のタブ .l-tabs）の後継。タブはここへ移して無くした。
+   * ★メインボード・アーカイブ・通知の3タブで出す（通知タブでは3つとも選択なし）。
+   *   中身の上に重ねて浮かせる（一覧やページの下に、このぶんの余白は足さない。2026-10-25 の決定）。
+   * ★ホームは「前の画面」ではなく常にホームへ（ヘッダーの戻るボタンとは役割が違う）。
+   * ★広い画面では出さない（左端の列 Components.BoardRail のいちばん上にホームがある）。
+   *   スタイル: public/css/layout/_bottom-nav.css
    * @param {'MAIN'|'NOTIFICATIONS'|'ARCHIVE'} active
    */
-  Tabs(active) {
-    // ★通知はここには無い（2026-09-23）。入口は日付チップの行の右端のベル
-    //   （views/mainBoard.js の [data-notif-entry]）1か所だけ。戻さないこと。
-    // ★アクティブ表示は is-active に集約してある（色はタブごとのモディファイアが持つ）。
-    //   スタイル: public/css/layout/_tabs.css
-    const on = (id) => active === id ? ' is-active' : '';
+  BottomNav(active) {
+    const item = (id, key, icon, label, onclick) => `
+        <button type="button" onclick="${onclick}" data-log="nav_${key}"
+          class="l-bottom-nav__item l-bottom-nav__item--${key}${active === id ? ' is-active' : ''}">
+          <img src="/images/icon/icon-${icon}-${active === id ? 'pressed' : 'default'}.svg" class="l-bottom-nav__icon" alt="">
+          <span class="l-bottom-nav__label">${label}</span>
+        </button>`;
     return `
-      <nav class="l-tabs">
-        <div onclick="window._app.setTab('MAIN')"
-          class="l-tabs__item l-tabs__item--main${on('MAIN')}">
-          <img src="/images/icon/icon-mainboard-${active === 'MAIN' ? 'pressed' : 'default'}.svg" class="l-tabs__icon" alt="">
-          <span class="l-tabs__label">メインボード</span>
-        </div>
-        <div onclick="window._app.setTab('ARCHIVE')"
-          class="l-tabs__item l-tabs__item--archive${on('ARCHIVE')}">
-          <img src="/images/icon/icon-archive-${active === 'ARCHIVE' ? 'pressed' : 'default'}.svg" class="l-tabs__icon" alt="">
-          <span class="l-tabs__label">アーカイブ</span>
-        </div>
+      <nav class="l-bottom-nav" aria-label="メニュー">
+        ${item('HOME', 'home', 'home', 'ホーム', 'window._app.goHome()')}
+        ${item('MAIN', 'main', 'mainboard', 'メインボード', "window._app.setTab('MAIN')")}
+        ${item('ARCHIVE', 'archive', 'archive', 'アーカイブ', "window._app.setTab('ARCHIVE')")}
       </nav>`;
   },
 
@@ -197,7 +201,7 @@ export const Components = {
    * ★全画面 render() の代わり。SSE でチャットが届くたびに画面を丸ごと作り直していたのを
    *   やめるために足した（realtime.js の chatMessage）。
    * ★当てる先は**日付チップの行のベル**（[data-notif-entry]）。
-   *   2026-09-23 に通知をタブバーから外したので、l-tabs は見ない。
+   *   2026-09-23 に通知をタブバーから外した（タブ自体も 2026-10-25 にボトムナビへ移して無くした）。
    * ★数え方は unreadCountFor に集約（表示中のイベントの未読だけ）。
    * ★バッジ要素は unread > 0 のときしか存在しない。無ければ作り、0 になったら消す。
    * ★ベルが画面に無い（ホーム・設定など）ときは何もしない。

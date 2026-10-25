@@ -139,6 +139,9 @@
      448 × 101.17 ÷ 1179 ≒ 38px。★幅を変えたらこの値も計算し直すこと。
      mountainPath.js の PANEL_WAVE_H とも合わせる（遠近の基準帯が１波ぶんずれる）。 */
   --panel-wave-h: 38px;
+  /* スマホのメインボードのボトムナビ（layout/_bottom-nav.css）。半透明の白で中身の上に重ねる（2026-10-25）*/
+  --bottom-nav-h: 60px;
+  --bottom-nav-bg: rgba(255, 255, 255, .8);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
   --color-alert: #E74C3C;          /* 締め切り超過・当日 */
   --color-warning-pale2: #FFF8E1;  /* --color-warning-pale と近い。統合は Phase 5 で判断 */
@@ -1059,74 +1062,6 @@ body {
   color: var(--color-text);
 }
 
-/* ===== layout/_tabs.css ===== */
-/* ==========================================================================
-   Layout / tabs — メインボード／通知／アーカイブの切り替え
-   使用箇所: public/js/components.js（Components.Tabs）
-
-   ★アクティブ表示は .is-active。以前は Tailwind クラスを三項演算子で出し分けて
-     いたため、どの状態がどの見た目かがマークアップを読まないと分からなかった。
-   ★タブごとに色が違うので、色は --main / --notifications / --archive の
-     モディファイアが持つ。共通の形は .l-tabs__item に置く。
-   ★非アクティブに透明ボーダーを敷いていない（敷くと中身が 1px 上にずれる）。
-     アクティブのときだけ border-bottom を足す元の実装に合わせてある。
-   ========================================================================== */
-
-.l-tabs {
-  display: flex;
-  padding-inline: var(--space-6);
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-bg);
-}
-
-.l-tabs__item {
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  padding-block: var(--space-2);
-  cursor: pointer;
-  opacity: .4;
-}
-
-.l-tabs__item.is-active {
-  opacity: 1;
-  border-bottom: 2px solid;
-}
-
-.l-tabs__icon {
-  width: 20px;
-  height: 20px;
-}
-
-.l-tabs__label {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-}
-
-/* --- タブごとの色 -------------------------------------------------------- */
-
-.l-tabs__item--main.is-active {
-  border-bottom-color: var(--color-primary);
-}
-
-.l-tabs__item--main.is-active .l-tabs__label {
-  color: var(--color-primary);
-}
-
-.l-tabs__item--archive.is-active {
-  border-bottom-color: var(--color-warning);
-}
-
-.l-tabs__item--archive.is-active .l-tabs__label {
-  color: var(--color-warning);
-}
-
-/* ★未読バッジはここには無い（2026-09-23）。通知をタブバーから外し、
-   日付チップの行の右端のベル（p-main-board__notif-badge）へ移した。 */
-
 /* ===== layout/_fixed-bottom.css ===== */
 /* ==========================================================================
    Layout / fixed-bottom — 画面下に固定するもの（下部パネル・FAB）
@@ -1185,8 +1120,12 @@ body {
    - padding-top は波の高さぶん。中身が波の上に乗ると読めなくなる。 */
 .l-bottom-panel__body {
   flex: 1;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* ★本体はスクロールしない（2026-10-25）。スクロールするのは中のやることの一覧だけ
+     （object/project/_main-board.css の .p-main-board__panel-list）。「私の／みんなの」とラベルの行は固定 */
+  overflow: hidden;
   padding-top: calc(var(--panel-wave-h) + var(--space-2));
   padding-inline: var(--space-6);
 }
@@ -1282,6 +1221,74 @@ body {
 .l-rail__icon {
   width: 26px;
   height: 26px;
+}
+
+/* ===== layout/_bottom-nav.css ===== */
+/* ==========================================================================
+   Layout / bottom-nav — スマホのメインボードのボトムナビ（ホーム／メインボード／アーカイブ）
+   使用箇所: public/js/components.js（Components.BottomNav）、views/mainBoard.js
+
+   ★2026-10-25 に旧 .l-tabs（ヘッダーの下のタブ。layout/_tabs.css）の後継として足した。
+   ★中身の上に重ねて浮かせる。一覧やページの下に、このぶんの余白は足さない（決定済み）。
+   ★広い画面（layoutMode.js の isDashboard）では描かない。ホームは左端の列（layout/_rail.css）の先頭。
+   ★アクティブ表示は .is-active。色はタブごとのモディファイアが持つ（旧 .l-tabs と同じ）。
+   ========================================================================== */
+
+.l-bottom-nav {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(var(--safe-bottom) + var(--space-3));
+  left: var(--space-4);
+  z-index: var(--z-header-stack);
+  display: flex;
+  max-width: calc(var(--layout-max-width) - var(--space-8) * 2);
+  height: var(--bottom-nav-h);
+  margin-inline: auto;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--bottom-nav-bg);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+}
+
+.l-bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  opacity: .4;
+}
+
+.l-bottom-nav__item.is-active {
+  opacity: 1;
+}
+
+.l-bottom-nav__icon {
+  width: 24px;
+  height: 24px;
+}
+
+.l-bottom-nav__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- タブごとの色 -------------------------------------------------------- */
+
+.l-bottom-nav__item--main.is-active .l-bottom-nav__label {
+  color: var(--color-primary);
+}
+
+.l-bottom-nav__item--archive.is-active .l-bottom-nav__label {
+  color: var(--color-warning);
+}
+
+/* --- ＋ボタン（タスクを作成）はボトムナビの上へ逃がす ---------------------- */
+
+.l-fab--above-nav {
+  bottom: calc(var(--safe-bottom) + var(--space-3) + var(--bottom-nav-h) + var(--space-3));
 }
 
 /* ===== object/component/_button.css ===== */
@@ -4624,6 +4631,8 @@ body {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
+  /* ★タブ（.l-tabs）をボトムナビへ移したぶん上へ詰める（2026-10-25）*/
+  padding-top: var(--space-2);
 }
 
 .p-main-board__pinned--side > * + * {
@@ -5137,6 +5146,25 @@ body {
 
 .p-main-board__mission-list {
   padding-bottom: var(--space-10);
+}
+
+/* スマホの下部パネルの中身（2026-10-25）：「私の／みんなの」とラベルの行は固定し、一覧だけをスクロールさせる。
+   ★overscroll-behavior:contain … iOS のラバーバンドが裏のページへ抜けるのを止める（旧 .l-bottom-panel__body から移した）。
+   ★touch-action は指定しない。パネルを上げ下げするときだけ JS（_initMissionPanelGesture）が preventDefault する。
+   ★広い画面の右列（.p-board-dash__main）の一覧には当てない */
+.p-main-board__panel-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.p-main-board__panel-list > .p-main-board__mission-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: calc(var(--space-10) + var(--safe-bottom));
 }
 
 .p-main-board__mission-list > * + * {

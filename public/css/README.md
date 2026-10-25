@@ -52,7 +52,7 @@
 | 要素の初期化（`box-sizing` など） | `foundation/_reset.css` |
 | アプリの最大幅・中央寄せ | `layout/_app.css` |
 | ヘッダー（HOME / イベント） | `layout/_header.css` |
-| タブ（メインボード・通知・アーカイブ）とアクティブ表示 | `layout/_tabs.css` |
+| スマホのボトムナビ（ホーム・メインボード・アーカイブ）とアクティブ表示 | `layout/_bottom-nav.css` |
 | メインボード下部のパネル・FAB | `layout/_fixed-bottom.css` |
 | 広い画面のメインボードの左端の列（丸いボタン） | `layout/_rail.css` |
 | 起動時のローディング画面 | `layout/_loading.css` |
@@ -275,7 +275,7 @@ public/css/
 │  ├─ _app.css                  ✅ .l-app（#app）
 │  ├─ _loading.css              ✅ .l-loading（#loading-screen）
 │  ├─ _header.css               ✅ .l-header（--home / --event）／.l-header-stack
-│  ├─ _tabs.css                 ✅ .l-tabs（.is-active）
+│  ├─ _bottom-nav.css           ✅ .l-bottom-nav（.is-active）／.l-fab--above-nav
 │  ├─ _fixed-bottom.css         ✅ .l-bottom-panel / .l-fab
 │  └─ _rail.css                 ✅ .l-rail（広い画面のメインボードの左端の列）
 │

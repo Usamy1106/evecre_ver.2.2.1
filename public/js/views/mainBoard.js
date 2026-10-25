@@ -27,6 +27,13 @@ import {
 // ★スケジュールの表示の状態（表示中の月・開催日の編集中の作業コピー）と、絞り込んだ日は
 //   イベントごとにモジュールで持つ（SSE の再描画で失わない。アーカイブの開閉と同じ考え方）。
 const BOARD_PANEL_VIEWS = ['calendar', 'gantt'];
+// ★スマホの下部パネル（#mainboard-bottom-panel）の上端の位置。画面の高さに対する割合（0＝画面の上端）。
+//   ★パネルの位置を変えるときはこの2つを直す（マークアップの初期位置もここから作る）。
+//   ★たたんだときの位置を変えたら、mountainPath.js の BOTTOM_PAD（いちばん下のマスの高さ）も合わせる
+//   たたんだとき：大きくすると山（プログレスマップ）が広く見え、小さくするとやることの一覧が広くなる
+const PANEL_COLLAPSED_RATIO = 0.48;
+//   上へ引き上げたとき（一覧を読むための位置）
+const PANEL_EXPANDED_RATIO  = 0.22;
 const _scheduleCtxByEvent = new Map();
 const _boardFilterDateByEvent = new Map();   // カレンダーで選んだ日（イベントごと。もう一度押すと解除）
 let _boardPanelShownFor = null;   // 右列を最後に描いた「イベント:表示」。変わったら今日へ送る
@@ -219,7 +226,6 @@ export function renderMainBoard(container) {
            スタイル: public/css/layout/_header.css の .l-header-stack -->
       <div class="l-header-stack js-mountain-sticky">
         ${Components.Header(p, { compact: dash, trailing: isMain ? mainLayout.dateChipHtml : '' })}
-        ${dash ? '' : Components.Tabs(state.mainBoardTab)}
       </div>
       <!-- ★広い画面：タブ・フィードバック・設定・通知は左端の列に並べる（layout/_rail.css） -->
       ${dash ? Components.BoardRail(p, state.mainBoardTab) : ''}
@@ -237,10 +243,10 @@ export function renderMainBoard(container) {
         <!-- 下部パネル：提案＋やること一覧（独立スクロール・上ドラッグで拡大） -->
         <!-- id は mission-panel と衝突させないこと（modals/mission.js の作成モーダル内部パネルが
              その id を使っており、被せるとモーダルのスライドインが壊れて白画面になる） -->
-        <div id="mainboard-bottom-panel" class="l-bottom-panel" style="top:62vh">
+        <div id="mainboard-bottom-panel" class="l-bottom-panel" style="top:${PANEL_COLLAPSED_RATIO * 100}vh">
           <!-- ★提案キャラクターはスクロール領域の外。上へはみ出して波に重なるため -->
           ${mainLayout.proposalsRow}
-          <div data-mpanel-body class="l-bottom-panel__body u-pb-safe">
+          <div data-mpanel-body class="l-bottom-panel__body">
             ${mainLayout.bottomPanelInner}
           </div>
         </div>
@@ -252,11 +258,13 @@ export function renderMainBoard(container) {
       `}
       ${state.mainBoardTab === 'MAIN' && state.canManageCurrentEvent() ? `
         <button type="button" onclick="window._app.openMissionModal()" data-log="mission_add_open" data-coach="fab"
-          class="l-fab l-fab--primary" aria-label="タスクを作成">
+          class="l-fab l-fab--primary${dash ? '' : ' l-fab--above-nav'}" aria-label="タスクを作成">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>` : ''}
+      <!-- ★スマホ：ボトムナビ（ホーム／メインボード／アーカイブ）。中身の上に重ねる（下に余白は足さない） -->
+      ${dash ? '' : Components.BottomNav(state.mainBoardTab)}
     </div>`;
 
   // ★配線より先に戻す。実測する対象を入れ替えないため。
@@ -381,10 +389,10 @@ export function toggleAnnounceList() {
 //
 //   | パネル | 指の向き | scrollTop | 動作                         |
 //   |--------|----------|-----------|------------------------------|
-//   | 通常   | ↑ 上     | —         | パネルを 70% まで上げる      |
-//   | 70%    | ↑ 上     | —         | 通常スクロール（触らない）   |
-//   | 70%    | ↓ 下     | 0         | パネルを通常位置へ戻す       |
-//   | 70%    | ↓ 下     | >0        | 通常スクロール（触らない）   |
+//   | 通常   | ↑ 上     | —         | パネルを展開の位置まで上げる |
+//   | 展開   | ↑ 上     | —         | 通常スクロール（触らない）   |
+//   | 展開   | ↓ 下     | 0         | パネルを通常位置へ戻す       |
+//   | 展開   | ↓ 下     | >0        | 通常スクロール（触らない）   |
 //
 // ★一度 'scroll' と決めたらそのジェスチャの間は二度とパネルを動かさない
 //   （途中で奪うと、スクロールしている最中に急にパネルが飛ぶ）。
@@ -393,18 +401,18 @@ export function toggleAnnounceList() {
 function _initMissionPanelGesture() {
   const panel = document.getElementById('mainboard-bottom-panel');
   const body  = panel?.querySelector('[data-mpanel-body]');
-  if (!panel || !body) return;
+  // ★スクロールするのはパネルの本体ではなく一覧だけ（2026-10-25。「私の／みんなの」とラベルの行は固定）。
+  //   指の受け口はパネルの本体のまま、「上端か」は一覧のスクロール位置で見る
+  const list  = body?.querySelector('.p-main-board__mission-list');
+  if (!panel || !body || !list) return;
 
   const vh = window.innerHeight || 640;
-  // 通常：画面の下から 38%。★山を広く見せるため、パネルはここまで。
-  //   ここを下げる（値を大きくする）とプログレスマップの手前が広く見え、
-  //   上げるとやること一覧が読みやすくなる。トレードオフ。
-  const collapsedTop = Math.round(vh * 0.62);
-  // 展開：下から 70%（＝上端が画面の 30%）。一覧を読むための位置。
-  const expandedTop  = Math.round(vh * 0.30);
+  // ★位置はファイル冒頭の PANEL_COLLAPSED_RATIO / PANEL_EXPANDED_RATIO で変える
+  const collapsedTop = Math.round(vh * PANEL_COLLAPSED_RATIO);
+  const expandedTop  = Math.round(vh * PANEL_EXPANDED_RATIO);
   const setTop = (v) => { panel.style.top = v + 'px'; };
   // ★transition はインラインで付け外しする（CSS に常時置かない）。
-  //   常時付けておくと、SSE の再描画のたびにパネルが 62vh から今の位置へ
+  //   常時付けておくと、SSE の再描画のたびにパネルが初期位置から今の位置へ
   //   毎回スライドして見える（innerHTML ごと作り直しているため）。
   const SNAP = 'top .28s cubic-bezier(.22,.61,.36,1)';
 
@@ -474,7 +482,7 @@ function _initMissionPanelGesture() {
       if (Math.abs(dy) < 4) return false;
       const up = dy < 0;
       if (!_missionPanelExpanded && up) mode = 'panel';           // 通常 → 上げる
-      else if (_missionPanelExpanded && !up && body.scrollTop <= 0) mode = 'panel'; // 上端で下へ → 戻す
+      else if (_missionPanelExpanded && !up && list.scrollTop <= 0) mode = 'panel'; // 上端で下へ → 戻す
       else mode = 'scroll';
     }
     if (mode !== 'panel') return false;
@@ -529,7 +537,7 @@ let _panelReturnFrom = null;
 export function collapseMissionPanel() {
   if (!_missionPanelExpanded) return;
   _panelReturnFrom = parseFloat(document.getElementById('mainboard-bottom-panel')?.style.top)
-    || Math.round((window.innerHeight || 640) * 0.30);
+    || Math.round((window.innerHeight || 640) * PANEL_EXPANDED_RATIO);
   _missionPanelExpanded = false;
 }
 
@@ -1219,8 +1227,8 @@ function _renderMainTab(p) {
   // 下部パネルの中身：タスク一覧（背景レイヤーの山がカードの隙間から見える）
   const bottomPanelInner = `
       <!-- やること一覧（下部パネル内。山ビジュアルはこのパネルの裏側＝上部スクロール窓側で見える） -->
-      <section data-coach="mission-list">
-        <!-- 表示モード切替（私のみ / 全て）-->
+      <section data-coach="mission-list" class="p-main-board__panel-list">
+        <!-- 表示モード切替（私のみ / 全て）。★固定（スクロールするのは下の一覧だけ）-->
         ${viewToggleHtml}
         ${tagFilterHtml}
         <div class="p-main-board__mission-list">${missionCards}</div>

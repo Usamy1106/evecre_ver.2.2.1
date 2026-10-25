@@ -55,8 +55,12 @@
    - padding-top は波の高さぶん。中身が波の上に乗ると読めなくなる。 */
 .l-bottom-panel__body {
   flex: 1;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* ★本体はスクロールしない（2026-10-25）。スクロールするのは中のやることの一覧だけ
+     （object/project/_main-board.css の .p-main-board__panel-list）。「私の／みんなの」とラベルの行は固定 */
+  overflow: hidden;
   padding-top: calc(var(--panel-wave-h) + var(--space-2));
   padding-inline: var(--space-6);
 }

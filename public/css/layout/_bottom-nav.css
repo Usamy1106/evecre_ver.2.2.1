@@ -1,0 +1,66 @@
+/* ==========================================================================
+   Layout / bottom-nav — スマホのメインボードのボトムナビ（ホーム／メインボード／アーカイブ）
+   使用箇所: public/js/components.js（Components.BottomNav）、views/mainBoard.js
+
+   ★2026-10-25 に旧 .l-tabs（ヘッダーの下のタブ。layout/_tabs.css）の後継として足した。
+   ★中身の上に重ねて浮かせる。一覧やページの下に、このぶんの余白は足さない（決定済み）。
+   ★広い画面（layoutMode.js の isDashboard）では描かない。ホームは左端の列（layout/_rail.css）の先頭。
+   ★アクティブ表示は .is-active。色はタブごとのモディファイアが持つ（旧 .l-tabs と同じ）。
+   ========================================================================== */
+
+.l-bottom-nav {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(var(--safe-bottom) + var(--space-3));
+  left: var(--space-4);
+  z-index: var(--z-header-stack);
+  display: flex;
+  max-width: calc(var(--layout-max-width) - var(--space-8) * 2);
+  height: var(--bottom-nav-h);
+  margin-inline: auto;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--bottom-nav-bg);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+}
+
+.l-bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  opacity: .4;
+}
+
+.l-bottom-nav__item.is-active {
+  opacity: 1;
+}
+
+.l-bottom-nav__icon {
+  width: 24px;
+  height: 24px;
+}
+
+.l-bottom-nav__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- タブごとの色 -------------------------------------------------------- */
+
+.l-bottom-nav__item--main.is-active .l-bottom-nav__label {
+  color: var(--color-primary);
+}
+
+.l-bottom-nav__item--archive.is-active .l-bottom-nav__label {
+  color: var(--color-warning);
+}
+
+/* --- ＋ボタン（タスクを作成）はボトムナビの上へ逃がす ---------------------- */
+
+.l-fab--above-nav {
+  bottom: calc(var(--safe-bottom) + var(--space-3) + var(--bottom-nav-h) + var(--space-3));
+}

@@ -134,6 +134,9 @@
      448 × 101.17 ÷ 1179 ≒ 38px。★幅を変えたらこの値も計算し直すこと。
      mountainPath.js の PANEL_WAVE_H とも合わせる（遠近の基準帯が１波ぶんずれる）。 */
   --panel-wave-h: 38px;
+  /* スマホのメインボードのボトムナビ（layout/_bottom-nav.css）。半透明の白で中身の上に重ねる（2026-10-25）*/
+  --bottom-nav-h: 60px;
+  --bottom-nav-bg: rgba(255, 255, 255, .8);
   --color-line: #06C755;           /* LINE のブランド色（共有ボタン）*/
   --color-alert: #E74C3C;          /* 締め切り超過・当日 */
   --color-warning-pale2: #FFF8E1;  /* --color-warning-pale と近い。統合は Phase 5 で判断 */

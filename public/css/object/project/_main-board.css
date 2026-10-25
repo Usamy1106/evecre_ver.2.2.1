@@ -59,6 +59,8 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
+  /* ★タブ（.l-tabs）をボトムナビへ移したぶん上へ詰める（2026-10-25）*/
+  padding-top: var(--space-2);
 }
 
 .p-main-board__pinned--side > * + * {
@@ -572,6 +574,25 @@
 
 .p-main-board__mission-list {
   padding-bottom: var(--space-10);
+}
+
+/* スマホの下部パネルの中身（2026-10-25）：「私の／みんなの」とラベルの行は固定し、一覧だけをスクロールさせる。
+   ★overscroll-behavior:contain … iOS のラバーバンドが裏のページへ抜けるのを止める（旧 .l-bottom-panel__body から移した）。
+   ★touch-action は指定しない。パネルを上げ下げするときだけ JS（_initMissionPanelGesture）が preventDefault する。
+   ★広い画面の右列（.p-board-dash__main）の一覧には当てない */
+.p-main-board__panel-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.p-main-board__panel-list > .p-main-board__mission-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: calc(var(--space-10) + var(--safe-bottom));
 }
 
 .p-main-board__mission-list > * + * {

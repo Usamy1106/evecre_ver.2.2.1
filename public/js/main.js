@@ -315,6 +315,10 @@ window._app = {
     else state.setView('HOME');
   },
 
+  // ボトムナビ（スマホ）・左端の列（広い画面）のホーム（2026-10-25）。★「前の画面」ではなく常にホームへ。
+  //   アーカイブの編集中は setView が保存し終えてから移る
+  goHome: () => state.setView('HOME'),
+
   // --- 招待コード入力・メンバー管理 ---
   openJoinByCodeModal: () => openJoinByCodeModal(),
 
