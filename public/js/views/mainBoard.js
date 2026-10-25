@@ -601,7 +601,7 @@ function _purposeBoxHtml(p, { compact = false } = {}) {
         <button type="button" class="p-purpose__main" ${open} data-log="purpose_box_define">
           <span class="p-purpose__body">
             <span class="p-purpose__label">目的がまだ決まっていません</span>
-            <span class="p-purpose__text">誰に、どんな価値を届けたいのか。迷ったときに立ち帰る軸を決めましょう</span>
+            <span class="p-purpose__text">迷ったときに立ち帰る軸を決めましょう</span>
           </span>
           <span class="p-purpose__cta">目的を決める</span>
         </button>
@@ -620,7 +620,7 @@ function _purposeBoxHtml(p, { compact = false } = {}) {
         <button type="button" onclick="window._app.openPillarEdit('board_cta')" data-log="pillar_cta" class="p-purpose__pillar-cta">
           <span class="p-purpose__pillar-body">
             <span class="p-purpose__pillar-title">柱を立てる</span>
-            <span class="p-purpose__pillar-text">目的達成のために大事なことを3つ決め、タスクと紐付けましょう。</span>
+            <span class="p-purpose__pillar-text">目的達成のために大事なことを3つ決めましょう</span>
           </span>
           <svg class="p-purpose__pillar-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>

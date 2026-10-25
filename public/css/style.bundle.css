@@ -8531,8 +8531,8 @@ body {
 }
 
 .p-invite__share-button--native {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+border: 2px solid var(--bg-textbox);
+  color: var(--color-text);
 }
 
 .p-invite__share-button--copy {
@@ -14546,8 +14546,8 @@ body {
 }
 
 .p-create-event__share-button--native {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+  border: 2px solid var(--bg-textbox);
+  color: var(--color-text);
 }
 
 /* LINE のブランド色。ここだけは他で使わないので直値をトークン化してある */
@@ -16152,7 +16152,7 @@ body {
 /* ★キャラの行がある場合、波をよけるのはこの行の役目。本文側の余白は詰める。
    （行が無い＝管理者以外のとき、本文側の padding-top が波をよける） */
 .p-main-board__proposals + .l-bottom-panel__body {
-  padding-top: var(--space-2);
+  padding-top: 0;
 }
 
 .p-char {
@@ -16279,7 +16279,6 @@ body {
   color: var(--color-text-inverse);
   text-align: center;
   overflow-wrap: anywhere;
-  word-break: keep-all;
   line-break: strict;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;

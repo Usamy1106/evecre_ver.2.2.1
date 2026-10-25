@@ -638,8 +638,8 @@
 }
 
 .p-create-event__share-button--native {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+  border: 2px solid var(--bg-textbox);
+  color: var(--color-text);
 }
 
 /* LINE のブランド色。ここだけは他で使わないので直値をトークン化してある */

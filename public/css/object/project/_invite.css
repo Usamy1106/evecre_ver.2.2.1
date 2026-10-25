@@ -309,8 +309,8 @@
 }
 
 .p-invite__share-button--native {
-  background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+border: 2px solid var(--bg-textbox);
+  color: var(--color-text);
 }
 
 .p-invite__share-button--copy {
