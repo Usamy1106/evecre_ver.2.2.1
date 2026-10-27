@@ -584,6 +584,10 @@ async function consumeInviteCookieIfAny(req, res, user) {
   if (!token) return null;
 
   const clearCookie = () => res.clearCookie(INVITE_COOKIE, { path: '/' });
+  // ★文字列で、/invite/:token が受け付けるのと同じ形のときだけ使う。
+  //   cookie-parser は「j:」で始まる Cookie を JSON として読むので、そのまま渡すと
+  //   {"$ne":null} などが MongoDB の検索条件になり、他の団体の招待を引けた（2026-10-27 の監査）。
+  if (typeof token !== 'string' || !/^[A-Za-z0-9]{1,128}$/.test(token)) { clearCookie(); return null; }
 
   try {
     const inv = await inviteStore.loadInvite(token);
