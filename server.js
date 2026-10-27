@@ -2621,11 +2621,17 @@ async function _guardPublicKnowledge(eventId, flat, existing) {
 async function _saveIncomingEvents(req, incoming, current, now) {
   const currentIds = new Set(current.map(p => p.id));
   // --- 新規イベント ---
-  const created = incoming.filter(p => !currentIds.has(p.id));
+  // ★id は文字列だけ（オブジェクトを渡されると Mongo の検索条件になる）
+  const created = incoming.filter(p => typeof p?.id === 'string' && p.id && !currentIds.has(p.id));
   if (created.length > 0 && !req.user.isVerified) {
     // ★呼び出し元が 403 を返す（この関数の中で res を触らない）
     return { error: { status: 403, body: { ok: false, error: 'メール認証が完了するまで新規イベントを作成できません', code: 'verification_required' } } };
   }
+  // ★「自分のイベント一覧に無い id」＝「新規」ではない。他人のイベント id を送られても
+  //   置き換えないよう、作るのは insertEvent（同じ id が既にあれば作らない）だけにする。
+  //   以前は saveEvent（replaceOne upsert）で、他人のイベントを丸ごと乗っ取れた。
+  //   メンバーから外された人の手元に残ったイベントが保存されても、同じく上書きしない。
+  const createdIds = [];
   for (const p of created) {
     _sanitizeEventFields(p.id, p);
     delete p.publicKnowledge;   // 作ったばかりのイベントは開催後でも振り返りが無いので公開できない
@@ -2634,7 +2640,11 @@ async function _saveIncomingEvents(req, incoming, current, now) {
     cp.ownerId   = req.user.id;
     cp.createdAt = p.createdAt || now;
     cp.rev = 1;
-    await eventStore.saveEvent(cp);
+    if (!(await eventStore.insertEvent(cp))) {
+      console.warn(`[data] skipped create of existing event id=${p.id} by user=${req.user.id}`);
+      continue;
+    }
+    createdIds.push(cp.id);
     eventBus.broadcast(cp.id, 'eventUpdated', {
       eventId: cp.id, rev: cp.rev, event: crdt.crdtToFlat(cp),
     });
@@ -2644,7 +2654,7 @@ async function _saveIncomingEvents(req, incoming, current, now) {
   const clientId = req.get('X-Client-Id') || null;
   // ★保存できた id を返す。クライアントはこれを見て「保存済み」を確定させる
   //   （途中で失敗しても、保存できなかったぶんは次の保存で再送される）。
-  const savedIds = [...created.map(p => p.id)];
+  const savedIds = [...createdIds];
   // ★current は同じリクエストで取得済み。ループ内で loadEvent を呼び直すと
   //   イベント件数ぶん無駄に往復する。id で引けるようにしておく。
   const currentById = new Map(current.map(p => [p.id, p]));
@@ -4331,8 +4341,15 @@ app.post('/api/events/:id/pending-members/:uid/approve', requireAuth, async (req
 
     // roleIds 配列（新）または roleId 単一（後方互換）を受け付ける
     const roleIds = Array.isArray(req.body?.roleIds) && req.body.roleIds.length > 0
-      ? req.body.roleIds.map(String).filter(Boolean)
+      ? [...new Set(req.body.roleIds.map(String).filter(Boolean))]
       : [String(req.body?.roleId || 'member')];
+    // ★ロール変更（PUT …/role(s)）と同じ検査。owner と存在しないロールは付けさせない。
+    //   以前は素通しで、管理者が承認時に owner を付けられた（owner はイベントを丸ごと削除できる）。
+    if (roleIds.includes('owner')) return res.status(400).json({ ok: false, error: 'owner ロールは割当不可' });
+    const allRoles = eventStore.getRoles(p);
+    for (const rid of roleIds) {
+      if (!allRoles.find(r => r.id === rid)) return res.status(400).json({ ok: false, error: `不明なロール: ${rid}` });
+    }
     const now = Date.now();
 
     // pendingMembers から削除し members に追加。
