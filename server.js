@@ -2118,7 +2118,7 @@ app.put('/api/events/:id/webhook', requireAuth,
         }
         const doc = await webhookStore.upsert(p.id, {
           kind, url,
-          origin:    `${req.protocol}://${req.get('host')}`,
+          origin:    _publicOrigin(req),
           notify:    webhookStore.normalizeNotify(req.body?.notify, current?.notify),
           createdBy: req.user.id,
         });
@@ -4725,6 +4725,17 @@ app.get('/invite/:token', (req, res) => {
 
 // ===== パスワードリセット =====
 
+/**
+ * メールや外部への投稿に載せる、このアプリの URL の頭（https://〜）。
+ * ★リクエストの Host から作らないこと（偽の Host でリセットのリンクを別のドメインに向けられる）。
+ *   APP_ORIGIN（独自ドメイン用）→ RENDER_EXTERNAL_URL（Render が自動で入れる）→ ローカルだけ Host
+ */
+function _publicOrigin(req) {
+  const fixed = String(process.env.APP_ORIGIN || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+  if (fixed) return fixed;
+  return `${req.protocol}://${req.get('host')}`;
+}
+
 app.post('/api/auth/password-reset/request', strictLimiter, async (req, res) => {
   try {
     const email = String(req.body?.email || '').toLowerCase().trim();
@@ -4744,7 +4755,7 @@ app.post('/api/auth/password-reset/request', strictLimiter, async (req, res) => 
     const passwordReset = { token, expiresAt: Date.now() + RESET_TTL_MS, requestedAt: Date.now() };
     await userStore.update(user.id, { passwordReset });
 
-    const origin   = `${req.protocol}://${req.get('host')}`;
+    const origin   = _publicOrigin(req);
     const resetUrl = `${origin}/reset-password/${token}`;
     const mail = await sendPasswordResetEmail(email, resetUrl);
 
