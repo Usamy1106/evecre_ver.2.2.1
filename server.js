@@ -2018,18 +2018,19 @@ app.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
   }
 });
 
+// 運営者（環境変数 OPS_USER_IDS に並べた userId）だけが使える操作の判定。未設定なら誰も通さない。
+// ★「イベントの管理者」で絞らないこと（イベントを作れば誰でも管理者になれる。2026-10-28 に修正）。
+// ★IS_DEV や isLocalRequest で通さないこと（NODE_ENV の設定漏れ・X-Forwarded-Host で誰でも通る）
+const OPS_USER_IDS = new Set(String(process.env.OPS_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean));
+function _isOpsUser(req) { return !!req.user && OPS_USER_IDS.has(req.user.id); }
+
 // 定期通知の手動実行（検証用）。
-// ★無認証で公開しない。requireAuth に加えて、開発環境か「イベントの管理者」に限定する。
+// ★無認証で公開しない。requireAuth に加えて、運営者（_isOpsUser）に限定する。
+//   全ユーザー宛てに送れ、dryRun でも宛先の名前と文面が返るため。
 //   dryRun を既定にしてあり、実際に送るには明示的に dryRun:false を渡す必要がある。
 app.post('/api/push/run-slot', requireAuth, async (req, res) => {
   try {
-    // 管理者権限を持つイベントが1つでもあれば実行を許可（本番での誤爆を避けるための最低限の絞り）
-    let allowed = IS_DEV;
-    if (!allowed) {
-      const mine = await eventStore.listEventsForUser(req.user.id);
-      allowed = mine.some(p => eventStore.canManage(p, req.user.id));
-    }
-    if (!allowed) return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (!_isOpsUser(req)) return res.status(403).json({ ok: false, error: 'forbidden' });
 
     const slot = String(req.body?.slot || '');
     if (!pushRules.activeSlots().includes(slot)) {
@@ -2154,15 +2155,10 @@ app.delete('/api/events/:id/webhook', requireAuth, async (req, res) => {
   }
 });
 
-// 締切のまとめ投稿の手動実行（検証用）。権限の絞り方は /api/push/run-slot と同じ。既定は dryRun
+// 締切のまとめ投稿の手動実行（検証用）。運営者（_isOpsUser）だけ。既定は dryRun
 app.post('/api/webhook/run-deadline', requireAuth, async (req, res) => {
   try {
-    let allowed = IS_DEV;
-    if (!allowed) {
-      const mine = await eventStore.listEventsForUser(req.user.id);
-      allowed = mine.some(p => eventStore.canManage(p, req.user.id));
-    }
-    if (!allowed) return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (!_isOpsUser(req)) return res.status(403).json({ ok: false, error: 'forbidden' });
     const dryRun = req.body?.dryRun !== false;
     const dateJst = req.body?.date ? String(req.body.date) : null;
     if (dateJst && !/^\d{4}-\d{2}-\d{2}$/.test(dateJst)) {
