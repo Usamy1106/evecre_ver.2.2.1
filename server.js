@@ -1866,6 +1866,7 @@ app.delete('/api/account', requireAuth, async (req, res) => {
         await chatStore.deleteAllForEvent(p.id);
         await webhookStore.remove(p.id);   // 外部連携（Discord / Slack の URL）も残さない
         eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
+        eventBus.closeChannel(p.id);
         summary.eventsDeleted++;
         continue;
       }
@@ -1889,11 +1890,13 @@ app.delete('/api/account', requireAuth, async (req, res) => {
 
         await eventStore.saveEvent(p);
         eventBus.broadcast(p.id, 'memberLeft', { eventId: p.id, userId });
+        eventBus.revoke(p.id, userId);
         logServerEvent(p.id, heir.userId, 'owner_transferred', { from: userId, reason: 'account_deleted' });
         summary.eventsTransferred++;
       } else {
         await eventStore.saveEvent(p);
         eventBus.broadcast(p.id, 'memberLeft', { eventId: p.id, userId });
+        eventBus.revoke(p.id, userId);
         logServerEvent(p.id, userId, 'member_left', { reason: 'account_deleted' });
         summary.eventsLeft++;
       }
@@ -3012,10 +3015,12 @@ app.put('/api/data', requireAuth, async (req, res) => {
         await chatStore.deleteAllForEvent(p.id);
         await webhookStore.remove(p.id);   // 外部連携（Discord / Slack の URL）も残さない
         eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
+        eventBus.closeChannel(p.id);
       } else if (role === 'member') {
         p.members = p.members.filter(m => m.userId !== req.user.id);
         await eventStore.saveEvent(p);
         eventBus.broadcast(p.id, 'memberLeft', { eventId: p.id, userId: req.user.id });
+        eventBus.revoke(p.id, req.user.id);
         logServerEvent(p.id, req.user.id, 'member_left', {});
       }
     }
@@ -4040,6 +4045,7 @@ app.delete('/api/events/:id/members/:userId', requireAuth, async (req, res) => {
     p.members = (p.members || []).filter(m => m.userId !== targetId);
     await eventStore.saveEvent(p);
     eventBus.broadcast(p.id, 'memberLeft', { eventId: p.id, userId: targetId });
+    eventBus.revoke(p.id, targetId);
     // 本人なら脱退、他者なら除名として記録
     logServerEvent(p.id, req.user.id,
       req.user.id === targetId ? 'member_left' : 'member_removed',
@@ -4741,6 +4747,7 @@ app.get('/api/events', requireAuth, async (req, res) => {
     res.write(`event: ready\ndata: ${JSON.stringify({ eventIds: allowed, clientId })}\n\n`);
 
     res.__clientId = clientId;
+    res.__userId   = req.user.id;   // ★脱退・除名で eventBus.revoke が外すため
     const unsubscribe     = eventBus.subscribe(allowed, res);
     const unsubscribeUser = eventBus.subscribeUser(req.user.id, res);
 
