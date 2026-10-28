@@ -4534,7 +4534,8 @@ app.get('/api/projects', requireAuth, async (req, res) => {
   try {
     const folders = await projectStore.listForUser(req.user.id);
     const foldersWithCount = await Promise.all(folders.map(async (f) => {
-      const count = await getDb().collection('events').countDocuments({ folderId: f.id });
+      // ★自分がメンバーのイベントだけ数える（抜けたイベントを数えない）
+      const count = await getDb().collection('events').countDocuments({ folderId: f.id, 'members.userId': req.user.id });
       return { ...f, eventCount: count };
     }));
     res.json({ ok: true, projects: foldersWithCount });
@@ -4568,7 +4569,7 @@ app.get('/api/projects/:id', requireAuth, async (req, res) => {
 
     // ★N+1 解消。_enrichEventsForClient は members の埋め込みも行うため、
     //   旧実装より members が充実する（欠けるフィールドは無いので互換）。
-    const rawEvents = await eventStore.listByFolder(req.params.id);
+    const rawEvents = await eventStore.listByFolder(req.params.id, req.user.id);
     const events    = await _enrichEventsForClient(rawEvents);
     res.json({ ok: true, project, events });
   } catch (e) {
@@ -4636,7 +4637,7 @@ app.delete('/api/projects/:id/events/:eventId', requireAuth, async (req, res) =>
     if (!project) return res.status(404).json({ ok: false, error: 'project not found' });
     if (!projectStore.isMember(project, req.user.id))
       return res.status(403).json({ ok: false, error: 'forbidden' });
-    await eventStore.setFolderId(req.params.eventId, null);
+    await eventStore.unsetFolderIdIfIn(req.params.eventId, req.params.id);
     res.json({ ok: true });
   } catch (e) {
     console.error('DELETE /api/projects/:id/events/:eventId error:', e);
