@@ -1531,6 +1531,7 @@ app.post('/api/auth/google', authLimiter, _formBody, async (req, res) => {
         updates.otp = null;
         updates.passwordReset = null;
         await sessionStore.deleteAllForUser(user.id);
+        eventBus.disconnect(r => r.__userId === user.id);
       }
       updates.isVerified = true;
       // 既に同意記録があれば上書きしない（初回同意の日時を保つ）
@@ -1602,6 +1603,7 @@ app.post('/api/auth/logout', async (req, res) => {
     if (raw && raw.includes('.')) {
       const token = raw.split('.')[1];
       await sessionStore.deleteByToken(token);
+      if (token) eventBus.disconnect(r => r.__sessionToken === token);
     }
     res.clearCookie(SESSION_COOKIE, { path: '/' });
     res.json({ ok: true });
@@ -1767,6 +1769,7 @@ app.post('/api/account/change-password/confirm', requireAuth, async (req, res) =
     const currentToken = (raw && raw.includes('.')) ? raw.split('.')[1] : null;
     if (currentToken) {
       await sessionStore.deleteAllExceptToken(req.user.id, currentToken);
+      eventBus.disconnect(r => r.__userId === req.user.id && r.__sessionToken !== currentToken);
     }
     await userStore.update(req.user.id, { passwordHash: newHash, otp: null });
     res.json({ ok: true });
@@ -1934,6 +1937,7 @@ app.delete('/api/account', requireAuth, async (req, res) => {
     await notifStore.clearAll(userId);
     await eventLogStore.deleteByUser(userId);
     await sessionStore.deleteAllForUser(userId);
+    eventBus.disconnect(r => r.__userId === userId);
     await userStore.remove(userId);
 
     res.clearCookie(SESSION_COOKIE, { path: '/' });
@@ -4762,6 +4766,8 @@ app.get('/api/events', requireAuth, async (req, res) => {
 
     res.__clientId = clientId;
     res.__userId   = req.user.id;   // ★脱退・除名で eventBus.revoke が外すため
+    // ★ログアウト・パスワード変更などで eventBus.disconnect が閉じるため
+    res.__sessionToken = String(req.signedCookies[SESSION_COOKIE] || '').split('.')[1] || null;
     const unsubscribe     = eventBus.subscribe(allowed, res);
     const unsubscribeUser = eventBus.subscribeUser(req.user.id, res);
 
@@ -4880,6 +4886,7 @@ app.post('/api/auth/password-reset/confirm', strictLimiter, async (req, res) => 
 
     const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await sessionStore.deleteAllForUser(user.id);
+    eventBus.disconnect(r => r.__userId === user.id);
     await userStore.update(user.id, { passwordHash: newHash, passwordReset: null });
 
     res.json({ ok: true });
