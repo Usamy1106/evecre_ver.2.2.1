@@ -418,8 +418,9 @@ function _fmtClearedContent(cd) {
       return `<img src="${_esc(seg.url)}" class="p-mission-detail__cleared-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
     }
     if (seg.type === 'file') return `<div class="p-mission-detail__cleared-file">${Components.SubmissionFileCard(seg.file, state.selectedEventId)}</div>`;
-    if (cd.format === 'link' || cd.format === 'url') {
-      return `<a href="${_esc(seg.text)}" target="_blank" rel="noopener noreferrer" class="p-mission-detail__cleared-link">${_esc(seg.text)}</a>`;
+    // ★リンクにするのは http(s) の URL だけ（javascript: などを href にしない。サーバーも同じ規則で text に落とす）
+    if ((cd.format === 'link' || cd.format === 'url') && /^https?:\/\/\S+$/i.test(String(seg.text || '').trim())) {
+      return `<a href="${_esc(seg.text.trim())}" target="_blank" rel="noopener noreferrer" class="p-mission-detail__cleared-link">${_esc(seg.text)}</a>`;
     }
     // ★太字・斜体（{{b}} / {{i}} の印）を <strong> / <em> に。文字は richTextHtml がエスケープする
     return `<p class="p-mission-detail__cleared-text">${richTextHtml(seg.text)}</p>`;

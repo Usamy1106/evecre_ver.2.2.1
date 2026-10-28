@@ -345,7 +345,9 @@ function _renderBasicTab(isEdit, dateDisplay) {
     // ★色はイベントごとにユーザーが作れるので CSS に書けない。
     //   選ばれたときの塗りは同じ色の 10%（末尾の 1A）。
     const vars = sel ? `--tag-color:${_escAttr(t.color)};--tag-tint:${_escAttr(t.color)}1A` : '';
-    return `<button onclick="window._app.toggleMissionLabel('${_escAttr(t.name)}')"
+    // ★タグ名はユーザーが作れる。onclick の JS 文字列に埋め込むと、属性のエスケープを
+    //   ブラウザが戻してから実行するので ' で抜けられる。data 属性から読む
+    return `<button onclick="window._app.toggleMissionLabel(this.dataset.label)" data-label="${_escAttr(t.name)}"
       class="p-mission-form__tag${sel ? ' is-selected' : ''}"
       style="${vars}">${_esc(t.name)}</button>`;
   }).join('');
@@ -1363,7 +1365,8 @@ function _formatClearedAt(ts) {
   return `${y}/${m}/${day} ${hh}:${mm}`;
 }
 function _escAttr(s) {
-  return String(s ?? '').replace(/"/g,'&quot;');
+  // ★" だけでなく & < > ' も（属性の中に入る値はユーザー由来のことがある）
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 export function getSortedMissions(missions) {

@@ -864,6 +864,17 @@ function _sanitizeReflection(body, opts = {}) {
   return out;
 }
 
+/**
+ * 提出物の format を決める（text / image / link）。
+ * ★link は本文が http(s) の URL 1つのときだけ。それ以外は text にする
+ *   （画面は link をそのまま <a href> にするので、javascript: などを通さない。2026-10-27 の監査）
+ */
+function _submissionFormat(format, content) {
+  const f = ['text', 'image', 'link'].includes(format) ? format : 'text';
+  if (f === 'link' && !/^https?:\/\/\S+$/i.test(String(content ?? '').trim())) return 'text';
+  return f;
+}
+
 function _validateSubmissionImage(content, format) {
   if (format !== 'image') return null;
   if (typeof content !== 'string' || !content.startsWith('data:')) return null; // URL 等は対象外
@@ -1126,7 +1137,8 @@ async function _extractClearedData(projectId, flat) {
     // ★送られてきた項目だけを書く（undefined は「変更なし」。既存の値を空で潰さない）
     const fields = {
       content,
-      format:      submission.format,
+      // ★link は http(s) の URL のときだけ（それ以外は text）。/complete・PATCH …/submission と同じ規則
+      format:      submission.format === undefined ? undefined : _submissionFormat(submission.format, content),
       // ★検証は _validateIncomingSubmissions が済ませている（不正なら保存前に 400）
       images:      submission.images === undefined ? undefined
                  : _sanitizeSubmissionImages(projectId, submission.images).images,
@@ -1904,11 +1916,13 @@ app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
       req.user.avatarUrl = null;
       return res.json({ ok: true, user: userPublic(req.user) });
     }
-    if (!/^data:image\/(png|jpeg|jpg|webp);base64,/.test(dataUrl)) {
-      return res.status(400).json({ ok: false, error: 'invalid_image' });
-    }
     if (dataUrl.length > AVATAR_MAX_BYTES) {
       return res.status(400).json({ ok: false, error: 'image_too_large' });
+    }
+    // ★頭だけでなく全体を確かめる（base64 の文字だけ）。R2 が無い環境では文字列のまま
+    //   avatarUrl に入り、<img src> に埋め込まれるため、" などを通すとスクリプトが動く（2026-10-27 の監査）
+    if (!/^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(dataUrl)) {
+      return res.status(400).json({ ok: false, error: 'invalid_image' });
     }
 
     let avatarUrl = dataUrl;
@@ -2332,14 +2346,19 @@ app.put('/api/events/:id', requireAuth, async (req, res) => {
     if (!eventStore.canManage(p, req.user.id))
       return res.status(403).json({ ok: false, error: 'このイベントを編集する権限がありません', code: 'no_manage_permission' });
 
-    const flat = req.body?.project || {};
+    const flat = req.body?.project && typeof req.body.project === 'object' ? req.body.project : {};
+    // ★PUT /api/data と同じ検査を通す（以前はこの経路だけ素通しだった。2026-10-27 の監査）
+    _sanitizeEventFields(req.params.id, flat, p.fields?.headerImage?.v || null);
+    await _guardPublicKnowledge(req.params.id, flat, p);
     // clearedData を submissions コレクションに分離（R2 画像アップロード含む）
     await _extractClearedData(req.params.id, flat);
 
+    // ★削除する id は MongoDB のパスになるので、タスク・提案の id と同じ形だけ通す
+    const safeIds = (v) => (Array.isArray(v) ? v : []).filter(id => typeof id === 'string' && SAFE_ITEM_ID_RE.test(id));
     const merged = await eventStore.applyPatch(req.params.id, flat, {
       timestamp:         Date.now(),
-      missionDeletions:  req.body?.missionDeletions  || [],
-      proposalDeletions: req.body?.proposalDeletions || [],
+      missionDeletions:  safeIds(req.body?.missionDeletions),
+      proposalDeletions: safeIds(req.body?.proposalDeletions),
     });
 
     const flatMerged = crdt.crdtToFlat(merged);
@@ -2556,6 +2575,23 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
  * @param {string|null} prevHeader  保存前のヘッダー画像
  */
 function _sanitizeEventFields(eventId, flat, prevHeader = null) {
+  // ★タスク・提案の id は英数字と - _ だけ（64字まで）。画面は id を onclick や属性にそのまま
+  //   埋め込んでいるので、記号入りの id を通すとほかのメンバーの画面でスクリプトが動く（2026-10-27 の監査）。
+  //   既存データ（本番・開発とも）はすべてこの形。合わないものは保存しない
+  for (const key of ['missions', 'proposals']) {
+    if (flat[key] !== undefined && !Array.isArray(flat[key])) delete flat[key];
+    else if (Array.isArray(flat[key])) flat[key] = flat[key].filter(x => x && typeof x.id === 'string' && SAFE_ITEM_ID_RE.test(x.id));
+  }
+  // カスタムタグ。★色は #RRGGBB だけ、名前は文字列で TAG_NAME_MAX 字まで。
+  //   色は style 属性、名前は画面のあちこちに入るので、形の合わないものは捨てる
+  if (flat.customTags !== undefined) {
+    if (!Array.isArray(flat.customTags)) delete flat.customTags;
+    else flat.customTags = flat.customTags
+      .filter(t => t && typeof t.id === 'string' && SAFE_ITEM_ID_RE.test(t.id)
+        && typeof t.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(t.color)
+        && typeof t.name === 'string' && t.name.trim() && t.name.length <= TAG_NAME_MAX)
+      .map(t => ({ id: t.id, name: t.name.trim(), color: t.color }));
+  }
   if (flat.headerImage !== undefined) {
     const v = flat.headerImage;
     const key = typeof v === 'string' && v ? r2.urlToKey(v) : null;
@@ -2605,6 +2641,9 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
 const PILLARS_MAX = 3;
 const PILLAR_NAME_MAX = 20;
 const PILLAR_ID_RE = /^pil_[a-z0-9]{4,24}$/;
+// タスク・提案・カスタムタグの id の形（_sanitizeEventFields）。タグ名の長さ
+const SAFE_ITEM_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const TAG_NAME_MAX = 30;
 
 /**
  * ナレッジを公開に切り替えようとしていたら、条件を満たすか確かめる（満たさなければ true を捨てる）。
@@ -3515,7 +3554,7 @@ app.patch('/api/events/:id/missions/:mid/submission', requireAuth, async (req, r
     if (fls.error) return res.status(400).json({ ok: false, error: fls.error });
     const images = imgs.images, files = fls.files;
     let content = String(req.body?.content ?? '').slice(0, SUBMISSION_TEXT_MAX);
-    let format  = ['text', 'image', 'link'].includes(req.body?.format) ? req.body.format : 'text';
+    let format  = _submissionFormat(req.body?.format, content);
     // 画像だけのときは旧形式（format:'image' + content に1枚目）も埋める（/complete と同じ）
     if (images.length > 0 && files.length === 0 && !content.trim()) { format = 'image'; content = images[0]; }
 
@@ -3651,7 +3690,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
 
     const userId = req.user.id;
     let content   = String(req.body?.content ?? '');
-    let format    = ['text', 'image', 'link'].includes(req.body?.format) ? req.body.format : 'text';
+    let format    = _submissionFormat(req.body?.format, content);
     // 画像（R2 の URL。1枚ずつ POST /submission-images で送ったもの）。本文と同時に持てる
     const imgs = _sanitizeSubmissionImages(p.id, req.body?.images);
     if (imgs.error) return res.status(400).json({ ok: false, error: imgs.error });

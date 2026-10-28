@@ -327,7 +327,8 @@ export const Components = {
     //   （クラスで塗り分けると2系統になり、カスタムタグ側が表現できない）。
     // ★タグ名はユーザーが作れる（customTags）ので必ずエスケープする。
     //   色は customTags の値だが、こちらもユーザー由来なので属性を閉じられないよう escape する。
-    const tag = (color) => `<span class="c-tag" style="--tag-color:${_escText(color)}">${_escText(text)}</span>`;
+    // ★属性の中なので _escAttr（" も ' もエスケープする）。_escText は " を通すので使わない
+    const tag = (color) => `<span class="c-tag" style="--tag-color:${_escAttr(color)}">${_escText(text)}</span>`;
 
     const builtIn = LABEL_CONFIG[text];
     if (builtIn) return tag(builtIn.color);
@@ -562,7 +563,7 @@ export const Components = {
 
     const inner = url
       // ★Google の画像は referrerpolicy が要る。読めなければ頭文字の代替へ差し替える
-      ? `<img src="${url}" alt="${_escText(username)}" referrerpolicy="no-referrer"
+      ? `<img src="${_escAttr(url)}" alt="${_escText(username)}" referrerpolicy="no-referrer"
           class="c-avatar${ring}${extra}" style="${sizeVar}"
           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
         <div class="c-avatar c-avatar--fallback${ring}${extra}"
