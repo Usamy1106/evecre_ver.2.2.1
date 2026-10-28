@@ -4216,13 +4216,17 @@ app.put('/api/events/:id/my-answers', requireAuth, async (req, res) => {
   }
 });
 
+// ★受け付ける絵文字は決め打ち（任意の文字列を通すと、1人で何件でも足せてイベントの文書が膨らむ。2026-10-28）
+const MOTIVATION_EMOJIS = ['🔥'];
+const MOTIVATION_REACTIONS_MAX = 500;   // 1イベントあたりの上限（保険）
+
 app.post('/api/events/:id/motivation-reactions', requireAuth, async (req, res) => {
   try {
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
 
     const emoji = String(req.body?.emoji ?? '🔥').trim();
-    if (!emoji || emoji.length > 16) return res.status(400).json({ ok: false, error: '絵文字が不正です' });
+    if (!MOTIVATION_EMOJIS.includes(emoji)) return res.status(400).json({ ok: false, error: '絵文字が不正です' });
 
     // 権限：メンバー or このイベント宛の有効な招待トークン保持者
     let allowed = eventStore.isMember(p, req.user.id);
@@ -4244,7 +4248,8 @@ app.post('/api/events/:id/motivation-reactions', requireAuth, async (req, res) =
     } else {
       // 条件付き $push で二重追加を防ぐ（$addToSet は at が異なると重複するため使えない）
       await col.updateOne(
-        { _id: p.id, motivationReactions: { $not: { $elemMatch: { userId: uid, emoji } } } },
+        { _id: p.id, motivationReactions: { $not: { $elemMatch: { userId: uid, emoji } } },
+          [`motivationReactions.${MOTIVATION_REACTIONS_MAX - 1}`]: { $exists: false } },
         { $push: { motivationReactions: { userId: uid, emoji, at: Date.now() } } }
       );
     }
