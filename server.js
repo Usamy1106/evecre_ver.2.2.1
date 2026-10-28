@@ -4310,7 +4310,7 @@ app.post('/api/invites/:token/accept', requireAuth, async (req, res) => {
       username:    req.user.username,
       avatarUrl:   req.user.avatarUrl || null,
       requestedAt: now,
-      inviteToken: req.params.token,
+      // ★inviteToken は載せない（pendingMembers はメンバー全員に配られる。2026-10-28）
       ...answers,
     };
     await getDb().collection('events').updateOne(
