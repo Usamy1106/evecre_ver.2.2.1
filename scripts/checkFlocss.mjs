@@ -582,7 +582,12 @@ section('[B] 実機で見つかった不具合');
       loop.indexOf('delete patchFlat.clearedData[k]') > -1
         && loop.indexOf('delete patchFlat.clearedData[k]') < loop.indexOf('await _extractClearedData('));
     const purge = sv.slice(sv.indexOf('async function _purgeSubmissions'), sv.indexOf('function _submissionKeysToPurge'));
-    ok('★R2 から消すのはそのイベントの submissions/ の下だけ', /startsWith\(`submissions\/\$\{eventId\}\/`\)/.test(purge));
+    ok('★R2 から消すのはそのイベントの submissions/ の下だけ', /_r2KeyUnder\(url, `submissions\/\$\{eventId\}\/`\)/.test(purge));
+    // ★R2 のキーは _r2KeyUnder（接頭辞と「..」を確かめる）からだけ取る。urlToKey を直接使うと
+    //   他人のアバターや他イベントの画像を消させられた（2026-10-28 の監査）
+    ok('★server.js で r2.urlToKey を直接使うのは _r2KeyUnder の中だけ',
+      (sv.match(/r2\.urlToKey\(/g) || []).length === 1
+        && /function _r2KeyUnder[\s\S]{0,200}r2\.urlToKey\(/.test(sv));
   }
 
   // ★意気込みカードのトグルは、保存の往復を待たずにその場で見た目を切り替えること。

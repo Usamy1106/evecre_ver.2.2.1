@@ -906,10 +906,29 @@ function _sanitizeReflection(body, opts = {}) {
  * ★link は本文が http(s) の URL 1つのときだけ。それ以外は text にする
  *   （画面は link をそのまま <a href> にするので、javascript: などを通さない。2026-10-27 の監査）
  */
-function _submissionFormat(format, content) {
+function _submissionFormat(format, content, eventId) {
   const f = ['text', 'image', 'link'].includes(format) ? format : 'text';
   if (f === 'link' && !/^https?:\/\/\S+$/i.test(String(content ?? '').trim())) return 'text';
+  // ★image の content は dataURL か「このイベントの提出画像」の R2 URL だけ（2026-10-28）。
+  //   ほかの URL を通すと、他人のアバターや他イベントの画像を「自分の提出物」として登録でき、
+  //   イベント削除の後始末でそれを R2 から消させられた
+  if (f === 'image') {
+    const c = String(content ?? '');
+    if (!c.startsWith('data:') && !_r2KeyUnder(c, `submissions/${eventId}/`)) return 'text';
+  }
   return f;
+}
+
+/**
+ * R2 の URL を、決まった接頭辞の下のキーとして読む。下でなければ null。
+ * ★R2 から消すときは必ずこれを通すこと（urlToKey だけで消さない）。
+ * ★「..」「.」の区切り・「//」・「\」を含むキーは弾く（接頭辞の文字列一致をすり抜けさせない）
+ */
+function _r2KeyUnder(url, prefix) {
+  const key = typeof url === 'string' ? r2.urlToKey(url) : null;
+  if (!key || !prefix || !key.startsWith(prefix) || key.length === prefix.length) return null;
+  if (/(^|\/)\.\.?(\/|$)|\/\/|\\/.test(key)) return null;
+  return key;
 }
 
 function _validateSubmissionImage(content, format) {
@@ -950,8 +969,7 @@ function _sanitizeSubmissionImages(eventId, raw) {
   const out = [];
   for (const u of raw) {
     if (typeof u !== 'string') return { error: 'invalid_images' };
-    const key = r2.urlToKey(u);
-    if (!key || !key.startsWith(prefix)) return { error: 'invalid_images' };
+    if (!_r2KeyUnder(u, prefix)) return { error: 'invalid_images' };
     if (!out.includes(u)) out.push(u);
   }
   return { images: out };
@@ -972,12 +990,11 @@ function _sanitizeSubmissionFiles(eventId, raw) {
   const out = [];
   for (const f of raw) {
     if (!f || typeof f !== 'object') return { error: 'invalid_files' };
-    const key = typeof f.url === 'string' ? r2.urlToKey(f.url) : null;
-    if (!key || !key.startsWith(prefix + 'file_') || !key.endsWith('.pdf')) return { error: 'invalid_files' };
+    const key = _r2KeyUnder(f.url, prefix + 'file_');
+    if (!key || !key.endsWith('.pdf')) return { error: 'invalid_files' };
     let thumb = null;
     if (f.thumb) {
-      const tk = typeof f.thumb === 'string' ? r2.urlToKey(f.thumb) : null;
-      if (!tk || !tk.startsWith(prefix)) return { error: 'invalid_files' };
+      if (!_r2KeyUnder(f.thumb, prefix)) return { error: 'invalid_files' };
       thumb = f.thumb;
     }
     const name = String(f.name || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 120) || 'document.pdf';
@@ -1175,7 +1192,7 @@ async function _extractClearedData(projectId, flat) {
     const fields = {
       content,
       // ★link は http(s) の URL のときだけ（それ以外は text）。/complete・PATCH …/submission と同じ規則
-      format:      submission.format === undefined ? undefined : _submissionFormat(submission.format, content),
+      format:      submission.format === undefined ? undefined : _submissionFormat(submission.format, content, projectId),
       // ★検証は _validateIncomingSubmissions が済ませている（不正なら保存前に 400）
       images:      submission.images === undefined ? undefined
                  : _sanitizeSubmissionImages(projectId, submission.images).images,
@@ -1219,8 +1236,8 @@ async function _purgeSubmissions(eventId, subs, keys) {
   await submissionStore.deleteSubmissions(eventId, targets);
   for (const k of targets) {
     for (const url of submissionStore.storedUrlsOf(subs[k])) {
-      const key = r2.urlToKey(url);
-      if (key && key.startsWith(`submissions/${eventId}/`)) {
+      const key = _r2KeyUnder(url, `submissions/${eventId}/`);
+      if (key) {
         r2.deleteObject(key).catch(e => console.warn('[r2] purged submission delete warn:', e.message));
       }
     }
@@ -1832,14 +1849,14 @@ app.delete('/api/account', requireAuth, async (req, res) => {
           for (const mid of Object.keys(subs)) {
             // ★images・旧形式の画像・添付ファイルをすべて消す（submissionStore.storedUrlsOf）
             for (const url of submissionStore.storedUrlsOf(subs[mid])) {
-              const key = r2.urlToKey(url);
+              const key = _r2KeyUnder(url, `submissions/${p.id}/`);
               if (key) r2.deleteObject(key).catch(e => console.warn('[r2] submission image delete warn:', e.message));
             }
           }
         } catch (e) { console.warn('[account-delete] R2 cleanup warn:', e.message); }
 
         // ヘッダー画像（イベントの項目。提出物ではないので上の後始末に入らない）
-        const headerKey = r2.urlToKey(p.fields?.headerImage?.v || '');
+        const headerKey = _r2KeyUnder(p.fields?.headerImage?.v, `submissions/${p.id}/`);
         if (headerKey) r2.deleteObject(headerKey).catch(e => console.warn('[r2] header image delete warn:', e.message));
         await eventStore.deleteEvent(p.id);
         await submissionStore.deleteAllForProject(p.id);
@@ -1883,7 +1900,7 @@ app.delete('/api/account', requireAuth, async (req, res) => {
     }
 
     // アバター画像（R2 にある場合のみ。data: URL や Google の picture は対象外）
-    const avatarKey = r2.urlToKey(req.user.avatarUrl);
+    const avatarKey = _r2KeyUnder(req.user.avatarUrl, `avatars/${req.user.id}_`);
     if (avatarKey) r2.deleteObject(avatarKey).catch(e => console.warn('[r2] avatar delete warn:', e.message));
 
     // ★アンケート回答だけは匿名化して残す（サービス改善の集計に使うため）。
@@ -1936,7 +1953,7 @@ app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
         return res.status(400).json({ ok: false, error: 'invalid_preset' });
       }
       // 旧アバターが R2 にあれば消す（プリセットへ切り替えると参照されなくなるため）
-      const oldKey = r2.urlToKey(req.user.avatarUrl);
+      const oldKey = _r2KeyUnder(req.user.avatarUrl, `avatars/${req.user.id}_`);
       if (oldKey) r2.deleteObject(oldKey).catch(e => console.warn('[r2] old avatar delete warn:', e.message));
       const avatarUrl = `${AVATAR_PRESET_DIR}/${presetId}.png`;
       await userStore.update(req.user.id, { avatarUrl });
@@ -1947,7 +1964,7 @@ app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
     const dataUrl = String(req.body?.dataUrl || '');
     if (!dataUrl) {
       // 旧 R2 アバターがあれば削除
-      const oldKey = r2.urlToKey(req.user.avatarUrl);
+      const oldKey = _r2KeyUnder(req.user.avatarUrl, `avatars/${req.user.id}_`);
       if (oldKey) r2.deleteObject(oldKey).catch(e => console.warn('[r2] avatar delete warn:', e.message));
       await userStore.update(req.user.id, { avatarUrl: null });
       req.user.avatarUrl = null;
@@ -1969,7 +1986,7 @@ app.post('/api/account/change-avatar', requireAuth, async (req, res) => {
       const key = `avatars/${req.user.id}_${r2.randomSuffix()}.${ext}`;
       avatarUrl = await r2.uploadDataUrl(dataUrl, key);
       // 旧アバターを削除（エラーは無視）
-      const oldKey = r2.urlToKey(req.user.avatarUrl);
+      const oldKey = _r2KeyUnder(req.user.avatarUrl, `avatars/${req.user.id}_`);
       if (oldKey) r2.deleteObject(oldKey).catch(e => console.warn('[r2] old avatar delete warn:', e.message));
     }
 
@@ -2627,11 +2644,11 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
   }
   if (flat.headerImage !== undefined) {
     const v = flat.headerImage;
-    const key = typeof v === 'string' && v ? r2.urlToKey(v) : null;
+    const key = typeof v === 'string' && v ? _r2KeyUnder(v, `submissions/${eventId}/`) : null;
     if (v === '' || v === null) flat.headerImage = '';
-    else if (!key || !key.startsWith(`submissions/${eventId}/`)) delete flat.headerImage;
+    else if (!key) delete flat.headerImage;
     if (flat.headerImage !== undefined && prevHeader && prevHeader !== flat.headerImage) {
-      const oldKey = r2.urlToKey(prevHeader);
+      const oldKey = _r2KeyUnder(prevHeader, `submissions/${eventId}/`);
       if (oldKey) r2.deleteObject(oldKey).catch(e => console.warn('[r2] header image delete warn:', e.message));
     }
   }
@@ -2997,7 +3014,7 @@ app.put('/api/data', requireAuth, async (req, res) => {
           for (const mid of Object.keys(subs)) {
             // ★images・旧形式の画像・添付ファイルをすべて消す（submissionStore.storedUrlsOf）
             for (const url of submissionStore.storedUrlsOf(subs[mid])) {
-              const key = r2.urlToKey(url);
+              const key = _r2KeyUnder(url, `submissions/${p.id}/`);
               if (key) r2.deleteObject(key).catch(e => console.warn('[r2] submission image delete warn:', e.message));
             }
           }
@@ -3005,7 +3022,7 @@ app.put('/api/data', requireAuth, async (req, res) => {
 
         // 関連データを即時・完全に消去（残骸を残さない）
         // ヘッダー画像（イベントの項目。提出物ではないので上の後始末に入らない）
-        const headerKey = r2.urlToKey(p.fields?.headerImage?.v || '');
+        const headerKey = _r2KeyUnder(p.fields?.headerImage?.v, `submissions/${p.id}/`);
         if (headerKey) r2.deleteObject(headerKey).catch(e => console.warn('[r2] header image delete warn:', e.message));
         await eventStore.deleteEvent(p.id);
         await submissionStore.deleteAllForProject(p.id);
@@ -3587,7 +3604,7 @@ app.patch('/api/events/:id/missions/:mid/submission', requireAuth, async (req, r
     if (fls.error) return res.status(400).json({ ok: false, error: fls.error });
     const images = imgs.images, files = fls.files;
     let content = String(req.body?.content ?? '').slice(0, SUBMISSION_TEXT_MAX);
-    let format  = _submissionFormat(req.body?.format, content);
+    let format  = _submissionFormat(req.body?.format, content, p.id);
     // 画像だけのときは旧形式（format:'image' + content に1枚目）も埋める（/complete と同じ）
     if (images.length > 0 && files.length === 0 && !content.trim()) { format = 'image'; content = images[0]; }
 
@@ -3597,8 +3614,8 @@ app.patch('/api/events/:id/missions/:mid/submission', requireAuth, async (req, r
     const keep = new Set(submissionStore.storedUrlsOf({ content, format, images, files }));
     for (const url of submissionStore.storedUrlsOf(prev)) {
       if (keep.has(url)) continue;
-      const k = r2.urlToKey(url);
-      if (k && k.startsWith(`submissions/${p.id}/`)) {
+      const k = _r2KeyUnder(url, `submissions/${p.id}/`);
+      if (k) {
         r2.deleteObject(k).catch(e => console.warn('[r2] edited submission delete warn:', e.message));
       }
     }
@@ -3696,8 +3713,8 @@ app.get('/api/events/:id/files/download', requireAuth, async (req, res) => {
     if (!p) return res.status(404).send('not found');
     if (!eventStore.isMember(p, req.user.id)) return res.status(403).send('forbidden');
     const url = String(req.query.u || '');
-    const key = r2.urlToKey(url);
-    if (!key || !key.startsWith(`submissions/${p.id}/file_`) || !key.endsWith('.pdf') || !r2.isConfigured())
+    const key = _r2KeyUnder(url, `submissions/${p.id}/file_`);
+    if (!key || !key.endsWith('.pdf') || !r2.isConfigured())
       return res.status(400).send('invalid');
     const name = String(req.query.n || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 120) || 'document.pdf';
     res.redirect(302, await r2.presignDownload(key, /\.pdf$/i.test(name) ? name : `${name}.pdf`));
@@ -3723,7 +3740,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
 
     const userId = req.user.id;
     let content   = String(req.body?.content ?? '');
-    let format    = _submissionFormat(req.body?.format, content);
+    let format    = _submissionFormat(req.body?.format, content, p.id);
     // 画像（R2 の URL。1枚ずつ POST /submission-images で送ったもの）。本文と同時に持てる
     const imgs = _sanitizeSubmissionImages(p.id, req.body?.images);
     if (imgs.error) return res.status(400).json({ ok: false, error: imgs.error });
@@ -3802,8 +3819,8 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
       const keep = new Set(submissionStore.storedUrlsOf({ content, format, images, files }));
       for (const url of submissionStore.storedUrlsOf(prevSub)) {
         if (keep.has(url)) continue;
-        const k = r2.urlToKey(url);
-        if (k && k.startsWith(`submissions/${p.id}/`)) {
+        const k = _r2KeyUnder(url, `submissions/${p.id}/`);
+        if (k) {
           r2.deleteObject(k).catch(e => console.warn('[r2] replaced submission delete warn:', e.message));
         }
       }
