@@ -3073,7 +3073,7 @@ app.get('/api/events/:id/logs', requireAuth, async (req, res) => {
     if (!eventStore.canManage(p, req.user.id))
       return res.status(403).json({ ok: false, error: 'forbidden' });
 
-    const limit = parseInt(req.query.limit, 10) || 200;
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 200));
     const docs  = await eventLogStore.findByProject(req.params.id, limit);
 
     // userId → username 解決（ログに残る非メンバー/退会者も拾えるよう userStore で引く）
@@ -4484,6 +4484,15 @@ app.delete('/api/events/:id/pending-members/:uid', requireAuth, async (req, res)
 
 // ===== 行動ログ =====
 
+const LOG_EVENT_RE  = /^[a-z0-9_]{1,64}$/;
+const LOG_OBJECT_MAX = 2048;   // props / ctx の JSON の上限（実測の最大は 300 バイト弱）
+function _logObject(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+  let json;
+  try { json = JSON.stringify(v); } catch (_) { return { truncated: true }; }
+  return json.length > LOG_OBJECT_MAX ? { truncated: true } : JSON.parse(json);
+}
+
 app.post('/api/log', logLimiter, async (req, res) => {
   // クライアントを崩さないよう常に 200 で即応答し、DB 書き込みは非同期で処理
   res.json({ ok: true });
@@ -4504,21 +4513,31 @@ app.post('/api/log', logLimiter, async (req, res) => {
         }
       } catch (_) {}
 
-      const docs = events
-        .slice(0, 100)
-        .filter(e => e && typeof e.event === 'string')
-        .map(e => ({
-          event:     String(e.event).slice(0, 64),
+      // ★イベントに紐づけるのは「ログインしていて、そのイベントのメンバー」のときだけ（2026-10-28）。
+      //   誰でも任意のイベントの操作履歴（管理者が見る）に偽のログを差し込めていた
+      const batch = events.slice(0, 100).filter(e => e && typeof e.event === 'string' && LOG_EVENT_RE.test(e.event));
+      const askedIds = [...new Set(batch.map(e => e.projectId || e.eventId).filter(v => typeof v === 'string' && v && v.length <= 64))];
+      const memberOf = new Set();
+      if (userId && askedIds.length) {
+        for (const p of await eventStore.loadEvents(askedIds)) if (eventStore.isMember(p, userId)) memberOf.add(p.id);
+      }
+
+      const docs = batch.map(e => {
+        const pid = e.projectId || e.eventId;
+        const ct  = e.clientTs ? new Date(e.clientTs) : null;
+        return {
+          event:     e.event,
           ts:        new Date(),
-          clientTs:  e.clientTs ? new Date(e.clientTs) : new Date(),
+          clientTs:  ct && !isNaN(ct.getTime()) ? ct : new Date(),
           userId,
           sessionId: e.sessionId ? String(e.sessionId).slice(0, 64) : null,
-          // クライアント(logger.js)は projectId フィールドで選択中イベントIDを送る。
-          // 旧 eventId も後方互換で受ける（過去は eventId を読んでおり常に null になっていた）。
-          projectId: (e.projectId || e.eventId) ? String(e.projectId || e.eventId).slice(0, 64) : null,
-          props:     (e.props && typeof e.props === 'object' && !Array.isArray(e.props)) ? e.props : {},
-          ctx:       (e.ctx   && typeof e.ctx   === 'object' && !Array.isArray(e.ctx))   ? e.ctx   : {},
-        }));
+          // クライアント(logger.js)は projectId フィールドで選択中イベントIDを送る（旧 eventId も受ける）
+          projectId: typeof pid === 'string' && memberOf.has(pid) ? pid : null,
+          props:     _logObject(e.props),
+          // ★source はサーバーが決める（クライアントに 'server' を名乗らせない）
+          ctx:       { ..._logObject(e.ctx), source: 'client' },
+        };
+      });
 
       if (docs.length > 0) await eventLogStore.insertEvents(docs);
     } catch (e) {
