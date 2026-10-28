@@ -2368,65 +2368,8 @@ app.get('/api/data', requireAuth, async (req, res) => {
   }
 });
 
-// 単一イベント取得
-app.get('/api/events/:id', requireAuth, async (req, res) => {
-  try {
-    const p = await eventStore.loadEvent(req.params.id);
-    if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
-    if (!eventStore.isMember(p, req.user.id))
-      return res.status(403).json({ ok: false, error: 'forbidden' });
-    const flatProject = crdt.crdtToFlat(p);
-    await _mergeSubmissions(req.params.id, flatProject);
-    flatProject.lastProposalGeneratedAt = p.lastProposalGeneratedAt || null;
-    flatProject.folderId                = p.folderId                || null;
-    res.json({ ok: true, project: flatProject });
-  } catch (e) {
-    console.error('GET /api/events/:id error:', e);
-    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
-  }
-});
-
-// CRDT 版イベント保存（単一）
-app.put('/api/events/:id', requireAuth, async (req, res) => {
-  try {
-    const p = await eventStore.loadEvent(req.params.id);
-    if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
-    if (!eventStore.isMember(p, req.user.id))
-      return res.status(403).json({ ok: false, error: 'forbidden' });
-    if (!eventStore.canManage(p, req.user.id))
-      return res.status(403).json({ ok: false, error: 'このイベントを編集する権限がありません', code: 'no_manage_permission' });
-
-    const flat = req.body?.project && typeof req.body.project === 'object' ? req.body.project : {};
-    // ★PUT /api/data と同じ検査を通す（以前はこの経路だけ素通しだった。2026-10-27 の監査）
-    _sanitizeEventFields(req.params.id, flat, p.fields?.headerImage?.v || null);
-    await _guardPublicKnowledge(req.params.id, flat, p);
-    // clearedData を submissions コレクションに分離（R2 画像アップロード含む）
-    await _extractClearedData(req.params.id, flat);
-
-    // ★削除する id は MongoDB のパスになるので、タスク・提案の id と同じ形だけ通す
-    const safeIds = (v) => (Array.isArray(v) ? v : []).filter(id => typeof id === 'string' && SAFE_ITEM_ID_RE.test(id));
-    const merged = await eventStore.applyPatch(req.params.id, flat, {
-      timestamp:         Date.now(),
-      missionDeletions:  safeIds(req.body?.missionDeletions),
-      proposalDeletions: safeIds(req.body?.proposalDeletions),
-    });
-
-    const flatMerged = crdt.crdtToFlat(merged);
-    await _mergeSubmissions(req.params.id, flatMerged);
-
-    const clientId = req.get('X-Client-Id') || null;
-    eventBus.broadcast(req.params.id, 'eventUpdated', {
-      eventId: req.params.id,
-      rev:     merged.rev,
-      event:   flatMerged,
-    }, clientId);
-
-    res.json({ ok: true, project: flatMerged });
-  } catch (e) {
-    console.error('PUT /api/events/:id error:', e);
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
+// ★単一イベントの GET / PUT /api/events/:id は 2026-10-28 に削除した（クライアントが使っておらず、
+//   PUT は通知・push・webhook を通らない別の書き込み口だったため）。保存は PUT/PATCH /api/data だけ
 
 // ミッション提案を動的生成（ルールベースエンジン）
 app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => {
