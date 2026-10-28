@@ -120,8 +120,45 @@ app.use(require('compression')());
 // 5MB：提出物画像の上限 2MB（base64 で約 2.7MB）＋余裕。
 // PUT /api/data の実測ボディは最大 146KB（全イベント全文送信でも）なので影響しない。
 app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: false, limit: '1mb' })); // iOS 向け Google サインインのフォーム POST 用
+// ★フォーム（urlencoded）を読むのは iOS の Google サインイン（POST /api/auth/google）だけ。
+//   全体に掛けないこと（ほかのサイトのフォームから送られた値を、どのルートも読めてしまう）
+const _formBody = express.urlencoded({ extended: false, limit: '1mb' });
 app.use(cookieParser(COOKIE_SECRET));
+
+// ── CSRF 対策（2026-10-28）─────────────────────────────────
+// 本番のセッション Cookie は SameSite=None（モバイル Chrome の Google サインインのため）なので、
+// ほかのサイトのフォームから POST されても Cookie が付いてくる。2段で止める：
+//   1. 変更系（POST/PUT/PATCH/DELETE）で、ほかのサイトから来たもの（Sec-Fetch-Site / Origin）は 403
+//   2. POST の本文は JSON だけ（PDF の送信と Google サインインのフォームは例外）。それ以外は 415
+//      （ほかのサイトのフォームが送れるのは urlencoded / multipart / text/plain だけ）
+// ★新しく JSON 以外を受けるルートを足すときは _CSRF_BODY_EXCEPTIONS に足すこと
+const _CSRF_BODY_EXCEPTIONS = [
+  { re: /^\/api\/auth\/google$/,                      types: ['application/json', 'application/x-www-form-urlencoded'] },
+  { re: /^\/api\/events\/[^/]+\/submission-files$/, types: ['application/pdf'] },
+];
+app.use('/api', (req, res, next) => {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+  const site = req.get('sec-fetch-site');
+  if (site === 'cross-site' || site === 'same-site') {
+    return res.status(403).json({ ok: false, error: 'forbidden' });
+  }
+  const origin = req.get('origin');
+  if (origin) {
+    let host = null;
+    try { host = new URL(origin).host; } catch (_) {}
+    if (!host || host !== req.get('host')) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+  }
+  if (req.method === 'POST') {
+    const type = String(req.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    const path = req.originalUrl.split('?')[0];
+    const ex   = _CSRF_BODY_EXCEPTIONS.find(e => e.re.test(path));
+    const ok   = ex ? ex.types.includes(type) : type === 'application/json';
+    if (!ok) return res.status(415).json({ ok: false, error: 'unsupported content type' });
+  }
+  next();
+});
 
 // ── レート制限 ─────────────────────────────────────────────
 // 開発環境ではレート制限をスキップ（CI / テストを壊さないよう）
@@ -1422,7 +1459,7 @@ app.get('/api/config', (req, res) => {
 // iOS(WebKit/ITP) では XHR レスポンスの Set-Cookie が保存されないため、クライアントは
 // トップレベルのフォーム POST（application/x-www-form-urlencoded）で送ってくる。その場合は
 // JSON ではなくリダイレクトで応答し、Cookie を first-party のトップレベル遷移で保存させる。
-app.post('/api/auth/google', authLimiter, async (req, res) => {
+app.post('/api/auth/google', authLimiter, _formBody, async (req, res) => {
   const isFormPost = !!req.is('application/x-www-form-urlencoded');
   const fail = (status, code, jsonError) => {
     if (isFormPost) return res.redirect(`/?gerror=${code}`);
