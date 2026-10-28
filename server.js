@@ -2372,12 +2372,42 @@ app.get('/api/data', requireAuth, async (req, res) => {
 //   PUT は通知・push・webhook を通らない別の書き込み口だったため）。保存は PUT/PATCH /api/data だけ
 
 // ミッション提案を動的生成（ルールベースエンジン）
-app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => {
+// ★AI（Cloudflare Workers AI）を呼ぶので、サーバーでも回数を絞る（2026-10-28。以前はクライアントの12時間ゲートだけ）
+//   - 管理者だけ（提案はもともと管理者の画面にしか出ない）
+//   - イベントごとに PROPOSAL_GEN_COOLDOWN_MS に1回（proposalGenClaimAt を原子的に取る。同時に来ても1回）
+//     クライアントの12時間より少し短くして、ふだんの12時間ごとの更新は断らない
+//   - 断るときは { ok:false, code:'too_soon' }。クライアントは今の提案を残して10分後に呼び直す
+const PROPOSAL_GEN_COOLDOWN_MS = 11 * 60 * 60 * 1000;
+const proposalLimiter = rateLimit({
+  windowMs:       60 * 60 * 1000,
+  max:            20,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  skip:           _skipInDev,
+  keyGenerator:   (req) => `u:${req.user?.id || 'anon'}`,
+  message: { ok: false, error: '操作が多すぎます。しばらく待ってから再試行してください。', code: 'rate_limited' },
+});
+
+app.post('/api/events/:id/proposals/generate', requireAuth, proposalLimiter, async (req, res) => {
+  let claimedAt = null;
   try {
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
     if (!eventStore.isMember(p, req.user.id))
       return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (!eventStore.canManage(p, req.user.id))
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const claimNow = Date.now();
+    const claim = await getDb().collection('events').updateOne(
+      { _id: p.id, $or: [
+        { proposalGenClaimAt: { $exists: false } },
+        { proposalGenClaimAt: { $lt: claimNow - PROPOSAL_GEN_COOLDOWN_MS } },
+      ] },
+      { $set: { proposalGenClaimAt: claimNow } },
+    );
+    if (claim.modifiedCount === 0) return res.json({ ok: false, code: 'too_soon' });
+    claimedAt = claimNow;
 
     const flat            = crdt.crdtToFlat(p);
     const missions        = Array.isArray(flat.missions) ? flat.missions : [];
@@ -2537,6 +2567,13 @@ app.post('/api/events/:id/proposals/generate', requireAuth, async (req, res) => 
     res.json({ ok: true, proposals, lastProposalGeneratedAt: now });
   } catch (e) {
     console.error('proposals/generate error:', e);
+    // 途中で失敗したら取った枠を返す（クライアントの10分後の呼び直しを通す）
+    if (claimedAt) {
+      await getDb().collection('events').updateOne(
+        { _id: req.params.id, proposalGenClaimAt: claimedAt },
+        { $unset: { proposalGenClaimAt: '' } },
+      ).catch(() => {});
+    }
     res.status(500).json({ ok: false, error: e.message });
   }
 });
