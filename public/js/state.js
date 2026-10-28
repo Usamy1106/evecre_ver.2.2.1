@@ -172,6 +172,7 @@ export const state = {
       window.history.replaceState(null, '', window.location.pathname);
       setTimeout(() => window._app?.showToast?.(
         gerr === 'verify' ? 'Google 認証に失敗しました。もう一度お試しください'
+          : gerr === 'conflict' ? 'このメールアドレスは別の Google アカウントに紐づいています'
           : 'Google サインインに失敗しました', 'error'), 600);
     }
 

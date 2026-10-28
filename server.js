@@ -1516,8 +1516,22 @@ app.post('/api/auth/google', authLimiter, _formBody, async (req, res) => {
     const consent = pickConsent(req.body);
 
     if (user) {
+      // ★メールで見つかったアカウントが別の Google アカウントに紐づいていたら断る（2026-10-28）
+      if (user.googleSub && user.googleSub !== googleSub) {
+        return fail(409, 'conflict', 'このメールアドレスは別の Google アカウントに紐づいています');
+      }
       const updates = {};
       if (!user.googleSub) updates.googleSub = googleSub;
+      // ★メール未確認のままのパスワード付きアカウント＝持ち主か確かめられていない（他人が先に登録しえた）。
+      //   そのまま紐づけると先に登録した人のパスワードとログインが生き続け、乗っ取られる（2026-10-28）。
+      //   パスワードを外し、今あるログインをすべて切ってから紐づける（パスワードはリセットで付け直せる）
+      const unproven = user.isVerified !== true && !!user.passwordHash;
+      if (unproven) {
+        updates.passwordHash = null;
+        updates.otp = null;
+        updates.passwordReset = null;
+        await sessionStore.deleteAllForUser(user.id);
+      }
       updates.isVerified = true;
       // 既に同意記録があれば上書きしない（初回同意の日時を保つ）
       if (consent && !user.consentVersion) Object.assign(updates, consent);
