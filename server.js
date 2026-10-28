@@ -2026,8 +2026,8 @@ app.post('/api/push/subscribe', requireAuth, async (req, res) => {
 app.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
   try {
     const endpoint = req.body?.endpoint;
-    if (!endpoint) return res.status(400).json({ ok: false, error: 'endpoint required' });
-    await pushStore.deleteByEndpoint(endpoint);
+    if (typeof endpoint !== 'string' || !endpoint) return res.status(400).json({ ok: false, error: 'endpoint required' });
+    await pushStore.deleteOwnByEndpoint(req.user.id, endpoint);
     res.json({ ok: true });
   } catch (e) {
     console.error('POST /api/push/unsubscribe error:', e);
