@@ -320,6 +320,10 @@ function _renderCalendarInner(target) {
             </button>
           </div>
         </div>
+        ${target === 'handover' ? `
+          <!-- ★オンボーディング L9 から移した説明（2026-10-31）。日を選ぶこの画面で伝える -->
+          <p class="p-date-picker__lead">※選んだ最終日の翌日に、このイベントは自動で「完了」になります。</p>
+        ` : ''}
         <p class="p-date-picker__note p-date-picker__note--roomy">${helperText}</p>
         <div class="p-date-picker__week">
           ${['日','月','火','水','木','金','土'].map(d => `<div>${d}</div>`).join('')}

@@ -56,7 +56,7 @@ export function pushSetupPhase() {
 export function pushSetupContentHtml(phase) {
   if (phase === 'done') {
     return `
-      <p class="p-push-setup__icon">✅</p>
+      <p class="p-push-setup__icon"><img src="/images/icon/icon-notification-pressed.svg" width="20" height="20" alt=""></p>
       <h3 class="heading-r p-push-setup__title">通知はオンになっています</h3>
       <p class="p-push-setup__text">
         担当の割り当てや締め切りをお知らせします。<br>
@@ -65,7 +65,7 @@ export function pushSetupContentHtml(phase) {
   }
   if (phase === 'unsupported') {
     return `
-      <p class="p-push-setup__icon">🔔</p>
+      <p class="p-push-setup__icon"><img src="/images/icon/icon-notification-default.svg" width="20" height="20" alt=""></p>
       <h3 class="heading-r p-push-setup__title">通知について</h3>
       <p class="p-push-setup__text">
         このブラウザは通知に対応していません。<br>
@@ -95,7 +95,7 @@ export function pushSetupContentHtml(phase) {
           <li><span class="p-push-setup__strong">「アプリをインストール」</span>または「ホーム画面に追加」を選ぶ</li>
         </ol>`;
     return `
-      <p class="p-push-setup__icon">📲</p>
+      <img src="/images/onboarding/onboarding-addhome.webp" class="p-push-setup__art" width="1081" height="721" alt="">
       <h3 class="heading-r p-push-setup__title">ホーム画面に追加しませんか？</h3>
       <p class="p-push-setup__text p-push-setup__text--tight">
         やることの締め切りや割り当てを<br>通知でお知らせできるようになります

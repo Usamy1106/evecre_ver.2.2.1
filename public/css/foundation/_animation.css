@@ -129,3 +129,24 @@
   60%  { transform: translateY(-6%) scale(1.06); opacity: 1; }
   100% { transform: translateY(0) scale(1);     opacity: 1; }
 }
+
+/* ★fireSpark は object/component/_modal.css（.c-modal__spark。M4・参加承認）でも使う */
+
+/* 使用: object/component/_modal.css（写真のように見せるイラスト .c-modal__photo。L9。2026-10-31）
+   カメラで「カシャっ」と撮った感じ：白く光って（photoFlash）、写真が少し大きいところから
+   傾いて置かれる（photoSnap）。写りは白とびから戻る（photoDevelop）。transform / opacity / filter だけ */
+@keyframes photoSnap {
+  0%   { transform: scale(1.08) rotate(0); }
+  55%  { transform: scale(.97) rotate(-4deg); }
+  100% { transform: scale(1) rotate(-3deg); }
+}
+
+@keyframes photoFlash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes photoDevelop {
+  0%   { filter: brightness(1.8) saturate(.4); }
+  100% { filter: none; }
+}

@@ -356,6 +356,15 @@ export const Components = {
    * @param {1|2|3} step
    */
   /**
+   * お祝いの火の粉（M4・参加承認。2026-10-31）。イラストを包んだ c-modal__celebrate の中に置く。
+   * ★🔥の意気込み（leaderMotivationModal.js の p-invite__spark）と同じ fireSpark の動き。
+   *   あちらはボタンを押したとき、こちらは開いたときに1回だけ飛ぶ。
+   */
+  CelebrateSparks() {
+    return `<span class="c-modal__sparks" aria-hidden="true">${'<span class="c-modal__spark"></span>'.repeat(8)}</span>`;
+  },
+
+  /**
    * ステップ進捗インジケータ。
    *
    * ★total を省略すると従来どおり3ステップ。イベント作成（createEvent.js）は

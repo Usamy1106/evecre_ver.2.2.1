@@ -11,6 +11,7 @@
 import { state } from './../state.js';
 import { logEvent } from '../logger.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
+import { Components } from '../components.js';
 
 const OVERLAY_ID = 'member-approved-overlay';
 
@@ -39,7 +40,10 @@ export function openMemberApprovedModal(eventId) {
   overlay.className = 'c-overlay c-overlay--auto c-overlay--center c-overlay--blur';
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
-      <p class="c-modal__emoji">🎉</p>
+      <div class="c-modal__celebrate">
+        <img src="/images/onboarding/onboarding-member-approved.webp" class="c-modal__art" width="400" height="400" alt="">
+        ${Components.CelebrateSparks()}
+      </div>
       <h3 class="c-modal__title">参加が承認されました</h3>
       <p class="c-modal__text c-modal__text--tight">
         「${_esc(name)}」のメンバーになりました。<br>さっそく開いてみましょう。

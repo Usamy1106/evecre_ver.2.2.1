@@ -1262,7 +1262,7 @@ window._app = {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML = `
       <div class="c-modal u-animate-fade">
-        <p class="p-app-shell__join-emoji">🎉</p>
+        <p class="p-app-shell__join-icon"><img src="/images/icon/icon-join.svg" width="36" height="36" alt=""></p>
         <h3 class="c-modal__title">イベントに参加する</h3>
         <p id="jec-catch" class="p-app-shell__join-catch u-hidden"></p>
         <p class="p-app-shell__join-name">「${_escH(eventName || 'イベント')}」</p>

@@ -31,7 +31,9 @@ function _esc(s) {
  * @param {string} o.primary   主ボタンの文言
  * @param {string} [o.action]  主ボタンの動作（'openMissionModal' など。省略で閉じるだけ）
  * @param {*} [o.actionArg]    動作に渡す引数（'openMission' のタスクIDなど）
- * @param {string} [o.emoji]   見出しの上に出す絵文字（お祝いの演出用）
+ * @param {string} [o.art]     見出しの上に出すイラストのパス（/images/onboarding/…。2026-10-31 に絵文字から差し替え）
+ * @param {boolean} [o.photo] art を写真として出す（白いふち＋カメラで撮ったような演出。L9）
+ * @param {boolean} [o.sparks] art のまわりに火の粉を飛ばす（お祝い。M4）
  * @param {boolean} [o.bullet] steps を手順(①②③)ではなく一覧(・)として出す
  */
 export function openOnboardingModal(o) {
@@ -82,7 +84,15 @@ export function openOnboardingModal(o) {
   if (paged) overlay.innerHTML = pagedHtml();
   else overlay.innerHTML = `
     <div class="c-modal c-modal--scroll u-animate-fade">
-      ${o.emoji ? `<p class="c-modal__emoji">${o.emoji}</p>` : ''}
+      ${!o.art ? '' : o.photo ? `
+        <div class="c-modal__photo">
+          <img src="${_esc(o.art)}" class="c-modal__photo-img" alt="">
+          <span class="c-modal__photo-flash" aria-hidden="true"></span>
+        </div>` : o.sparks ? `
+        <div class="c-modal__celebrate">
+          <img src="${_esc(o.art)}" class="c-modal__art" alt="">
+          ${Components.CelebrateSparks()}
+        </div>` : `<img src="${_esc(o.art)}" class="c-modal__art" alt="">`}
       ${o.eyebrow ? `<p class="c-modal__eyebrow">${_esc(o.eyebrow)}</p>` : ''}
       <!-- ★title は _esc しないこと。改行のための <br> を意図的に含んでいる
            （「あなたのやることは<br>3つです」など）。中に入るユーザー名・

@@ -79,9 +79,10 @@
 
 /* --- 参加確認モーダル ----------------------------------------------------- */
 
-.p-app-shell__join-emoji {
+.p-app-shell__join-icon {
+  display: flex;
+  justify-content: center;
   margin-bottom: var(--space-2);
-  font-size: 36px;
 }
 
 /* イベント作成時の一言説明（旧キャッチコピー）。無ければ JS が hidden を付ける */

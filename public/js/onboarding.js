@@ -292,14 +292,52 @@ function _wantMatches(p, userId) {
   return _unassigned(p).filter(m => tags.has(_missionTag(m)));
 }
 
-/** 自分が担当していて完了済みのタスク（M4 用） */
-function _myCompleted(p, userId) {
-  return (p.missions || []).filter(m =>
-    m.status === 'cleared' && (
-      (Array.isArray(m.assignees) && m.assignees.includes(userId)) ||
-      (m.assignee?.type === 'user' && m.assignee.userId === userId) ||
-      (Array.isArray(m.individualClearedBy) && m.individualClearedBy.includes(userId))
-    ));
+
+// ── はじめての完了（L6 / M4。2026-10-31 に整理）─────────────────────────
+// L6＝イベントで**いちばん最初の完了**を、完了した本人以外の全員に知らせる（「やることがひとつ終わりました」）
+// M4＝**自分がこのイベントではじめて完了**したとき、本人をねぎらう（「おつかれさまでした！」）
+// ★どちらも管理者権限の有無を問わず、イベントごとに1回。最初の完了が自分なら M4 だけが出る（L6 は本人に出さない）
+// ★初期タスク（目的 def-1・概要 def-3）は数えない。オーナーが目的を書いただけで「はじめての完了」にしない
+// ★FIRST_CLEAR_START_AT より前の完了では出さない（整理する前から完了のあるイベントで今さら出さない）
+const _INITIAL_TASK_IDS = new Set(['def-1', 'def-3']);
+const FIRST_CLEAR_START_AT = Date.parse('2026-10-31T00:00:00+09:00');
+
+/**
+ * イベントの「完了」を、誰が・いつ・どのタスクを、の並びにする（古い順）。
+ * 通常のタスク＝提出物の submittedBy / timestamp、個別完了＝1人ぶんずつ（`<mid>_u_<userId>`）。
+ * ★submittedBy の無い古い提出物は userId が null（＝誰にとっても「自分ではない」）
+ */
+function _completions(p) {
+  const cd = p.clearedData || {};
+  const out = [];
+  for (const m of p.missions || []) {
+    if (_INITIAL_TASK_IDS.has(m.id)) continue;
+    if (m.individualClear && Array.isArray(m.individualClearedBy)) {
+      for (const uid of m.individualClearedBy) {
+        out.push({ mission: m, userId: uid, at: cd[`${m.id}_u_${uid}`]?.timestamp || 0 });
+      }
+    } else if (m.status === 'cleared') {
+      out.push({ mission: m, userId: cd[m.id]?.submittedBy ?? null, at: cd[m.id]?.timestamp || 0 });
+    }
+  }
+  return out.sort((x, y) => x.at - y.at);
+}
+
+/** L6：イベントで最初の完了（自分のものではない・自分が参加したあと・整理した日以降）。無ければ null */
+function _eventFirstClearForOthers(p, userId) {
+  const first = _completions(p)[0];
+  if (!first || first.userId === userId) return null;
+  if (!(first.at >= FIRST_CLEAR_START_AT)) return null;
+  // ★参加する前の完了は「いま終わった」ではないので知らせない（オーナー・参加日時の無い古いデータは対象）
+  const me = (p.members || []).find(m => m.userId === userId);
+  if (p.ownerId !== userId && me?.joinedAt && me.joinedAt > first.at) return null;
+  return first;
+}
+
+/** M4：自分がこのイベントではじめて完了したもの（整理した日以降）。無ければ null */
+function _myFirstClear(p, userId) {
+  const mine = _completions(p).find(c => c.userId === userId);
+  return mine && mine.at >= FIRST_CLEAR_START_AT ? mine : null;
 }
 
 // L1（リーダー向けの進め方）。★onboardingIntro.js の USAGE_PAGES と同じ中身に保つこと（2026-10-12 に差し替え）。
@@ -329,6 +367,7 @@ const STEPS = [
       const good  = _skillLabels(first.skillsGood).slice(0, 2);
       const more  = stale.length - 1;
       return {
+        art: '/images/onboarding/onboarding-illustration02.webp',
         eyebrow: '承認をお待ちしています',
         title: `${_escapeName(first.username)}さんが<br>参加を待っています`,
         body: (good.length ? `${good.join('・')}が得意だそうです。` : '')
@@ -360,6 +399,7 @@ const STEPS = [
         return [m.title, s ? `${s.label} ${s.username}さん` : '担当を決めましょう'];
       });
       return {
+        art: '/images/onboarding/onboarding-illustration01.webp',
         eyebrow: '3つめのステップ「配る」',
         title: '誰にお願いする？',
         steps: lines,
@@ -372,23 +412,15 @@ const STEPS = [
   },
 
   {
-    // このアプリで最もモチベーションが上がる瞬間。演出を厚めにする
+    // イベントで最初の完了を、完了した本人以外の全員に知らせる（上の「はじめての完了」の説明を参照）
     id: 'L6',
-    role: 'leader',
+    role: 'any',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
-    match: (ctx) => {
-      // ★参加したばかりの人には出さない。既に完了があるイベントに今日入った人へ
-      //   「はじめての完了」と言うのは事実と違ううえ、歓迎の枠を奪う。
-      if (isNewcomer(ctx.p, ctx.userId)) return false;
-      const done = (ctx.p.missions || []).filter(m => m.status === 'cleared').length;
-      // ★既に何件も完了している既存イベントで「はじめての完了」と言わないよう上限を置く。
-      //   完了数は減らないので、超えたイベントでは以後も発火しない
-      return done >= 1 && done <= 3;
-    },
+    match: (ctx) => !!_eventFirstClearForOthers(ctx.p, ctx.userId),
     build: (ctx) => {
-      const done = (ctx.p.missions || []).filter(m => m.status === 'cleared')[0];
+      const done = _eventFirstClearForOthers(ctx.p, ctx.userId)?.mission;
       return {
-        emoji: '🎉',
+        art: '/images/onboarding/onboarding-first-clear.webp',
         eyebrow: 'はじめての完了',
         title: 'やることが<br>ひとつ終わりました',
         body: done?.title
@@ -450,6 +482,7 @@ const STEPS = [
       && (ctx.p.members || []).length <= 1
       && (ctx.p.pendingMembers || []).length === 0,
     build: () => ({
+      art: '/images/onboarding/onboarding-illustration02.webp',
       eyebrow: 'まだひとりです',
       title: '仲間を誘いませんか',
       body: 'イベクリは、担当を配って進めると力を発揮します。'
@@ -469,7 +502,7 @@ const STEPS = [
       const open = (ctx.p.missions || []).filter(m => m.status !== 'cleared');
       const un   = _unassigned(ctx.p);
       return {
-        emoji: '⏰',
+        art: '/images/onboarding/onboarding-one-week-before.webp',
         eyebrow: '開催が近づいています',
         title: '直前チェック',
         steps: [
@@ -498,11 +531,11 @@ const STEPS = [
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
     match: (ctx) => _isWrapUp(ctx.p) && _handoverDates(ctx.p).length === 0,
     build: () => ({
-      emoji: '📅',
+      art: '/images/onboarding/onboarding-after-event.webp',
+      photo: true,   // ★写真のように見せる（カメラで撮った演出。onboardingModal.js）
       eyebrow: 'おつかれさまでした',
-      title: '引き継ぎの日を決めましょう',
-      body: 'みんなで振り返る日をカレンダーから選んでください。複数日でも構いません。\n'
-          + '選んだ最終日の翌日に、このイベントは自動で「完了」になります。',
+      title: 'みんなで振り返る日を<br>決めましょう！',
+      // ★「複数日でも構いません」「最終日の翌日に自動で完了」は日を選ぶカレンダー側に出す（calendar.js の handover）
       primary: '日を選ぶ',
       action: 'openHandoverCalendar',
     }),
@@ -520,7 +553,7 @@ const STEPS = [
       if (!getArchiveVenue(ctx.p))   missing.push(['開催場所', 'イベント設定から書けます']);
       if (!getEventMainVisual(ctx.p)) missing.push(['ヘッダー画像', 'アーカイブから登録できます']);
       return {
-        emoji: '📦',
+        art: '/images/onboarding/onboarding-keep-records.webp',
         eyebrow: 'おつかれさまでした',
         title: '記録を残しましょう',
         steps: missing.length ? missing : null,
@@ -575,7 +608,7 @@ const STEPS = [
       const first = mine[0];
       const voice = _leaderVoice(ctx.p);
       return {
-        emoji: '📌',
+        art: '/images/onboarding/onboarding-illustration01.webp',
         eyebrow: 'あなたの担当が決まりました',
         title: `「${_escapeName(first.title)}」を<br>お願いします`,
         body: 'タスクを開くと、やることと期限が見られます。'
@@ -603,6 +636,7 @@ const STEPS = [
     build: (ctx) => {
       const hits = _wantMatches(ctx.p, ctx.userId).slice(0, 3);
       return {
+        art: '/images/onboarding/onboarding-illustration01.webp',
         eyebrow: 'まだ担当がありません',
         title: hits.length ? 'こんなタスクが<br>空いています' : 'リーダーに<br>声をかけてみよう',
         steps: hits.length ? hits.map(m => [m.title, 'やってみたいと答えた分野です']) : null,
@@ -617,16 +651,17 @@ const STEPS = [
   },
 
   {
-    // メンバーが初めてタスクを完了したとき（褒める）
+    // 自分がこのイベントではじめて完了したとき（ねぎらう。管理者も対象。上の「はじめての完了」の説明を参照）
     // ★M5（差し戻し時の案内）は実装しない方針
     id: 'M4',
-    role: 'member',
+    role: 'any',
     densities: [DENSITY.FIRST, DENSITY.FEW, DENSITY.MANY],
-    match: (ctx) => _myCompleted(ctx.p, ctx.userId).length > 0,
+    match: (ctx) => !!_myFirstClear(ctx.p, ctx.userId),
     build: (ctx) => {
-      const done = _myCompleted(ctx.p, ctx.userId)[0];
+      const done = _myFirstClear(ctx.p, ctx.userId)?.mission;
       return {
-        emoji: '🎊',
+        art: '/images/onboarding/onboarding-first-clear.webp',
+        sparks: true,   // ★🔥の意気込みと同じ火の粉（onboardingModal.js）
         eyebrow: 'はじめての完了',
         title: 'おつかれさまでした！',
         body: (done?.title ? `「${done.title}」を提出しました。` : '提出しました。')
