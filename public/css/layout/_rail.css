@@ -3,7 +3,10 @@
    使用箇所: public/js/components.js（Components.BoardRail）、views/mainBoard.js
 
    ★広い画面（layoutMode.js の isDashboard）でだけ描く。スマホはヘッダーのタブ＋日付チップの行のベル。
-   ★上から メインボード／アーカイブ／通知／フィードバック／設定。丸い白地にアイコン、いま開いているタブは塗り。
+   ★上から ホーム／メインボード／アーカイブ／通知／フィードバック／設定。丸い白地にアイコン、いま開いているタブは塗り。
+   ★ホームは 2026-11-04 にヘッダーの左端から一番上へ移した。
+   ★各ボタンの下に名前の札（.l-rail__label）。丸の下端に重ね、丸からはみ出させる（2026-11-04）。
+     札がはみ出すぶん、ボタンの間（gap）を広げてある。
    ★position: fixed で画面の左端に固定する。中身（ヘッダー・2列・アーカイブ）は
      .p-main-board--dashboard の padding-left（--board-rail-width）でこの幅を空ける。
    ★通知のバッジ（p-main-board__notif-badge）の位置は object/project/_board-dashboard.css が持つ。
@@ -18,7 +21,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-6);
   width: var(--board-rail-width);
   padding-top: calc(var(--safe-top) + var(--space-4));
   border-right: 1px solid var(--color-border);
@@ -45,6 +48,11 @@
   transform: scale(.95);
 }
 
+/* ホームは階層が1つ上なので、下のタブ（メインボード〜）と少し離す。量は --rail-home-gap（_variables.css）*/
+.l-rail__item--home {
+  margin-bottom: var(--rail-home-gap);
+}
+
 /* いま開いているタブ */
 .l-rail__item.is-active {
   border-color: var(--color-primary);
@@ -54,4 +62,31 @@
 .l-rail__icon {
   width: 26px;
   height: 26px;
+}
+
+/* 名前の札。丸の下端に重ねて、丸からはみ出させる（2026-11-04）。
+   ★丸（--rail-button-size 52px）より札が広くてよい。列の幅（--board-rail-width 80px）には収まる
+     （いちばん長い「フィードバック」で約 76px。★左右の余白を広げると列からはみ出す）。
+   ★読み上げはボタンの aria-label が受け持つので、札は aria-hidden */
+.l-rail__label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--rail-default-bg);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* いま開いているタブの札は丸と同じ色にそろえる */
+.l-rail__item.is-active .l-rail__label {
+  border: 2px solid var(--color-primary);
+  background-color: var(--rail-active-bg);
 }

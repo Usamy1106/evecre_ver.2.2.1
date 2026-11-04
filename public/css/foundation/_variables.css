@@ -303,6 +303,11 @@
   /* 広い画面のメインボードの左端の列（メインボード・アーカイブ・通知・フィードバック・設定の丸いボタン）*/
   --board-rail-width: 80px;
   --rail-button-size: 52px;
+  /* イベントのヘッダー（.l-header--event）の内側の余白。スマホ（狭い画面）。
+     広い画面の値は下の :root.is-wide で上書きする（判定は layoutMode.js。2026-11-04）*/
+  --header-event-padding: var(--space-3) var(--space-6) var(--space-3);
+  /* 左端の列で、ホームとメインボードの間に足す余白（ボタンの間の gap に上乗せ）。丸ボタン半分ぶん（2026-11-04）*/
+  --rail-home-gap: calc(var(--rail-button-size) / 2);
   /* 広い画面のメインボードの地色（左端の列・右列のカレンダー）。2026-10-02。
      ★アルファ付きの色にする場合、sticky で上に残る要素は下を流れるカードが透けないよう、
        --color-bg の上に重ねた形（background-image のグラデーション＋地色）で塗ること */
@@ -347,4 +352,9 @@
 /* 読む・書く画面（タスク詳細・イベント設定など）*/
 :root.is-screen-reading {
   --layout-max-width: var(--reading-max-width);
+}
+
+/* 広い画面（タブレット・PC。layoutMode.js が <html> に is-wide を付ける）で切り替えるトークン */
+:root.is-wide {
+  --header-event-padding: var(--space-6) var(--space-6) var(--space-6);
 }

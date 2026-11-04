@@ -50,8 +50,7 @@ export const Components = {
    * ヘッダー
    * @param {object|null} project - イベントオブジェクト（nullでホーム用ヘッダー）
    */
-  // opts.compact … 広い画面のメインボード。「‹ イベント名」だけにする（フィードバック・設定は左端の列 BoardRail へ移す）
-  // opts.compact … 右端に何も置かない（広い画面のメインボード）
+  // opts.compact … 広い画面のメインボード。イベント名だけにする（ホーム・フィードバック・設定は左端の列 BoardRail へ移す）
   // opts.trailing … 右端をこの HTML に差し替える（スマホのメインタブの日付チップ。2026-09-28）。
   //   ★フィードバックと設定はそのとき日付の行（通知の下）に移る（mainBoard.js の pinnedAux）
   Header(project, opts = {}) {
@@ -100,14 +99,9 @@ export const Components = {
     return `
       <header class="l-header l-header--event">
         <div class="l-header__group">
-          ${opts.compact ? `
-          <!-- ★広い画面のメインボード（compact）は戻るの代わりにホーム（2026-10-25。左端の列の先頭から移した）。
-               ★行き先は常にホーム（goHome）。戻るボタンとは違い、フォルダから入ってもフォルダへは戻らない -->
-          <button type="button" onclick="window._app.goHome()" data-log="header_home" aria-label="ホーム" title="ホーム"
-            class="l-header__back">
-            <img src="/images/icon/icon-home-pressed.svg" class="l-header__home-icon" alt="">
-          </button>` : `
-          <!-- ★戻る。どのタブからでもメインボードへ入ってきた画面（ホーム／プロジェクト詳細）へ（main.js の boardBack） -->
+          ${opts.compact ? '' : `
+          <!-- ★戻る。どのタブからでもメインボードへ入ってきた画面（ホーム／プロジェクト詳細）へ（main.js の boardBack）。
+               ★広い画面のメインボード（compact）では出さない。ホームは左端の列の一番上（BoardRail。2026-11-04） -->
           <button type="button" onclick="window._app.boardBack()" aria-label="前の画面へ戻る"
             class="l-header__back">
             <img src="/images/icon/icon-chevron.svg" class="l-header__back-icon" alt="">
@@ -132,7 +126,9 @@ export const Components = {
   },
 
   /**
-   * 広い画面（タブレット・PC）のメインボードの左端の列。上から メインボード／アーカイブ／通知／フィードバック／設定（ホームはヘッダーの左端。2026-10-25）。
+   * 広い画面（タブレット・PC）のメインボードの左端の列。上から ホーム／メインボード／アーカイブ／通知／フィードバック／設定。
+   * ★ホームは 2026-11-04 にヘッダーの左端から一番上へ移した。行き先は常にホーム（goHome。フォルダから入ってもフォルダへは戻らない）。
+   * ★各ボタンの下に名前の札（l-rail__label）。丸の下端に重ねてはみ出させる（2026-11-04）。
    * スタイル: public/css/layout/_rail.css（丸い白地にアイコン。いま開いているタブは塗り）
    * ★スマホでは使わない（スマホはボトムナビ Components.BottomNav。通知もそちら）。
    * ★通知のバッジは [data-notif-entry] で refreshNotifBadge が差し替える（ダッシュボード表示では、ここが唯一の入口）。
@@ -145,29 +141,39 @@ export const Components = {
     const unread = this.unreadCountFor(project?.id);
     return `
       <nav class="l-rail" aria-label="イベントのメニュー">
+        <button type="button" onclick="window._app.goHome()" data-log="rail_home"
+          class="l-rail__item l-rail__item--home" aria-label="ホーム">
+          <img src="/images/icon/icon-home-default.svg" class="l-rail__icon" alt="">
+          <span class="l-rail__label" aria-hidden="true">ホーム</span>
+        </button>
         <button type="button" onclick="window._app.setTab('MAIN')" data-log="rail_main"
-          class="l-rail__item${on('MAIN')}" aria-label="メインボード" title="メインボード">
+          class="l-rail__item${on('MAIN')}" aria-label="メインボード">
           <img src="/images/icon/icon-mainboard-${active === 'MAIN' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
+          <span class="l-rail__label" aria-hidden="true">メインボード</span>
         </button>
         <button type="button" onclick="window._app.setTab('ARCHIVE')" data-log="rail_archive"
-          class="l-rail__item${on('ARCHIVE')}" aria-label="アーカイブ" title="アーカイブ">
+          class="l-rail__item${on('ARCHIVE')}" aria-label="アーカイブ">
           <img src="/images/icon/icon-archive-${active === 'ARCHIVE' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
+          <span class="l-rail__label" aria-hidden="true">アーカイブ</span>
         </button>
         <button type="button" onclick="window._app.setTab('NOTIFICATIONS')" data-notif-entry data-log="notif_open"
-          class="l-rail__item${on('NOTIFICATIONS')}" aria-label="通知" title="通知">
+          class="l-rail__item${on('NOTIFICATIONS')}" aria-label="通知">
           <img src="/images/icon/icon-notification-${active === 'NOTIFICATIONS' ? 'pressed' : 'default'}.svg" class="l-rail__icon" alt="">
+          <span class="l-rail__label" aria-hidden="true">通知</span>
           ${unread > 0 ? `<span class="p-main-board__notif-badge">${this.badgeText(unread)}</span>` : ''}
         </button>
         <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
-          data-log="header_feedback" class="l-rail__item" aria-label="フィードバックを送る" title="フィードバック">
+          data-log="header_feedback" class="l-rail__item" aria-label="フィードバックを送る">
           <svg class="l-rail__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
+          <span class="l-rail__label" aria-hidden="true">フィードバック</span>
         </a>
         <button type="button" onclick="window._app.toggleProjectMenu(event)" data-log="header_project_menu"
-          class="l-rail__item" aria-label="イベント設定" title="設定">
+          class="l-rail__item" aria-label="イベント設定">
           <img src="/images/icon/icon-setting.svg" class="l-rail__icon" alt="">
+          <span class="l-rail__label" aria-hidden="true">設定</span>
         </button>
       </nav>`;
   },

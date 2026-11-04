@@ -308,6 +308,11 @@
   /* 広い画面のメインボードの左端の列（メインボード・アーカイブ・通知・フィードバック・設定の丸いボタン）*/
   --board-rail-width: 80px;
   --rail-button-size: 52px;
+  /* イベントのヘッダー（.l-header--event）の内側の余白。スマホ（狭い画面）。
+     広い画面の値は下の :root.is-wide で上書きする（判定は layoutMode.js。2026-11-04）*/
+  --header-event-padding: var(--space-3) var(--space-6) var(--space-3);
+  /* 左端の列で、ホームとメインボードの間に足す余白（ボタンの間の gap に上乗せ）。丸ボタン半分ぶん（2026-11-04）*/
+  --rail-home-gap: calc(var(--rail-button-size) / 2);
   /* 広い画面のメインボードの地色（左端の列・右列のカレンダー）。2026-10-02。
      ★アルファ付きの色にする場合、sticky で上に残る要素は下を流れるカードが透けないよう、
        --color-bg の上に重ねた形（background-image のグラデーション＋地色）で塗ること */
@@ -352,6 +357,11 @@
 /* 読む・書く画面（タスク詳細・イベント設定など）*/
 :root.is-screen-reading {
   --layout-max-width: var(--reading-max-width);
+}
+
+/* 広い画面（タブレット・PC。layoutMode.js が <html> に is-wide を付ける）で切り替えるトークン */
+:root.is-wide {
+  --header-event-padding: var(--space-6) var(--space-6) var(--space-6);
 }
 
 /* ===== foundation/_reset.css ===== */
@@ -857,8 +867,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-6) 0;
+  padding: var(--space-4) var(--space-6) var(--space-2);
   background-color: var(--color-bg);
+}
+
+.l-header--event {
+  padding: var(--header-event-padding);   /* スマホ／広い画面の値は _variables.css（--header-event-padding）*/
 }
 
 .l-header--home {
@@ -986,10 +1000,18 @@ body {
 
 /* --- イベント：左側（戻る＋タイトル）------------------------------------ */
 
+/* ★min-width:0 と flex:1 で、右の操作（日付チップなど）が取った残りを全部イベント名に使う。
+     これが無いと flex アイテムは中身より小さくなれず、名前を省略（…）できない */
 .l-header__group {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: var(--space-3);
+  min-width: 0;
+}
+
+.l-header__back {
+  flex-shrink: 0;
 }
 
 .l-header__back {
@@ -1009,19 +1031,19 @@ body {
   filter: brightness(0);
 }
 
-/* 広い画面のメインボードでは戻るの代わりにホーム（Components.Header の compact。2026-10-25）。枠は戻ると同じ */
-.l-header__home-icon {
-  width: 20px;
-  height: 20px;
-}
-
 .l-header__title {
-  max-width: 180px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-heavy);
+}
+
+/* 広い画面（タブレット・PC）のイベント名は大きく（2026-11-04）。
+   ★広い画面のヘッダーは戻る／ホームを持たない（ホームは左端の列の一番上）ので、名前が左端から始まる */
+:root.is-wide .l-header--event .l-header__title {
+  font-size: var(--font-size-2xl);
 }
 
 /* --- イベント：右側（フィードバック・設定）------------------------------
@@ -1033,6 +1055,8 @@ body {
      セレクタが1つ深くなるぶん詳細度も上がるので、記述順に依存しなくなる。 */
 
 .l-header--event .l-header__actions {
+  flex-shrink: 0;   /* 右の操作は縮めない（縮むのはイベント名だけ）*/
+  margin-left: var(--space-3);
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -1197,7 +1221,10 @@ body {
    使用箇所: public/js/components.js（Components.BoardRail）、views/mainBoard.js
 
    ★広い画面（layoutMode.js の isDashboard）でだけ描く。スマホはヘッダーのタブ＋日付チップの行のベル。
-   ★上から メインボード／アーカイブ／通知／フィードバック／設定。丸い白地にアイコン、いま開いているタブは塗り。
+   ★上から ホーム／メインボード／アーカイブ／通知／フィードバック／設定。丸い白地にアイコン、いま開いているタブは塗り。
+   ★ホームは 2026-11-04 にヘッダーの左端から一番上へ移した。
+   ★各ボタンの下に名前の札（.l-rail__label）。丸の下端に重ね、丸からはみ出させる（2026-11-04）。
+     札がはみ出すぶん、ボタンの間（gap）を広げてある。
    ★position: fixed で画面の左端に固定する。中身（ヘッダー・2列・アーカイブ）は
      .p-main-board--dashboard の padding-left（--board-rail-width）でこの幅を空ける。
    ★通知のバッジ（p-main-board__notif-badge）の位置は object/project/_board-dashboard.css が持つ。
@@ -1212,7 +1239,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-6);
   width: var(--board-rail-width);
   padding-top: calc(var(--safe-top) + var(--space-4));
   border-right: 1px solid var(--color-border);
@@ -1239,6 +1266,11 @@ body {
   transform: scale(.95);
 }
 
+/* ホームは階層が1つ上なので、下のタブ（メインボード〜）と少し離す。量は --rail-home-gap（_variables.css）*/
+.l-rail__item--home {
+  margin-bottom: var(--rail-home-gap);
+}
+
 /* いま開いているタブ */
 .l-rail__item.is-active {
   border-color: var(--color-primary);
@@ -1248,6 +1280,33 @@ body {
 .l-rail__icon {
   width: 26px;
   height: 26px;
+}
+
+/* 名前の札。丸の下端に重ねて、丸からはみ出させる（2026-11-04）。
+   ★丸（--rail-button-size 52px）より札が広くてよい。列の幅（--board-rail-width 80px）には収まる
+     （いちばん長い「フィードバック」で約 76px。★左右の余白を広げると列からはみ出す）。
+   ★読み上げはボタンの aria-label が受け持つので、札は aria-hidden */
+.l-rail__label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--rail-default-bg);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text);
+  font-size: 10px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* いま開いているタブの札は丸と同じ色にそろえる */
+.l-rail__item.is-active .l-rail__label {
+  border: 2px solid var(--color-primary);
+  background-color: var(--rail-active-bg);
 }
 
 /* ===== layout/_bottom-nav.css ===== */

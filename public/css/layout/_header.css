@@ -17,8 +17,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-6) 0;
+  padding: var(--space-4) var(--space-6) var(--space-2);
   background-color: var(--color-bg);
+}
+
+.l-header--event {
+  padding: var(--header-event-padding);   /* スマホ／広い画面の値は _variables.css（--header-event-padding）*/
 }
 
 .l-header--home {
@@ -146,10 +150,18 @@
 
 /* --- イベント：左側（戻る＋タイトル）------------------------------------ */
 
+/* ★min-width:0 と flex:1 で、右の操作（日付チップなど）が取った残りを全部イベント名に使う。
+     これが無いと flex アイテムは中身より小さくなれず、名前を省略（…）できない */
 .l-header__group {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: var(--space-3);
+  min-width: 0;
+}
+
+.l-header__back {
+  flex-shrink: 0;
 }
 
 .l-header__back {
@@ -169,19 +181,19 @@
   filter: brightness(0);
 }
 
-/* 広い画面のメインボードでは戻るの代わりにホーム（Components.Header の compact。2026-10-25）。枠は戻ると同じ */
-.l-header__home-icon {
-  width: 20px;
-  height: 20px;
-}
-
 .l-header__title {
-  max-width: 180px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-heavy);
+}
+
+/* 広い画面（タブレット・PC）のイベント名は大きく（2026-11-04）。
+   ★広い画面のヘッダーは戻る／ホームを持たない（ホームは左端の列の一番上）ので、名前が左端から始まる */
+:root.is-wide .l-header--event .l-header__title {
+  font-size: var(--font-size-2xl);
 }
 
 /* --- イベント：右側（フィードバック・設定）------------------------------
@@ -193,6 +205,8 @@
      セレクタが1つ深くなるぶん詳細度も上がるので、記述順に依存しなくなる。 */
 
 .l-header--event .l-header__actions {
+  flex-shrink: 0;   /* 右の操作は縮めない（縮むのはイベント名だけ）*/
+  margin-left: var(--space-3);
   display: flex;
   align-items: center;
   gap: var(--space-1);
