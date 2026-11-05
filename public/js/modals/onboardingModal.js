@@ -114,9 +114,9 @@ export function openOnboardingModal(o) {
 
   logEvent('onboarding_shown', { stepId: o.stepId, role: o.role, experience: o.density });
 
-  // ★参加した人の進め方（M1／L1）を閉じたら描き直す。次の🔥（リーダーの意気込み）の判定は
-  //   render() 駆動なので、呼ばないと「あとで」「わかった」で閉じたあと🔥が出ない
-  const _afterClose = () => { if (o.stepId === 'M1' || o.stepId === 'L1') state.render(); };
+  // ★閉じたら描き直す。次に控えている案内（🔥・アーカイブのコーチマークなど）の判定は render() 駆動なので、
+  //   呼ばないと閉じたあと次の操作まで出ない（M1／L1 の🔥で踏み、2026-11-05 にアーカイブのコーチマークでも踏んだので全ステップに広げた）
+  const _afterClose = () => state.render();
 
   function _dismiss() {
     logEvent('onboarding_dismissed', { stepId: o.stepId });
