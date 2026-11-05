@@ -993,8 +993,11 @@ const HOOKS = [
   // ★左列（山）と右列は半々。山の背景の幅も同じ変数を使う（片方だけ変えると山が列からはみ出す）
   const vars = R('public/css/foundation/_variables.css');
   const dash = R('public/css/object/project/_board-dashboard.css');
-  ok('★ダッシュボードの左列は「左端の列を除いた残りの半分」',
-    /--board-side-width:\s*calc\(\(100vw - var\(--board-rail-width\)\) \/ 2\)/.test(vars));
+  ok('★ダッシュボードの左列は「画面の高さ×比率」で、左端の列を除いた残りの半分を超えない（2026-11-05）',
+    /--board-side-width:\s*min\(calc\(\(100vw - var\(--board-rail-width\)\) \/ 2\),\s*calc\(100vh \* var\(--board-side-ratio\)\)\)/.test(vars)
+    && /--board-side-ratio:\s*[\d.]+/.test(vars));
+  ok('★マスの倍率（_tileScale）も同じ比率で列の幅を出す',
+    /getPropertyValue\('--board-side-ratio'\)/.test(R('public/js/mountainPath.js')));
   ok('★山の背景と左列が同じ幅の変数を使う',
     /grid-template-columns:\s*var\(--board-side-width\)/.test(dash) && /\.p-mountain \{[^}]*width:\s*var\(--board-side-width\)/.test(dash));
   // ★ブレイクポイントに頼らない（右列・ホーム・プロジェクトのタイルに @media を書かない）

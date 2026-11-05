@@ -296,6 +296,14 @@ const PANEL_WAVE_H = 38;
 //   これが無いとスクロールが上限に当たり、最新のマスが画面中ほどの小さいまま
 //   止まってしまう（＝手前の大きさで見られない）。
 const NEAR_MARGIN = 56;
+// ★広い画面（ダッシュボード表示）で、スクロールを上まで戻したときに一番上のマス（次にやる灰色の1マス）の
+//   中心を、山の窓（#mountain-path-scroll）の上端からどれだけ下に置くか（画面px。2026-11-05）。
+//   ★広い画面は「マスのある範囲だけスクロールできる」。上下の余りは _wideScrollRange が詰める。
+//     下端は NEAR_MARGIN（一番下のマスが台の波のすぐ上に来る）。
+const WIDE_TOP_MARGIN = 72;
+// ★広い画面で、下まで送ったときに一番下のマスの中心を、提案キャラ（台の上にはみ出している）の上端から
+//   どれだけ上に置くか（画面px）。手前のマスの高さ（約 78px）の半分＋すき間。キャラが無いときは NEAR_MARGIN だけ見る
+const WIDE_BOTTOM_CLEAR = 52;
 // ── 道の曲がり方 ──────────────────────────────────────────
 // 左右に振れる道を正弦カーブで滑らかに曲げる。
 // ★ARC_NODES は「弧ひとつぶんのマス数」＝半周期。6 なら
@@ -332,14 +340,18 @@ function _canvasHFor(viewH, n, gap = NODE_GAP) {
 /**
  * この端末でのマスの倍率（1〜TILE_SCALE_MAX）。広い画面（<html class="is-wide">）だけ 1 より大きい。
  * ★広い画面の判定は layoutMode.js が付ける is-wide を読むだけ（ここで matchMedia を書かない）。
- * ★山の列の幅は --board-side-width と同じ式：(画面幅 − 左端の列) ÷ 2。左端の列の幅は CSS 変数から読む。
+ * ★山の列の幅は --board-side-width と同じ式：min((画面幅 − 左端の列) ÷ 2, 画面の高さ × --board-side-ratio)。
+ *   左端の列の幅と比率は CSS 変数から読む（2026-11-05 に高さの比率を足した）。
  */
 function _tileScale() {
   if (typeof document === 'undefined' || typeof window === 'undefined') return 1;
   const root = document.documentElement;
   if (!root?.classList?.contains('is-wide')) return 1;
-  const rail = parseFloat(getComputedStyle(root).getPropertyValue('--board-rail-width')) || 0;
-  const colW = ((window.innerWidth || 0) - rail) / 2;
+  const cs = getComputedStyle(root);
+  const rail = parseFloat(cs.getPropertyValue('--board-rail-width')) || 0;
+  const ratio = parseFloat(cs.getPropertyValue('--board-side-ratio'));
+  const half = ((window.innerWidth || 0) - rail) / 2;
+  const colW = Number.isFinite(ratio) && ratio > 0 ? Math.min(half, (window.innerHeight || 0) * ratio) : half;
   return Math.min(TILE_SCALE_MAX, Math.max(1, colW / TILE_BASE_W));
 }
 
@@ -1314,6 +1326,49 @@ function _gapMap(u, span) {
   return span * integ(1) + (u - span) * kAt(SCALE_MIN);
 }
 
+/**
+ * _gapMap の逆（画面での距離 → 線形の距離）。_gapMap は単調増加なので二分法で解く。
+ * ★measure()（初回と resize）でだけ呼ぶ。paint() で呼ばないこと（毎フレーム 40 回まわる）。
+ */
+function _gapMapInv(s, span) {
+  if (s <= 0) return s / (1 + (SCALE_MAX - 1) * GAP_PERSPECTIVE);
+  let lo = 0, hi = Math.max(1, s);
+  while (_gapMap(hi, span) < s) hi *= 2;
+  for (let k = 0; k < 40; k++) {
+    const mid = (lo + hi) / 2;
+    if (_gapMap(mid, span) < s) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * 広い画面で「マスのある範囲だけ」スクロールさせるための、上端の余白とスクロールの上限（2026-11-05）。
+ * - 上まで戻したとき：一番上のマスの中心が「山の窓の上端 ＋ WIDE_TOP_MARGIN」に来る
+ * - 下まで送ったとき：一番下のマスの中心が「手前の端（台の波）− NEAR_MARGIN」に来る
+ *   （提案キャラが出ているときは、キャラの上端 − WIDE_BOTTOM_CLEAR より下にしない＝キャラに隠れない）
+ * - マスが窓に収まるときはスクロールさせず、一番下のマスを下端の位置に置く
+ * ★画面上の位置は paint() と同じ式（depthBottom − _gapMap(depthBottom − 線形の位置)）を逆にして出す。
+ * ★スマホでは使わない（下部パネルの開閉でマスの見え方が変わるため、従来の headroom のまま）。
+ * @returns {{headroom:number, maxTop:number}}
+ */
+function _wideScrollRange(pins, { bgTop, winTop, depthBottom, depthSpan, charsTop }) {
+  const ys = pins.map(p => p.y);
+  const yTop = Math.min(...ys), yBot = Math.max(...ys);
+  const linTop = depthBottom - _gapMapInv(depthBottom - (winTop + WIDE_TOP_MARGIN), depthSpan);
+  // 下端：台の波の手前 NEAR_MARGIN。提案キャラが出ているときは、キャラに隠れない高さまで上げる
+  let nearY = depthBottom - NEAR_MARGIN;
+  if (Number.isFinite(charsTop)) nearY = Math.min(nearY, charsTop - WIDE_BOTTOM_CLEAR);
+  const linBot = depthBottom - _gapMapInv(depthBottom - nearY, depthSpan);
+  // 線形の画面位置 ＝ bgTop + headroom + y − scrollTop（paint() と同じ）
+  let headroom = linTop - bgTop - yTop;          // 上まで戻したとき一番上のマスが linTop
+  let maxTop   = bgTop + headroom + yBot - linBot; // 下まで送ったとき一番下のマスが linBot
+  if (maxTop <= 0) {                               // 窓に収まる：スクロールさせず下に寄せる
+    headroom = linBot - bgTop - yBot;
+    maxTop = 0;
+  }
+  return { headroom: Math.round(headroom), maxTop: Math.max(0, Math.round(maxTop)) };
+}
+
 export function initMountainPathSync(restoreTop = null) {
   // ★前回の配線を必ず外す。この関数は再描画のたびに呼ばれるので、
   //   window に張ったリスナーが積み上がる（scroll は要素と一緒に消えるが
@@ -1360,6 +1415,9 @@ export function initMountainPathSync(restoreTop = null) {
   const canvasH = parseFloat(canvas.style.height) || canvas.offsetHeight || 0;
 
   let bgTop = 0, viewH = 1, canvasW = 0, depthBottom = 1, depthSpan = 1, headroom = 0;
+  // ★広い画面の判定は layoutMode.js が付ける is-wide を読むだけ（ここで matchMedia を書かない）。
+  //   下部パネルがある（＝スマホの形）ときは従来どおり
+  const isWide = !!document.documentElement?.classList?.contains('is-wide') && !document.getElementById('mainboard-bottom-panel');
   const measure = () => {
     const r = bg.getBoundingClientRect();
     bgTop = r.top;
@@ -1380,6 +1438,18 @@ export function initMountainPathSync(restoreTop = null) {
     //   ここは初回と resize のときだけ書く（スクロール中には書かない）。
     const targetY = _lastClearedY(pins);
     headroom = Math.max(0, Math.round((depthBottom - NEAR_MARGIN) - bgTop - targetY));
+    // ★広い画面は「マスのある範囲だけ」スクロールさせる（2026-11-05）。上下の余りを詰める。
+    //   wideMaxTop が null のときは従来どおり（スピーサーの高さ＝キャンバス＋headroom）。
+    let wideMaxTop = null;
+    if (isWide && pins.length > 0) {
+      // 提案キャラ（台の上の並び）の上端。キャラが出ないイベントでは並びが空なので測らない
+      const chars = document.querySelector('[data-mountain-veil] .p-main-board__proposals');
+      const cr = chars && chars.children.length ? chars.getBoundingClientRect() : null;
+      const charsTop = cr && cr.height > 0 ? cr.top : NaN;
+      const r = _wideScrollRange(pins, { bgTop, winTop: win.getBoundingClientRect().top, depthBottom, depthSpan, charsTop });
+      headroom = r.headroom;
+      wideMaxTop = r.maxTop;
+    }
 
     // ★山頂が出ているときは、そこまでスクロールで登れるように上端の余白を広げる。
     //   この余白が足りないと、絵は敷かれているのに永久に画面へ入らない。
@@ -1401,7 +1471,10 @@ export function initMountainPathSync(restoreTop = null) {
       // ★足さずに**下限として使う**（`+=` にしないこと）。足すと道のぶんの余白と
       //   二重になり、送りきったときの空の帯が端末や完了数でばらつく。
       //   ここで決めたいのは「送りきったとき、最高点が帯の上端から sky 下に来る」だけ。
+      const before = headroom;
       headroom = Math.max(headroom, Math.round(Math.max(summitTop, peakTop + sky) - canvasH));
+      // ★広い画面：山頂のために上を広げたぶん、下の止まる位置も同じだけずらす（下端はマスのまま）
+      if (wideMaxTop !== null) wideMaxTop += headroom - before;
     }
 
     // ★素材px → 画面px の換算はこの1変数に集約する。**ここ（初回と resize）でだけ書く。**
@@ -1416,7 +1489,12 @@ export function initMountainPathSync(restoreTop = null) {
     for (const o of objs) o.yPx = canvasH - o.oy * unitNow;
 
     canvas.style.marginTop = `${headroom}px`;
-    if (spacer && canvasH) spacer.style.height = `${canvasH + headroom}px`;
+    if (spacer && canvasH) {
+      // ★広い画面はスクロールの上限を「一番下のマスが手前の端に来るところ」で止める（＝スペーサー＝窓の高さ＋上限）
+      spacer.style.height = wideMaxTop !== null
+        ? `${wideMaxTop + win.clientHeight}px`
+        : `${canvasH + headroom}px`;
+    }
   };
   measure();
 
