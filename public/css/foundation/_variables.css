@@ -305,7 +305,9 @@
   --rail-button-size: 52px;
   /* イベントのヘッダー（.l-header--event）の内側の余白。スマホ（狭い画面）。
      広い画面の値は下の :root.is-wide で上書きする（判定は layoutMode.js。2026-11-04）*/
-  --header-event-padding: var(--space-3) var(--space-6) var(--space-3);
+  --header-event-padding: var(--header-pad-y) var(--space-6);
+  /* ヘッダー（.l-header）の上下の余白。スマホは全画面で 8px（2026-11-05）。広い画面は _header.css の :root.is-wide で従来の値 */
+  --header-pad-y: var(--space-2);
   /* 左端の列で、ホームとメインボードの間に足す余白（ボタンの間の gap に上乗せ）。丸ボタン半分ぶん（2026-11-04）*/
   --rail-home-gap: calc(var(--rail-button-size) / 2);
   /* 広い画面のメインボードの地色（左端の列・右列のカレンダー）。2026-10-02。
