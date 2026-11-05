@@ -613,3 +613,69 @@
 .p-schedule__gantt-row--draft.is-picking .p-schedule__gantt-bar {
   opacity: .3;
 }
+
+/* --- 広い画面（タブレット・PC）の右列のガント（.p-schedule--rich。2026-11-05）---------------------------
+   ★mainBoard.js の _renderDashboardMain だけが付ける。スマホのシートと実施期間の選択（calendar.js）には付かない。
+   ★タスク名の列の幅と行の高さは schedulePanel.js の RICH_NAME_W / RICH_ROW_H（scheduleCssVars が --gantt-name-w / --gantt-row-h に入れる）。
+   ★行は3段：タスク名（大きく・1行で切る）／締め切り（超過・今日は赤）／担当。
+   ★ピンチで1日の列幅を変える（schedulePanel.js の _bindGanttPinch）。ガントの上ではブラウザ全体のズームを止める（touch-action） */
+.p-schedule--rich .p-schedule__body {
+  padding-inline: var(--space-6);
+}
+
+.p-schedule--rich .p-schedule__gantt-body {
+  touch-action: pan-x pan-y;
+}
+
+.p-schedule--rich .p-schedule__gantt-name {
+  padding: var(--space-2) var(--space-3);
+}
+
+.p-schedule--rich .p-schedule__gantt-name-inner {
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.p-schedule--rich .p-schedule__gantt-tagdot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+}
+
+.p-schedule__gantt-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.p-schedule--rich .p-schedule__gantt-title {
+  max-width: none;
+  overflow: hidden;
+  font-size: var(--font-size-md);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-schedule__gantt-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--color-text-soft);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.p-schedule__gantt-deadline,
+.p-schedule__gantt-assignee {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-schedule__gantt-deadline.is-urgent {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+}

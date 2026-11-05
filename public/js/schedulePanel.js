@@ -13,6 +13,7 @@
 import { state } from './state.js';
 import { getSortedMissions } from './modals/mission.js';
 import { LABEL_CONFIG } from './constants.js';
+import { logEvent } from './logger.js';
 
 // ガントチャートの定数
 const CELL_W     = 30;   // 1日あたりの列幅 (px)
@@ -21,6 +22,13 @@ const HEADER_H   = 46;   // ヘッダー行の高さ (px)
 const ROW_H      = 38;   // タスク行の高さ (px)
 const DAYS_BEFORE = 14;  // 今日より前に表示する日数
 const DAYS_AFTER  = 75;  // 今日より後に表示する日数
+// ★広い画面（タブレット・PC）の右列のガント（ctx.rich）だけの大きさ（2026-11-05）。
+//   タスク名の列を広げ、行を3段（タスク名／締め切り／担当）にする。スマホのシートと実施期間の選択は上の値のまま
+const RICH_NAME_W = 220;
+const RICH_ROW_H  = 64;
+// ★ピンチで変えられる1日の列幅の範囲（タッチの端末。ctx.rich のときだけ）。変えた値は ctx.cellW が覚える
+const CELL_W_MIN = 16;
+const CELL_W_MAX = 60;
 
 
 // =====================================================
@@ -43,10 +51,18 @@ export function newScheduleCtx(p, view = 'calendar') {
 }
 
 /** ガントの寸法（JS の定数が正。CSS には custom property で渡す）。中身を包む要素の style に入れる */
-export function scheduleCssVars() {
-  return `--gantt-cell-w:${CELL_W}px;--gantt-name-w:${NAME_W}px;`
-    + `--gantt-header-h:${HEADER_H}px;--gantt-row-h:${ROW_H}px;`
-    + `--gantt-content-w:${(DAYS_BEFORE + DAYS_AFTER + 1) * CELL_W}px;`;
+export function scheduleCssVars(ctx = null) {
+  const rich = !!ctx?.rich;
+  const cellW = _cellW(ctx);
+  return `--gantt-cell-w:${cellW}px;--gantt-name-w:${rich ? RICH_NAME_W : NAME_W}px;`
+    + `--gantt-header-h:${HEADER_H}px;--gantt-row-h:${rich ? RICH_ROW_H : ROW_H}px;`
+    + `--gantt-content-w:${(DAYS_BEFORE + DAYS_AFTER + 1) * cellW}px;`;
+}
+
+/** いまの1日の列幅（ピンチで変えていればその値。rich のときだけ変えられる） */
+function _cellW(ctx) {
+  const w = ctx?.rich ? Number(ctx.cellW) : NaN;
+  return Number.isFinite(w) ? Math.min(CELL_W_MAX, Math.max(CELL_W_MIN, w)) : CELL_W;
 }
 
 /**
@@ -131,13 +147,15 @@ export function scheduleCalendarHtml(ctx) {
 
 /** 中身の配線。scheduleBodyHtml を root に描いたあとに呼ぶ */
 export function bindScheduleBody(root, ctx) {
-  if (ctx.view === 'gantt') _bindGanttScroll(root);
-  else _bindCalendarEvents(root, ctx);
+  if (ctx.view === 'gantt') {
+    _bindGanttScroll(root);
+    if (ctx.rich) _bindGanttPinch(root, ctx);
+  } else _bindCalendarEvents(root, ctx);
 }
 
 /** 今日が見える位置へ送る（開いた直後・切り替えた直後） */
 export function scrollScheduleToToday(root, ctx) {
-  if (ctx.view === 'gantt') _scrollGanttToToday(root);
+  if (ctx.view === 'gantt') _scrollGanttToToday(root, ctx);
   else _scrollToSection(root, _ymd(new Date()), false);
 }
 
@@ -459,12 +477,20 @@ function _renderGanttView(ctx) {
           return `<div class="p-schedule__gantt-slot${dayState(ymd, dow)}">${bar}</div>`;
         }).join('');
 
+        // ★広い画面の右列（rich）は、タスク名の下に締め切りと担当を出す（2026-11-05）
+        const meta = ctx.rich ? `
+              <span class="p-schedule__gantt-meta">
+                <span class="p-schedule__gantt-deadline${_deadlineUrgent(m, mEnd) ? ' is-urgent' : ''}">${_esc(_deadlineText(m, mEnd))}</span>
+                <span class="p-schedule__gantt-assignee">${_esc(_assigneeText(m, ctx.p))}</span>
+              </span>` : '';
         return `<div data-mission-id="${m.id}" class="p-schedule__gantt-row" style="${rowVars}">
           <!-- タスク名（sticky left）-->
           <div class="p-schedule__gantt-name">
             <div class="p-schedule__gantt-name-inner">
               <div class="p-schedule__gantt-tagdot"></div>
-              <span class="p-schedule__gantt-title${isCleared ? ' is-done' : ''}">${_esc(m.title)}</span>
+              ${ctx.rich ? `<span class="p-schedule__gantt-text">
+              <span class="p-schedule__gantt-title${isCleared ? ' is-done' : ''}" title="${_esc(m.title)}">${_esc(m.title)}</span>${meta}
+              </span>` : `<span class="p-schedule__gantt-title${isCleared ? ' is-done' : ''}">${_esc(m.title)}</span>`}
             </div>
           </div>
           <!-- 日付バー列 -->
@@ -536,14 +562,64 @@ function _bindGanttScroll(root) {
 }
 
 /**
+ * ピンチで1日の列幅を変える（タッチの端末・広い画面の右列のガントだけ。2026-11-05）。
+ * ★2本指のときだけ受ける（1本指のスクロールはブラウザに任せる）。ブラウザ全体のズームは
+ *   CSS の touch-action（.p-schedule--rich の __gantt-body）と、2本指の touchmove の preventDefault で止める。
+ * ★指のあいだの日付がずれないよう、横のスクロール位置も合わせる。描き直さず CSS 変数だけ書き換える。
+ * ★変えた値は ctx.cellW に覚える（SSE などで描き直しても戻らない。scheduleCssVars が読む）。
+ */
+function _bindGanttPinch(root, ctx) {
+  const body = root.querySelector('#gantt-body');
+  const host = body?.closest('.p-schedule');
+  if (!body || !host || body._pinchBound) return;
+  body._pinchBound = true;
+  const TOTAL = DAYS_BEFORE + DAYS_AFTER + 1;
+  const nameW = () => parseFloat(getComputedStyle(host).getPropertyValue('--gantt-name-w')) || RICH_NAME_W;
+  const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  let start = null, raf = 0, pendingW = null;
+  const apply = () => {
+    raf = 0;
+    if (pendingW == null || !start) return;
+    const w = pendingW;
+    host.style.setProperty('--gantt-cell-w', `${w}px`);
+    host.style.setProperty('--gantt-content-w', `${TOTAL * w}px`);
+    // 指のあいだにあった日付（列の何本目か）が、同じ画面の位置に来るように送る
+    body.scrollLeft = Math.max(0, start.day * w + nameW() - start.focalX);
+    ctx.cellW = w;
+  };
+  body.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 2) return;
+    const r = body.getBoundingClientRect();
+    const focalX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - r.left;
+    const w0 = _cellW(ctx);
+    start = { d0: dist(e.touches) || 1, w0, focalX, day: (body.scrollLeft + focalX - nameW()) / w0 };
+  }, { passive: true });
+  body.addEventListener('touchmove', (e) => {
+    if (!start || e.touches.length !== 2) return;
+    e.preventDefault();   // ★ブラウザのピンチズームを止める（passive:false が要る）
+    pendingW = Math.round(Math.min(CELL_W_MAX, Math.max(CELL_W_MIN, start.w0 * dist(e.touches) / start.d0)) * 10) / 10;
+    if (!raf) raf = requestAnimationFrame(apply);
+  }, { passive: false });
+  const end = (e) => {
+    if (!start || e.touches.length >= 2) return;
+    if (pendingW != null && Math.abs(pendingW - start.w0) >= 1) logEvent('gantt_zoomed', { cellW: Math.round(pendingW) });
+    start = null; pendingW = null;
+  };
+  body.addEventListener('touchend', end);
+  body.addEventListener('touchcancel', end);
+  // Safari のジェスチャー（ピンチ）でページが拡大しないように
+  body.addEventListener('gesturestart', (e) => e.preventDefault());
+}
+
+/**
  * ガントチャートを今日の列が見えるよう初期スクロール
  */
-function _scrollGanttToToday(root) {
+function _scrollGanttToToday(root, ctx = null) {
   const body   = root.querySelector('#gantt-body');
   const header = root.querySelector('#gantt-header-inner');
   if (!body) return;
-  // DAYS_BEFORE 列目が今日。3列分（90px）左側を見せるようにオフセット
-  const scrollLeft = Math.max(0, DAYS_BEFORE * CELL_W - 90);
+  // DAYS_BEFORE 列目が今日。3列分（90px）左側を見せるようにオフセット（★列幅はピンチで変わるので ctx から）
+  const scrollLeft = Math.max(0, DAYS_BEFORE * _cellW(ctx) - 90);
   body.scrollLeft = scrollLeft;
   if (header) header.style.transform = `translateX(-${scrollLeft}px)`;
 }
@@ -648,6 +724,44 @@ function _formatDateLabel(ymd) {
   const [, m, d] = ymd.split('-');
   return `${parseInt(m,10)}月${parseInt(d,10)}日`;
 }
+// ── 広い画面のガント（rich）の締め切り・担当（2026-11-05）─────────────
+function _daysUntil(ymd) {
+  const [y, mo, d] = ymd.split('-').map(Number);
+  const t = new Date(y, mo - 1, d); const n = new Date(); n.setHours(0, 0, 0, 0);
+  return Math.round((t - n) / 86_400_000);
+}
+function _deadlineText(m, end) {
+  if (m.status === 'cleared') return '完了';
+  if (!end) return '期限なし';
+  const [, mo, d] = end.split('-').map(Number);
+  const diff = _daysUntil(end);
+  const rest = diff < 0 ? `${-diff}日超過` : diff === 0 ? '今日まで' : `残り${diff}日`;
+  return `${mo}月${d}日まで・${rest}`;
+}
+function _deadlineUrgent(m, end) {
+  return m.status !== 'cleared' && !!end && _daysUntil(end) <= 0;
+}
+const _BUILTIN_ROLE_NAMES = { owner: 'オーナー', admin: '管理者', member: 'メンバー' };
+// 担当の名前。2人まで出して残りは「他N」。申告制で決まっていなければ「募集中」、誰もいなければ「未定」
+function _assigneeText(m, p) {
+  const members = p?.members || [];
+  const nameOf = (uid) => members.find(x => x.userId === uid)?.username || '不明なユーザー';
+  const ids = Array.isArray(m.assignees) && m.assignees.length ? m.assignees
+    : (m.assignee?.type === 'user' ? [m.assignee.userId] : []);
+  if (ids.length) {
+    const names = ids.slice(0, 2).map(nameOf).join('・');
+    return `担当：${names}${ids.length > 2 ? ` 他${ids.length - 2}` : ''}`;
+  }
+  if (m.assignee?.type === 'role') {
+    // ★多くのイベントは roles を保存していないので、組み込みのロールの名前で補う（lib/eventStore.js の getRoles と同じ3つ）
+    const id = m.assignee.roleId;
+    const role = (p?.roles || []).find(r => r.id === id);
+    return `担当：${role?.name || _BUILTIN_ROLE_NAMES[id] || 'ロール'}`;
+  }
+  if (m.selfClaim && !m.claimClosed) return '担当：募集中';
+  return '担当：未定';
+}
+
 function _esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }

@@ -708,7 +708,7 @@ function _renderDashboardMain(p, mainLayout) {
   if (view === 'gantt') {
     body = `
       <div class="p-board-dash__body p-board-dash__body--schedule" data-board-panel-body>
-        <div class="p-schedule p-schedule--inline p-schedule--full" data-board-schedule style="${scheduleCssVars()}">
+        <div class="p-schedule p-schedule--inline p-schedule--full p-schedule--rich" data-board-schedule style="${scheduleCssVars(ctx)}">
           <div class="p-schedule__body">${scheduleBodyHtml(ctx)}</div>
         </div>
       </div>`;
@@ -901,6 +901,8 @@ function _renderMainTab(p) {
         class="p-main-board__tag p-main-board__tag--all${!state.missionFilterTag ? ' is-active' : ''}">
         全て
       </button>
+  // ★広い画面の右列のガントは、行にタスク名・締め切り・担当を出し、ピンチで日付の幅を変えられる（schedulePanel.js の rich）
+  ctx.rich = true;
       ${allTags.map(tag => {
         const active = state.missionFilterTag === tag;
         const cfg = LABEL_CONFIG[tag] || { color: '#A7AAAC' };
