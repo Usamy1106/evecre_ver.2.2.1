@@ -338,6 +338,8 @@
   --home-card-basis: 160px;
   /* プロジェクトのタイル1枚の最小幅（_home.css の .p-home__folders）*/
   --folder-card-min-width: 280px;
+  --answers-card-min-width: 280px;
+  --board-donut-size: 112px;         /* 広い画面のカレンダーの下の円グラフの直径（2026-11-05） */   /* メンバー情報の箱の最小幅（広い画面のグリッド。2026-11-05） */
 }
 
 :root.is-wide {

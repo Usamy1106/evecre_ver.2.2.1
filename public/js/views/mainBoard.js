@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS, OUTCOME_CHOICES } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, isKnowledgePublished } from '../utils.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { pillarCharacter } from '../pillarChars.js';
 import { isRichSubmission } from '../initialTasks.js';
@@ -284,7 +284,7 @@ export function renderMainBoard(container) {
     //   逆順にすると山側が「まだ初期値のままのパネル位置」で遠近の基準帯を
     //   測ってしまう（マスの大きさと初期スクロール位置がずれる）。
     // ★ダッシュボード表示には下部パネルが無い（右列）。代わりに右列を配線する
-    if (dash) _bindDashboardPanel(container, p, _panelScroll);
+    if (dash) { _syncCalSide(container); _bindDashboardPanel(container, p, _panelScroll); }
     else _initMissionPanelGesture();
     // 背景レイヤーの位置合わせ・スクロール同期を配線。
     // ★演出中は復元位置を捨てて null（＝_initialScrollTop）にする。
@@ -679,6 +679,130 @@ function _pillarBoardHtml(p, extraClass = '') {
     </section>`;
 }
 
+// ===== 次にやる初期タスクを促すアナウンスカード（2026-11-05）=====
+// ★目的（def-1）→ 柱 → ざっくり企画（def-3）の順に、次の1つだけを促す。訴えかけ・説教の文言にしない（設計思想）。
+//   - 目的が未設定：**広い画面だけ**左の列の上に出す（スマホは目的のボックスの「目的を決める」が同じ役目）
+//   - 目的と柱が決まっていて def-3 が未完了：スマホ・広い画面どちらも出す
+// ★見た目はお知らせのカード（p-main-board__announce-card）と同じ。押すとそのタスクの詳細へ
+const SUMMARY_MISSION_ID = 'def-3';
+function _goalPromptCardHtml(p, { dash }) {
+  const missions = p.missions || [];
+  const purposeText = submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
+  const purposeMission = missions.find(m => m.id === PURPOSE_MISSION_ID);
+  let target = null;
+  if (!purposeText) {
+    if (dash && purposeMission) target = { id: PURPOSE_MISSION_ID, log: 'prompt_purpose_card',
+      title: 'まずはイベントの目的を決めましょう', text: '迷ったときに立ち帰る軸になります' };
+  } else if (getPillars(p).length > 0) {
+    const summary = missions.find(m => m.id === SUMMARY_MISSION_ID);
+    if (summary && summary.status !== 'cleared') target = { id: SUMMARY_MISSION_ID, log: 'prompt_summary_card',
+      title: '次は、ざっくり企画を書いてみましょう', text: 'どんなイベントにしたいか、思いつくところからでOK' };
+  }
+  if (!target) return '';
+  return `
+    <button type="button" onclick="window._app.openMissionDetail('${target.id}')" data-log="${target.log}"
+      class="p-main-board__announce-card p-main-board__announce-card--prompt">
+      <span class="p-main-board__announce-body">
+        <img src="/images/icon/icon-notification-default.svg" class="p-main-board__announce-icon" width="14" height="14" alt="">
+        <span class="p-main-board__announce-main">
+          <span class="p-main-board__announce-title">${target.title}</span>
+          <span class="p-main-board__announce-text">${target.text}</span>
+        </span>
+      </span>
+    </button>`;
+}
+
+// ===== 広い画面：カレンダーの下（2026-11-05）=====
+// ラベル別の完了（円グラフ＋件数）と、振り返りのページ（みんなの活躍／メンバー情報）への入口。
+// ★目的と柱はここに出さない（左の列の上の1か所だけ。2026-11-05 に大きい版をやめた）。
+// ★カレンダーとカードが横に並んでいる（＝カレンダーの下が空いている）ときだけ見せる。積まれているときに出すと
+//   カードが下へ押し出される。横に並んでいるかは CSS だけでは分からない（flex-wrap の折り返し）ので、描いた直後に測り、
+//   .p-board-dash に is-cal-side を付ける。並び方が変わったらクラスだけ付け替える（描き直さない）。
+// ★積まれているとき・ガント表示ではここが見えないので、振り返りのページへはイベント設定からも行ける（eventSettings.js）
+function _calInsightsHtml(p) {
+  const { cleared, rows } = labelClearedStats(p);
+  const sum = rows.reduce((n, r) => n + r.count, 0);
+  let acc = 0;
+  const stops = rows.map(r => {
+    const from = acc / sum * 100;
+    acc += r.count;
+    return `${r.color} ${from.toFixed(2)}% ${(acc / sum * 100).toFixed(2)}%`;
+  }).join(', ');
+  const max = rows.reduce((n, r) => Math.max(n, r.count), 0);
+  const link = (onclick, log, title, sub) => `
+    <button type="button" onclick="window._app.${onclick}()" data-log="${log}" class="p-board-dash__insight-link">
+      <span class="p-board-dash__insight-link-body">
+        <span class="p-board-dash__insight-link-title">${title}</span>
+        <span class="p-board-dash__insight-link-sub">${sub}</span>
+      </span>
+      <svg class="p-board-dash__insight-link-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>`;
+  return `
+    <div class="p-board-dash__insights">
+      <section class="p-board-dash__labels" aria-label="ラベル別の完了">
+        <h2 class="p-board-dash__insights-title">ラベル別の完了</h2>
+        ${cleared === 0 ? `<p class="p-board-dash__labels-empty">まだ完了したタスクがありません</p>` : `
+          <div class="p-board-dash__labels-body">
+            <div class="p-board-dash__donut" style="--donut: conic-gradient(${stops})" role="img"
+              aria-label="${_esc(rows.map(r => `${r.name} ${r.count}件`).join('、'))}">
+              <span class="p-board-dash__donut-hole">
+                <span class="p-board-dash__donut-value">${cleared}</span>
+                <span class="p-board-dash__donut-label">完了</span>
+              </span>
+            </div>
+            <ul class="p-board-dash__labels-list">
+              ${rows.map(r => `
+                <li class="p-board-dash__labels-row" style="--label-color:${r.color}">
+                  <span class="p-board-dash__labels-dot" aria-hidden="true"></span>
+                  <span class="p-board-dash__labels-name">${_esc(r.name)}</span>
+                  <span class="p-board-dash__labels-bar" aria-hidden="true"><span class="p-board-dash__labels-fill" style="--label-pct:${Math.round(r.count / max * 100)}%"></span></span>
+                  <span class="p-board-dash__labels-count">${r.count}件</span>
+                </li>`).join('')}
+            </ul>
+          </div>`}
+      </section>
+      <div class="p-board-dash__insight-links">
+        ${link('openArchiveStats', 'board_stats_open', 'みんなの活躍', '完了者・作者のグラフ')}
+        ${link('openArchiveAnswers', 'board_answers_open', 'メンバー情報', '参加するときに答えてもらった内容')}
+      </div>
+    </div>`;
+}
+
+let _calSideObserver = null;
+function _isCalSide(container) {
+  const col = container.querySelector('.p-board-dash__cal-col');
+  const list = container.querySelector('.p-board-dash__list');
+  if (!col || !list) return false;
+  return Math.abs(col.offsetTop - list.offsetTop) < 2;   // 同じ行＝横に並んでいる
+}
+// ★カレンダーの列（カレンダー＋カレンダーの下）が右列の高さに収まらないとき（背の低い画面）は、固定（sticky）をやめて
+//   カードと一緒にスクロールさせる（.is-cal-col-static）。固定のままだと列の下が切れて見えない
+function _syncCalColFit(body) {
+  const col = body?.querySelector('.p-board-dash__cal-col');
+  if (!col) return;
+  col.classList.remove('is-cal-col-static');
+  col.classList.toggle('is-cal-col-static', col.scrollHeight > body.clientHeight);
+}
+function _syncCalSide(container) {
+  _calSideObserver?.disconnect();
+  _calSideObserver = null;
+  const dash = container.querySelector('.p-board-dash');
+  const body = container.querySelector('.p-board-dash__body--calendar');
+  if (!dash || !body) return;
+  const sync = () => {
+    dash.classList.toggle('is-cal-side', _isCalSide(container));
+    _syncCalColFit(body);
+  };
+  sync();
+  if (typeof ResizeObserver === 'undefined') return;
+  _calSideObserver = new ResizeObserver(() => {
+    if (!body.isConnected) { _calSideObserver?.disconnect(); return; }
+    sync();
+  });
+  _calSideObserver.observe(body);
+}
+
 function _renderDashboardMain(p, mainLayout) {
   const view = _boardPanelView();
   const ctx = _scheduleCtxFor(p, view, mainLayout.displayMissions);
@@ -720,8 +844,14 @@ function _renderDashboardMain(p, mainLayout) {
     const [, mo, d] = day ? day.split('-').map(Number) : [];
     body = `
       <div class="p-board-dash__body p-board-dash__body--calendar" data-board-panel-body>
-        <div class="p-schedule p-schedule--inline p-board-dash__cal" data-board-schedule style="${scheduleCssVars()}">
-          ${scheduleCalendarHtml(ctx)}
+        <!-- ★カレンダーとその下（ラベル別の完了・振り返りのページへの入口）を1つの列にまとめる。
+             スクロールしても残る（sticky）のはこの列（2026-11-05）。カレンダーの下は横に並んでいるときだけ見せる
+             （_syncCalSide が .p-board-dash に is-cal-side を付ける） -->
+        <div class="p-board-dash__cal-col">
+          <div class="p-schedule p-schedule--inline p-board-dash__cal" data-board-schedule style="${scheduleCssVars()}">
+            ${scheduleCalendarHtml(ctx)}
+          </div>
+          ${_calInsightsHtml(p)}
         </div>
         <div class="p-board-dash__list">
           ${day ? `
@@ -771,6 +901,8 @@ function _scheduleCtxFor(p, view, missions) {
   ctx.p = p;
   ctx.view = view === 'gantt' ? 'gantt' : 'calendar';
   ctx.missions = missions;
+  // ★広い画面の右列のガントは、行にタスク名・締め切り・担当を出し、ピンチで日付の幅を変えられる（schedulePanel.js の rich）
+  ctx.rich = true;
   ctx.filterDate = _boardFilterDateByEvent.get(p.id) || null;
   ctx.onPickDate = (day) => {
     // 同じ日をもう一度押すと解除
@@ -901,8 +1033,6 @@ function _renderMainTab(p) {
         class="p-main-board__tag p-main-board__tag--all${!state.missionFilterTag ? ' is-active' : ''}">
         全て
       </button>
-  // ★広い画面の右列のガントは、行にタスク名・締め切り・担当を出し、ピンチで日付の幅を変えられる（schedulePanel.js の rich）
-  ctx.rich = true;
       ${allTags.map(tag => {
         const active = state.missionFilterTag === tag;
         const cfg = LABEL_CONFIG[tag] || { color: '#A7AAAC' };
@@ -1140,6 +1270,8 @@ function _renderMainTab(p) {
   // 上部固定領域：日付チップ（広い画面のみ）・フィードバック・設定の丸ボタン（スマホのみ）・お知らせ・各バナー（スクロールしない）
   // ★スマホは「バナー類」と「右端の丸ボタンの列」を横に並べる。ボタンの列は縦に長いので、バナーの上に重ねない
   const bannersHtml = `
+      <!-- 次にやる初期タスク（目的／ざっくり企画）を促すカード -->
+      ${_goalPromptCardHtml(p, { dash: dashLayout })}
       <!-- アナウンスカード -->
       ${_renderAnnounceCards(p, meId)}
 
@@ -1151,7 +1283,9 @@ function _renderMainTab(p) {
   // ★広い画面：目的と柱を1つの枠（p-board-dash__goal）にまとめ、左列の上（山の上）に置く（2026-10-17）。
   //   以前は右列のカレンダーの上にあり、iPad の横表示などで右列のやることの一覧が下に押し出されて見えなかった。
   //   日付チップはヘッダーの右端へ移した。ベルは出さない（通知の入口は左端の列 Components.BoardRail の1か所）
-  const goalInner = dashLayout ? `${_purposeBoxHtml(p)}${_pillarBoardHtml(p)}` : '';
+  // ★目的が未設定のときは、左の列には目的のボックスを出さない（代わりにアナウンスカードが促す。2026-11-05）
+  const purposeSet = !!submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
+  const goalInner = dashLayout ? `${purposeSet ? _purposeBoxHtml(p) : ''}${_pillarBoardHtml(p)}` : '';
   const pinnedAux = dashLayout ? `
     <div class="p-main-board__pinned">
       ${goalInner.trim() ? `<div class="p-board-dash__goal">${goalInner}</div>` : ''}
@@ -1357,7 +1491,7 @@ function _renderAnnounceCards(p, meId) {
 // ── アーカイブ：概要カードスロット識別 ───────────────────────────
 // Layer 1（概要カード）が読むスロット。ここに一致するものは Layer 2（記録）から外す。
 //
-// ★def-3（どのようなイベントを行うかまとめよう）は**外す**（2026-10-02）。提出内容が概要の実体になり、
+// ★def-3（まずはざっくり企画を書いてみよう）は**外す**（2026-10-02）。提出内容が概要の実体になり、
 //   アーカイブの先頭の「概要」にそのまま出る（同じ文章を2回並べない。「やったのに残らない」にはならない）。
 //   ★2026-09-02〜10-02 は外していなかった（当時は概要と def-3 が別物だった）。
 // ★def-2（タイトル）は外さない。
@@ -1613,31 +1747,6 @@ function _renderArchiveTab(p) {
             class="c-button c-button--primary p-archive__editbar-done">完了</button>
         </div>` : ''}
 
-      <!-- 振り返り用のサブページ。★メンバー全員が見られる（アーカイブと同じ）。 -->
-      <div class="p-archive__links">
-        <button type="button" onclick="window._app.openArchiveAnswers()" data-log="archive_answers_open"
-          class="p-archive__link">
-          <div>
-            <p class="p-archive__link-title">メンバーの回答を見る</p>
-            <p class="p-archive__link-sub">参加するときに答えてもらった内容</p>
-          </div>
-          <svg class="p-archive__link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </button>
-        <button type="button" onclick="window._app.openArchiveStats()" data-log="archive_stats_open"
-          class="p-archive__link">
-          <div>
-            <p class="p-archive__link-title">みんなの活躍を見る</p>
-            <p class="p-archive__link-sub">完了数・作成数・ラベル別のグラフ</p>
-          </div>
-          <svg class="p-archive__link-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </button>
-      </div>
     </div>`;
 }
 

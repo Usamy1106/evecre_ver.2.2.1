@@ -820,7 +820,9 @@ export const state = {
   },
 
   // --- ビュー遷移 ---
-  setView(view, id = null) {
+  // opts.tab … MAIN_BOARD を開くときのタブ（既定は 'MAIN'）。★タブはこの関数の最後で必ず書き直すので、
+  //   呼ぶ前に state.mainBoardTab を書いても効かない（アーカイブのサブページから戻るとメインボードになっていた。2026-11-05）
+  setView(view, id = null, opts = {}) {
     // ★アーカイブの編集モードのまま画面を離れるときは、保存待ちの欄を保存し終えてから移る。
     //   先に描き直すと書きかけの欄が DOM から外れ、selectedEventId も変わるので保存できない
     //   （保存は欄ごとに自動。archiveInlineEdit.js）。保存待ちが無ければすぐ移る
@@ -832,7 +834,7 @@ export const state = {
         .finally(() => {
           this._leavingArchiveEdit = false;
           this.archiveEditing = false;
-          this.setView(view, id);
+          this.setView(view, id, opts);
         });
       return;
     }
@@ -842,7 +844,9 @@ export const state = {
     //   render() のたびに引くと、タブ切り替えや SSE の受信で入れ替わってしまう。
     if (view !== 'HOME') this.homeTip = null;
     // イベント設定画面に入るたびにキャッシュをリセット（別イベントを開いた時のメンバー混入防止）
-    if (view === 'EVENT_SETTINGS') {
+    // ★振り返りのページ（みんなの活躍／メンバー情報）から戻るとき（opts.keepSettings）は残す。
+    //   捨てるとアコーディオンが全部閉じ、開いていた「イベント管理」をもう一度開き直すことになる
+    if (view === 'EVENT_SETTINGS' && !opts.keepSettings) {
       this.eventSettingsScreen = null;
     }
     if (view === 'CREATE_EVENT_INFO' && this.currentView === 'HOME') {
@@ -879,7 +883,7 @@ export const state = {
     }
     logEvent('view_changed', { from: prevView, to: view });
     this.currentView = view;
-    this.mainBoardTab = 'MAIN';
+    this.mainBoardTab = opts.tab || 'MAIN';
     this.missionFilterTag = null;
     this.missionFilterPillar = null;
     this.notifFilter = null;   // 通知の絞り込みは自動（未読優先）に戻す
@@ -1068,13 +1072,13 @@ export const state = {
     //   def-2（タイトル）は作らない。タイトルはアーカイブのペンから入力でき
     //   （modals/helpers.js の editArchiveItem('title')、保存時に def-2 を作る）、
     //   タスクとして並べるほどの作業ではないため。★この入口は消さないこと。
-    //   ★def-3（どのようなイベントを行うかまとめよう。旧「このイベントの概要を定めよう」）は
+    //   ★def-3（まずはざっくり企画を書いてみよう。2026-11-05。旧「どのようなイベントを行うかまとめよう」「このイベントの概要を定めよう」）は
     //     アーカイブの概要（description）とは切り離した（2026-09-26）。提出内容は
     //     タスクの記録として残り、AI の提案が「企画の整理」として読む。
     //   ★ヒント文は constants.js の MISSION_DESCRIPTIONS['def-1'] / ['def-3']。
     const defaultMissions = [
       { id: 'def-1', title: 'このイベントの目的・目標を決めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
-      { id: 'def-3', title: 'どのようなイベントを行うかまとめよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
+      { id: 'def-3', title: 'まずはざっくり企画を書いてみよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
     ];
 
     const newProject = {

@@ -17,11 +17,12 @@
 
 export const DASHBOARD_QUERY = '(min-width: 768px) and (min-height: 560px)';
 
-const DASHBOARD_VIEWS = new Set(['HOME', 'PROJECT_DETAIL', 'MAIN_BOARD']);
+// ★ARCHIVE_ANSWERS（メンバー情報）はメンバーの箱をグリッドに並べるので見渡す幅（2026-11-05）
+const DASHBOARD_VIEWS = new Set(['HOME', 'PROJECT_DETAIL', 'MAIN_BOARD', 'ARCHIVE_ANSWERS']);
 const FULL_VIEWS = new Set(['MAIN_BOARD']);
 const READING_VIEWS = new Set([
   'MISSION_DETAIL', 'MISSION_REFLECT', 'PILLAR_EDIT', 'PILLAR_ASSIGN', 'EVENT_SETTINGS', 'ACCOUNT',
-  'ARCHIVE_ANSWERS', 'ARCHIVE_STATS', 'LEGAL',
+  'ARCHIVE_STATS', 'LEGAL',
 ]);
 
 let _mql = null;

@@ -508,6 +508,25 @@ function _eventManagementSection(p, sec) {
         </div>`;
         })() : ''}
 
+        <!-- 振り返りのページ（みんなの活躍／メンバー情報）。★全員が見られる。2026-11-05 にアーカイブの下から移した
+             （広い画面ではカレンダーの下にもある。積まれているとき・ガント表示ではそこが見えないので、こちらにも置く） -->
+        <button type="button" onclick="window._app.openArchiveStats()" data-log="settings_stats_open"
+          class="c-settings-list__link">
+          <div>
+            <p class="c-settings-list__label">みんなの活躍</p>
+            <span class="c-settings-list__value">完了者・作者のグラフ</span>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button type="button" onclick="window._app.openArchiveAnswers()" data-log="settings_answers_open"
+          class="c-settings-list__link">
+          <div>
+            <p class="c-settings-list__label">メンバー情報</p>
+            <span class="c-settings-list__value">参加するときに答えてもらった内容</span>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+
         <!-- 操作履歴（管理者のみ） -->
         ${canMgr ? `
         <button onclick="window._app.openEventLogSheet()"

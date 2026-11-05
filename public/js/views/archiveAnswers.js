@@ -1,4 +1,4 @@
-// ===== アーカイブ：参加時の回答一覧 =====
+// ===== メンバー情報（旧「参加時の回答」。2026-11-05 に改称）=====
 // イベント参加のときにメンバーが答えた内容（できること／やってみたいこと／意気込み）を
 // 2つの見方で並べる。
 //
@@ -142,14 +142,14 @@ export function renderArchiveAnswers(container) {
   // スタイル: public/css/object/project/_answers.css
   container.innerHTML = `
     <div class="p-answers u-page-transition">
-      <!-- ★戻り先はアーカイブタブ。Components.Header はイベントページ用なので使わず、
+      <!-- ★戻り先は開いた画面（main.js の backFromSubPage）。Components.Header はイベントページ用なので使わず、
            他のサブページ（イベント設定）と同じ l-header--sub で組む。 -->
       <header class="l-header l-header--sub">
-        <button type="button" onclick="window._app.backToArchive()"
-          class="l-header__back" aria-label="アーカイブへ戻る">
+        <button type="button" onclick="window._app.backFromSubPage()"
+          class="l-header__back" aria-label="戻る">
           <img src="/images/icon/icon-chevron.svg" class="l-header__back-icon" alt="">
         </button>
-        <h1 class="l-header__heading">参加時の回答</h1>
+        <h1 class="l-header__heading">メンバー情報</h1>
       </header>
       <main class="p-answers__main">
         <p class="p-answers__lead">
@@ -161,7 +161,10 @@ export function renderArchiveAnswers(container) {
           <button type="button" data-answers-mode="question"
             class="p-answers__tab${mode === 'question' ? ' is-active' : ''}">質問別</button>
         </div>
-        ${mode === 'user' ? _byUser(p) : _byQuestion(p)}
+        <!-- ★広い画面ではユーザー別をグリッド（1人1つの箱）、質問別は読む幅に収める（_answers.css）。スマホは今までどおり縦に並ぶ -->
+        ${mode === 'user'
+          ? `<div class="p-answers__grid">${_byUser(p)}</div>`
+          : `<div class="p-answers__narrow">${_byQuestion(p)}</div>`}
       </main>
     </div>`;
 

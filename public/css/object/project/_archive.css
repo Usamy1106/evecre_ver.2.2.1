@@ -1076,53 +1076,6 @@
   flex: 1;
 }
 
-/* --- 振り返り用サブページへの導線 ------------------------------------------
-   ★イベント設定の行（c-settings-list__link）と同じ見た目に揃える。
-     同じ「別ページへ行く」操作なので、別の形にすると学習が無駄になる。 */
-
-.p-archive__links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-5);
-  margin-inline: var(--space-4);
-}
-
-.p-archive__link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-surface);
-  text-align: left;
-  transition: background-color var(--duration-fast) var(--ease);
-}
-
-.p-archive__link:active {
-  background-color: var(--color-bg);
-}
-
-.p-archive__link-title {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-.p-archive__link-sub {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-.p-archive__link-arrow {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  color: var(--color-text-muted);
-}
-
 /* --- 目的の記録だけコールアウト（2026-09-28）----------------------------------
    使用箇所: views/mainBoard.js（_renderArchiveEntry。def-1 のとき --purpose）
    ★アーカイブは「囲みを持たない1枚の文書」が原則。例外は目的の1つだけ（ほかに広げないこと）。

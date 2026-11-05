@@ -319,7 +319,7 @@ export function bindTapToEdit(root = document) {
 //   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
 
 /**
- * 概要。実体は **初期タスク def-3（どのようなイベントを行うかまとめよう）の提出内容**（2026-10-02 にふたたびつないだ）。
+ * 概要。実体は **初期タスク def-3（まずはざっくり企画を書いてみよう）の提出内容**（2026-10-02 にふたたびつないだ）。
  * サーバーが def-3 の本文（印を外したもの）を description に写すので、読むのは description。
  * ★description が空で def-3 だけ書かれているイベント（つなぐ前のデータ。本番1件）は def-3 の本文を読む。
  * ★書くときは initialTasks.js の saveSummaryText を通す（def-3 を完了・書き換え）。description を直接書かないこと。
@@ -416,4 +416,51 @@ export function linkifyText(text) {
     last = m.index + url.length;
   }
   return out + esc(src.slice(last));
+}
+
+/**
+ * ラベル別の完了数（2026-11-05。広い画面のカレンダーの下の円グラフと一覧）。
+ * ★タグは新形式 tags を優先し、無ければ旧 tag（両方が実在する）。
+ * ★1つのタスクに複数のラベルがあれば、それぞれに1件ずつ数える（合計は完了数より多くなりうる）。
+ *   ラベルの無い完了は「ラベルなし」にまとめる（円グラフが完了の全体を表すように）。
+ * ★色はビルトイン（LABEL_CONFIG）→ カスタムタグ → 灰色（ガントのバーと同じ順）。
+ * @returns {{ cleared: number, rows: {name:string, count:number, color:string}[] }}  rows は多い順・同数は名前順
+ */
+export const UNLABELED_NAME = 'ラベルなし';
+const _UNLABELED_COLOR = '#D3D6D8';
+export function labelClearedStats(p) {
+  const counts = new Map();
+  let cleared = 0;
+  for (const m of (p?.missions || [])) {
+    if (m.status !== 'cleared') continue;
+    cleared++;
+    const tags = (Array.isArray(m.tags) && m.tags.length > 0) ? m.tags : (m.tag ? [m.tag] : []);
+    const names = tags.length ? [...new Set(tags)] : [UNLABELED_NAME];
+    for (const t of names) counts.set(t, (counts.get(t) || 0) + 1);
+  }
+  const colorOf = (name) => {
+    if (name === UNLABELED_NAME) return _UNLABELED_COLOR;
+    if (LABEL_CONFIG[name]) return LABEL_CONFIG[name].color;
+    return (p?.customTags || []).find(t => t.name === name)?.color || _UNLABELED_COLOR;
+  };
+  const rows = [...counts.entries()]
+    .map(([name, count]) => ({ name, count, color: colorOf(name) }))
+    // ★「ラベルなし」は最後。ほかは多い順、同数なら名前順（描き直しで並びが入れ替わらない）
+    .sort((a, b) => (a.name === UNLABELED_NAME) - (b.name === UNLABELED_NAME)
+      || b.count - a.count || a.name.localeCompare(b.name, 'ja'));
+  return { cleared, rows };
+}
+
+/**
+ * 振り返りの1つ目の欄（struggle）を出すか（2026-11-05）。
+ * ★うまくいった（success）は欄を1つ（solution）にしたので出さない。ただし以前に書かれた文字があれば出す
+ *   （消すと書いた内容が見えなくなる・直せなくなる）。つまずいた・未選択は2つとも出す。
+ */
+export function reflectShowsStruggle(outcome, struggleText) {
+  return outcome !== 'success' || String(struggleText || '').trim() !== '';
+}
+
+/** タスクも含めた公開（publicKnowledge）が公開中か。★サーバー（buildPublicEvent）と同じく開催日を過ぎていることも見る */
+export function isKnowledgePublished(p) {
+  return p?.publicKnowledge === true && isAfterEventDates(p);
 }

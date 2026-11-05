@@ -16,8 +16,8 @@
      public/js/modals/calendar.js … _renderCalendarInner
      public/js/modals/eventCalendarSheet.js … _render
      public/js/mountainPath.js … renderMountainBg
-     public/js/views/mainBoard.js … _initMissionPanelGesture / _renderDashboardMain / _renderMainTab
-                                    _withMonthHeadings / renderMainBoard
+     public/js/views/mainBoard.js … _calInsightsHtml / _initMissionPanelGesture / _isCalSide / _renderDashboardMain
+                                    _renderMainTab / _syncCalColFit / _syncCalSide / _withMonthHeadings / renderMainBoard
    ========================================================================== */
 
 /* 左端の列（position: fixed）のぶんだけ中身を右へずらす */
@@ -198,13 +198,214 @@
   padding-bottom: calc(var(--space-10) * 2);
 }
 
-/* 月のカレンダー。★スクロールしても上（または左）に残る。下を流れるカードが透けないよう地色を持つ */
-.p-board-dash__cal {
+/* 月のカレンダーと「目的と柱（大）」の列。★スクロールしても上（または左）に残る（2026-11-05 にカレンダー単体から移した）。
+   下を流れるカードが透けないよう地色を持つ。★画面が低くて列が入りきらないときは、この列だけスクロールさせる */
+.p-board-dash__cal-col {
   position: sticky;
   top: 0;
   z-index: 1;
   flex: 1 1 var(--board-cal-width);
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background-color: var(--color-bg);
+}
+
+/* 列が右列の高さに収まらない（背の低い画面）ときは固定をやめ、カードと一緒にスクロールする
+   （mainBoard.js の _syncCalColFit が付ける）。列の中だけのスクロールにすると、下が切れているのに気づけない */
+.p-board-dash__cal-col.is-cal-col-static {
+  position: static;
+  max-height: none;
+  overflow: visible;
+}
+
+.p-board-dash__cal {
+  background-color: var(--color-bg);
+}
+
+/* --- カレンダーの下：ラベル別の完了と、振り返りのページへの入口（2026-11-05）--------------------
+   ★カレンダーとカードが横に並んでいるときだけ見せる（mainBoard.js の _syncCalSide が .p-board-dash に
+     is-cal-side を付ける）。積まれているときに出すとカードが下へ押し出される。
+   ★目的と柱はここに出さない（左の列の上の1か所だけ）。
+   ★円グラフは CSS の conic-gradient（ライブラリを入れない）。色は JS が --donut に入れる */
+.p-board-dash__insights {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-6);
+}
+
+.p-board-dash.is-cal-side .p-board-dash__insights {
+  display: flex;
+}
+
+.p-board-dash__insights-title {
+  margin-bottom: var(--space-3);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-board-dash__labels {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+}
+
+.p-board-dash__labels-empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.p-board-dash__labels-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.p-board-dash__donut {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--board-donut-size);
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-full);
+  background: var(--donut);
+}
+
+/* 真ん中の穴（完了の件数） */
+.p-board-dash__donut-hole {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 62%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+}
+
+.p-board-dash__donut-value {
+  color: var(--color-text);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.1;
+}
+
+.p-board-dash__donut-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.p-board-dash__labels-list {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.p-board-dash__labels-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "dot name count"
+    "bar bar  bar";
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: 2px;
+}
+
+.p-board-dash__labels-dot {
+  grid-area: dot;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--label-color);
+}
+
+.p-board-dash__labels-name {
+  grid-area: name;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-board-dash__labels-count {
+  grid-area: count;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* ★件数の棒は「いちばん多いラベルに対する割合」（みんなの活躍の棒と同じ考え方） */
+.p-board-dash__labels-bar {
+  grid-area: bar;
+  overflow: hidden;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg);
+}
+
+.p-board-dash__labels-fill {
+  display: block;
+  width: var(--label-pct);
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--label-color);
+}
+
+/* 振り返りのページへの入口。★イベント設定の行（c-settings-list__link）と同じ「別ページへ行く」形 */
+.p-board-dash__insight-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.p-board-dash__insight-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-board-dash__insight-link:hover {
+  background-color: var(--color-bg);
+}
+
+.p-board-dash__insight-link-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.p-board-dash__insight-link-title {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-board-dash__insight-link-sub {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.p-board-dash__insight-link-arrow {
+  flex: none;
+  color: var(--color-text-muted);
 }
 
 .p-board-dash__list {
@@ -295,13 +496,13 @@
   background-color: var(--color-warning-pale2);
 }
 
-.p-board-dash__goal > .p-purpose {
+.p-board-dash__goal>.p-purpose {
   border: none;
   border-radius: 0;
   background-color: transparent;
 }
 
-.p-board-dash__goal > .p-pillar-board {
+.p-board-dash__goal>.p-pillar-board {
   border-top: 1px solid var(--color-warning-faint);
   border-radius: 0;
   background-color: transparent;

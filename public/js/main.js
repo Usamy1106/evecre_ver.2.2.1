@@ -275,6 +275,16 @@ const _NOTIF_STAY_ON_BOARD = new Set(['someone_claimed']);
 
 // ===== window._app : インラインイベントハンドラーから呼び出されるAPI =====
 // HTMLテンプレート内の onclick="window._app.xxx()" から参照される
+// 振り返りのページ（メンバー情報／みんなの活躍）を開いた画面。戻るボタンがここへ戻す
+let _subPageReturn = null;
+function _rememberSubPageReturn() {
+  // ★ページの中で行き来（片方から片方）しても、最初に開いた画面を覚えたままにする
+  if (state.currentView === 'ARCHIVE_ANSWERS' || state.currentView === 'ARCHIVE_STATS') return;
+  _subPageReturn = state.currentView === 'EVENT_SETTINGS'
+    ? { view: 'EVENT_SETTINGS' }
+    : { view: 'MAIN_BOARD', tab: state.mainBoardTab || 'MAIN' };
+}
+
 window._app = {
   // --- state 委譲 ---
   setView: (view, id) => state.setView(view, id),
@@ -1127,14 +1137,17 @@ window._app = {
   // 広い画面（タブレット・PC）のメインボード右列：カレンダー｜ガント（やることと融合）／選んだ日の解除
   setBoardPanelView: (view) => setBoardPanelView(view),
   clearBoardFilterDate: () => clearBoardFilterDate(),
-  // アーカイブのサブページ（参加時の回答／みんなの活躍）
-  // ★戻り先は必ずアーカイブタブ。setView('MAIN_BOARD') だけだと直前に見ていた
-  //   タブ（メイン等）に戻ってしまい、どこから来たのか分からなくなる。
-  openArchiveAnswers: () => { state.setView('ARCHIVE_ANSWERS', state.selectedEventId); },
-  openArchiveStats:   () => { state.setView('ARCHIVE_STATS',   state.selectedEventId); },
-  backToArchive: () => {
-    state.mainBoardTab = 'ARCHIVE';
-    state.setView('MAIN_BOARD', state.selectedEventId);
+  // 振り返りのページ（メンバー情報／みんなの活躍）。2026-11-05 に入口をアーカイブの下から
+  // 広い画面のカレンダーの下とイベント設定へ移した。
+  // ★戻るボタンは開いた画面へ戻す（_subPageReturn）。メインボードへ戻るときのタブは setView の opts.tab で渡すこと
+  //   （先に state.mainBoardTab を書いても setView が 'MAIN' で上書きする）。
+  openArchiveAnswers: () => { _rememberSubPageReturn(); state.setView('ARCHIVE_ANSWERS', state.selectedEventId); },
+  openArchiveStats:   () => { _rememberSubPageReturn(); state.setView('ARCHIVE_STATS',   state.selectedEventId); },
+  backFromSubPage: () => {
+    const ret = _subPageReturn;
+    _subPageReturn = null;
+    if (ret?.view === 'EVENT_SETTINGS') state.setView('EVENT_SETTINGS', state.selectedEventId, { keepSettings: true });
+    else state.setView('MAIN_BOARD', state.selectedEventId, { tab: ret?.tab || 'MAIN' });
   },
   // ★イベントページを離れるとき state.setView から呼ばれる。表示だけ畳み、
   //   進行状態は残すので、戻ってきたら同じ段階から再開する。
@@ -1828,8 +1841,12 @@ const _LOG_LABELS = {
   notif_filter_unread:     '通知を未読だけに絞った',
   notif_filter_all:        '通知をすべて表示した',
   notif_group_toggled:     '同じタスクの通知のまとめを開閉した',
-  archive_answers_open:    'アーカイブから参加時の回答を開いた',
-  archive_stats_open:      'アーカイブからみんなの活躍を開いた',
+  archive_answers_open:    'アーカイブから参加時の回答を開いた（2026-11-05 に入口を廃止）',
+  archive_stats_open:      'アーカイブからみんなの活躍を開いた（2026-11-05 に入口を廃止）',
+  board_stats_open:        'カレンダーの下からみんなの活躍を開いた（広い画面）',
+  board_answers_open:      'カレンダーの下からメンバー情報を開いた（広い画面）',
+  settings_stats_open:     'イベント設定からみんなの活躍を開いた',
+  settings_answers_open:   'イベント設定からメンバー情報を開いた',
   // Web Push（iOS はホーム画面追加が必須なので、どこで脱落するかを追う）
   push_prompt_shown:      '通知の案内を表示',
   push_ios_guide_shown:   'iOSのホーム画面追加案内を表示',

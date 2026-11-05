@@ -730,6 +730,19 @@
   background-color: var(--color-primary-pale4);
 }
 
+/* 次にやる初期タスク（目的／ざっくり企画）を促すカード（mainBoard.js の _goalPromptCardHtml。2026-11-05）。
+   ★お知らせのカードと同じ見た目。<button> なので幅と文字の寄せだけそろえる。説明は1行で切らずに2行まで */
+.p-main-board__announce-card--prompt {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+.p-main-board__announce-card--prompt .p-main-board__announce-title,
+.p-main-board__announce-card--prompt .p-main-board__announce-text {
+  display: block;
+}
+
 /* 枠の中に入るカード（1件目・プルダウンの中）は自前の枠を持たない */
 .p-main-board__announce .p-main-board__announce-card {
   border: 0;

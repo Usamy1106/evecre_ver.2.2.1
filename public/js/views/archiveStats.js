@@ -1,23 +1,21 @@
 // ===== アーカイブ：活躍のふりかえり（グラフ）=====
 // 誰がどれだけ動いたかを、既にあるデータだけで集計して見せる。
 //
-//   メンバー別の完了数 … 誰が手を動かしたか
-//   メンバー別の作成数 … 誰がやることを見つけたか
-//   ラベル別の完了数   … どの領域に力がかかったか
+//   完了者 … 誰が手を動かしたか
+//   作者   … 誰がやることを見つけたか
+// ★ラベル別の完了数は 2026-11-05 にここから外し、広い画面のカレンダーの下（円グラフ）へ移した
 //
 // ★サーバー変更は不要。集計元はすべて /api/data に載っている：
 //     完了 … clearedData[mid].submittedBy（通常完了）＋ mission.individualClearedBy（個別完了）
 //     作成 … mission.createdBy
-//     ラベル … mission.tags / mission.tag
 //
-// ★グラフのライブラリは入れない。棒グラフ3種なら CSS の幅指定で足りるし、
+// ★グラフのライブラリは入れない。棒グラフ2種なら CSS の幅指定で足りるし、
 //   0.5CPU / モバイル前提の端末に描画ライブラリを載せる価値がない。
 // ★「0件の人」も出す。動けなかった人が見えることに意味があるので、
 //   参加している全員を並べる（0件を隠すと人数が合わなくなる）。
 
 import { state } from '../state.js';
 import { Components } from '../components.js';
-import { LABEL_CONFIG } from '../constants.js';
 
 function _esc(s) {
   return String(s ?? '')
@@ -62,17 +60,6 @@ function _createdCounts(p) {
     counts.set(m.createdBy, (counts.get(m.createdBy) || 0) + 1);
   }
   return { counts, unknown };
-}
-
-/** ラベル別の完了数。★タグは新形式 tags を優先し、無ければ旧 tag */
-function _tagCounts(p) {
-  const counts = new Map();
-  for (const m of (p.missions || [])) {
-    if (m.status !== 'cleared') continue;
-    const tags = (Array.isArray(m.tags) && m.tags.length > 0) ? m.tags : (m.tag ? [m.tag] : []);
-    for (const t of tags) counts.set(t, (counts.get(t) || 0) + 1);
-  }
-  return counts;
 }
 
 /**
@@ -122,23 +109,16 @@ export function renderArchiveStats(container) {
 
   const completed = _completedCounts(p);
   const { counts: created, unknown } = _createdCounts(p);
-  const tags = _tagCounts(p);
 
   const totalCleared = (p.missions || []).filter(m => m.status === 'cleared').length;
   const totalMissions = (p.missions || []).length;
-
-  const tagMax = Math.max(0, ...tags.values());
-  const tagRows = [...tags.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja'))
-    .map(([tag, n]) => _bar(tag, n, tagMax, LABEL_CONFIG[tag]?.color || null, null))
-    .join('');
 
   // スタイル: public/css/object/project/_stats.css
   container.innerHTML = `
     <div class="p-stats u-page-transition">
       <header class="l-header l-header--sub">
-        <button type="button" onclick="window._app.backToArchive()"
-          class="l-header__back" aria-label="アーカイブへ戻る">
+        <button type="button" onclick="window._app.backFromSubPage()"
+          class="l-header__back" aria-label="戻る">
           <img src="/images/icon/icon-chevron.svg" class="l-header__back-icon" alt="">
         </button>
         <h1 class="l-header__heading">みんなの活躍</h1>
@@ -161,24 +141,20 @@ export function renderArchiveStats(container) {
         </div>
 
         <section class="p-stats__section">
-          <h2 class="p-stats__title">誰が完了させたか</h2>
+          <h2 class="p-stats__title">完了者</h2>
           <p class="p-stats__note">個別完了のタスクは、完了した人数ぶん数えています</p>
           ${_memberChart(p, completed, 'まだ完了したタスクがありません')}
         </section>
 
         <section class="p-stats__section">
-          <h2 class="p-stats__title">誰がタスクを作ったか</h2>
+          <h2 class="p-stats__title">作者</h2>
           ${_memberChart(p, created, 'まだタスクがありません')}
           ${unknown > 0 ? `
             <p class="p-stats__note">
-              ${unknown}件は作成者の記録が無いタスクです（記録を始める前に作られたもの）
+              ${unknown}件は作者の記録が無いタスクです（記録を始める前に作られたもの）
             </p>` : ''}
         </section>
 
-        <section class="p-stats__section">
-          <h2 class="p-stats__title">ラベル別の完了数</h2>
-          ${tagRows || `<p class="p-stats__empty">まだ完了したタスクがありません</p>`}
-        </section>
       </main>
     </div>`;
 }

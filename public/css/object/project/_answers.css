@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Object / Project / answers — アーカイブ：参加時の回答一覧
+   Object / Project / answers — メンバー情報（旧「参加時の回答」）
    使用箇所: public/js/views/archiveAnswers.js
 
    参加申請フォームの回答を「ユーザー別」「質問別」の2つの見方で並べる。
@@ -215,4 +215,23 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   text-align: center;
+}
+
+/* --- 広い画面：ユーザー別はメンバー1人＝1つの箱をグリッドに並べる（2026-11-05）-------------
+   ★スマホは今までどおり縦に1列（グリッドにしない）。幅は見渡す画面（layoutMode.js の DASHBOARD_VIEWS）。
+   ★質問別は行が横に伸びると読みにくいので、読む幅に収める */
+:root.is-wide .p-answers__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--answers-card-min-width)), 1fr));
+  gap: var(--space-3);
+}
+
+:root.is-wide .p-answers__grid .p-answers__card {
+  margin-bottom: 0;   /* ★同じ段の箱は高さがそろう（グリッドの既定の stretch） */
+}
+
+:root.is-wide .p-answers__narrow,
+:root.is-wide .p-answers__lead,
+:root.is-wide .p-answers__tabs {
+  max-width: var(--reading-max-width);
 }
