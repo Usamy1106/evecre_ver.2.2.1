@@ -58,6 +58,13 @@
   background: transparent;
 }
 
+/* 横に長いカードを指すときの四角い穴（coachMark.js の rect） */
+.c-coach-mark--rect .c-coach-mark__hole,
+.c-coach-mark--rect .c-coach-mark__pulse,
+.c-coach-mark--rect .c-coach-mark__hit {
+  border-radius: var(--radius-lg);
+}
+
 .c-coach-mark__copy {
   position: absolute;
   right: 0;

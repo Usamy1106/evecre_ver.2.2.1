@@ -28,7 +28,8 @@ export const AUTO_MODAL_IDS = [
   'public-knowledge-overlay',      // タスクも含めて公開するかの確認（振り返りフェーズが終わったとき・1回）
   'welcome-tour-overlay',          // アカウント作成後のオンボーディング（機能紹介3枚 → ホームに置いておこう）
   'join-welcome-overlay',          // 参加した人への「ようこそ」（役割の明示。参加者の歓迎の先頭）
-  'push-setup-modal',              // 通知をオンにしよう（次に開いたときに1回。pushSetupModal.js の checkPushPromptOnLaunch）
+  'push-setup-modal',
+  'coach-mark-overlay',            // ★コーチマーク（初期オンボーディング・初期クエスト・アーカイブの案内）の上に重ねない              // 通知をオンにしよう（次に開いたときに1回。pushSetupModal.js の checkPushPromptOnLaunch）
 ];
 
 // ★初期オンボーディング（onboardingIntro.js）が進行中かを見るためのフック。
@@ -39,6 +40,11 @@ export const AUTO_MODAL_IDS = [
 let _isIntroRunning = () => false;
 export function setIntroRunningProbe(fn) { _isIntroRunning = fn; }
 
+// ★初期クエスト（goalQuest.js）が目的・企画を書いてもらっている間も、ほかの自動モーダルを止める。
+//   強制のコーチマークの上や裏にお知らせが出ると、どちらも押せなくなる。循環 import を避けて注入してもらう
+let _isGoalQuestBlocking = () => false;
+export function setGoalQuestProbe(fn) { _isGoalQuestBlocking = fn; }
+
 /**
  * 自動表示モーダルが1つでも開いているか（＝いま新しいモーダルを出してはいけないか）。
  * ★初期オンボーディングの進行中も true を返す。
@@ -47,5 +53,6 @@ export function setIntroRunningProbe(fn) { _isIntroRunning = fn; }
  */
 export function isAnyAutoModalOpen(exceptId = null) {
   if (_isIntroRunning()) return true;
+  if (_isGoalQuestBlocking()) return true;
   return AUTO_MODAL_IDS.some(id => id !== exceptId && !!document.getElementById(id));
 }

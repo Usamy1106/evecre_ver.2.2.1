@@ -2,7 +2,7 @@
 import { api } from './api.js';
 import { SEED_TYPES, PROPOSAL_POOL } from './constants.js';
 import { logEvent } from './logger.js';
-import { calculateDaysLeft, todayStr } from './utils.js';
+import { calculateDaysLeft, todayStr, goalQuestTask } from './utils.js';
 import { syncRealtime, disconnectRealtime } from './realtime.js';
 import { showConfirmDialog } from './dialog.js';
 import { applyLayoutClasses } from './layoutMode.js';
@@ -1012,6 +1012,9 @@ export const state = {
 
   // --- タスク詳細ページから戻る ---
   closeMissionDetail() {
+    // ★初期クエスト：目的・企画を書き終えるまで戻れない（goalQuest.js。戻るボタンも出していない）
+    const ev = this.events.find(x => x.id === this.selectedEventId);
+    if (this.selectedMissionId && goalQuestTask(ev, this.currentUser?.id) === this.selectedMissionId) return;
     const ret = this.missionDetailReturn || {};
     this.selectedMissionId = null;
     this.missionDetailReturn = null;
@@ -1072,13 +1075,13 @@ export const state = {
     //   def-2（タイトル）は作らない。タイトルはアーカイブのペンから入力でき
     //   （modals/helpers.js の editArchiveItem('title')、保存時に def-2 を作る）、
     //   タスクとして並べるほどの作業ではないため。★この入口は消さないこと。
-    //   ★def-3（まずはざっくり企画を書いてみよう。2026-11-05。旧「どのようなイベントを行うかまとめよう」「このイベントの概要を定めよう」）は
+    //   ★def-3（企画をざっくり書いてみよう。2026-11-05。旧「まずはざっくり企画を書いてみよう」旧「どのようなイベントを行うかまとめよう」「このイベントの概要を定めよう」）は
     //     アーカイブの概要（description）とは切り離した（2026-09-26）。提出内容は
     //     タスクの記録として残り、AI の提案が「企画の整理」として読む。
     //   ★ヒント文は constants.js の MISSION_DESCRIPTIONS['def-1'] / ['def-3']。
     const defaultMissions = [
       { id: 'def-1', title: 'このイベントの目的・目標を決めよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
-      { id: 'def-3', title: 'まずはざっくり企画を書いてみよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
+      { id: 'def-3', title: '企画をざっくり書いてみよう', tag: '企画', daysLeft: 30, type: 'plan', isDeletable: false, dates: [], clearFormat: 'text', status: 'yet', createdAt: Date.now(), priority: 5 },
     ];
 
     const newProject = {
@@ -1282,12 +1285,17 @@ export const state = {
     //   これが動いている間は modalGuard 経由で他の自動表示モーダルが止まる。
     if (this.currentView === 'MAIN_BOARD' && this.selectedEventId) {
       setTimeout(() => window._app?.checkIntro?.(), 250);
+      // ★初期クエスト（目的・企画を必ず書いてもらう。goalQuest.js）。初期オンボーディングのあと
+      setTimeout(() => window._app?.checkGoalQuest?.(), 320);
     }
 
-    // 概要が書かれていて宣伝用に公開していなければ「公開するか」を聞く（管理者のみ・訪問ごとに1回。判定はモーダル側）。
-    // ★イベント設定で概要を入れた直後にも出すため、EVENT_SETTINGS でも評価する。
+    // ★アーカイブに入ったら：はじめての人にはアーカイブのコーチマーク → 最後に「宣伝用に公開するか」（archiveTour.js）。
+    //   2回目以降（コーチマーク済み）は「公開するか」だけ（管理者・まだ答えていないイベント）。2026-11-05
+    //   ★概要を書いた時点で「公開するか」を出すのはやめた（ユーザーの判断）
+    if (this.currentView === 'MAIN_BOARD' && this.mainBoardTab === 'ARCHIVE' && this.selectedEventId) {
+      setTimeout(() => window._app?.checkArchiveTour?.(), 400);
+    }
     if ((this.currentView === 'MAIN_BOARD' || this.currentView === 'EVENT_SETTINGS') && this.selectedEventId) {
-      setTimeout(() => window._app?.checkPublicBasicInfoModal?.(), 1400);
       // 振り返りフェーズが終わったら「タスクも含めて公開するか」を一度だけ聞く（管理者のみ。判定はモーダル側）
       setTimeout(() => window._app?.checkPublicKnowledgeModal?.(), 1450);
     }

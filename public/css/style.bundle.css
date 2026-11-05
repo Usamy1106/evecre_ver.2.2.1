@@ -310,7 +310,9 @@
   --rail-button-size: 52px;
   /* イベントのヘッダー（.l-header--event）の内側の余白。スマホ（狭い画面）。
      広い画面の値は下の :root.is-wide で上書きする（判定は layoutMode.js。2026-11-04）*/
-  --header-event-padding: var(--space-3) var(--space-6) var(--space-3);
+  --header-event-padding: var(--header-pad-y) var(--space-6);
+  /* ヘッダー（.l-header）の上下の余白。スマホは全画面で 8px（2026-11-05）。広い画面は _header.css の :root.is-wide で従来の値 */
+  --header-pad-y: var(--space-2);
   /* 左端の列で、ホームとメインボードの間に足す余白（ボタンの間の gap に上乗せ）。丸ボタン半分ぶん（2026-11-04）*/
   --rail-home-gap: calc(var(--rail-button-size) / 2);
   /* 広い画面のメインボードの地色（左端の列・右列のカレンダー）。2026-10-02。
@@ -874,7 +876,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-4) var(--space-6) var(--space-2);
+  /* ★スマホは上下 8px（全画面共通。2026-11-05）。広い画面の値は下の :root.is-wide で戻している */
+  padding: var(--header-pad-y) var(--space-6);
   background-color: var(--color-bg);
 }
 
@@ -886,6 +889,20 @@ body {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
+  padding-top: calc(var(--header-pad-y) + var(--safe-top));
+}
+
+/* 広い画面（layoutMode.js の is-wide）は従来の余白（上 16px・下 8px） */
+:root.is-wide .l-header {
+  padding: var(--space-4) var(--space-6) var(--space-2);
+}
+
+:root.is-wide .l-header--event {
+  padding: var(--header-event-padding);
+}
+
+:root.is-wide .l-header--home,
+:root.is-wide .l-header--sub {
   padding-top: calc(var(--space-4) + var(--safe-top));
 }
 
@@ -1111,7 +1128,7 @@ body {
   z-index: var(--z-sticky);
   justify-content: flex-start;
   gap: var(--space-3);
-  padding-top: calc(var(--space-4) + var(--safe-top));
+  padding-top: calc(var(--header-pad-y) + var(--safe-top));
 }
 
 .l-header__heading {
@@ -4579,6 +4596,13 @@ body {
   background: transparent;
 }
 
+/* 横に長いカードを指すときの四角い穴（coachMark.js の rect） */
+.c-coach-mark--rect .c-coach-mark__hole,
+.c-coach-mark--rect .c-coach-mark__pulse,
+.c-coach-mark--rect .c-coach-mark__hit {
+  border-radius: var(--radius-lg);
+}
+
 .c-coach-mark__copy {
   position: absolute;
   right: 0;
@@ -5512,6 +5536,77 @@ body {
 .p-main-board__announce-card--prompt .p-main-board__announce-title,
 .p-main-board__announce-card--prompt .p-main-board__announce-text {
   display: block;
+}
+
+/* 初期クエストの3つの段階（目的 → 柱 → 企画）。済み＝塗り＋チェック／いま＝枠と文字を主色／まだ＝灰色の枠 */
+.p-main-board__quest {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-1) 0;
+}
+
+.p-main-board__quest-step {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-soft);
+}
+
+.p-main-board__quest-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg);
+  color: var(--color-text-inverse);
+}
+
+.p-main-board__quest-step.is-done .p-main-board__quest-dot {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+}
+
+.p-main-board__quest-step.is-current {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-main-board__quest-step.is-current .p-main-board__quest-dot {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-quarter);
+}
+
+.p-main-board__quest-line {
+  flex: 1;
+  max-width: 32px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+}
+
+.p-main-board__quest-line.is-done {
+  background-color: var(--color-primary);
+}
+
+.p-main-board__quest-reward {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-main-board__quest-count {
+  flex: none;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
 }
 
 /* 枠の中に入るカード（1件目・プルダウンの中）は自前の枠を持たない */
@@ -12297,6 +12392,13 @@ border: 2px solid var(--bg-textbox);
 
 .p-mission-detail__round-button:active {
   transform: scale(.95);
+}
+
+/* 初期クエストで戻れないとき、戻るボタンの代わりに出す一言（missionDetail.js の goalLocked） */
+.p-mission-detail__lock-note {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
 }
 
 /* --- 本文 ---------------------------------------------------------------- */

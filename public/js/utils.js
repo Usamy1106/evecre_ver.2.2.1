@@ -319,7 +319,7 @@ export function bindTapToEdit(root = document) {
 //   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
 
 /**
- * 概要。実体は **初期タスク def-3（まずはざっくり企画を書いてみよう）の提出内容**（2026-10-02 にふたたびつないだ）。
+ * 概要。実体は **初期タスク def-3（企画をざっくり書いてみよう）の提出内容**（2026-10-02 にふたたびつないだ）。
  * サーバーが def-3 の本文（印を外したもの）を description に写すので、読むのは description。
  * ★description が空で def-3 だけ書かれているイベント（つなぐ前のデータ。本番1件）は def-3 の本文を読む。
  * ★書くときは initialTasks.js の saveSummaryText を通す（def-3 を完了・書き換え）。description を直接書かないこと。
@@ -463,4 +463,44 @@ export function reflectShowsStruggle(outcome, struggleText) {
 /** タスクも含めた公開（publicKnowledge）が公開中か。★サーバー（buildPublicEvent）と同じく開催日を過ぎていることも見る */
 export function isKnowledgePublished(p) {
   return p?.publicKnowledge === true && isAfterEventDates(p);
+}
+
+// ===== 初期クエスト（目的 → 柱 → 企画）。2026-11-05 =====
+// ★目的（def-1）と企画（def-3）は**どのイベントでも必ず書いてもらう**。柱は任意（「あとで」でとばせる）。
+// ★読むのはここだけ（mainBoard.js のカード・goalQuest.js のコーチマーク・missionDetail.js の戻るの封鎖・state.js）。
+export const GOAL_PURPOSE_ID = 'def-1';
+export const GOAL_SUMMARY_ID = 'def-3';
+
+/** 3つの段階の済み／未（カードの点に使う）。柱は任意なので「いま」の判定には入れない */
+export function goalQuestSteps(p) {
+  const missions = p?.missions || [];
+  const summary = missions.find(m => m.id === GOAL_SUMMARY_ID);
+  return {
+    purpose: !!submissionText(p?.clearedData?.[GOAL_PURPOSE_ID]),
+    pillars: getPillars(p).length > 0,
+    // ★企画のタスクが消されていれば済み扱い（促す先が無い）
+    summary: !summary || summary.status === 'cleared',
+  };
+}
+
+/**
+ * いま書いてもらう初期タスク（'def-1' | 'def-3' | null）。★対象はイベントを作った人（オーナー）だけ。
+ * ★開催日を過ぎた・完了にしたイベントでは求めない（いまさら目的を決めても使い道が無い）。
+ */
+export function goalQuestTask(p, userId) {
+  if (!p || !userId || p.ownerId !== userId) return null;
+  if (p.isCompleted || isAfterEventDates(p)) return null;
+  const missions = p.missions || [];
+  const purpose = missions.find(m => m.id === GOAL_PURPOSE_ID);
+  const steps = goalQuestSteps(p);
+  if (!steps.purpose) {
+    // ★目的のタスクが無い・入力欄の無い形で完了している、は促せない
+    return purpose && purpose.status !== 'cleared' ? GOAL_PURPOSE_ID : null;
+  }
+  return steps.summary ? null : GOAL_SUMMARY_ID;
+}
+
+/** 初期タスク（目的 def-1・企画 def-3）か。★名前・設定の編集と削除・未完了に戻すをさせない（書いた内容は直せる）。2026-11-05 */
+export function isInitialTask(m) {
+  return !!m && (m.id === GOAL_PURPOSE_ID || m.id === GOAL_SUMMARY_ID || m.isDeletable === false);
 }

@@ -12,6 +12,7 @@
 //
 // チャットは mission_chats コレクション（サーバー）+ SSE（realtime.js）で同期する。
 
+import { isGoalQuestLocked, markEnteredGoalTask } from '../goalQuest.js';
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { Components } from '../components.js';
@@ -78,14 +79,20 @@ export function renderMissionDetail(appEl) {
   const hadPage        = !!document.getElementById('mission-detail-page');
 
   const canMgr = state.canManageCurrentEvent();
+  // ★初期クエスト：目的・企画は書き終えるまで抜けられない。入った印を残す（次にボードへ来たらここから始める）
+  const goalLocked = isGoalQuestLocked(p, state.currentUser?.id, m.id);
+  if (goalLocked) markEnteredGoalTask(state.currentUser.id, p.id, m.id);
 
   appEl.innerHTML = `
     <div id="mission-detail-page" class="p-mission-detail">
       <header class="p-mission-detail__header">
+        ${goalLocked ? `
+        <!-- ★初期クエスト：目的・企画を書き終えるまで戻れない（goalQuest.js）。戻るの代わりに理由を出す -->
+        <p class="p-mission-detail__lock-note">書き終えると、ほかの画面へ進めます</p>` : `
         <button type="button" onclick="window._app.closeMissionDetail()" data-log="mission_detail_back"
           class="p-mission-detail__round-button" aria-label="戻る">
           <img src="/images/icon/icon-chevron.svg" width="18" height="18" alt="">
-        </button>
+        </button>`}
         ${canMgr ? `
         <button type="button" onclick="window._app.toggleMissionMenu(event, '${m.id}')" data-log="mission_detail_menu"
           class="p-mission-detail__round-button" aria-label="メニュー">
@@ -129,7 +136,7 @@ export function renderMissionDetail(appEl) {
           <textarea id="chat-input" rows="1" placeholder="メッセージを入力"
             class="p-mission-detail__composer-input"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,112)+'px'"></textarea>
-          <button type="button" onclick="window._app.sendChatMessage()"
+          <button type="button" onclick="window._app.sendChatMessage()" data-cmd-enter
             class="p-mission-detail__send" aria-label="送信">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">

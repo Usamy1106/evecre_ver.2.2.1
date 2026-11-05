@@ -48,6 +48,7 @@ export function closeCoachMark() {
  * @param {'target'|'anywhere'} [o.advanceOn='target']
  *        'target'  … 穴をタップしたときだけ進む（②。出口をひとつに絞る）
  *        'anywhere'… どこをタップしても進む（④。操作を強制しない）
+ * @param {boolean} [o.rect]      穴を角丸の四角にする（横に長いカードを指すとき。丸だと幅ぶんの大きな円になり画面を覆う）
  * @param {function} o.onAdvance   進むときに呼ばれる
  * @param {function} [o.onDismiss] advanceOn:'target' のとき、穴の**外**をタップして
  *        閉じた場合に呼ばれる。渡さなければ外タップでは何も起きない（従来どおり）。
@@ -62,7 +63,12 @@ export function showCoachMark(o) {
 
   // 画面外なら見える位置まで運ぶ（次の再計算で正しい座標になる）
   const r0 = target.getBoundingClientRect();
-  if (r0.bottom < 0 || r0.top > window.innerHeight || r0.width === 0 || r0.height === 0) {
+  // ★一部だけ見えている（下のナビやパネルに隠れる）ときも運ぶ。下の 120px はボトムナビ・指・吹き出しのぶん（2026-11-05）
+  // ★固定の要素（＋ボタン・下部パネルの中など）は運ばない（scrollIntoView が別の箱を動かしてしまう）
+  const inFixed = (() => { for (let el = target; el && el !== document.body; el = el.parentElement) {
+    if (getComputedStyle(el).position === 'fixed') return true; } return false; })();
+  const hidden = r0.bottom < 0 || r0.top > window.innerHeight || r0.width === 0 || r0.height === 0;
+  if (hidden || (!inFixed && (r0.top < 0 || r0.bottom > window.innerHeight - 120))) {
     try { target.scrollIntoView({ block: 'center' }); } catch (_) {}
   }
 
@@ -72,7 +78,7 @@ export function showCoachMark(o) {
   overlay.id = OVERLAY_ID;
   // 全面で操作を止める。既存モーダル（最大 z-400）より前に出す
   // スタイル: public/css/object/component/_coach-mark.css
-  overlay.className = 'c-coach-mark';
+  overlay.className = `c-coach-mark${o.rect ? ' c-coach-mark--rect' : ''}`;
   overlay.innerHTML = `
     <div data-coach-hole class="c-coach-mark__hole"></div>
     <div data-coach-pulse class="c-coach-mark__pulse c-coach-pulse"></div>
@@ -104,6 +110,7 @@ export function showCoachMark(o) {
   const copy   = overlay.querySelector('[data-coach-copy]');
 
   /** 対象の実座標に穴と文言を合わせる。★端末回転・リサイズ・スクロールのたびに呼ぶ */
+  let fingerBelow = false;
   const place = () => {
     const el = document.querySelector(o.selector);
     if (!el) { closeCoachMark(); return; }
@@ -111,30 +118,37 @@ export function showCoachMark(o) {
     const size = Math.max(r.width, r.height) + HOLE_PAD * 2;
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
+    // ★四角の穴は対象の形どおり（余白は丸より小さく）。丸は従来どおり対象を囲む円
+    const hw = o.rect ? r.width + 12 : size;
+    const hh = o.rect ? r.height + 12 : size;
     for (const box of [hole, pulse, hit]) {
-      box.style.width  = `${size}px`;
-      box.style.height = `${size}px`;
-      box.style.left   = `${cx - size / 2}px`;
-      box.style.top    = `${cy - size / 2}px`;
+      box.style.width  = `${hw}px`;
+      box.style.height = `${hh}px`;
+      box.style.left   = `${cx - hw / 2}px`;
+      box.style.top    = `${cy - hh / 2}px`;
     }
+    // 以下の指・吹き出しの位置は穴の上下端で決める（四角のときは高さが size と違う）
+    const holeHalf = hh / 2;
     // ★指は穴のすぐ隣に置き、指先が穴を向くように回す。
     //   FAB は画面最下部にあり下に余白が無いことが多いので、下 → 左 → 右 の順で場所を選ぶ。
     //   アイコンは「人差し指が上を向いた手」なので、下に置くときは無回転でそのまま穴を指す。
     if (finger) {
       const FW = 44, FH = 56;                       // 指＋ヒントのおおよその大きさ
-      const below = window.innerHeight - (cy + size / 2);
-      const left  = cx - size / 2;
+      const below = window.innerHeight - (cy + holeHalf);
+      const left  = cx - hw / 2;
+      fingerBelow = false;
       if (below >= FH + 8) {
         finger.style.left = `${cx - FW / 2}px`;
-        finger.style.top  = `${cy + size / 2 + 6}px`;
+        finger.style.top  = `${cy + holeHalf + 6}px`;
         finger.style.transform = 'none';
+        fingerBelow = true;
       } else if (left >= FW + 8) {
         // 左に置き、指先が右上（穴）を向くように傾ける
-        finger.style.left = `${cx - size / 2 - FW - 6}px`;
+        finger.style.left = `${cx - hw / 2 - FW - 6}px`;
         finger.style.top  = `${cy - FH / 2 + 6}px`;
         finger.style.transform = 'rotate(35deg)';
       } else {
-        finger.style.left = `${cx + size / 2 + 6}px`;
+        finger.style.left = `${cx + hw / 2 + 6}px`;
         finger.style.top  = `${cy - FH / 2 + 6}px`;
         finger.style.transform = 'rotate(-35deg)';
       }
@@ -153,7 +167,8 @@ export function showCoachMark(o) {
       copy.classList.remove('c-coach-mark__copy--below');
     } else {
       copy.style.bottom = '';
-      copy.style.top = `${r.bottom + 28}px`;
+      // ★指を穴の下に置いたときは、その下に吹き出しを置く（重なると文字が指で隠れる）
+      copy.style.top = `${r.bottom + 28 + (fingerBelow ? 56 : 0)}px`;
       copy.classList.add('c-coach-mark__copy--below');
       copy.classList.remove('c-coach-mark__copy--above');
     }

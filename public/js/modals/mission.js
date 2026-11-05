@@ -7,7 +7,7 @@ import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
 import { suggestAssignees } from '../assigneeSuggest.js';
 import { Components } from '../components.js';
 import { logEvent } from '../logger.js';
-import { getPillars, pillarIdsOf } from '../utils.js';
+import { getPillars, pillarIdsOf, isInitialTask } from '../utils.js';
 import { pillarCharHtml } from '../pillarChars.js';
 
 /**
@@ -19,6 +19,14 @@ export function openMissionModal(missionId = null, prefill = null) {
   if (!state.canManageCurrentEvent()) {
     window._app?.showToast('このイベントを編集する権限がありません', 'error');
     return;
+  }
+  // ★初期タスク（目的・企画）は名前・設定を編集させない（書く内容はタスク詳細から）
+  if (missionId) {
+    const ev1 = state.events.find(p => p.id === state.selectedEventId);
+    if (isInitialTask((ev1?.missions || []).find(x => x.id === missionId))) {
+      window._app?.showToast('このタスクは編集できません', 'error');
+      return;
+    }
   }
   state.editingMissionId = missionId;
 
@@ -310,7 +318,7 @@ function _renderPillarStep(isEdit) {
       </div>
       <div class="p-mission-form__step-actions">
         <button type="button" onclick="window._app.missionBack()" class="c-button c-button--secondary p-mission-form__back">戻る</button>
-        <button type="button" onclick="window._app.createOrUpdateMission()"
+        <button type="button" onclick="window._app.createOrUpdateMission()" data-cmd-enter
           class="c-button c-button--primary p-mission-form__submit p-mission-form__submit--step">
           ${isEdit ? '保存する' : '作成する'}
         </button>
@@ -322,7 +330,7 @@ function _renderPillarStep(isEdit) {
 function _submitButtonHtml(isEdit) {
   const next = _hasPillars();
   return `
-      <button onclick="window._app.${next ? 'missionNext' : 'createOrUpdateMission'}()"
+      <button onclick="window._app.${next ? 'missionNext' : 'createOrUpdateMission'}()" data-cmd-enter
         class="c-button c-button--primary p-mission-form__submit">
         ${next ? '次へ' : (isEdit ? '保存する' : '作成する')}
       </button>`;
@@ -648,10 +656,13 @@ export function openMissionMenuAt(missionId, x, y) {
   menu.dataset.mid = missionId;
   menu.className = 'c-context-menu c-context-menu--mission u-animate-fade';
   menu.style.visibility = 'hidden';
+  // ★初期タスク（目的・企画）は編集・削除を出さない（リンクのコピーだけ。2026-11-05）
+  const ev0 = state.events.find(p => p.id === state.selectedEventId);
+  const locked = isInitialTask((ev0?.missions || []).find(x => x.id === missionId));
   menu.innerHTML = `
     <button id="mm-copy-link" class="c-context-menu__item">リンクをコピー</button>
-    <button id="mm-edit" class="c-context-menu__item">編集</button>
-    <button id="mm-delete" class="c-context-menu__item c-context-menu__item--danger">削除</button>`;
+    ${locked ? '' : `<button id="mm-edit" class="c-context-menu__item">編集</button>
+    <button id="mm-delete" class="c-context-menu__item c-context-menu__item--danger">削除</button>`}`;
   document.body.appendChild(menu);
 
   // 画面内にクランプして配置
@@ -665,12 +676,12 @@ export function openMissionMenuAt(missionId, x, y) {
     menu.remove();
     window._app.copyMissionLink(missionId);
   };
-  menu.querySelector('#mm-edit').onclick = (ev) => {
+  if (!locked) menu.querySelector('#mm-edit').onclick = (ev) => {
     ev.stopPropagation();
     menu.remove();
     openMissionModal(missionId);
   };
-  menu.querySelector('#mm-delete').onclick = (ev) => {
+  if (!locked) menu.querySelector('#mm-delete').onclick = (ev) => {
     ev.stopPropagation();
     menu.remove();
     _openMissionDeleteConfirm(missionId);

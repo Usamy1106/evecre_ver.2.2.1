@@ -4,7 +4,8 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS, OUTCOME_CHOICES } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, isKnowledgePublished } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, isKnowledgePublished, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask } from '../utils.js';
+import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { pillarCharacter } from '../pillarChars.js';
 import { isRichSubmission } from '../initialTasks.js';
@@ -134,6 +135,8 @@ export function setBoardPanelView(view) {
  * @param {HTMLElement} container
  */
 export function renderMainBoard(container) {
+  // ★初期クエスト：目的・企画の詳細に一度入ったのに書かずに抜けた人は、ボードを出さず詳細から始める（goalQuest.js）
+  if (redirectGoalQuest()) return;
   const p = state.events.find(x => x.id === state.selectedEventId);
   if (!p) {
     // イベントが見つからない場合：データ再取得を試み、それでも無ければ HOME へ
@@ -679,34 +682,62 @@ function _pillarBoardHtml(p, extraClass = '') {
     </section>`;
 }
 
-// ===== 次にやる初期タスクを促すアナウンスカード（2026-11-05）=====
-// ★目的（def-1）→ 柱 → ざっくり企画（def-3）の順に、次の1つだけを促す。訴えかけ・説教の文言にしない（設計思想）。
-//   - 目的が未設定：**広い画面だけ**左の列の上に出す（スマホは目的のボックスの「目的を決める」が同じ役目）
-//   - 目的と柱が決まっていて def-3 が未完了：スマホ・広い画面どちらも出す
-// ★見た目はお知らせのカード（p-main-board__announce-card）と同じ。押すとそのタスクの詳細へ
-const SUMMARY_MISSION_ID = 'def-3';
-function _goalPromptCardHtml(p, { dash }) {
+// ===== 初期クエストのカード（目的 → 柱 → 企画。2026-11-05）=====
+// ★次の1つだけを促す。訴えかけ・説教の文言にしない（設計思想）。済んだ段階は点にチェック、いまの段階は色で示す。
+// ★目的・企画は必ず書いてもらう（オーナーには goalQuest.js が強制のコーチマークでこのカードを指す。data-goal-quest）。
+//   柱は任意なので、目的のあと企画へ進む（柱が残っていれば最後に促す）。
+// ★出すのは管理者だけ（書けるのは管理者）。スマホ・広い画面とも出す。
+//   スマホで目的の段階のときは、空の目的のボックス（「目的を決める」）を出さない（同じ役目が2つ並ぶため）
+// ★見た目の土台はお知らせのカード（p-main-board__announce-card）
+const QUEST_STEPS = [
+  { key: 'purpose', label: '目的' },
+  { key: 'pillars', label: '柱' },
+  { key: 'summary', label: '企画' },
+];
+function _goalQuestCurrent(p) {
+  if (!state.canManageCurrentEvent()) return null;
+  const steps = goalQuestSteps(p);
   const missions = p.missions || [];
-  const purposeText = submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
-  const purposeMission = missions.find(m => m.id === PURPOSE_MISSION_ID);
-  let target = null;
-  if (!purposeText) {
-    if (dash && purposeMission) target = { id: PURPOSE_MISSION_ID, log: 'prompt_purpose_card',
-      title: 'まずはイベントの目的を決めましょう', text: '迷ったときに立ち帰る軸になります' };
-  } else if (getPillars(p).length > 0) {
-    const summary = missions.find(m => m.id === SUMMARY_MISSION_ID);
-    if (summary && summary.status !== 'cleared') target = { id: SUMMARY_MISSION_ID, log: 'prompt_summary_card',
-      title: '次は、ざっくり企画を書いてみましょう', text: 'どんなイベントにしたいか、思いつくところからでOK' };
-  }
-  if (!target) return '';
+  if (!steps.purpose) return missions.some(m => m.id === PURPOSE_MISSION_ID) ? { steps, key: 'purpose' } : null;
+  if (!steps.summary) return { steps, key: 'summary' };
+  if (!steps.pillars) return { steps, key: 'pillars' };
+  return null;
+}
+function _goalPromptCardHtml(p) {
+  const cur = _goalQuestCurrent(p);
+  if (!cur) return '';
+  const { steps, key } = cur;
+  const card = {
+    purpose: { title: 'まずはイベントの目的・柱を決めましょう', reward: '書き終えると、山を1マス登れます',
+      onclick: `window._app.openMissionDetail('${PURPOSE_MISSION_ID}')`, log: 'prompt_purpose_card', quest: PURPOSE_MISSION_ID },
+    summary: { title: '次は、企画をざっくり書いてみましょう', reward: '書き終えると、山を1マス登れます',
+      onclick: `window._app.openMissionDetail('${GOAL_SUMMARY_ID}')`, log: 'prompt_summary_card', quest: GOAL_SUMMARY_ID },
+    pillars: { title: 'あとは、イベントの柱を決めましょう', reward: '柱を決めると、どこが手薄か見えるようになります',
+      onclick: `window._app.openPillarEdit('prompt_card')`, log: 'prompt_pillars_card', quest: '' },
+  }[key];
+  const doneCount = QUEST_STEPS.filter(s => steps[s.key]).length;
+  const check = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+  const dots = QUEST_STEPS.map((s, i) => {
+    const state_ = steps[s.key] ? 'is-done' : (s.key === key ? 'is-current' : '');
+    return `${i > 0 ? `<span class="p-main-board__quest-line${steps[s.key] ? ' is-done' : ''}" aria-hidden="true"></span>` : ''}
+      <span class="p-main-board__quest-step ${state_}">
+        <span class="p-main-board__quest-dot">${steps[s.key] ? check : ''}</span>
+        <span class="p-main-board__quest-label">${s.label}</span>
+      </span>`;
+  }).join('');
   return `
-    <button type="button" onclick="window._app.openMissionDetail('${target.id}')" data-log="${target.log}"
+    <button type="button" onclick="${card.onclick}" data-log="${card.log}"${card.quest ? ` data-goal-quest="${card.quest}"` : ''}
       class="p-main-board__announce-card p-main-board__announce-card--prompt">
       <span class="p-main-board__announce-body">
         <img src="/images/icon/icon-notification-default.svg" class="p-main-board__announce-icon" width="14" height="14" alt="">
         <span class="p-main-board__announce-main">
-          <span class="p-main-board__announce-title">${target.title}</span>
-          <span class="p-main-board__announce-text">${target.text}</span>
+          <span class="p-main-board__announce-title">${card.title}</span>
+          <span class="p-main-board__quest" aria-label="初期クエスト ${doneCount}/3">${dots}</span>
+          <span class="p-main-board__quest-reward">
+            <span>${card.reward}</span>
+            <span class="p-main-board__quest-count">${doneCount}/3</span>
+          </span>
         </span>
       </span>
     </button>`;
@@ -1270,8 +1301,6 @@ function _renderMainTab(p) {
   // 上部固定領域：日付チップ（広い画面のみ）・フィードバック・設定の丸ボタン（スマホのみ）・お知らせ・各バナー（スクロールしない）
   // ★スマホは「バナー類」と「右端の丸ボタンの列」を横に並べる。ボタンの列は縦に長いので、バナーの上に重ねない
   const bannersHtml = `
-      <!-- 次にやる初期タスク（目的／ざっくり企画）を促すカード -->
-      ${_goalPromptCardHtml(p, { dash: dashLayout })}
       <!-- アナウンスカード -->
       ${_renderAnnounceCards(p, meId)}
 
@@ -1286,13 +1315,16 @@ function _renderMainTab(p) {
   // ★目的が未設定のときは、左の列には目的のボックスを出さない（代わりにアナウンスカードが促す。2026-11-05）
   const purposeSet = !!submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
   const goalInner = dashLayout ? `${purposeSet ? _purposeBoxHtml(p) : ''}${_pillarBoardHtml(p)}` : '';
+  // ★初期クエストのカードは目的（と柱）より上に置く（2026-11-05）
+  const questCard = _goalPromptCardHtml(p);
   const pinnedAux = dashLayout ? `
     <div class="p-main-board__pinned">
+      ${questCard}
       ${goalInner.trim() ? `<div class="p-board-dash__goal">${goalInner}</div>` : ''}
       ${bannersHtml}
     </div>` : `
     <div class="p-main-board__pinned p-main-board__pinned--side">
-      <div class="p-main-board__pinned-main">${_purposeBoxHtml(p, { compact: true })}${_pillarBoardHtml(p)}${bannersHtml}</div>
+      <div class="p-main-board__pinned-main">${questCard}${_goalQuestCurrent(p)?.key === 'purpose' ? '' : _purposeBoxHtml(p, { compact: true })}${_pillarBoardHtml(p)}${bannersHtml}</div>
       ${sideActionsHtml}
     </div>`;
 
@@ -1491,7 +1523,7 @@ function _renderAnnounceCards(p, meId) {
 // ── アーカイブ：概要カードスロット識別 ───────────────────────────
 // Layer 1（概要カード）が読むスロット。ここに一致するものは Layer 2（記録）から外す。
 //
-// ★def-3（まずはざっくり企画を書いてみよう）は**外す**（2026-10-02）。提出内容が概要の実体になり、
+// ★def-3（企画をざっくり書いてみよう）は**外す**（2026-10-02）。提出内容が概要の実体になり、
 //   アーカイブの先頭の「概要」にそのまま出る（同じ文章を2回並べない。「やったのに残らない」にはならない）。
 //   ★2026-09-02〜10-02 は外していなかった（当時は概要と def-3 が別物だった）。
 // ★def-2（タイトル）は外さない。
@@ -1935,7 +1967,8 @@ function _archiveIndividualHtml(p, m, editing) {
 // タスク名。★編集モードではその場で書き換えられる（archiveInlineEdit.js の _saveBasic。
 //   空にはできない）。閲覧ではタップでタスク詳細へ（管理者も同じ。ここはタップで編集に入らない）
 function _archiveEntryTitleHtml(m, editing) {
-  if (!editing) {
+  // ★初期タスク（目的・企画）の名前は編集モードでも書き換えさせない（2026-11-05）
+  if (!editing || isInitialTask(m)) {
     return `<button type="button" onclick="window._app.openMissionDetail('${m.id}')" class="p-archive__entry-title">${_esc(m.title)}</button>`;
   }
   return `

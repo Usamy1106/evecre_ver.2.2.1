@@ -2,7 +2,7 @@
 // リーダーがイベントを作った直後に、
 //   ① 進め方（モーダル）
 //   ② イベント主要機能の紹介（コーチマーク4連：残り日数／AI提案／やること一覧／作成ボタン）
-//   ③ 「目的を定めよう」の促し（コーチマーク）
+//   ③ 「目的を定めよう」の促し → ★2026-11-05 に goalQuest.js（初期クエスト・強制）へ一本化した
 // を順に通す。
 //
 // ★タスク作成フォームのツールチップは**この流れに含めない**。
@@ -27,6 +27,7 @@ import { showCoachMark, closeCoachMark } from './modals/coachMark.js';
 import { startTooltipTour, closeTooltipTour } from './modals/tooltipTour.js';
 import { isLeaderMotivationPending, addMotivationWaitProbe } from './modals/leaderMotivationModal.js';
 import { isJoinWelcomePending } from './modals/joinWelcomeModal.js';
+import { goalQuestTask } from './utils.js';
 
 // ── 進行状態 ────────────────────────────────────────────────
 export const INTRO = {
@@ -234,7 +235,9 @@ export function checkIntro() {
   }
   if (step === 'usage')   { showUsageModal();   return; }
   if (step === 'tour')    { showFeatureTour();  return; }
-  if (step === 'purpose') { showPurposeCoach(); return; }
+  // ★③（目的の促し）は goalQuest.js の初期クエストに一本化した（2026-11-05）。
+  //   旧い版で②まで済んで止まっている人は、ここで完了にして初期クエストへ渡す
+  if (step === 'purpose') { _finishIntro(); setTimeout(() => state.render(), 0); return; }
 }
 
 // ── ① 「イベントづくりの進め方」モーダル（5枚）──────────────
@@ -528,7 +531,18 @@ let _tourTotal = 0;
 function _willShowPurpose(p) {
   if (!state.currentUser) return false;
   if (isJoinedManager(state.currentUser.id, p)) return false;   // 後から参加した管理者には出さない
-  return !!document.querySelector(`[data-mission-id="${PURPOSE_MISSION_ID}"]`);
+  return goalQuestTask(p, state.currentUser.id) === 'def-1';
+}
+
+/**
+ * ②から続けて初期クエストの目的のコーチマーク（goalQuest.js）が出るときの通し番号（例 '5/5'）。
+ * ★1回だけ返す（リロード後などに単独で出たときは番号を出さない）
+ */
+export function takePurposeCounter() {
+  if (!_tourTotal) return '';
+  const c = `${_tourTotal}/${_tourTotal}`;
+  _tourTotal = 0;
+  return c;
 }
 
 function _finishFeatureTour() {
@@ -536,84 +550,11 @@ function _finishFeatureTour() {
   const joined = !!state.currentUser && isJoinedManager(state.currentUser.id, p);
   logEvent('intro_feature_tour_done', { joined });
   setIntroRunning(false);
-  // ★作成者はここで終わりにしない。③（目的の促し）が残っている。
-  //   次の render() で checkIntro が 'purpose' を返す。
-  // ★後から参加した管理者は②までで完了。目的を決めるのは作った人の仕事なので、
-  //   「目的を定めよう」を出しても行き場がない（たいてい既に決まっている）。
-  advanceIntro(joined ? INTRO.DONE : INTRO.TOUR);
+  // ★②で完了。目的の促しは goalQuest.js の初期クエストが次の render() で出す（作った人だけ・強制）。
+  //   後から参加した管理者には出ない（目的を決めるのは作った人の仕事）
+  if (joined) _tourTotal = 0;
+  advanceIntro(INTRO.DONE, { joined });
   setTimeout(() => state.render(), 250);
-}
-
-// ── ③ 「目的を定めよう」の促し ──────────────────────────────
-/**
- * イベント作成時に自動生成される「このイベントの目的・目標を決めよう」（def-1）を指し示す。
- *
- * ★②と違い、出口を穴のタップに絞る（advanceOn:'target'）。ここだけは実際に
- *   手を動かしてほしい段階なので、眺めて流せないようにしてある。
- *   ★ただし対象が無ければ**出さずに完了**させる。出せないまま止めると操作不能になる
- *     （②で同じ設計にして踏んだ落とし穴）。対象が無くなるのは、
- *     すでに目的を書き終えている（cleared なので一覧に出ない）ときなど。
- */
-const PURPOSE_MISSION_ID = 'def-1';
-
-// ★③を「やらずに閉じた」ことをこのセッションの間だけ覚える。
-//   localStorage には書かないので、アプリを開き直せばまた出る（＝次回また促す）。
-//   ★これが無いと、閉じた直後の render() で即座に出し直され、暗転が消えず
-//     何も操作できなくなる。逆に localStorage に書くと二度と出なくなる。
-let _purposeDismissedThisSession = false;
-
-export function showPurposeCoach() {
-  const p = state.events.find(x => x.id === state.selectedEventId);
-  if (!p || !state.currentUser) return;
-  if (isCoachOpen()) return;
-  if (_purposeDismissedThisSession) return;
-  // ★①がまだ開いている間は次へ進めない。SSE などで render() が走ったときに、
-  //   まだ「わかった」を押していないのにモーダルの上へコーチマークが
-  //   重なるのを防ぐ（保険。通常は状態が進んでいないのでここまで来ない）。
-  if (document.getElementById(USAGE_ID)) return;
-  if (document.getElementById('mission-overlay')) return;
-
-  if (state.mainBoardTab !== 'MAIN') {
-    state.mainBoardTab = 'MAIN';
-    state.render();
-    return;
-  }
-
-  const shown = showCoachMark({
-    selector: `[data-mission-id="${PURPOSE_MISSION_ID}"]`,
-    title:   'まずは目的を決めよう。',
-    body:    '迷ったときに、立ち返れる軸になるよ。',
-    hint:    'タップして書いてみよう',
-    // ★②から続けて出たときだけ通し番号を出す（②の最後の1つとして数える）。
-    //   リロード後などに③だけ単独で出たときは _tourTotal が 0 なので番号を出さない。
-    //   出ない番号を「1/1」と出すより、無いほうが自然。
-    counter: _tourTotal > 0 ? `${_tourTotal}/${_tourTotal}` : '',
-    finger:  true,
-    advanceOn: 'target',
-    onAdvance: () => {
-      logEvent('intro_purpose_tapped');
-      _finishIntro();
-      state.openMissionDetail(PURPOSE_MISSION_ID);
-    },
-    // ★穴の外をタップしたら、目的タスクを開かずに閉じる。
-    //   出口が「目的タスクのタップ」だけだと、他を触りたい人が閉じ込められる。
-    // ★ここでは進行状態を進めない（＝次にアプリを開いたときにまた促す）。
-    //   代わりにセッション内フラグで抑止する。localStorage に書いて完了扱いに
-    //   すると、目的を書かないまま二度と促されなくなる。
-    onDismiss: () => {
-      logEvent('intro_purpose_dismissed');
-      _purposeDismissedThisSession = true;
-      setIntroRunning(false);   // 他の自動モーダルの抑止を解く
-    },
-  });
-
-  if (!shown) {
-    // 目的タスクが一覧に無い（＝すでに完了している等）。止めずに完了させる
-    _finishIntro();
-    return;
-  }
-  setIntroRunning(true);
-  logEvent('intro_purpose_shown');
 }
 
 function _finishIntro() {

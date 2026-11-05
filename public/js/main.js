@@ -64,6 +64,9 @@ import { SKILL_TAGS, detectWebhookKind } from './constants.js';
 import { Components, initImageFallback } from './components.js';
 import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
+import { checkGoalQuest } from './goalQuest.js';
+import { checkArchiveTour } from './archiveTour.js';
+import { isInitialTask } from './utils.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
@@ -442,6 +445,11 @@ window._app = {
   deleteMission: (e) => deleteMission(e),
 
   revertMissionToIncomplete: async (missionId) => {
+    // ★初期タスク（目的・企画）は未完了に戻させない・削除させない（書いた内容が消えるため。2026-11-05）
+    if (isInitialTask(state.events.find(p => p.id === state.selectedEventId)?.missions?.find(m => m.id === missionId))) {
+      window._app.showToast('このタスクは変更できません', 'error');
+      return;
+    }
     const ok = await showConfirmDialog({
       message: 'このタスクを未完了に戻しますか？\n提出内容（画像・PDF を含む）と振り返りも削除され、元に戻せません。',
       confirmLabel: '未完了に戻す',
@@ -464,6 +472,11 @@ window._app = {
   },
 
   deleteMissionFromArchive: async (missionId) => {
+    // ★初期タスク（目的・企画）は未完了に戻させない・削除させない（書いた内容が消えるため。2026-11-05）
+    if (isInitialTask(state.events.find(p => p.id === state.selectedEventId)?.missions?.find(m => m.id === missionId))) {
+      window._app.showToast('このタスクは変更できません', 'error');
+      return;
+    }
     const ok = await showConfirmDialog({
       message: 'このタスクを完全に削除しますか？\n提出内容（画像・PDF を含む）と振り返りも削除され、元に戻せません。',
       confirmLabel: '削除する',
@@ -500,11 +513,13 @@ window._app = {
     menu.style.top   = `${rect.bottom + 4}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
     // ★「編集する」は編集モードに入ってそのタスクへ移る（編集中は出さない）
+    // ★初期タスク（目的・企画）は「未完了に戻す」「削除する」を出さない（2026-11-05）。書いた内容は「編集する」で直せる
+    const initial = isInitialTask(state.events.find(p => p.id === state.selectedEventId)?.missions?.find(m => m.id === missionId));
     menu.innerHTML = `
       <button id="amm-copy-link" class="c-context-menu__item">リンクをコピー</button>
       ${state.archiveEditing ? '' : '<button id="amm-edit" class="c-context-menu__item">編集する</button>'}
-      <button id="amm-revert" class="c-context-menu__item">未完了に戻す</button>
-      <button id="amm-delete" class="c-context-menu__item c-context-menu__item--danger">削除する</button>`;
+      ${initial ? '' : `<button id="amm-revert" class="c-context-menu__item">未完了に戻す</button>
+      <button id="amm-delete" class="c-context-menu__item c-context-menu__item--danger">削除する</button>`}`;
     document.body.appendChild(menu);
     document.getElementById('amm-copy-link').onclick = (ev) => {
       ev.stopPropagation(); menu.remove();
@@ -514,11 +529,11 @@ window._app = {
       ev.stopPropagation(); menu.remove();
       window._app.editArchiveEntry(missionId);
     });
-    document.getElementById('amm-revert').onclick = (ev) => {
+    if (!initial) document.getElementById('amm-revert').onclick = (ev) => {
       ev.stopPropagation(); menu.remove();
       window._app.revertMissionToIncomplete(missionId);
     };
-    document.getElementById('amm-delete').onclick = (ev) => {
+    if (!initial) document.getElementById('amm-delete').onclick = (ev) => {
       ev.stopPropagation(); menu.remove();
       window._app.deleteMissionFromArchive(missionId);
     };
@@ -1127,6 +1142,8 @@ window._app = {
   checkOnboarding: () => checkOnboarding(),
   // 初期オンボーディング（イベント作成直後のチュートリアル）
   checkIntro: () => checkIntro(),
+  checkGoalQuest: () => checkGoalQuest(),
+  checkArchiveTour: () => checkArchiveTour(),
   openUserProfileModal: (userId) => openUserProfileModal(userId),
   copySchedule: (source) => copySchedule(source),
   openReflectionEdit: (missionId, userId) => openReflectionEditModal(missionId, userId || null),
@@ -1423,6 +1440,26 @@ watchLayoutMode(() => {
   state.render();
 });
 initImageFallback();  // data-fallback を付けた画像の読み込み失敗を代替表示に差し替える
+
+// ===== ⌘Enter / Ctrl+Enter で入力を完了する（2026-11-05）=====
+// ★入力欄（input / textarea / 編集欄）で押すと、いちばん近い「完了」のボタンを押す。
+//   ボタンには data-cmd-enter を付ける（タスクの完了は既存の data-clear-submit をそのまま使う）。
+//   入力欄から親へたどり、最初にボタンを含んだ要素の中のボタンを押す（チャット欄なら送信、完了欄なら完了）。
+// ★アーカイブの編集モードの欄にはボタンが無い（欄から離れると保存）ので、欄から離して保存する。
+// ★変換中（IME）の Enter では動かさない
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.isComposing) return;
+  const t = e.target;
+  if (!(t instanceof HTMLElement)) return;
+  const editable = t.matches('input, textarea') || t.isContentEditable;
+  if (!editable) return;
+  const SEL = '[data-cmd-enter], [data-clear-submit]';
+  for (let el = t.parentElement; el && el !== document.body; el = el.parentElement) {
+    const btn = [...el.querySelectorAll(SEL)].find(b => !b.disabled && b.offsetParent !== null);
+    if (btn) { e.preventDefault(); btn.click(); return; }
+  }
+  if (t.closest('.p-archive--editing')) { e.preventDefault(); t.blur(); }
+}, true);
 state.init().catch(e => {
   console.error('init() で例外:', e);
   // ★ここで loading.remove() だけして終わらせないこと。#app が空のまま
@@ -1761,9 +1798,15 @@ const _LOG_LABELS = {
   intro_feature_tour_shown:  '主要機能の案内を表示',
   intro_feature_tour_step:   '主要機能の案内を進めた',
   intro_feature_tour_done:   '主要機能の案内を完了',
-  intro_purpose_shown:       '目的の促しを表示',
-  intro_purpose_tapped:      '目的の促しから目的タスクを開いた',
-  intro_purpose_dismissed:   '目的の促しを閉じた（書かずに離脱）',
+  intro_purpose_shown:       '目的の促しを表示（廃止。goal_quest_* へ）',
+  intro_purpose_tapped:      '目的の促しから目的タスクを開いた（廃止）',
+  intro_purpose_dismissed:   '目的の促しを閉じた（廃止）',
+  goal_quest_coach_shown:    '初期クエスト：目的／企画のコーチマークを表示',
+  goal_quest_coach_tapped:   '初期クエスト：コーチマークからタスクを開いた',
+  archive_tour_shown:        'アーカイブのコーチマークを表示',
+  archive_tour_done:         'アーカイブのコーチマークを最後まで見た',
+  goal_quest_redirected:     '初期クエスト：書かずに抜けたのでタスク詳細から再開',
+  prompt_pillars_card:       '初期クエスト：カードから柱のページを開いた',
   intro_completed:           '初期オンボーディングを完了',
   // タスク作成フォームのツアー（初期オンボーディングとは独立・ユーザー単位で1回）
   intro_form_tour_shown:     '作成フォームの案内を表示',

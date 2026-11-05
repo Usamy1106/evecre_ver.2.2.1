@@ -743,6 +743,77 @@
   display: block;
 }
 
+/* 初期クエストの3つの段階（目的 → 柱 → 企画）。済み＝塗り＋チェック／いま＝枠と文字を主色／まだ＝灰色の枠 */
+.p-main-board__quest {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: var(--space-1) 0;
+}
+
+.p-main-board__quest-step {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-soft);
+}
+
+.p-main-board__quest-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg);
+  color: var(--color-text-inverse);
+}
+
+.p-main-board__quest-step.is-done .p-main-board__quest-dot {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+}
+
+.p-main-board__quest-step.is-current {
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-main-board__quest-step.is-current .p-main-board__quest-dot {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-quarter);
+}
+
+.p-main-board__quest-line {
+  flex: 1;
+  max-width: 32px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-border);
+}
+
+.p-main-board__quest-line.is-done {
+  background-color: var(--color-primary);
+}
+
+.p-main-board__quest-reward {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-main-board__quest-count {
+  flex: none;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
 /* 枠の中に入るカード（1件目・プルダウンの中）は自前の枠を持たない */
 .p-main-board__announce .p-main-board__announce-card {
   border: 0;

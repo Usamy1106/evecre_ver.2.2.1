@@ -52,12 +52,13 @@ export function checkPublicBasicInfoModal() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   const userId = state.currentUser?.id;
   if (!p || !userId) return;
-  if (!['MAIN_BOARD', 'EVENT_SETTINGS'].includes(state.currentView)) return;
+  // ★2026-11-05：出すのはアーカイブだけ（archiveTour.js がコーチマークの最後に呼ぶ／2回目以降はアーカイブに入ったとき）。
+  //   概要を書いた時点で出すのはやめた
+  if (state.currentView !== 'MAIN_BOARD' || state.mainBoardTab !== 'ARCHIVE') return;
   if (p.publicBasicInfo !== undefined) return;          // もう答えた（公開する／今はしない）
   if (state._publicBasicPromptedFor === p.id) return;   // この訪問ではもう出した
   if (state.archiveEditing) return;                     // 編集中は割り込まない（完了のあとに出る）
   if (!isManagerStrict(p, userId)) return;
-  if (!canPromptPublicBasic(p)) return;                 // 概要がまだ無い
   if (document.getElementById(OVERLAY_ID)) return;
   if (isAnyAutoModalOpen(OVERLAY_ID)) return;           // 重なるなら次の render() へ持ち越す
   state._publicBasicPromptedFor = p.id;

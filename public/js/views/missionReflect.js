@@ -112,7 +112,7 @@ export function renderMissionReflect(appEl) {
 
           <div class="p-mission-reflect__share">${Components.ShareCheck({ id: 'reflect-shareable', checked: !!d.shareable, published: isKnowledgePublished(p) })}</div>
 
-          <button type="button" onclick="window._app.saveMissionReflect()" id="reflect-save"
+          <button type="button" onclick="window._app.saveMissionReflect()" id="reflect-save" data-cmd-enter
             class="c-button c-button--primary p-mission-reflect__save">保存して戻る</button>
         </div>
 

@@ -2460,7 +2460,7 @@ app.post('/api/events/:id/proposals/generate', requireAuth, proposalLimiter, asy
       const aiProps = await aiProposalClient.generateMissionProposals({
         name:        flat.name || '',
         description: flat.description || '',
-        // 初期タスク「まずはざっくり企画を書いてみよう」(def-3) に書かれた内容。
+        // 初期タスク「企画をざっくり書いてみよう」(def-3) に書かれた内容。
         // ★概要（description）とは切り離したので、別の行で渡す（どちらも読ませる）
         // ★概要は def-3 の写しなので、同じ文章なら二重に渡さない
         planning:    planningText && planningText !== String(flat.description || '').trim() ? planningText : '',
@@ -2693,6 +2693,8 @@ const PILLARS_MAX = 3;
 const PILLAR_NAME_MAX = 20;
 const PILLAR_ID_RE = /^pil_[a-z0-9]{4,24}$/;
 // タスク・提案・カスタムタグの id の形（_sanitizeEventFields）。タグ名の長さ
+// 初期タスク（イベント作成時に入る。編集・削除させない）
+const _INITIAL_TASK_IDS = new Set(['def-1', 'def-3']);
 const SAFE_ITEM_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const TAG_NAME_MAX = 30;
 
@@ -2930,7 +2932,9 @@ async function _saveIncomingEvents(req, incoming, current, now) {
     const existingProposalIds = Object.keys(existing.proposals || {});
     const incomingMissionIds  = new Set((incomingP.missions  || []).map(m => m.id));
     const incomingProposalIds = new Set((incomingP.proposals || []).map(p => p.id));
-    const missionDeletions   = existingMissionIds.filter(id  => !incomingMissionIds.has(id)  && !existing.missions[id].deletedAt);
+    // ★初期タスク（目的 def-1・企画 def-3。isDeletable:false）は消させない（送られてこなくても tombstone を立てない。2026-11-05）
+    const _undeletable = (id) => _INITIAL_TASK_IDS.has(id) || existing.missions[id]?.fields?.isDeletable?.v === false;
+    const missionDeletions   = existingMissionIds.filter(id  => !incomingMissionIds.has(id)  && !existing.missions[id].deletedAt && !_undeletable(id));
     const proposalDeletions  = existingProposalIds.filter(id => !incomingProposalIds.has(id) && !existing.proposals[id].deletedAt);
 
     // 未完了に戻した・完了者から外した・削除したタスクの提出物（R2 のファイルごと消す）
@@ -3810,7 +3814,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         content, format, images, files, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
-      // ★初期タスク def-3（まずはざっくり企画を書いてみよう）の提出内容が概要の実体（2026-10-02 にふたたびつないだ）。
+      // ★初期タスク def-3（企画をざっくり書いてみよう）の提出内容が概要の実体（2026-10-02 にふたたびつないだ）。
       //   description に同じ文章（印を外したもの）を写す。AI の提案・公開データ・招待ページが description を読むため
       if (mid === SUMMARY_TASK_ID) _setEventField(p, 'description', _summaryTextOf(content, format), now);
       becameCleared = true;

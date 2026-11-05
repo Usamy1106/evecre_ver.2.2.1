@@ -56,6 +56,13 @@
   transform: scale(.95);
 }
 
+/* 初期クエストで戻れないとき、戻るボタンの代わりに出す一言（missionDetail.js の goalLocked） */
+.p-mission-detail__lock-note {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
 /* --- 本文 ---------------------------------------------------------------- */
 
 /* ★広い画面の「読む・書く」画面では、アプリの幅（--reading-max-width）いっぱいまで使う。
