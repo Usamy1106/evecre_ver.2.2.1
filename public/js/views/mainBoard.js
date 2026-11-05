@@ -1860,13 +1860,14 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
           <div class="p-archive__outcome-choices">${outcomeChip(OUTCOME_CHOICES.success)}${outcomeChip(OUTCOME_CHOICES.struggle)}</div>
         </div>` : ''}
         <div class="p-archive__reflect-fields${needsOutcome ? ' u-hidden' : ''}" data-reflect-fields>
-          <label class="p-archive__reflect-label"><span data-reflect-label="struggle">${labels.struggle}</span>
+          <!-- ★うまくいった側は1つ目の欄（struggle）を隠す。以前に書いた文字があれば出す（reflectShowsStruggle。2026-11-05） -->
+          <label class="p-archive__reflect-label${reflectShowsStruggle(cd.outcome, cd.struggle) ? '' : ' u-hidden'}" data-reflect-struggle-wrap><span data-reflect-label="struggle">${labels.struggle}</span>
             <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('struggle')}>${_esc(cd.struggle || '')}</textarea>
           </label>
           <label class="p-archive__reflect-label"><span data-reflect-label="solution">${labels.solution}</span>
             <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('solution')}>${_esc(cd.solution || '')}</textarea>
           </label>
-          <div class="p-archive__reflect-share">${Components.ShareCheck({ checked: !!cd.shareable, attrs: reflectAttrs('shareable') })}</div>
+          <div class="p-archive__reflect-share">${Components.ShareCheck({ checked: !!cd.shareable, attrs: reflectAttrs('shareable'), published: isKnowledgePublished(p) })}</div>
         </div>
         <p class="p-archive__save-status" data-save-status></p>
       </div>`}`;

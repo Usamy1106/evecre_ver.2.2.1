@@ -47,6 +47,16 @@
   padding: var(--space-2) var(--space-6) var(--space-10);
 }
 
+/* ★広い画面（タブレット・PC）では、読む・書く画面の幅（--reading-max-width）いっぱいまで使う（2026-11-05）。
+     384px の上限はスマホ横向きなどの中くらいの幅のためのもの（タスク詳細の本文と同じ考え方） */
+:root.is-screen-reading .p-mission-reflect__body {
+  max-width: none;
+}
+
+:root.is-screen-reading .p-mission-reflect__chip-art {
+  width: 72px;
+}
+
 /* 「完了！」。カードより遅れて弾む（同時だと何も印象に残らない） */
 .p-mission-reflect__done {
   font-size: var(--font-size-xl);
@@ -251,7 +261,19 @@
   line-height: 1.6;
 }
 
-/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
+/* 入力欄の下の一言（うまくいった側だけ。constants.js の REFLECT_HINTS）。空なら場所を取らない */
+.p-mission-reflect__hint {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.p-mission-reflect__hint:empty {
+  display: none;
+}
+
+/* 「この活動記録を共有する」の置き場所（中身は c-share-check） */
 .p-mission-reflect__share {
   margin-top: var(--space-4);
 }

@@ -22,11 +22,11 @@
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { logEvent } from '../logger.js';
-import { placeholderFor } from '../utils.js';
+import { placeholderFor, reflectShowsStruggle, isKnowledgePublished } from '../utils.js';
 import { Components } from '../components.js';
 import { confirmFirstShare, applyShareConfirmed } from '../modals/shareConfirmModal.js';
 import {
-  OUTCOME_CHOICES, OUTCOME_REPLIES, REFLECT_LABELS,
+  OUTCOME_CHOICES, OUTCOME_REPLIES, REFLECT_LABELS, REFLECT_HINTS,
   REFLECT_STRUGGLE_PLACEHOLDERS, REFLECT_SOLUTION_PLACEHOLDERS,
   REFLECT_EFFECT_PLACEHOLDERS, REFLECT_WHY_PLACEHOLDERS,
 } from '../constants.js';
@@ -96,17 +96,21 @@ export function renderMissionReflect(appEl) {
         }</p>
 
         <div id="reflect-fields" class="p-mission-reflect__fields${d.outcome ? ' is-open' : ''}">
-          <label class="p-mission-reflect__label" for="reflect-struggle" id="reflect-label-struggle">${_esc(f.struggle.label)}</label>
-          <textarea id="reflect-struggle" maxlength="${MAX}" rows="3"
-            class="c-input c-input--block p-mission-reflect__input"
-            placeholder="${_esc(f.struggle.placeholder)}">${_esc(d.struggle)}</textarea>
+          <!-- ★うまくいった側は欄を1つ（solution）だけ出す（reflectShowsStruggle。2026-11-05） -->
+          <div id="reflect-struggle-wrap" class="p-mission-reflect__field${reflectShowsStruggle(d.outcome, d.struggle) ? '' : ' u-hidden'}">
+            <label class="p-mission-reflect__label" for="reflect-struggle" id="reflect-label-struggle">${_esc(f.struggle.label)}</label>
+            <textarea id="reflect-struggle" maxlength="${MAX}" rows="3"
+              class="c-input c-input--block p-mission-reflect__input"
+              placeholder="${_esc(f.struggle.placeholder)}">${_esc(d.struggle)}</textarea>
+          </div>
 
           <label class="p-mission-reflect__label" for="reflect-solution" id="reflect-label-solution">${_esc(f.solution.label)}</label>
           <textarea id="reflect-solution" maxlength="${MAX}" rows="3"
             class="c-input c-input--block p-mission-reflect__input"
             placeholder="${_esc(f.solution.placeholder)}">${_esc(d.solution)}</textarea>
+          <p id="reflect-hint" class="p-mission-reflect__hint">${_esc(REFLECT_HINTS[d.outcome] || '')}</p>
 
-          <div class="p-mission-reflect__share">${Components.ShareCheck({ id: 'reflect-shareable', checked: !!d.shareable })}</div>
+          <div class="p-mission-reflect__share">${Components.ShareCheck({ id: 'reflect-shareable', checked: !!d.shareable, published: isKnowledgePublished(p) })}</div>
 
           <button type="button" onclick="window._app.saveMissionReflect()" id="reflect-save"
             class="c-button c-button--primary p-mission-reflect__save">保存して戻る</button>
@@ -176,6 +180,10 @@ function _pickOutcome(p, m, outcome) {
   };
   setField('struggle');
   setField('solution');
+  // ★うまくいった側は1つ目の欄を隠す（以前に書いた文字があれば残す）。ヒントも成否で差し替える
+  document.getElementById('reflect-struggle-wrap')?.classList.toggle('u-hidden', !reflectShowsStruggle(outcome, d.struggle));
+  const hint = document.getElementById('reflect-hint');
+  if (hint) hint.textContent = REFLECT_HINTS[outcome] || '';
   // ★自動フォーカスしない（モバイルでキーボードが出て画面が飛ぶ）
   document.getElementById('reflect-fields')?.classList.add('is-open');
 

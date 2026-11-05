@@ -129,7 +129,7 @@
 | 提出物に添付した PDF のカード（開く・ダウンロード） | `object/component/_file-card.css` |
 | 文章の中の URL のリンク（アーカイブ） | `object/component/_text-link.css` |
 | 文章の途中に画像・PDF を置ける編集欄（完了フォーム・提出内容の編集） | `object/component/_editor.css` |
-| 「他の団体にも役立ちそう」の大きなチェック | `object/component/_share-check.css` |
+| 「この活動記録を共有する」の大きなチェック | `object/component/_share-check.css` |
 | モーダルのフェードイン（`u-animate-fade`） | `object/utility/_transition.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
 | スクロールバーを隠す（`u-no-scrollbar`） | `object/utility/_scroll.css` |

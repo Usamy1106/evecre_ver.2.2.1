@@ -12,11 +12,11 @@
 import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
-import { placeholderFor } from '../utils.js';
+import { placeholderFor, reflectShowsStruggle, isKnowledgePublished } from '../utils.js';
 import { Components } from '../components.js';
 import { confirmFirstShare, applyShareConfirmed } from './shareConfirmModal.js';
 import {
-  REFLECT_LABELS,
+  REFLECT_LABELS, REFLECT_HINTS,
   REFLECT_STRUGGLE_PLACEHOLDERS, REFLECT_SOLUTION_PLACEHOLDERS,
   REFLECT_EFFECT_PLACEHOLDERS, REFLECT_WHY_PLACEHOLDERS,
 } from '../constants.js';
@@ -62,17 +62,20 @@ export function openReflectionEditModal(missionId, userId = null) {
       <h3 class="c-modal__heading">振り返りを書く</h3>
       <p class="p-reflect-edit__mission">${_esc(m.title)}</p>
 
+      <!-- ★うまくいった側は欄を1つ（solution）だけ。以前に書いた「効いたこと」があれば出す（reflectShowsStruggle）-->
+      ${reflectShowsStruggle(cd.outcome, cd.struggle) ? `
       <label class="p-reflect-edit__label" for="re-struggle">${_esc(labels.struggle)}</label>
       <textarea id="re-struggle" maxlength="${MAX}" rows="3"
         class="c-input c-input--block p-reflect-edit__input"
-        placeholder="${_esc(placeholderFor(tables.struggle, m))}">${_esc(cd.struggle || '')}</textarea>
+        placeholder="${_esc(placeholderFor(tables.struggle, m))}">${_esc(cd.struggle || '')}</textarea>` : ''}
 
       <label class="p-reflect-edit__label" for="re-solution">${_esc(labels.solution)}</label>
       <textarea id="re-solution" maxlength="${MAX}" rows="3"
         class="c-input c-input--block p-reflect-edit__input"
         placeholder="${_esc(placeholderFor(tables.solution, m))}">${_esc(cd.solution || '')}</textarea>
+      ${REFLECT_HINTS[cd.outcome] ? `<p class="p-reflect-edit__hint">${_esc(REFLECT_HINTS[cd.outcome])}</p>` : ''}
 
-      <div class="p-reflect-edit__share">${Components.ShareCheck({ id: 're-shareable', checked: !!cd.shareable })}</div>
+      <div class="p-reflect-edit__share">${Components.ShareCheck({ id: 're-shareable', checked: !!cd.shareable, published: isKnowledgePublished(p) })}</div>
 
       <div class="p-reflect-edit__actions">
         <button type="button" data-re="cancel" class="c-button c-button--ghost">キャンセル</button>
@@ -94,12 +97,13 @@ export function openReflectionEditModal(missionId, userId = null) {
 
   const saveBtn = overlay.querySelector('[data-re="save"]');
   saveBtn.onclick = async () => {
-    const struggle  = overlay.querySelector('#re-struggle').value.trim();
+    // ★欄が無い（うまくいった側）ときは今の値のまま送る（空で潰さない）
+    const struggle  = (overlay.querySelector('#re-struggle')?.value ?? cd.struggle ?? '').trim();
     const solution  = overlay.querySelector('#re-solution').value.trim();
     const shareable = overlay.querySelector('#re-shareable').checked;
     // ★本文の無い振り返りは公開の候補にできない（サーバーが shareable を外す）。黙って外さず、先に知らせる
     if (shareable && !struggle && !solution) {
-      window._app?.showToast('「他の団体にも役立ちそう」を選ぶには、振り返りを書いてください', 'error');
+      window._app?.showToast('「この活動記録を共有する」を選ぶには、振り返りを書いてください', 'error');
       return;
     }
 

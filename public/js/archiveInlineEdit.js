@@ -24,7 +24,7 @@ import { api } from './api.js';
 import { logEvent } from './logger.js';
 import { readEditor, bindClearEditor, loadEditorContent, itemsForKeys } from './clearEditor.js';
 import { uploadEditorEmbeds, editorContentAndFormat, embedsPayload } from './modals/helpers.js';
-import { getArchiveSummary, setArchiveVenue } from './utils.js';
+import { getArchiveSummary, setArchiveVenue, reflectShowsStruggle } from './utils.js';
 import { saveSummaryText, savePurposeText, shouldAskPillarsAfterPurpose } from './initialTasks.js';
 import { confirmFirstShare, applyShareConfirmed } from './modals/shareConfirmModal.js';
 import { REFLECT_LABELS } from './constants.js';
@@ -275,7 +275,12 @@ async function _pickOutcome(btn) {
   block.querySelectorAll('[data-reflect-label]').forEach(el => { el.textContent = labels[el.dataset.reflectLabel] || ''; });
   block.querySelector('[data-reflect-outcome-pick]')?.remove();
   block.querySelector('[data-reflect-fields]')?.classList.remove('u-hidden');
-  block.querySelector('[data-reflect-field="struggle"]')?.focus({ preventScroll: false });
+  // ★うまくいった側は1つ目の欄（struggle）を隠し、カーソルは見えている最初の欄へ（2026-11-05）
+  const struggleWrap = block.querySelector('[data-reflect-struggle-wrap]');
+  const struggleText = block.querySelector('[data-reflect-field="struggle"]')?.value || '';
+  struggleWrap?.classList.toggle('u-hidden', !reflectShowsStruggle(outcome, struggleText));
+  const first = struggleWrap && !struggleWrap.classList.contains('u-hidden') ? 'struggle' : 'solution';
+  block.querySelector(`[data-reflect-field="${first}"]`)?.focus({ preventScroll: false });
   // ★手元のデータにも先に入れる（保存を待つ間に描き直されても、選び直しにならない）
   const key = userId ? `${missionId}_u_${userId}` : missionId;
   if (p.clearedData?.[key]) p.clearedData[key].outcome = outcome;
@@ -340,8 +345,10 @@ export function startArchiveEditAt(target) {
     const pick = [...document.querySelectorAll('[data-reflect-outcome="success"]')]
       .find(x => x.dataset.reflectMission === missionId && (x.dataset.reflectUser || '') === userId);
     if (pick) { pick.scrollIntoView({ block: 'center' }); return; }
-    el = [...document.querySelectorAll('[data-reflect-field="struggle"]')]
-      .find(x => x.dataset.reflectMission === missionId && (x.dataset.reflectUser || '') === userId);
+    // ★1つ目の欄が隠れている（うまくいった側）ときは、見えている最初の欄へ
+    const fields = [...document.querySelectorAll('[data-reflect-field="struggle"], [data-reflect-field="solution"]')]
+      .filter(x => x.dataset.reflectMission === missionId && (x.dataset.reflectUser || '') === userId);
+    el = fields.find(x => !x.closest('.u-hidden')) || fields[0];
   } else {
     el = document.querySelector(`[data-inline="${kind}"]`);
   }

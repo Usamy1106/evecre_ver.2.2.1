@@ -496,8 +496,8 @@ function _eventManagementSection(p, sec) {
           <div>
             <p class="p-event-settings__sub-title">タスクも含めて公開（開催後）</p>
             <p class="p-event-settings__toggle-note">${n > 0
-              ? `「他の団体にも役立ちそう」とされた振り返り ${n}件と、そのタスクの内容も公開します。名前やチャットは公開されません`
-              : `「他の団体にも役立ちそう」とされた振り返りがまだありません。振り返りを書くときに選べます`}</p>
+              ? `「この活動記録を共有する」にした振り返り ${n}件と、そのタスクの内容も公開します。名前やチャットは公開されません`
+              : `「この活動記録を共有する」にした振り返りがまだありません。振り返りを書くときに選べます`}</p>
           </div>
           ${canMgr ? `
             <button type="button" data-ps-public-knowledge role="switch" aria-checked="${on}" aria-label="タスクも含めて公開（開催後）"
@@ -1107,7 +1107,7 @@ function _bindEvents(p, sec) {
     await state.silentReloadEvents?.();
     const now = state.events.find(x => x.id === p.id);
     window._app?.showToast(now?.publicKnowledge === true ? 'タスクも含めて公開しました'
-      : (p.publicKnowledge ? '公開できませんでした（開催後で、「他の団体にも役立ちそう」の振り返りが必要です）' : 'タスクを含む公開をやめました'));
+      : (p.publicKnowledge ? '公開できませんでした（開催後で、「この活動記録を共有する」の振り返りが必要です）' : 'タスクを含む公開をやめました'));
     state.render();
   });
 

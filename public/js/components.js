@@ -525,11 +525,13 @@ export const Components = {
   },
 
   /**
-   * 「他の団体にも役立ちそう」の大きなチェック（振り返りの shareable）。3か所で共用する：
+   * 「この活動記録を共有する」の大きなチェック（振り返りの shareable）。3か所で共用する：
    * 完了後の振り返り・振り返りの編集モーダル・アーカイブの編集モード。★文言を1か所に揃えるため、ここで作る。
    * @param {{ id?: string, checked?: boolean, attrs?: string }} opts  attrs は <input> に足す属性（data-*）
    */
-  ShareCheck({ id = '', checked = false, attrs = '' } = {}) {
+  // ★文言はここ1か所（2026-11-05 に「この活動記録を共有する」から変更）。published＝そのイベントがタスクも含めて公開済み
+  //   （publicKnowledge かつ開催後）。公開済みなら「公開されます」、まだなら「公開候補にします」と言い分ける
+  ShareCheck({ id = '', checked = false, attrs = '', published = false } = {}) {
     return `
       <label class="c-share-check">
         <input type="checkbox" class="c-share-check__input" ${id ? `id="${_escAttr(id)}"` : ''} ${checked ? 'checked' : ''} ${attrs}>
@@ -538,8 +540,10 @@ export const Components = {
             stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </span>
         <span class="c-share-check__body">
-          <span class="c-share-check__title">他の団体にも役立ちそう</span>
-          <span class="c-share-check__note">開催後、名前を伏せて他の団体に公開される候補になります</span>
+          <span class="c-share-check__title">この活動記録を共有する</span>
+          <span class="c-share-check__note">${published
+            ? '他の団体や学生がイベントづくりの参考にできるよう、この記録は公開されます。'
+            : '他の団体や学生がイベントづくりの参考にできるよう、この記録を公開候補にします。'}</span>
         </span>
       </label>`;
   },

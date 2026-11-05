@@ -753,7 +753,7 @@
   color: var(--color-text);
 }
 
-/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
+/* 「この活動記録を共有する」の置き場所（中身は c-share-check） */
 .p-archive__reflect-share {
   margin-top: var(--space-2);
 }
@@ -1061,7 +1061,16 @@
   resize: vertical;
 }
 
-/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
+/* 入力欄の下の一言（うまくいった側だけ。constants.js の REFLECT_HINTS。2026-11-05） */
+.p-reflect-edit__hint {
+  margin-top: calc(var(--space-2) * -1);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+/* 「この活動記録を共有する」の置き場所（中身は c-share-check） */
 .p-reflect-edit__share {
   margin-top: var(--space-2);
   margin-bottom: var(--space-4);

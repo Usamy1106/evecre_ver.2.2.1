@@ -320,10 +320,15 @@
   /* 左端の列で、いま開いているタブのボタンの地色（2026-10-02）*/
   --rail-default-bg: #fef6d5;
   --rail-active-bg: #ffe372;
-  /* ダッシュボード表示の左列（山と提案）の幅。左端の列を除いた残りの半分（右列と半々。2026-09-27）。
+  /* ダッシュボード表示の左列（山と提案）の幅＝「画面の高さ × --board-side-ratio」。ただし左端の列を除いた残りの半分を超えない
+     （2026-11-05。以前は常に半分で、1440px 幅の画面では約 680px＝スマホの 1.75 倍になり、山の絵が拡大されて山頂まで遠かった）。
+     ★山の絵は列の幅に合わせて拡大される（--art-unit ＝ 列の幅 ÷ 2049）。幅を高さに比例させると、スマホと同じ縦横の比率で見える。
+       スマホは「幅 ÷ 山が見える高さ」が約 0.5。値を下げると山が細く（山頂が近く）なり、右列（やること）が広くなる。
+     ★mountainPath.js の _tileScale が同じ式で列の幅を計算している（--board-side-ratio を読む）。式を変えたら両方直す。
      ★山の素材は 900px 幅で書き出しているので、高解像度の画面で左列が 450px を超えると少しぼやける。
        気になるようなら素材を広めに書き出し直す（ART_W は変えないこと。mountainPath.js）*/
-  --board-side-width: calc((100vw - var(--board-rail-width)) / 2);
+  --board-side-ratio: .5;
+  --board-side-width: min(calc((100vw - var(--board-rail-width)) / 2), calc(100vh * var(--board-side-ratio)));
   /* 読む・書く画面の幅。メインボードのアーカイブ・通知タブの中央の列もこの幅 */
   --reading-max-width: 720px;
   /* ダッシュボードの右列の切り替え（やること｜カレンダー｜ガント）の最大幅 */
@@ -338,6 +343,8 @@
   --home-card-basis: 160px;
   /* プロジェクトのタイル1枚の最小幅（_home.css の .p-home__folders）*/
   --folder-card-min-width: 280px;
+  --answers-card-min-width: 280px;
+  --board-donut-size: 112px;         /* 広い画面のカレンダーの下の円グラフの直径（2026-11-05） */   /* メンバー情報の箱の最小幅（広い画面のグリッド。2026-11-05） */
 }
 
 :root.is-wide {
@@ -4310,7 +4317,7 @@ body {
 
 /* ===== object/component/_share-check.css ===== */
 /* ==========================================================================
-   Object / Component / share-check — 「他の団体にも役立ちそう」のチェック（大きめ）
+   Object / Component / share-check — 「この活動記録を共有する」のチェック（大きめ）
    使用箇所: public/js/components.js の Components.ShareCheck
              （完了後の振り返り・振り返りの編集モーダル・アーカイブの編集モード）
 
@@ -5494,6 +5501,19 @@ body {
   background-color: var(--color-primary-pale4);
 }
 
+/* 次にやる初期タスク（目的／ざっくり企画）を促すカード（mainBoard.js の _goalPromptCardHtml。2026-11-05）。
+   ★お知らせのカードと同じ見た目。<button> なので幅と文字の寄せだけそろえる。説明は1行で切らずに2行まで */
+.p-main-board__announce-card--prompt {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+.p-main-board__announce-card--prompt .p-main-board__announce-title,
+.p-main-board__announce-card--prompt .p-main-board__announce-text {
+  display: block;
+}
+
 /* 枠の中に入るカード（1件目・プルダウンの中）は自前の枠を持たない */
 .p-main-board__announce .p-main-board__announce-card {
   border: 0;
@@ -6404,7 +6424,7 @@ body {
   color: var(--color-text);
 }
 
-/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
+/* 「この活動記録を共有する」の置き場所（中身は c-share-check） */
 .p-archive__reflect-share {
   margin-top: var(--space-2);
 }
@@ -6712,7 +6732,16 @@ body {
   resize: vertical;
 }
 
-/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
+/* 入力欄の下の一言（うまくいった側だけ。constants.js の REFLECT_HINTS。2026-11-05） */
+.p-reflect-edit__hint {
+  margin-top: calc(var(--space-2) * -1);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+/* 「この活動記録を共有する」の置き場所（中身は c-share-check） */
 .p-reflect-edit__share {
   margin-top: var(--space-2);
   margin-bottom: var(--space-4);
@@ -6725,53 +6754,6 @@ body {
 
 .p-reflect-edit__actions > * {
   flex: 1;
-}
-
-/* --- 振り返り用サブページへの導線 ------------------------------------------
-   ★イベント設定の行（c-settings-list__link）と同じ見た目に揃える。
-     同じ「別ページへ行く」操作なので、別の形にすると学習が無駄になる。 */
-
-.p-archive__links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-5);
-  margin-inline: var(--space-4);
-}
-
-.p-archive__link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-surface);
-  text-align: left;
-  transition: background-color var(--duration-fast) var(--ease);
-}
-
-.p-archive__link:active {
-  background-color: var(--color-bg);
-}
-
-.p-archive__link-title {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-.p-archive__link-sub {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-.p-archive__link-arrow {
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  color: var(--color-text-muted);
 }
 
 /* --- 目的の記録だけコールアウト（2026-09-28）----------------------------------
@@ -9526,6 +9508,72 @@ border: 2px solid var(--bg-textbox);
 /* なぞっている間は、確定前の古い期間を薄くする */
 .p-schedule__gantt-row--draft.is-picking .p-schedule__gantt-bar {
   opacity: .3;
+}
+
+/* --- 広い画面（タブレット・PC）の右列のガント（.p-schedule--rich。2026-11-05）---------------------------
+   ★mainBoard.js の _renderDashboardMain だけが付ける。スマホのシートと実施期間の選択（calendar.js）には付かない。
+   ★タスク名の列の幅と行の高さは schedulePanel.js の RICH_NAME_W / RICH_ROW_H（scheduleCssVars が --gantt-name-w / --gantt-row-h に入れる）。
+   ★行は3段：タスク名（大きく・1行で切る）／締め切り（超過・今日は赤）／担当。
+   ★ピンチで1日の列幅を変える（schedulePanel.js の _bindGanttPinch）。ガントの上ではブラウザ全体のズームを止める（touch-action） */
+.p-schedule--rich .p-schedule__body {
+  padding-inline: var(--space-6);
+}
+
+.p-schedule--rich .p-schedule__gantt-body {
+  touch-action: pan-x pan-y;
+}
+
+.p-schedule--rich .p-schedule__gantt-name {
+  padding: var(--space-2) var(--space-3);
+}
+
+.p-schedule--rich .p-schedule__gantt-name-inner {
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.p-schedule--rich .p-schedule__gantt-tagdot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+}
+
+.p-schedule__gantt-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.p-schedule--rich .p-schedule__gantt-title {
+  max-width: none;
+  overflow: hidden;
+  font-size: var(--font-size-md);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-schedule__gantt-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--color-text-soft);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.p-schedule__gantt-deadline,
+.p-schedule__gantt-assignee {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-schedule__gantt-deadline.is-urgent {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
 }
 
 /* ===== object/project/_date-picker.css ===== */
@@ -13002,6 +13050,16 @@ border: 2px solid var(--bg-textbox);
   padding: var(--space-2) var(--space-6) var(--space-10);
 }
 
+/* ★広い画面（タブレット・PC）では、読む・書く画面の幅（--reading-max-width）いっぱいまで使う（2026-11-05）。
+     384px の上限はスマホ横向きなどの中くらいの幅のためのもの（タスク詳細の本文と同じ考え方） */
+:root.is-screen-reading .p-mission-reflect__body {
+  max-width: none;
+}
+
+:root.is-screen-reading .p-mission-reflect__chip-art {
+  width: 72px;
+}
+
 /* 「完了！」。カードより遅れて弾む（同時だと何も印象に残らない） */
 .p-mission-reflect__done {
   font-size: var(--font-size-xl);
@@ -13206,7 +13264,19 @@ border: 2px solid var(--bg-textbox);
   line-height: 1.6;
 }
 
-/* 「他の団体にも役立ちそう」の置き場所（中身は c-share-check） */
+/* 入力欄の下の一言（うまくいった側だけ。constants.js の REFLECT_HINTS）。空なら場所を取らない */
+.p-mission-reflect__hint {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.p-mission-reflect__hint:empty {
+  display: none;
+}
+
+/* 「この活動記録を共有する」の置き場所（中身は c-share-check） */
 .p-mission-reflect__share {
   margin-top: var(--space-4);
 }
@@ -17002,7 +17072,7 @@ border: 2px solid var(--bg-textbox);
 
 /* ===== object/project/_answers.css ===== */
 /* ==========================================================================
-   Object / Project / answers — アーカイブ：参加時の回答一覧
+   Object / Project / answers — メンバー情報（旧「参加時の回答」）
    使用箇所: public/js/views/archiveAnswers.js
 
    参加申請フォームの回答を「ユーザー別」「質問別」の2つの見方で並べる。
@@ -17220,6 +17290,25 @@ border: 2px solid var(--bg-textbox);
   text-align: center;
 }
 
+/* --- 広い画面：ユーザー別はメンバー1人＝1つの箱をグリッドに並べる（2026-11-05）-------------
+   ★スマホは今までどおり縦に1列（グリッドにしない）。幅は見渡す画面（layoutMode.js の DASHBOARD_VIEWS）。
+   ★質問別は行が横に伸びると読みにくいので、読む幅に収める */
+:root.is-wide .p-answers__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--answers-card-min-width)), 1fr));
+  gap: var(--space-3);
+}
+
+:root.is-wide .p-answers__grid .p-answers__card {
+  margin-bottom: 0;   /* ★同じ段の箱は高さがそろう（グリッドの既定の stretch） */
+}
+
+:root.is-wide .p-answers__narrow,
+:root.is-wide .p-answers__lead,
+:root.is-wide .p-answers__tabs {
+  max-width: var(--reading-max-width);
+}
+
 /* ===== object/project/_stats.css ===== */
 /* ==========================================================================
    Object / Project / stats — アーカイブ：みんなの活躍（グラフ）
@@ -17370,8 +17459,8 @@ border: 2px solid var(--bg-textbox);
      public/js/modals/calendar.js … _renderCalendarInner
      public/js/modals/eventCalendarSheet.js … _render
      public/js/mountainPath.js … renderMountainBg
-     public/js/views/mainBoard.js … _initMissionPanelGesture / _renderDashboardMain / _renderMainTab
-                                    _withMonthHeadings / renderMainBoard
+     public/js/views/mainBoard.js … _calInsightsHtml / _initMissionPanelGesture / _isCalSide / _renderDashboardMain
+                                    _renderMainTab / _syncCalColFit / _syncCalSide / _withMonthHeadings / renderMainBoard
    ========================================================================== */
 
 /* 左端の列（position: fixed）のぶんだけ中身を右へずらす */
@@ -17552,13 +17641,214 @@ border: 2px solid var(--bg-textbox);
   padding-bottom: calc(var(--space-10) * 2);
 }
 
-/* 月のカレンダー。★スクロールしても上（または左）に残る。下を流れるカードが透けないよう地色を持つ */
-.p-board-dash__cal {
+/* 月のカレンダーと「目的と柱（大）」の列。★スクロールしても上（または左）に残る（2026-11-05 にカレンダー単体から移した）。
+   下を流れるカードが透けないよう地色を持つ。★画面が低くて列が入りきらないときは、この列だけスクロールさせる */
+.p-board-dash__cal-col {
   position: sticky;
   top: 0;
   z-index: 1;
   flex: 1 1 var(--board-cal-width);
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background-color: var(--color-bg);
+}
+
+/* 列が右列の高さに収まらない（背の低い画面）ときは固定をやめ、カードと一緒にスクロールする
+   （mainBoard.js の _syncCalColFit が付ける）。列の中だけのスクロールにすると、下が切れているのに気づけない */
+.p-board-dash__cal-col.is-cal-col-static {
+  position: static;
+  max-height: none;
+  overflow: visible;
+}
+
+.p-board-dash__cal {
+  background-color: var(--color-bg);
+}
+
+/* --- カレンダーの下：ラベル別の完了と、振り返りのページへの入口（2026-11-05）--------------------
+   ★カレンダーとカードが横に並んでいるときだけ見せる（mainBoard.js の _syncCalSide が .p-board-dash に
+     is-cal-side を付ける）。積まれているときに出すとカードが下へ押し出される。
+   ★目的と柱はここに出さない（左の列の上の1か所だけ）。
+   ★円グラフは CSS の conic-gradient（ライブラリを入れない）。色は JS が --donut に入れる */
+.p-board-dash__insights {
+  display: none;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0 var(--space-6) var(--space-6);
+}
+
+.p-board-dash.is-cal-side .p-board-dash__insights {
+  display: flex;
+}
+
+.p-board-dash__insights-title {
+  margin-bottom: var(--space-3);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-board-dash__labels {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+}
+
+.p-board-dash__labels-empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.p-board-dash__labels-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.p-board-dash__donut {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--board-donut-size);
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-full);
+  background: var(--donut);
+}
+
+/* 真ん中の穴（完了の件数） */
+.p-board-dash__donut-hole {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 62%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+}
+
+.p-board-dash__donut-value {
+  color: var(--color-text);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.1;
+}
+
+.p-board-dash__donut-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.p-board-dash__labels-list {
+  display: flex;
+  flex: 1 1 160px;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.p-board-dash__labels-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "dot name count"
+    "bar bar  bar";
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: 2px;
+}
+
+.p-board-dash__labels-dot {
+  grid-area: dot;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background-color: var(--label-color);
+}
+
+.p-board-dash__labels-name {
+  grid-area: name;
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-board-dash__labels-count {
+  grid-area: count;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* ★件数の棒は「いちばん多いラベルに対する割合」（みんなの活躍の棒と同じ考え方） */
+.p-board-dash__labels-bar {
+  grid-area: bar;
+  overflow: hidden;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg);
+}
+
+.p-board-dash__labels-fill {
+  display: block;
+  width: var(--label-pct);
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--label-color);
+}
+
+/* 振り返りのページへの入口。★イベント設定の行（c-settings-list__link）と同じ「別ページへ行く」形 */
+.p-board-dash__insight-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.p-board-dash__insight-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.p-board-dash__insight-link:hover {
+  background-color: var(--color-bg);
+}
+
+.p-board-dash__insight-link-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.p-board-dash__insight-link-title {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-board-dash__insight-link-sub {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.p-board-dash__insight-link-arrow {
+  flex: none;
+  color: var(--color-text-muted);
 }
 
 .p-board-dash__list {
