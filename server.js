@@ -4900,6 +4900,94 @@ app.post('/api/auth/password-reset/confirm', strictLimiter, async (req, res) => 
   }
 });
 
+// ===== 公開 API（外部サイト向け。2026-11-05）=====
+// 外部サイト（別リポジトリ・Cloudflare Pages）が「公開」に設定されたイベントを取りに来る。
+//   GET /api/public/events      … 一覧（publicBasicInfo が true のイベント）
+//   GET /api/public/events/:id  … 詳細（基礎情報＋開催後のナレッジ）
+// ★認証は無い。Cookie も req.user も見ない（requireAuth を付けないこと）。
+// ★応答は必ず lib/publicData.js の buildPublicEvent / publicListItem を通す。events / submissions を直接返さない。
+// ★CORS は PUBLIC_SITE_ORIGINS（カンマ区切り）に一致する Origin だけに許可を返す。GET / OPTIONS だけ・Credentials なし。
+//   ★Origin ごとに許可の有無が変わる応答を public でキャッシュさせるので、Vary: Origin を必ず付ける
+//   （付けないと途中の CDN が「許可なし」の応答を別のサイトにも返しうる）。
+const PUBLIC_SITE_ORIGINS = new Set(
+  String(process.env.PUBLIC_SITE_ORIGINS || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean)
+);
+const PUBLIC_CACHE = 'public, max-age=300';
+
+/** 公開 API：60回 / 分 / IP */
+const publicLimiter = rateLimit({
+  windowMs:       60 * 1000,
+  max:            60,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  skip:           _skipInDev,
+  handler: (_req, res) => res.status(429).set('Cache-Control', 'no-store').json({ ok: false, error: 'rate_limited' }),
+});
+
+app.use('/api/public', (req, res, next) => {
+  res.vary('Origin');
+  const origin = req.get('origin');
+  if (origin && PUBLIC_SITE_ORIGINS.has(origin)) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  }
+  if (req.method === 'OPTIONS') {
+    if (origin && PUBLIC_SITE_ORIGINS.has(origin)) res.set('Access-Control-Max-Age', '600');
+    return res.status(204).end();
+  }
+  if (req.method !== 'GET') {
+    return res.status(405).set('Allow', 'GET, OPTIONS').set('Cache-Control', 'no-store').json({ ok: false, error: 'method_not_allowed' });
+  }
+  next();
+}, publicLimiter);
+
+/** 存在しない・非公開・形が不正は、すべて同じ 404（公開されていないイベントの存在を漏らさない） */
+function _publicNotFound(res) {
+  return res.status(404).set('Cache-Control', 'no-store').json({ ok: false, error: 'not_found' });
+}
+
+/** 一覧の並び：開催の最終日が新しい順。日程未設定は最後。同じなら id の降順（作った順の新しいもの） */
+function _publicListOrder(a, b) {
+  const la = a.dates.at(-1) || '', lb = b.dates.at(-1) || '';
+  if (la !== lb) return !la ? 1 : !lb ? -1 : (la < lb ? 1 : -1);
+  return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+}
+
+app.get('/api/public/events', async (_req, res) => {
+  try {
+    const flats = (await eventStore.listPublicEvents()).map(crdt.crdtToFlat);
+    // ★提出物は公開イベントの分を1回でまとめて読む（概要などの旧データの読み替えと hasKnowledge に使う）
+    const subsByEvent = await submissionStore.getSubmissionsForProjects(flats.map(f => f.id));
+    const events = flats
+      .map(f => publicData.publicListItem(f, subsByEvent[f.id] || {}))
+      .filter(Boolean)
+      .sort(_publicListOrder);
+    res.set('Cache-Control', PUBLIC_CACHE).json({ ok: true, events });
+  } catch (e) {
+    console.error('GET /api/public/events error:', e);
+    res.status(500).set('Cache-Control', 'no-store').json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.get('/api/public/events/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (typeof id !== 'string' || !SAFE_ITEM_ID_RE.test(id)) return _publicNotFound(res);
+    const p = await eventStore.loadPublicEvent(id);
+    if (!p) return _publicNotFound(res);
+    const flat = crdt.crdtToFlat(p);
+    const pub  = publicData.buildPublicEvent(flat, await submissionStore.getSubmissionsForProject(flat.id));
+    // ★基礎情報が非公開なら、ナレッジだけ公開されていても出さない
+    if (!pub.basic) return _publicNotFound(res);
+    res.set('Cache-Control', PUBLIC_CACHE).json({
+      ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat), basic: pub.basic, knowledge: pub.knowledge,
+    });
+  } catch (e) {
+    console.error('GET /api/public/events/:id error:', e);
+    res.status(500).set('Cache-Control', 'no-store').json({ ok: false, error: 'server_error' });
+  }
+});
+
 // ===== SPA フォールバック =====
 
 app.get('*', (_req, res) => {
