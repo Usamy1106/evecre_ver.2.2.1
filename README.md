@@ -175,6 +175,12 @@ for f in public/js/**/*.js; do node --check "$f" || echo "FAIL: $f"; done
 - データモデル変更時は `lib/crdt.js` の `FLAT_MISSION_FIELDS` も更新
 - 詳細は `CLAUDE.md` 参照
 
-## ライセンス
+## License
 
-私的利用。
+Copyright (c) 2026 Kazuhide Usami. All rights reserved.
+
+本リポジトリ内のすべてのコード、文章、および画像等のコンテンツの著作権は著作者に帰属します。
+事前の書面による許可なく、いかなる目的（私的利用を除く複製、改変、再配布、商用利用、リバースエンジニアリングなど）での利用も固く禁止します。
+
+All rights reserved. No part of this repository may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of the author.
+
