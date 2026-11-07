@@ -6853,40 +6853,116 @@ body {
   flex: 1;
 }
 
-/* --- 目的の記録だけコールアウト（2026-09-28）----------------------------------
-   使用箇所: views/mainBoard.js（_renderArchiveEntry。def-1 のとき --purpose）
-   ★アーカイブは「囲みを持たない1枚の文書」が原則。例外は目的の1つだけ（ほかに広げないこと）。
-   ★上下の罫線（.p-archive__entry + .p-archive__entry）は消し、余白で区切る。 */
-.p-archive__entry--purpose {
-  margin-block: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  border-radius: var(--radius-md);
-  background-color: var(--color-warning-pale2);
+/* --- リード（目次より前。知らない人が最初に読むところ。2026-11-07。指示書B §4-3）---------------
+   使用箇所: views/mainBoard.js（_renderArchiveTab）
+   ★目的は記録の中ではなくここに出す（旧「目的の記録だけコールアウト」は廃止）。
+   ★数字3つはタスク単位。つまずいた記録を警告の形にしない（赤くしない・注意のアイコンを出さない） */
+.p-archive__lead-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
 }
 
-.p-archive__entry--purpose + .p-archive__entry,
-.p-archive__entry + .p-archive__entry--purpose {
-  border-top: 0;
-}
-
-.p-archive__purpose-label {
-  margin-bottom: var(--space-1);
-  color: var(--color-warning-dark);
+.p-archive__type {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-pale);
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
 }
 
-/* 未完了の目的を書く欄（編集モード・管理者だけ・概要の上。書いて離れると def-1 が完了になる。2026-10-02） */
-.p-archive__purpose-input {
-  margin-top: var(--space-3);
+.p-archive__updated {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
-.p-archive__purpose-input-text {
-  min-height: 3em;
+.p-archive__purpose-text {
+  min-height: 1.7em;
   font-size: var(--font-size-md);
   line-height: 1.7;
   color: var(--color-text);
   white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.p-archive__purpose-text.is-empty:not(:focus) {
+  min-height: 3em;
+}
+
+.p-archive__pillars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.p-archive__pillar {
+  padding: 2px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.p-archive__stat {
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+  text-align: center;
+}
+
+.p-archive__stat-label {
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.p-archive__stat-value {
+  margin-top: var(--space-1);
+  font-size: 22px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-archive__stat-unit {
+  margin-left: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* タスクの行の判定（うまくいった／つまずいた）。★どちらも同じ強さ（どちらかを警告にしない） */
+.p-archive__outcome-tag {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--button-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+/* 書き手（編集中だけ。プレビュー・公開には出さない） */
+.p-archive__writer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.p-archive__writer-name {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
 /* 概要（def-3）に画像・PDF・書式があるとき（記録と同じ描き方。ここでは直さない） */

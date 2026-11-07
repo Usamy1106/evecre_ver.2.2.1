@@ -398,6 +398,46 @@ export function countPublishableReflections(project) {
 }
 
 /**
+ * そのタスクの提出物（通常は1つ、個別完了は人数ぶん <mid>_u_<userId>）。
+ */
+export function taskSubmissions(project, missionId) {
+  const prefix = `${missionId}_u_`;
+  return Object.entries(project?.clearedData || {})
+    .filter(([k, cd]) => cd && (k === missionId || k.startsWith(prefix)))
+    .map(([, cd]) => cd);
+}
+
+/**
+ * アーカイブのリードの数字3つ（2026-11-07。指示書B §4-3）。★すべてタスク単位で数える。
+ *   done     … 渡したタスク（＝完了したタスク。除外は呼び出し側で済ませておく）の数
+ *   records  … そのうち、提出物のどれか1つでも「2つ目の欄（solution）」が書いてあるタスクの数（共有かどうかは問わない）
+ *   struggles … そのうち、提出物のどれか1つでも outcome が struggle のタスクの数
+ * ★個別完了は人数ぶん提出物があるので、提出物単位で数えると「記録」が「やったこと」を超える。必ずタスク単位で。
+ * ★countPublishableReflections（公開できる件数＝公開の可否の判定と対）とは別物。混ぜないこと。
+ * ★未記入の数は数えない（「あと N 件」は説教になる）。
+ */
+export function taskReflectionCounts(project, doneMissions) {
+  let records = 0, struggles = 0;
+  for (const m of doneMissions || []) {
+    const subs = taskSubmissions(project, m.id);
+    if (subs.some(cd => String(cd.solution || '').trim() !== '')) records++;
+    if (subs.some(cd => cd.outcome === 'struggle')) struggles++;
+  }
+  return { done: (doneMissions || []).length, records, struggles };
+}
+
+/**
+ * アーカイブの最終更新（ミリ秒。無ければ null）。基礎情報の更新（サーバーの crdtToFlat が出す basicUpdatedAt）と
+ * 提出物の時刻の大きいほう。★lib/publicData.js の lastUpdatedOf と同じ式に保つこと
+ */
+export function archiveLastUpdated(project) {
+  const ts = [Number(project?.basicUpdatedAt) || 0,
+    ...Object.values(project?.clearedData || {}).map(cd => Number(cd?.timestamp) || 0)];
+  const max = Math.max(0, ...ts);
+  return max > 0 ? max : null;
+}
+
+/**
  * 文章の中の URL をタップで開けるリンクにした HTML を返す（アーカイブ用）。
  * ★エスケープはここでまとめて行う（戻り値をもう一度 esc に通さないこと）。
  * ★リンクのタップは stopPropagation（アーカイブの記録はタップでタスク詳細を開くため）。

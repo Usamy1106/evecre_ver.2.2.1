@@ -2,9 +2,9 @@
 import { state } from '../state.js';
 import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
-import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS, OUTCOME_CHOICES } from '../constants.js';
+import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS, OUTCOME_CHOICES, EVENT_TYPES } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, isKnowledgePublished, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, isKnowledgePublished, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated } from '../utils.js';
 import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { pillarCharacter } from '../pillarChars.js';
@@ -1531,7 +1531,8 @@ function _renderAnnounceCards(p, meId) {
 //   「場所」「ヘッダー画像」の読み替え元なので、記録には並べない。
 // ★p2（広報リンク）は外さない（2026-09-26）。URL の欄を廃止したので、隠すとアーカイブの
 //   どこにも出なくなる。ふつうのタスクとして記録に並べる。
-const _OVERVIEW_IDS     = new Set(['def-3']);
+// ★def-1（目的）は記録ではなくリード（目次より前）に出す（2026-11-07。指示書B §4-3）。記録と二重に出さない
+const _OVERVIEW_IDS     = new Set(['def-1', 'def-3']);
 const _OVERVIEW_ORIGINS = new Set(['p1', 'p3']);
 const _ARCHIVE_TAG_ORDER = ['企画', '運営', '制作', '広報'];
 
@@ -1622,8 +1623,9 @@ function _renderArchiveTab(p) {
   const title      = p.name || '未設定';
   const summary    = getArchiveSummary(p);
   // 概要の実体（def-3）に画像・PDF・書式があるときは、文章・画像・PDF をその位置で描く（ここでは直さない）
-  // まだ決まっていない目的（def-1 があり未完了）。編集モードで書く欄を出す
-  const purposePending = canMgr && (p.missions || []).some(m => m.id === PURPOSE_MISSION_ID && m.status !== 'cleared');
+  // 目的（def-1 の提出内容）。★リードに出す。編集中は、決まっていてもいなくてもその場で書ける（文字だけ。initialTasks.js）
+  const purposeTask = (p.missions || []).some(m => m.id === PURPOSE_MISSION_ID);
+  const purpose     = submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
   const summaryCd  = p.clearedData?.['def-3'];
   const summaryRich = isRichSubmission(summaryCd) ? _segmentsHtml(p, summaryCd) : '';
   const mainVisual = getEventMainVisual(p);
@@ -1634,6 +1636,48 @@ function _renderArchiveTab(p) {
 
   // ── 記録（完了したタスク。概要欄の読み替え元 p1 / p3 は除く）──
   const cleared = (p.missions || []).filter(m => m.status === 'cleared' && !_isOverviewMission(m));
+
+  // ── リード（知らない人が最初に読むところ。2026-11-07。指示書B §4-3）──
+  // ★数字はタスク単位（utils.js の taskReflectionCounts）。未記入の数は数えない。つまずいた記録を警告の形にしない
+  const typeLabel = (EVENT_TYPES.find(t => t.id === p.eventType) || {}).label || '';
+  const lastTs    = isAfterEventDates(p) ? archiveLastUpdated(p) : null;
+  const pillars   = getPillars(p);
+  const counts    = taskReflectionCounts(p, cleared);
+  const leadMetaHtml = typeLabel || lastTs ? `
+    <div class="p-archive__lead-meta">
+      ${typeLabel ? `<span class="p-archive__type">${_esc(typeLabel)}</span>` : ''}
+      ${lastTs ? `<span class="p-archive__updated">最終更新 ${_fmtYmd(lastTs)}</span>` : ''}
+    </div>` : '';
+  const statsHtml = counts.done === 0 ? '' : `
+    <dl class="p-archive__stats">
+      <div class="p-archive__stat"><dt class="p-archive__stat-label">やったこと</dt>
+        <dd class="p-archive__stat-value" data-archive-stat="done">${counts.done}<span class="p-archive__stat-unit">件</span></dd></div>
+      <div class="p-archive__stat"><dt class="p-archive__stat-label">記録が残っているもの</dt>
+        <dd class="p-archive__stat-value" data-archive-stat="records">${counts.records}<span class="p-archive__stat-unit">件</span></dd></div>
+      <div class="p-archive__stat"><dt class="p-archive__stat-label">つまずいた記録</dt>
+        <dd class="p-archive__stat-value" data-archive-stat="struggles">${counts.struggles}<span class="p-archive__stat-unit">件</span></dd></div>
+    </dl>`;
+  const pillarsHtml = pillars.length === 0 ? '' : `
+    <div>
+      <h2 class="p-archive__label">柱</h2>
+      <ul class="p-archive__pillars">${pillars.map(x => `<li class="p-archive__pillar">${_esc(x.name)}</li>`).join('')}</ul>
+    </div>`;
+  const purposeHtml = !purposeTask ? '' : editing ? `
+    <!-- ★目的は編集中ならその場で書ける（まだ決まっていなくても、決まったあとでも）。書いて欄を離れると def-1 が完了・更新される -->
+    <div class="p-archive__purpose" data-inline-block>
+      <div class="p-archive__label-row">
+        <h2 class="p-archive__label">目的</h2>
+        <span class="p-archive__save-status" data-save-status></span>
+      </div>
+      <p class="p-archive__purpose-text p-archive__inline${purpose ? '' : ' is-empty'}" contenteditable="true" role="textbox"
+        aria-multiline="true" aria-label="目的" data-inline="purpose" data-inline-key="purpose"
+        data-placeholder="誰に、どんな価値を届けたいイベントか">${_esc(purpose)}</p>
+    </div>`
+    : purpose ? `
+    <div class="p-archive__purpose">
+      <h2 class="p-archive__label">目的</h2>
+      <p class="p-archive__purpose-text">${linkifyText(purpose)}</p>
+    </div>` : '';
   const mode    = _ARCHIVE_MODES.some(x => x.id === state.archiveDisplayMode) ? state.archiveDisplayMode : 'label';
   const sections = _archiveSections(p, cleared, mode);
   // ★未完了は編集モードでだけ出す（閲覧は読み物なので完了したものだけ）
@@ -1729,23 +1773,12 @@ function _renderArchiveTab(p) {
             <span class="p-archive__save-status" data-save-status></span>`
           : `<h1 class="p-archive__title"${tap('title')}>${_esc(title)}</h1>`}
         </div>
+        ${leadMetaHtml}
 
         <!-- ③ 概要と基礎情報 -->
         <section class="p-archive__intro">
           ${_archivePublicBannerHtml(p, canMgr)}
-          ${editing && purposePending ? `
-            <!-- ★まだ決まっていない目的は、編集モードのときここで書ける（2026-10-02）。書いて欄を離れると
-                 初期タスク def-1 が完了になり、以後は記録の「このイベントの目的」に出る。文字だけ（initialTasks.js）。
-                 ★未完了のタスクの一覧（畳まれた details）の中に置かないこと（開かないと見えない） -->
-            <div class="p-archive__purpose-input" data-inline-block>
-              <div class="p-archive__label-row">
-                <h2 class="p-archive__label">目的</h2>
-                <span class="p-archive__save-status" data-save-status></span>
-              </div>
-              <p class="p-archive__purpose-input-text p-archive__inline is-empty" contenteditable="true" role="textbox"
-                aria-multiline="true" aria-label="目的" data-inline="purpose" data-inline-key="purpose"
-                data-placeholder="誰に、どんな価値を届けたいイベントか"></p>
-            </div>` : ''}
+          ${purposeHtml}
           <div data-inline-block>
             <div class="p-archive__label-row">
               <h2 class="p-archive__label">概要</h2>
@@ -1778,6 +1811,8 @@ function _renderArchiveTab(p) {
               : (venue ? _esc(venue) : '未設定')}
             </dd>
           </dl>
+          ${pillarsHtml}
+          ${statsHtml}
         </section>
 
         <!-- ④ 目次 -->
@@ -1945,7 +1980,8 @@ function _archiveIndividualHtml(p, m, editing) {
           ${Components.UserAvatar(mem, { size: 28 })}
           <span class="p-archive__sub-head">
             <span class="p-archive__sub-name">${_esc(mem.username || '')}
-              ${cd.timestamp ? `<span class="p-archive__sub-date">${_fmtDate(cd.timestamp)} 提出</span>` : ''}</span>
+              ${cd.timestamp ? `<span class="p-archive__sub-date">${_fmtDate(cd.timestamp)} 提出</span>` : ''}
+              ${_outcomeTagHtml(cd.outcome)}</span>
             ${preview ? `<span class="p-archive__sub-preview">${preview}</span>` : ''}
           </span>
           <svg class="p-archive__sub-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -2006,6 +2042,13 @@ function _renderArchiveEntry(p, m, editing) {
     : (m.assignee?.type === 'user' ? 1 : clearedBy.length);
   const indivSummary = m.individualClear
     ? `<span class="p-archive__entry-indiv">${clearedBy.length}/${Math.max(1, totalAssignees)}人完了</span>` : '';
+  // 書き手（編集中だけ。2026-11-07）。★プレビュー・メンバーの閲覧・公開には出さない（publicData.js も出さない）。
+  //   個別完了は提出者ごとの行にもともとアバターがあるので、ここには出さない
+  const writer = editing && !m.individualClear && cd?.submittedBy
+    ? ((p.members || []).find(x => x.userId === cd.submittedBy) || { userId: cd.submittedBy, username: '退会したメンバー' }) : null;
+  const writerHtml = writer ? `
+    <span class="p-archive__writer">${Components.UserAvatar(writer, { size: 20, userId: writer.userId })}
+      <span class="p-archive__writer-name">${_esc(writer.username || '')}</span></span>` : '';
 
   // 右上：管理者はメニュー（リンクをコピー・編集する・未完了に戻す・削除する。閲覧でも編集中でも出す）／
   //        それ以外はリンクのコピー
@@ -2026,16 +2069,17 @@ function _renderArchiveEntry(p, m, editing) {
     </button>`;
 
   return `
-    <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${m.id === PURPOSE_MISSION_ID ? ' p-archive__entry--purpose' : ''}${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
-      ${m.id === PURPOSE_MISSION_ID ? '<p class="p-archive__purpose-label">このイベントの目的</p>' : ''}
+    <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
       <div class="p-archive__entry-head">
         ${_archiveEntryTitleHtml(m, editing)}
         ${actionBtn}
       </div>
       <div class="p-archive__entry-meta">
+        ${m.individualClear ? '' : _outcomeTagHtml(cd?.outcome)}
         ${tagNames.map(t => Components.Tag(t)).join('')}
         ${indivSummary}
         ${completedAt ? `<span class="p-archive__entry-date">${completedAt}完了</span>` : ''}
+        ${writerHtml}
       </div>
       ${m.individualClear ? _archiveIndividualHtml(p, m, editing) : _archiveSubmissionHtml(p, m, cd, editing)}
     </div>`;
@@ -2480,6 +2524,19 @@ function _fmtDate(ts) {
   if (!ts) return '';
   const d = new Date(ts);
   return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+// 年月日まで（アーカイブの最終更新。時刻は出さない）
+function _fmtYmd(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+// 振り返りの判定（うまくいった／つまずいた）。★文言は OUTCOME_CHOICES から（直書きしない）。
+// ★判定で行を薄くしない・赤くしない（半透明の意味は「外に出ない」の1つだけ。指示書B §1）
+function _outcomeTagHtml(outcome) {
+  const c = OUTCOME_CHOICES[outcome];
+  return c ? `<span class="p-archive__outcome-tag p-archive__outcome-tag--${c.id}">${_esc(c.label)}</span>` : '';
 }
 
 /**

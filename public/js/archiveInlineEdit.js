@@ -25,7 +25,7 @@ import { api } from './api.js';
 import { logEvent } from './logger.js';
 import { readEditor, bindClearEditor, loadEditorContent, itemsForKeys } from './clearEditor.js';
 import { uploadEditorEmbeds, editorContentAndFormat, embedsPayload } from './modals/helpers.js';
-import { getArchiveSummary, setArchiveVenue, reflectShowsStruggle } from './utils.js';
+import { getArchiveSummary, setArchiveVenue, reflectShowsStruggle, submissionText } from './utils.js';
 import { saveSummaryText, savePurposeText, shouldAskPillarsAfterPurpose } from './initialTasks.js';
 import { confirmFirstShare, applyShareConfirmed } from './modals/shareConfirmModal.js';
 import { REFLECT_LABELS } from './constants.js';
@@ -98,7 +98,8 @@ async function _saveBasic(node) {
 
 // 概要（def-3）・目的（def-1）。★PATCH /api/data ではなく、タスクの完了・提出内容の書き換えで保存する
 async function _saveInitialTask(node, p, field, value) {
-  const before = field === 'summary' ? getArchiveSummary(p) : '';
+  // ★目的は書いたあともリードで直せる（2026-11-07）。変わっていなければ保存しない
+  const before = field === 'summary' ? getArchiveSummary(p) : submissionText(p.clearedData?.['def-1']);
   if (value === String(before).trim()) { node._dirty = false; return; }
   node._dirty = false;
   _status(node, 'saving', '保存中…');
