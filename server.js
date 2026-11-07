@@ -881,19 +881,27 @@ const REFLECTION_OUTCOMES = ['success', 'struggle'];
  *   振り返りページは「チップを押した時点で outcome だけ保存 → あとで本文を保存」と
  *   2段階で書くので、毎回3項目を返すと**本文が空で上書きされる**。
  * ★`shareable` は本文とセットでしか動かさない（本文が無いのに公開可だけ立つ状態を作らない）。
+ * ★partial のとき、送られてこなかった欄は書かない（2026-11-07 に修正）。以前は1つの欄だけを送ると
+ *   もう1つの欄が空・shareable が false で上書きされていた（アーカイブのその場の編集は1欄ずつ送る）。
+ *   本文があるかの判定には opts.existing（今の提出物）の欄を使う。
  * @param {object} body
- * @param {{partial?: boolean}} opts
+ * @param {{partial?: boolean, existing?: object}} opts
  */
 function _sanitizeReflection(body, opts = {}) {
   const trim = (v) => String(v ?? '').trim().slice(0, REFLECTION_MAX);
   const has  = (k) => Object.prototype.hasOwnProperty.call(body || {}, k);
   const out = {};
+  const partial = !!opts.partial;
+  const ex = opts.existing || {};
 
-  if (!opts.partial || has('struggle') || has('solution') || has('shareable')) {
-    out.struggle = trim(body?.struggle);
-    out.solution = trim(body?.solution);
+  if (!partial || has('struggle')) out.struggle = trim(body?.struggle);
+  if (!partial || has('solution')) out.solution = trim(body?.solution);
+  if (!partial || has('struggle') || has('solution') || has('shareable')) {
+    const struggle = 'struggle' in out ? out.struggle : String(ex.struggle || '').trim();
+    const solution = 'solution' in out ? out.solution : String(ex.solution || '').trim();
+    const want = !partial || has('shareable') ? body?.shareable === true : ex.shareable === true;
     // 何も書いていないのに「公開してよい」だけ立つ状態を作らない
-    out.shareable = body?.shareable === true && !!(out.struggle || out.solution);
+    out.shareable = want && !!(struggle || solution);
   }
   if (!opts.partial || has('outcome')) {
     out.outcome = REFLECTION_OUTCOMES.includes(body?.outcome) ? body.outcome : null;
@@ -3556,7 +3564,7 @@ app.patch('/api/events/:id/missions/:mid/reflection', requireAuth, async (req, r
     // ★検証は完了時と同じ関数を通す（200字で切る／shareable は本文があるときだけ true）。
     //   ★partial：送られてきた項目だけを書く。振り返りページは outcome だけを先に保存するので、
     //     ここで3項目を毎回書くと本文が空で上書きされる。
-    const reflection = _sanitizeReflection(req.body, { partial: true });
+    const reflection = _sanitizeReflection(req.body, { partial: true, existing: sub });
     if (Object.keys(reflection).length === 0) {
       return res.status(400).json({ ok: false, error: '更新する項目がありません' });
     }
