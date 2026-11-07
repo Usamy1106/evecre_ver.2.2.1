@@ -129,6 +129,8 @@
 | 提出物に添付した PDF のカード（開く・ダウンロード） | `object/component/_file-card.css` |
 | 文章の中の URL のリンク（アーカイブ） | `object/component/_text-link.css` |
 | 文章の途中に画像・PDF を置ける編集欄（完了フォーム・提出内容の編集） | `object/component/_editor.css` |
+| 本文の見出し・箇条書き（書式の印 {{h}} / {{l}}） | `object/component/_rich-text.css` |
+| 非公開テキスト（書式の印 {{p}}。半透明＋左の線） | `object/utility/_private-text.css` |
 | 「この活動記録を共有する」の大きなチェック | `object/component/_share-check.css` |
 | モーダルのフェードイン（`u-animate-fade`） | `object/utility/_transition.css` |
 | ノッチ・ホームインジケータの回避 | `object/utility/_safe-area.css` |
@@ -310,6 +312,7 @@ public/css/
 │  ├─ _file-card.css            ✅ c-file-card（提出物の PDF）
 │  ├─ _text-link.css            ✅ c-text-link（文章の中の URL）
 │  ├─ _editor.css               ✅ c-editor / c-editor-field（clearEditor.js）
+│  ├─ _rich-text.css            ✅ c-rich-text（本文の見出し・箇条書き）
 │  ├─ _share-check.css          ✅ c-share-check（Components.ShareCheck）
 │  ├─ _context-menu.css         ✅ c-context-menu
 │  ├─ _emoji-picker.css         ✅ c-emoji-picker
@@ -364,6 +367,7 @@ public/css/
    ├─ _display.css              ✅ u-hidden
    ├─ _safe-area.css            ✅ u-fab-safe / u-pb-safe
    ├─ _scroll.css               ✅ u-no-scrollbar
+   ├─ _private-text.css         ✅ u-private-text（非公開テキスト）
    ├─ _display.css              ⬜ Phase 5 — u-hidden
    ├─ _text.css                 ⬜ Phase 5
    └─ _spacing.css              ⬜ Phase 5

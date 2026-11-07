@@ -4331,6 +4331,36 @@ body {
   font-style: italic;
 }
 
+/* ===== object/component/_rich-text.css ===== */
+/* ==========================================================================
+   Object / Component / rich-text — 本文の見出し・箇条書き（書式の印 {{h}} / {{l}}。2026-11-07）
+   使用箇所: public/js/utils.js の richTextHtml（タスク詳細の提出内容・アーカイブの記録）／
+             public/js/clearEditor.js（編集欄の中で同じ見た目にする）
+
+   ★段落の仕組みは持たない。本文は white-space: pre-wrap のまま、印の範囲を行として見せるだけ（指示書B §6-1）。
+     前後の改行は richTextHtml が1つずつ飲む（ここでは margin だけを持つ）。
+   ★<h3> / <li> を使わない（<li> は <ul> の外だと不正）。span を block / list-item にする。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-07 時点）
+     public/js/utils.js … richTextHtml
+     public/js/clearEditor.js … readEditor / setEditorText / (トップレベル)
+   ========================================================================== */
+
+.c-rich-text__h {
+  display: block;
+  margin-top: .75em;
+  margin-bottom: .25em;
+  font-size: 1.15em;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.5;
+}
+
+.c-rich-text__l {
+  display: list-item;
+  margin-left: 1.25em;
+  list-style: disc outside;
+}
+
 /* ===== object/component/_share-check.css ===== */
 /* ==========================================================================
    Object / Component / share-check — 「この活動記録を共有する」のチェック（大きめ）
@@ -18223,4 +18253,29 @@ border: 2px solid var(--bg-textbox);
 
 .u-no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* ===== object/utility/_private-text.css ===== */
+/* ==========================================================================
+   Object / Utility / private-text — 非公開テキスト（書式の印 {{p}}。2026-11-07）
+   使用箇所: public/js/utils.js の richTextHtml／mainBoard.js・missionDetail.js（非公開の中の画像・PDF）／
+             public/js/clearEditor.js（編集欄の中で同じ見た目にする）
+
+   ★「外に出ない」ことが分かる見た目（半透明＋左の細い線）。「非公開」の文字は毎回出さない（本文が読みにくくなる）。
+   ★半透明の意味はこれ1つだけ（指示書B §1）。ほかの理由（未記入・優先度が低い・古い）で薄くするのに使わないこと。
+   ★外へ出すときは、サーバーの lib/publicData.js が中身ごと消す（ここは見た目だけ）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-07 時点）
+     public/js/utils.js … richTextHtml
+     public/js/clearEditor.js … readEditor / setEditorText / (トップレベル)
+     public/js/views/mainBoard.js … _segmentsHtml
+     public/js/views/missionDetail.js … (トップレベル)
+   ========================================================================== */
+
+.u-private-text {
+  padding-left: .3em;
+  border-left: 2px solid var(--color-border);
+  opacity: .5;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }

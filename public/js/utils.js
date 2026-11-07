@@ -175,47 +175,85 @@ export const FILE_MARK_RE  = /\{\{file:(\d+)\}\}/g;
 // 画像とファイルの印をまとめて拾う（並び順どおりに分けるため）
 const _EMBED_MARK_RE = /\{\{(image|file):(\d+)\}\}/g;
 
-// ===== 提出物の本文の書式（太字・斜体。2026-09-28）=====
-// ★保存は文字＋印だけ（編集欄の HTML は保存しない＝XSS を出さない）。書式も印で持つ：
-//   {{b}}太字{{/b}} ／ {{i}}斜体{{/i}}（画像の {{image:N}} と同じ形）。
-//   ★Markdown の ** / * にしないこと。太字と斜体が重なると（**a*b***）読み取りが曖昧になり、
-//     既存の本文にある「*」も斜体と取り違える。
-// ★印を読むのはここの3つだけ：inlineRuns（分解）/ stripInlineMarks（外す）/ richTextHtml（表示用 HTML）。
+// ===== 提出物の本文の書式（2026-09-28 太字・斜体／2026-11-07 見出し・箇条書き・非公開）=====
+// ★保存は文字＋印だけ（編集欄の HTML は保存しない＝XSS を出さない）。書式も印で持つ（画像の {{image:N}} と同じ形）：
+//   {{b}}太字{{/b}} ／ {{i}}斜体{{/i}} ／ {{h}}見出し{{/h}} ／ {{l}}箇条書きの1項目{{/l}} ／ {{p}}非公開テキスト{{/p}}
+//   ★Markdown の ** / * / # / - にしないこと。重なると読み取りが曖昧になり、既存の本文の記号とも取り違える。
+//   ★見出し・箇条書きも段落の仕組みは持たない（本文は white-space: pre-wrap。印をブロック表示にするだけ。指示書B §6-1）
+//   ★非公開テキストはアプリの中（メンバー）には見せる（半透明）。外へ出すときはサーバーの lib/publicData.js が**中身ごと**消す
+// ★印を読むのはここの4つだけ：_INLINE_MARK_RE / inlineRuns（分解）/ stripInlineMarks（外す）/ richTextHtml（表示用 HTML）。
 //   書くのは clearEditor.js の readEditor だけ。
-const _INLINE_MARK_RE = /\{\{(\/?)([bi])\}\}/g;
+const _INLINE_MARK_RE = /\{\{(\/?)([bihlp])\}\}/g;
+const _INLINE_KEYS = ['b', 'i', 'h', 'l', 'p'];
+// 表示で付けるタグ。★<h3> / <li> は使わない（<li> は <ul> の外だと不正。段落の仕組みも持ち込まない）
+const _INLINE_TAGS = {
+  b: ['<strong>', '</strong>'],
+  i: ['<em>', '</em>'],
+  h: ['<span class="c-rich-text__h">', '</span>'],
+  l: ['<span class="c-rich-text__l">', '</span>'],
+  p: ['<span class="u-private-text">', '</span>'],
+};
 
-/** 書式の印を外した文字（抜粋・目的のボックス・AI に渡す本文など） */
+/** 書式の印を外した文字（抜粋・目的のボックスなど）。★中身は消さない（非公開テキストもアプリの中では見せる） */
 export function stripInlineMarks(text) {
   return String(text ?? '').replace(_INLINE_MARK_RE, '');
 }
 
 /**
- * 本文を「同じ書式が続くかたまり」に分ける。[{ text, b, i }]
+ * 本文を「同じ書式が続くかたまり」に分ける。[{ text, b, i, h, l, p }]
  * ★閉じていない印は最後まで効かせる。対応しない閉じの印は無視する（壊れた本文でも落ちない）。
+ *   サーバーの lib/publicData.js の splitPrivate も同じ数え方（非公開の閉じ忘れは末尾まで非公開＝安全側）
  */
 export function inlineRuns(text) {
   const src = String(text ?? '');
   const runs = [];
-  let b = 0, i = 0, last = 0;
-  const push = (t) => { if (t) runs.push({ text: t, b: b > 0, i: i > 0 }); };
+  const n = { b: 0, i: 0, h: 0, l: 0, p: 0 };
+  let last = 0;
+  const push = (t) => {
+    if (t) runs.push({ text: t, b: n.b > 0, i: n.i > 0, h: n.h > 0, l: n.l > 0, p: n.p > 0 });
+  };
   for (const m of src.matchAll(_INLINE_MARK_RE)) {
     push(src.slice(last, m.index));
     last = m.index + m[0].length;
-    const d = m[1] ? -1 : 1;
-    if (m[2] === 'b') b = Math.max(0, b + d); else i = Math.max(0, i + d);
+    n[m[2]] = Math.max(0, n[m[2]] + (m[1] ? -1 : 1));
   }
   push(src.slice(last));
   return runs;
 }
 
-/** 表示用 HTML。文字は必ずエスケープし（URL はリンクにする）、付けるタグは <strong> / <em> だけ */
+/**
+ * 表示用 HTML。文字は必ずエスケープし（URL はリンクにする）、付けるタグは上の _INLINE_TAGS だけ。
+ * ★見出し・箇条書きは display:block / list-item で行になる。本文は pre-wrap なので、その前後の改行を1つずつ飲む
+ *   （飲まないと上下に二重の隙間が出る。余白は CSS の margin が持つ）
+ * ★入れ子は正しく閉じ直す（例：太字の途中で見出しが閉じても、タグが交差しない）
+ */
 export function richTextHtml(text) {
-  return inlineRuns(text).map(r => {
-    let h = linkifyText(r.text);
-    if (r.i) h = `<em>${h}</em>`;
-    if (r.b) h = `<strong>${h}</strong>`;
-    return h;
-  }).join('');
+  const src = String(text ?? '')
+    .replace(/\n(\{\{[hl]\}\})/g, '$1')
+    .replace(/(\{\{\/[hl]\}\})\n/g, '$1');
+  const count = { b: 0, i: 0, h: 0, l: 0, p: 0 };
+  const stack = [];   // いま開いているタグ（開いた順）
+  let html = '', last = 0;
+  const text_ = (t) => { if (t) html += linkifyText(t); };
+  for (const m of src.matchAll(_INLINE_MARK_RE)) {
+    text_(src.slice(last, m.index));
+    last = m.index + m[0].length;
+    const k = m[2];
+    if (!m[1]) {
+      if (count[k]++ === 0) { stack.push(k); html += _INLINE_TAGS[k][0]; }
+      continue;
+    }
+    if (count[k] === 0) continue;            // 対応しない閉じの印は無視
+    if (--count[k] > 0) continue;            // 同じ印が重ねて開いている
+    // k より後に開いたタグを一度閉じ、k を閉じてから開き直す（タグを交差させない）
+    const at = stack.lastIndexOf(k);
+    const above = stack.splice(at);
+    for (let j = above.length - 1; j >= 0; j--) html += _INLINE_TAGS[above[j]][1];
+    for (const x of above.slice(1)) { stack.push(x); html += _INLINE_TAGS[x][0]; }
+  }
+  text_(src.slice(last));
+  for (let j = stack.length - 1; j >= 0; j--) html += _INLINE_TAGS[stack[j]][1];
+  return html;
 }
 
 /** 提出物の添付ファイル（PDF）。[{ url, name, size, thumb }] */
@@ -261,22 +299,29 @@ export function submissionSegments(cd) {
   const raw   = cd.format === 'image' ? '' : String(cd.content || '');
   const out   = [];
   const usedI = new Set(), usedF = new Set();
+  // ★書式の印は画像・PDF をまたいで続くことがある（とくに非公開 {{p}} は画像ごと囲む）。
+  //   文章のかたまりごとに描くので、かたまりの頭に「その時点で開いている印」を足して続きを正しく読ませる。
+  //   画像・PDF は、非公開の中にあれば private: true（アプリでは半透明。外へは出さない＝ publicData.js）
+  const open = { b: 0, i: 0, h: 0, l: 0, p: 0 };
   const pushText = (t) => {
     // 画像・ファイルの前後の改行は、それ自体が区切りになるので落とす
     const s = t.replace(/^\n+|\n+$/g, '');
-    if (s.trim()) out.push({ type: 'text', text: s });
+    const prefix = _INLINE_KEYS.filter(k => open[k] > 0).map(k => `{{${k}}}`).join('');
+    if (stripInlineMarks(s).trim()) out.push({ type: 'text', text: prefix + s });
+    for (const m of t.matchAll(_INLINE_MARK_RE)) open[m[2]] = Math.max(0, open[m[2]] + (m[1] ? -1 : 1));
   };
   let last = 0;
   for (const mm of raw.matchAll(_EMBED_MARK_RE)) {
     pushText(raw.slice(last, mm.index));
     last = mm.index + mm[0].length;
     const n = parseInt(mm[2], 10);
+    const priv = open.p > 0;
     if (mm[1] === 'image') {
       const url = imgs[n - 1];
-      if (url && !usedI.has(n)) { out.push({ type: 'image', url }); usedI.add(n); }
+      if (url && !usedI.has(n)) { out.push({ type: 'image', url, private: priv }); usedI.add(n); }
     } else {
       const file = files[n - 1];
-      if (file && !usedF.has(n)) { out.push({ type: 'file', file }); usedF.add(n); }
+      if (file && !usedF.has(n)) { out.push({ type: 'file', file, private: priv }); usedF.add(n); }
     }
   }
   pushText(raw.slice(last));

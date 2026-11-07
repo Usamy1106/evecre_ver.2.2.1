@@ -24,7 +24,9 @@ export function isRichSubmission(cd) {
   if (cd.format === 'image') return true;
   if (Array.isArray(cd.images) && cd.images.length > 0) return true;
   if (Array.isArray(cd.files) && cd.files.length > 0) return true;
-  return /\{\{(?:image|file):\d+\}\}|\{\{\/?[bi]\}\}/.test(String(cd.content || ''));
+  // ★見出し・箇条書き・非公開（{{h}} {{l}} {{p}}）も書式。とくに非公開は description（印を外した文字）に写らないので、
+  //   その場の1行の欄で直させず、タスクの画面で直す（直すと非公開の部分が消えるため）
+  return /\{\{(?:image|file):\d+\}\}|\{\{\/?[bihlp]\}\}/.test(String(cd.content || ''));
 }
 
 async function _writeText(p, missionId, text) {

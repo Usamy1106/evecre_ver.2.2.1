@@ -1,0 +1,23 @@
+/* ==========================================================================
+   Object / Utility / private-text — 非公開テキスト（書式の印 {{p}}。2026-11-07）
+   使用箇所: public/js/utils.js の richTextHtml／mainBoard.js・missionDetail.js（非公開の中の画像・PDF）／
+             public/js/clearEditor.js（編集欄の中で同じ見た目にする）
+
+   ★「外に出ない」ことが分かる見た目（半透明＋左の細い線）。「非公開」の文字は毎回出さない（本文が読みにくくなる）。
+   ★半透明の意味はこれ1つだけ（指示書B §1）。ほかの理由（未記入・優先度が低い・古い）で薄くするのに使わないこと。
+   ★外へ出すときは、サーバーの lib/publicData.js が中身ごと消す（ここは見た目だけ）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-07 時点）
+     public/js/utils.js … richTextHtml
+     public/js/clearEditor.js … readEditor / setEditorText / (トップレベル)
+     public/js/views/mainBoard.js … _segmentsHtml
+     public/js/views/missionDetail.js … (トップレベル)
+   ========================================================================== */
+
+.u-private-text {
+  padding-left: .3em;
+  border-left: 2px solid var(--color-border);
+  opacity: .5;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}

@@ -1848,10 +1848,11 @@ export function showAllArchiveSubmitters(missionId) {
 function _segmentsHtml(p, cd) {
   return submissionSegments(cd).map(seg => {
     if (seg.type === 'image') {
-      return `<img src="${_esc(seg.url)}" class="p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
+      return `<img src="${_esc(seg.url)}" class="${seg.private ? 'u-private-text ' : ''}p-archive__content-image" alt="提出画像" loading="lazy" data-fallback="submission">`;
     }
-    if (seg.type === 'file') return `<div class="p-archive__content-file">${Components.SubmissionFileCard(seg.file, p.id)}</div>`;
-    // ★太字・斜体（{{b}} / {{i}} の印）を <strong> / <em> に。文字は richTextHtml がエスケープする
+    if (seg.type === 'file') return `<div class="${seg.private ? 'u-private-text ' : ''}p-archive__content-file">${Components.SubmissionFileCard(seg.file, p.id)}</div>`;
+    // ★書式の印（太字・斜体・見出し・箇条書き・非公開）は richTextHtml が HTML にする。文字もそこでエスケープする。
+    //   非公開の中の画像・PDF は seg.private（半透明。外へは出さない＝ lib/publicData.js）
     return `<p class="p-archive__content-text">${richTextHtml(seg.text)}</p>`;
   }).join('');
 }
