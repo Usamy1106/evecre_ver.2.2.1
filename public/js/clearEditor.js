@@ -28,7 +28,7 @@
 //   ★下書き（localStorage）には入れない（複数枚の dataURL は約5MBをすぐにあふれる）。
 //   送信済みの URL も覚えておき、完了に失敗して押し直したときに送り直さない。
 
-import { SUBMISSION_MAX_IMAGES, SUBMISSION_MAX_FILES, SUBMISSION_FILE_MAX_BYTES } from './constants.js';
+import { SUBMISSION_MAX_IMAGES, SUBMISSION_MAX_FILES, SUBMISSION_FILE_MAX_BYTES, SUBMISSION_TEXT_MAX, SUBMISSION_TEXT_COUNT_FROM } from './constants.js';
 import { renderPdfThumb } from './pdfThumb.js';
 import { formatFileSize, submissionImages, submissionFiles, stripInlineMarks } from './utils.js';
 
@@ -550,8 +550,39 @@ function _insertAt(el, range, node) {
   return after;
 }
 
+// 本文の文字数（印を外した文字。サーバーの _submissionTextLength と同じ数え方）
+function _textLength(el) {
+  return readEditor(el).text.replace(/\{\{[^}]*\}\}/g, '').length;
+}
+
+// 残りの字数（SUBMISSION_TEXT_COUNT_FROM を超えてから出す）。★表示の箱は編集欄の枠（.c-editor-field）に1つ
+function _syncCount(el) {
+  const host = el.closest('.c-editor-field');
+  if (!host) return;
+  const n = _textLength(el);
+  let out = host.querySelector('.c-editor-field__count');
+  if (n <= SUBMISSION_TEXT_COUNT_FROM) { if (out) out.hidden = true; return; }
+  if (!out) {
+    out = document.createElement('p');
+    out.className = 'c-editor-field__count';
+    out.setAttribute('role', 'status');
+    host.appendChild(out);
+  }
+  out.hidden = false;
+  const left = SUBMISSION_TEXT_MAX - n;
+  out.classList.toggle('is-over', left < 0);
+  out.textContent = left >= 0 ? `あと ${left} 字` : `${-left} 字多いため、このままでは保存できません`;
+}
+
 function _insertText(el, range, text) {
-  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+  // ★貼り付けも本文の上限まで（はみ出した分は入れずに知らせる）
+  const room = SUBMISSION_TEXT_MAX - _textLength(el) + (range && !range.collapsed ? range.toString().length : 0);
+  let src = String(text || '').replace(/\r\n?/g, '\n');
+  if (src.length > room) {
+    src = src.slice(0, Math.max(0, room));
+    _toast(`本文は${SUBMISSION_TEXT_MAX.toLocaleString('ja-JP')}字までです。入りきらない分は貼り付けていません`);
+  }
+  const lines = src.split('\n');
   const frag = document.createDocumentFragment();
   lines.forEach((line, i) => {
     if (i > 0) frag.appendChild(document.createElement('br'));
@@ -914,7 +945,16 @@ export function bindClearEditor(el, { onChange } = {}) {
   _bindDocumentOnce();
   _syncEmpty(el);
 
-  el.addEventListener('input', () => { _syncEmpty(el); onChange?.(); });
+  el.addEventListener('input', () => { _syncEmpty(el); _syncCount(el); onChange?.(); });
+  // ★本文の上限（SUBMISSION_TEXT_MAX。印を外した文字数）。超えて打てないようにする（変換中の確定は止められないので、
+  //   超えたら数字で知らせる。サーバーも超えて伸ばした本文は受けない）
+  el.addEventListener('beforeinput', (e) => {
+    if (!/^insert(Text|Paragraph|LineBreak|ReplacementText)$/.test(e.inputType)) return;
+    const sel = window.getSelection?.();
+    const replacing = sel && !sel.isCollapsed ? String(sel).length : 0;
+    if (_textLength(el) - replacing + (e.data ? e.data.length : 1) > SUBMISSION_TEXT_MAX) e.preventDefault();
+  });
+  _syncCount(el);
 
   // 書式は太字・斜体だけ（⌘B / ⌘I。2026-09-28）。下線などは持たない
   // ★ブラウザ任せにせず自分で execCommand する（ボタンと同じ経路にして、<b> / <i> で入れる）

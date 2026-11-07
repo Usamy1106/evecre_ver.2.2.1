@@ -18,7 +18,7 @@ import { api } from '../api.js';
 import { Components } from '../components.js';
 import {
   MISSION_DESCRIPTIONS, LABEL_CONFIG,
-  SUBMISSION_PLACEHOLDERS, REFLECT_LABELS,
+  SUBMISSION_PLACEHOLDERS, SUBMISSION_TEXT_HINT, REFLECT_LABELS,
 } from '../constants.js';
 import { initClearDraft } from '../modals/helpers.js';
 import { placeholderFor, submissionSegments, richTextHtml } from '../utils.js';
@@ -313,7 +313,7 @@ function _renderClearInput(m) {
       <div class="c-editor-field">
         <div id="clear-input" class="c-editor is-empty" contenteditable="true"
           role="textbox" aria-multiline="true" data-mission-id="${_esc(m.id)}"
-          aria-label="提出内容" data-placeholder="${_esc(placeholderFor(SUBMISSION_PLACEHOLDERS, m))}"${textOnly ? ' data-text-only' : ''}></div>
+          aria-label="提出内容" data-placeholder="${_esc(placeholderFor(SUBMISSION_PLACEHOLDERS, m) + (textOnly ? '' : `（${SUBMISSION_TEXT_HINT}）`))}"${textOnly ? ' data-text-only' : ''}></div>
         ${textOnly ? '' : `
         ${editorFormatButtonsHtml()}
         <label for="file-input" class="c-editor-field__pick">

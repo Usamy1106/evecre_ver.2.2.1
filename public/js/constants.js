@@ -270,6 +270,11 @@ export const REFLECT_SOLUTION_PLACEHOLDERS = {
 export const REFLECT_SKIP_MISSION_IDS = ['def-1', 'def-3'];
 
 // 1つの提出に添えられる画像の枚数。★server.js の SUBMISSION_MAX_IMAGES と揃えること
+// 提出内容の本文の上限（印を外した文字数。2026-11-07 に 1,000 字。★server.js の SUBMISSION_TEXT_MAX と同じ値に保つこと）。
+// ★安全網であって、書く量の目安ではない。目安（300字前後）はプレースホルダーで示し、書き始めたら消える
+export const SUBMISSION_TEXT_MAX = 1000;
+export const SUBMISSION_TEXT_COUNT_FROM = 800;   // これを超えたら「あと N 字」を出す
+export const SUBMISSION_TEXT_HINT = '目安は300字前後';
 export const SUBMISSION_MAX_IMAGES = 5;
 
 // 添付ファイル（PDF）。画像とは別に数える。★server.js の SUBMISSION_MAX_FILES /
@@ -329,7 +334,24 @@ export const REFLECT_WHY_PLACEHOLDERS = {
   DEFAULT: '例：先に候補を3つ出したら、すぐ決まった。比べるだけで済んだから',
 };
 
+// 完了後の振り返りの「書き方の案内」（キャラクターの吹き出し。2026-11-07。指示書B §7-1）。
+// ★キャラ＝タスクのラベル（PROPOSAL_CHARACTERS の domains）、セリフ＝成否、の分担。
+// ★OUTCOME_REPLIES（押した瞬間の反応。短命）とは役割が違う。こちらは入力欄のすぐ上に、入力中も残す。
+// ★書き方の構造をプレースホルダーに置かない（書き始めた瞬間に消える）。構造は下の REFLECT_STEPS で欄の上に残す
+export const REFLECT_BUBBLES = {
+  success:  'したこと → どうなった → なぜ、の順だと次の人がそのまま真似できるよ',
+  struggle: 'なにが起きた → どうなった → 次はどうする、まで書くと次の人が同じところで詰まらずに済むよ',
+};
+
+// 各入力欄のすぐ上に並べる3語のラベル（入力中も消さない）。キーは保存先の欄（struggle / solution）。
+// ★真ん中の「どうなった」は成否の両側で共通。例文（REFLECT_*_PLACEHOLDERS）はすでにこの順になっている
+export const REFLECT_STEPS = {
+  success:  { solution: ['したこと', 'どうなった', 'なぜ'] },
+  struggle: { struggle: ['なにが起きた', 'どうなった'], solution: ['次はどうする'] },
+};
+
 // 入力欄の下の一言（うまくいった側だけ）。★何をどこまで書けばいいかを示す。指示・説教にしない
+// ★2026-11-07：完了後の振り返り（missionReflect.js）では吹き出し（REFLECT_BUBBLES）に置き換えた。振り返りの編集モーダルだけが使う
 export const REFLECT_HINTS = {
   success: 'したこと・結果・理由まで書くと、次にやる人がそのまま真似できます',
 };

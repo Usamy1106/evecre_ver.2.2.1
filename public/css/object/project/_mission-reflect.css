@@ -241,7 +241,8 @@
 }
 
 .p-mission-reflect__fields.is-open {
-  max-height: 640px;
+  /* ★案内・例・伸びる欄のぶん大きめに（中身より小さいと下が切れる） */
+  max-height: 2400px;
   opacity: 1;
 }
 
@@ -259,18 +260,105 @@
 .p-mission-reflect__input {
   padding: var(--space-3) var(--space-4);
   line-height: 1.6;
+  /* ★1行から始めて、書いた分だけ伸ばす（JS の _autoGrow）。空欄の面積を負担にしない */
+  min-height: 0;
+  overflow: hidden;
+  resize: none;
 }
 
-/* 入力欄の下の一言（うまくいった側だけ。constants.js の REFLECT_HINTS）。空なら場所を取らない */
-.p-mission-reflect__hint {
-  margin-top: var(--space-2);
-  font-size: var(--font-size-xs);
+/* --- 書き方の案内（2026-11-07。指示書B §7-1）----------------------------------
+   ★入力欄のすぐ上。入力中も残す。キャラは .p-char の部品（瞬き・視線もそのまま効く） */
+.p-mission-reflect__guide {
+  --char-h: 56px;
+  --char-bleed: 0px;
+  --char-stagger: 0ms;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* ★.p-char は高さを --char-h で決めてしまう（提案ボックス用）。ここでは吹き出しの高さに合わせる */
+.p-mission-reflect__guide.p-char {
+  height: auto;
+}
+
+.p-mission-reflect__guide-figure {
+  position: relative;
+  flex-shrink: 0;
+  width: var(--char-h);
+  height: var(--char-h);
+}
+
+.p-mission-reflect__guide-bubble {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-sm);
   line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* イベント作りに慣れた人（濃度 many）は絵なし・小さめ */
+.p-mission-reflect__guide.is-text-only .p-mission-reflect__guide-bubble {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
 
-.p-mission-reflect__hint:empty {
+/* 欄のすぐ上の3語（入力中も消さない） */
+.p-mission-reflect__steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: var(--space-2);
+}
+
+.p-mission-reflect__steps:empty {
   display: none;
+}
+
+.p-mission-reflect__step {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-pale);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+}
+
+.p-mission-reflect__step-arrow {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* 残りの字数（160字を超えてから）。★ 0/200 を常に出さない */
+.p-mission-reflect__count {
+  margin-top: 4px;
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* 「例を見る」（書き始めたあとでも見返せる） */
+.p-mission-reflect__example {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-mission-reflect__example summary {
+  display: inline-block;
+  cursor: pointer;
+}
+
+.p-mission-reflect__example p {
+  margin-top: 4px;
+  line-height: 1.6;
 }
 
 /* 「この活動記録を共有する」の置き場所（中身は c-share-check） */

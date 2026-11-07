@@ -274,6 +274,19 @@
   font-style: italic;
 }
 
+/* 残りの字数（800字を超えてから。clearEditor.js の _syncCount。2026-11-07）。★超えたら色を変えて知らせる */
+.c-editor-field__count {
+  margin-top: 4px;
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.c-editor-field__count.is-over {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-heavy);
+}
+
 /* 文字で示すボタン（見出し・箇条書き・非公開。2026-11-07）。★幅は中身に合わせる */
 .c-editor-field__format-btn--heading,
 .c-editor-field__format-btn--list,

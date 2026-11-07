@@ -683,7 +683,7 @@ section('[B] 実機で見つかった不具合');
 
     ok('★プレースホルダーを _esc に通している',
       /placeholder="\$\{_esc\(placeholderFor\(/.test(md) &&
-      /placeholder="\$\{_esc\(f\.(struggle|solution)\.placeholder\)\}"/.test(mr));
+      /placeholder="\$\{_esc\(f(\.(struggle|solution)|\[key\])\.placeholder\)\}"/.test(mr));
     // ★タグ別の出し分けは utils.js の placeholderFor 1本。各ファイルに書き写さないこと
     ok('★タグ別の例文の選び方が utils.js に1本化されている',
       /export function placeholderFor\(table, mission\)/.test(ut) &&

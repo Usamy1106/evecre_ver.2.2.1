@@ -1178,6 +1178,11 @@ async function _extractClearedData(projectId, flat) {
   await Promise.all(entries.map(async ([missionId, submission]) => {
     if (!submission) return;
     let content = submission.content;
+    // ★本文の上限（_submissionTooLong）。ここは 400 を返せないので、超えて伸ばした本文は書かずに今のまま残す
+    if (typeof content === 'string' && _submissionTooLong(content, submission.format, current[missionId])) {
+      console.warn(`[submission] too long, kept previous event=${projectId} key=${missionId}`);
+      content = undefined;
+    }
 
     // 画像 dataURL → R2 アップロード
     if (
@@ -3603,7 +3608,22 @@ app.patch('/api/events/:id/missions/:mid/reflection', requireAuth, async (req, r
 //   saveSubmission（丸ごと差し替え）を使わないこと。
 // ★個別完了は targetUserId でその人の提出物（<mid>_u_<userId>）を直す。指定が無ければ 400。
 // ★外した画像・PDF（とその1ページ目の絵）は R2 から消す。このイベントのものだけ。
-const SUBMISSION_TEXT_MAX = 20000;
+// 提出内容の本文の上限（2026-11-07 に 20,000 → 1,000。指示書B §7-2）。★安全網（貼り付け事故を止める）であって、
+//   書く量を変えるのは目安と箇条書きの仕事。数えるのは印（{{…}}）を外した文字。
+// ★既存の長い本文は切らない：前の本文より長くならない限り、1,000字を超えていても保存し直してよい
+//   （切ると、編集して保存した瞬間に本文が消える）。超えて伸ばそうとしたら 400（黙って切らない）
+const SUBMISSION_TEXT_MAX = 1000;
+const SUBMISSION_TEXT_HARD_MAX = 20000;   // 何があってもこれ以上は受けない（以前の上限）
+function _submissionTextLength(content, format) {
+  if (format === 'image') return 0;
+  return String(content ?? '').replace(/\{\{[^}]*\}\}/g, '').length;
+}
+function _submissionTooLong(content, format, prev) {
+  const n = _submissionTextLength(content, format);
+  if (n <= SUBMISSION_TEXT_MAX) return false;
+  return n > (prev ? _submissionTextLength(prev.content, prev.format) : 0);
+}
+const SUBMISSION_TOO_LONG = `本文は${SUBMISSION_TEXT_MAX.toLocaleString('ja-JP')}字までです`;
 app.patch('/api/events/:id/missions/:mid/submission', requireAuth, async (req, res) => {
   try {
     const p = await eventStore.loadEvent(req.params.id);
@@ -3629,8 +3649,9 @@ app.patch('/api/events/:id/missions/:mid/submission', requireAuth, async (req, r
     const fls = _sanitizeSubmissionFiles(p.id, req.body?.files);
     if (fls.error) return res.status(400).json({ ok: false, error: fls.error });
     const images = imgs.images, files = fls.files;
-    let content = String(req.body?.content ?? '').slice(0, SUBMISSION_TEXT_MAX);
+    let content = String(req.body?.content ?? '').slice(0, SUBMISSION_TEXT_HARD_MAX);
     let format  = _submissionFormat(req.body?.format, content, p.id);
+    if (_submissionTooLong(content, format, prev)) return res.status(400).json({ ok: false, error: SUBMISSION_TOO_LONG, code: 'too_long' });
     // 画像だけのときは旧形式（format:'image' + content に1枚目）も埋める（/complete と同じ）
     if (images.length > 0 && files.length === 0 && !content.trim()) { format = 'image'; content = images[0]; }
 
@@ -3765,8 +3786,9 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     if (m.status === 'cleared') return res.status(400).json({ ok: false, error: '既に完了しています' });
 
     const userId = req.user.id;
-    let content   = String(req.body?.content ?? '');
+    let content   = String(req.body?.content ?? '').slice(0, SUBMISSION_TEXT_HARD_MAX);
     let format    = _submissionFormat(req.body?.format, content, p.id);
+    if (_submissionTooLong(content, format, null)) return res.status(400).json({ ok: false, error: SUBMISSION_TOO_LONG, code: 'too_long' });
     // 画像（R2 の URL。1枚ずつ POST /submission-images で送ったもの）。本文と同時に持てる
     const imgs = _sanitizeSubmissionImages(p.id, req.body?.images);
     if (imgs.error) return res.status(400).json({ ok: false, error: imgs.error });

@@ -18,20 +18,28 @@
 //   「スキップしてよい」とは読めず、答えなければいけない画面に見える。
 //   出口が分かる状態のほうが、次に完了するときの心理的な負担が軽い。
 //   ★押されても完了は確定済みで、何も失われない（あとからアーカイブで書ける）。
+// ★書き方の案内（2026-11-07。指示書B §7）：入力欄のすぐ上にキャラクターの吹き出し（REFLECT_BUBBLES）と
+//   3語のラベル（REFLECT_STEPS）。どちらも入力中も残す（プレースホルダーは書き始めると消えるため）。
+//   キャラはタスクのラベルで決める（PROPOSAL_CHARACTERS の domains）。イベント作りに慣れた人（濃度 many）には絵を出さない。
+//   例文はプレースホルダーのまま残し、欄の下の「例を見る」でも見返せる。
+// ★欄は1行から始め、書いた分だけ伸ばす。残りの字数は 160 字を超えてから出す（0/200 を常に出さない）
 
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { logEvent } from '../logger.js';
 import { placeholderFor, reflectShowsStruggle, isKnowledgePublished } from '../utils.js';
+import { characterFigureHtml } from '../character.js';
+import { densityForEvent, DENSITY } from '../onboarding.js';
 import { Components } from '../components.js';
 import { confirmFirstShare, applyShareConfirmed } from '../modals/shareConfirmModal.js';
 import {
-  OUTCOME_CHOICES, OUTCOME_REPLIES, REFLECT_LABELS, REFLECT_HINTS,
+  OUTCOME_CHOICES, OUTCOME_REPLIES, REFLECT_LABELS, REFLECT_BUBBLES, REFLECT_STEPS, PROPOSAL_CHARACTERS,
   REFLECT_STRUGGLE_PLACEHOLDERS, REFLECT_SOLUTION_PLACEHOLDERS,
   REFLECT_EFFECT_PLACEHOLDERS, REFLECT_WHY_PLACEHOLDERS,
 } from '../constants.js';
 
 const MAX = 200;
+const COUNT_FROM = 160;   // これを超えたら「あと N 字」を出す
 // 粒の数。★0.5CPU 環境が基準なので増やさないこと（16個以内）
 const SPARKS = { success: 10, struggle: 6 };
 
@@ -53,6 +61,34 @@ function _fieldsFor(outcome, m) {
   };
 }
 
+/** 吹き出しを話すキャラ。タスクのラベルで決める（PROPOSAL_CHARACTERS の domains。4つのラベルは3体のどれかに入る） */
+function _guideCharacter(m) {
+  const tags = [...(Array.isArray(m.tags) ? m.tags : []), m.tag].filter(Boolean);
+  return PROPOSAL_CHARACTERS.find(ch => tags.some(t => ch.domains.includes(t))) || PROPOSAL_CHARACTERS[0];
+}
+
+/** 3語のラベル（矢印でつなぐ）。無ければ '' */
+function _stepsHtml(outcome, key) {
+  const steps = REFLECT_STEPS[outcome]?.[key];
+  return steps ? steps.map(x => `<span class="p-mission-reflect__step">${_esc(x)}</span>`).join('<span class="p-mission-reflect__step-arrow" aria-hidden="true">→</span>') : '';
+}
+
+/** 欄を中身に合わせて伸ばす（1行から） */
+function _autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+
+/** 残りの字数（160 字を超えてから） */
+function _syncCount(key) {
+  const el = document.getElementById(`reflect-${key}`);
+  const out = document.getElementById(`reflect-count-${key}`);
+  if (!el || !out) return;
+  const n = el.value.length;
+  out.hidden = n <= COUNT_FROM;
+  out.textContent = `あと ${Math.max(0, MAX - n)} 字`;
+}
+
 export function renderMissionReflect(appEl) {
   const p = state.events.find(x => x.id === state.selectedEventId);
   const m = p?.missions?.find(x => x.id === state.reflectMissionId);
@@ -61,6 +97,19 @@ export function renderMissionReflect(appEl) {
 
   const d = state.reflectDraft || (state.reflectDraft = { outcome: null, struggle: '', solution: '', shareable: false });
   const f = _fieldsFor(d.outcome || 'struggle', m);
+  const ch = _guideCharacter(m);
+  // ★イベント作りに慣れた人（濃度 many）には絵を出さない（吹き出しの文だけ）
+  const showFigure = densityForEvent(state.currentUser?.id, state.events, p) !== DENSITY.MANY;
+  const field = (key) => `
+            <div class="p-mission-reflect__steps" id="reflect-steps-${key}">${_stepsHtml(d.outcome, key)}</div>
+            <textarea id="reflect-${key}" maxlength="${MAX}" rows="1"
+              class="c-input c-input--block p-mission-reflect__input"
+              placeholder="${_esc(f[key].placeholder)}">${_esc(d[key])}</textarea>
+            <p class="p-mission-reflect__count" id="reflect-count-${key}" role="status" hidden></p>
+            <details class="p-mission-reflect__example">
+              <summary>例を見る</summary>
+              <p id="reflect-example-${key}">${_esc(f[key].placeholder)}</p>
+            </details>`;
 
   const chip = (c) => `
     <button type="button" data-reflect-outcome="${c.id}"
@@ -96,19 +145,22 @@ export function renderMissionReflect(appEl) {
         }</p>
 
         <div id="reflect-fields" class="p-mission-reflect__fields${d.outcome ? ' is-open' : ''}">
+          <!-- 書き方の案内（入力中も残す）。キャラ＝タスクのラベル、セリフ＝成否 -->
+          <div class="p-mission-reflect__guide p-char p-char--${ch.id} p-char--ready${showFigure ? '' : ' is-text-only'}">
+            ${showFigure ? `<div class="p-mission-reflect__guide-figure">${characterFigureHtml(ch)}</div>` : ''}
+            <p id="reflect-bubble" class="p-mission-reflect__guide-bubble">${_esc(REFLECT_BUBBLES[d.outcome] || '')}</p>
+          </div>
+
           <!-- ★うまくいった側は欄を1つ（solution）だけ出す（reflectShowsStruggle。2026-11-05） -->
           <div id="reflect-struggle-wrap" class="p-mission-reflect__field${reflectShowsStruggle(d.outcome, d.struggle) ? '' : ' u-hidden'}">
             <label class="p-mission-reflect__label" for="reflect-struggle" id="reflect-label-struggle">${_esc(f.struggle.label)}</label>
-            <textarea id="reflect-struggle" maxlength="${MAX}" rows="3"
-              class="c-input c-input--block p-mission-reflect__input"
-              placeholder="${_esc(f.struggle.placeholder)}">${_esc(d.struggle)}</textarea>
+            ${field('struggle')}
           </div>
 
-          <label class="p-mission-reflect__label" for="reflect-solution" id="reflect-label-solution">${_esc(f.solution.label)}</label>
-          <textarea id="reflect-solution" maxlength="${MAX}" rows="3"
-            class="c-input c-input--block p-mission-reflect__input"
-            placeholder="${_esc(f.solution.placeholder)}">${_esc(d.solution)}</textarea>
-          <p id="reflect-hint" class="p-mission-reflect__hint">${_esc(REFLECT_HINTS[d.outcome] || '')}</p>
+          <div class="p-mission-reflect__field">
+            <label class="p-mission-reflect__label" for="reflect-solution" id="reflect-label-solution">${_esc(f.solution.label)}</label>
+            ${field('solution')}
+          </div>
 
           <div class="p-mission-reflect__share">${Components.ShareCheck({ id: 'reflect-shareable', checked: !!d.shareable, published: isKnowledgePublished(p) })}</div>
 
@@ -129,7 +181,10 @@ export function renderMissionReflect(appEl) {
   // 入力は下書きへ即時反映（保存はボタンを押したときだけ）
   const bind = (id, key) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => { state.reflectDraft[key] = el.value; });
+    if (!el) return;
+    _autoGrow(el);
+    _syncCount(key);
+    el.addEventListener('input', () => { state.reflectDraft[key] = el.value; _autoGrow(el); _syncCount(key); });
   };
   bind('reflect-struggle', 'struggle');
   bind('reflect-solution', 'solution');
@@ -177,13 +232,20 @@ function _pickOutcome(p, m, outcome) {
     const input = document.getElementById(`reflect-${key}`);
     if (label) label.textContent = f[key].label;
     if (input) input.placeholder = f[key].placeholder;
+    const steps = document.getElementById(`reflect-steps-${key}`);
+    if (steps) steps.innerHTML = _stepsHtml(outcome, key);
+    const ex = document.getElementById(`reflect-example-${key}`);
+    if (ex) ex.textContent = f[key].placeholder;
+    // ★例文（プレースホルダー）の長さが変わるので、欄の高さも測り直す（空欄でも例文が切れないように）
+    if (input) _autoGrow(input);
   };
   setField('struggle');
   setField('solution');
   // ★うまくいった側は1つ目の欄を隠す（以前に書いた文字があれば残す）。ヒントも成否で差し替える
   document.getElementById('reflect-struggle-wrap')?.classList.toggle('u-hidden', !reflectShowsStruggle(outcome, d.struggle));
-  const hint = document.getElementById('reflect-hint');
-  if (hint) hint.textContent = REFLECT_HINTS[outcome] || '';
+  // 書き方の案内（吹き出し）。★押した瞬間の反応（#reflect-reply）とは別。こちらは入力中も残す
+  const bubble = document.getElementById('reflect-bubble');
+  if (bubble) bubble.textContent = REFLECT_BUBBLES[outcome] || '';
   // ★自動フォーカスしない（モバイルでキーボードが出て画面が飛ぶ）
   document.getElementById('reflect-fields')?.classList.add('is-open');
 
