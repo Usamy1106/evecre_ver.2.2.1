@@ -66,11 +66,11 @@ import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { checkGoalQuest } from './goalQuest.js';
 import { checkArchiveTour } from './archiveTour.js';
-import { isInitialTask } from './utils.js';
+import { isInitialTask, taskShareState } from './utils.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
-import { flushArchiveInlineEdits, focusArchiveInline } from './archiveInlineEdit.js';
+import { flushArchiveInlineEdits, focusArchiveInline, setTaskShared } from './archiveInlineEdit.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkPublicBasicInfoModal, openPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkPublicKnowledgeModal } from './modals/publicKnowledgeModal.js';
@@ -517,9 +517,13 @@ window._app = {
     menu.style.right = `${window.innerWidth - rect.right}px`;
     // ★「編集する」は外した（2026-11-07。管理者は最初から書けるので要らない）
     // ★初期タスク（目的・企画）は「未完了に戻す」「削除する」を出さない（2026-11-05）。書いた内容はその場で直せる
-    const initial = isInitialTask(state.events.find(p => p.id === state.selectedEventId)?.missions?.find(m => m.id === missionId));
+    const ev = state.events.find(p => p.id === state.selectedEventId);
+    const initial = isInitialTask(ev?.missions?.find(m => m.id === missionId));
+    // ★公開の切り替え（タスクの左のチェックと同じ状態。2026-11-07）。振り返りの本文が無いタスクは出さない
+    const share = ev ? taskShareState(ev, missionId) : { eligible: [] };
     menu.innerHTML = `
       <button id="amm-copy-link" class="c-context-menu__item">リンクをコピー</button>
+      ${share.eligible.length ? `<button id="amm-share" class="c-context-menu__item">${share.shared ? '公開しない' : '公開する'}</button>` : ''}
       ${initial ? '' : `<button id="amm-revert" class="c-context-menu__item">未完了に戻す</button>
       <button id="amm-delete" class="c-context-menu__item c-context-menu__item--danger">削除する</button>`}`;
     document.body.appendChild(menu);
@@ -527,6 +531,10 @@ window._app = {
       ev.stopPropagation(); menu.remove();
       window._app.copyMissionLink(missionId);
     };
+    document.getElementById('amm-share')?.addEventListener('click', (e2) => {
+      e2.stopPropagation(); menu.remove();
+      setTaskShared(missionId, !share.shared);
+    });
     if (!initial) document.getElementById('amm-revert').onclick = (ev) => {
       ev.stopPropagation(); menu.remove();
       window._app.revertMissionToIncomplete(missionId);

@@ -7,8 +7,9 @@
 // ★ここで公開されるわけではない。shareable は「公開候補」。実際に外へ出るのは、管理者が
 //   開催後にイベント設定で「タスクも含めて公開」をオンにしたときだけ（lib/publicData.js）。
 //
-// 呼び出し箇所（3つ。片方だけ直さないこと）：
-//   views/missionReflect.js（完了後の振り返り）／ modals/reflectionEditModal.js ／ archiveInlineEdit.js
+// 呼び出し箇所（4つ。片方だけ直さないこと）：
+//   views/missionReflect.js（完了後の振り返り）／ modals/reflectionEditModal.js ／
+//   archiveInlineEdit.js の _saveReflection（振り返りの欄）と setTaskShared（タスクの左のチェック・メニュー。2026-11-07）
 
 import { logEvent } from '../logger.js';
 

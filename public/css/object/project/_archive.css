@@ -511,6 +511,43 @@
   gap: var(--space-2);
 }
 
+/* --- タスク単位の公開（2026-11-07。指示書B §4-5）--------------------------------------
+   ★半透明は「外に出ない」の1つの意味だけ（指示書B §1）。チェック・タグ・メニューは薄くしない（操作できるように） */
+.p-archive__share-box {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.p-archive__share-box:disabled {
+  cursor: not-allowed;
+}
+
+.p-archive__unshared-tag {
+  flex-shrink: 0;
+  margin-top: 4px;
+  margin-right: auto;   /* タスク名のすぐ右に置き、メニュー（⋮）は右端へ */
+  padding: 1px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.p-archive__entry.is-unshared .p-archive__entry-title,
+.p-archive__entry.is-unshared .p-archive__entry-meta,
+.p-archive__entry.is-unshared .p-archive__content,
+.p-archive__entry.is-unshared .p-archive__reflect,
+.p-archive__entry.is-unshared .p-archive__subs,
+.p-archive__entry.is-unshared .p-archive__inline-editor {
+  opacity: .5;
+}
+
 /* 編集モードのタスク名（その場で書き換える）。メニュー（⋮）の左いっぱいに広げる */
 .p-archive__entry-title-row {
   flex: 1;
@@ -754,11 +791,6 @@
   font-size: 13px;
   font-weight: var(--font-weight-heavy);
   color: var(--color-text);
-}
-
-/* 「この活動記録を共有する」の置き場所（中身は c-share-check） */
-.p-archive__reflect-share {
-  margin-top: var(--space-2);
 }
 
 /* 未完了のタスク（編集モードだけ）。完了した記録と分けて、折りたたんでまとめる */

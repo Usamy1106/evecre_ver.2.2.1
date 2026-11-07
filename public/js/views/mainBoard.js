@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS, OUTCOME_CHOICES, EVENT_TYPES } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, isKnowledgePublished, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated, taskShareState } from '../utils.js';
 import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { pillarCharacter } from '../pillarChars.js';
@@ -1945,7 +1945,7 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
           <label class="p-archive__reflect-label"><span data-reflect-label="solution">${labels.solution}</span>
             <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('solution')}>${_esc(cd.solution || '')}</textarea>
           </label>
-          <div class="p-archive__reflect-share">${Components.ShareCheck({ checked: !!cd.shareable, attrs: reflectAttrs('shareable'), published: isKnowledgePublished(p) })}</div>
+          <!-- ★公開の候補にするかは、タスクの左のチェック1つにまとめた（2026-11-07。同じ値を2か所で触らせない） -->
         </div>
         <p class="p-archive__save-status" data-save-status></p>
       </div>`}`;
@@ -2069,10 +2069,19 @@ function _renderArchiveEntry(p, m, editing) {
       </svg>
     </button>`;
 
+  // 公開（タスク単位。2026-11-07。指示書B §4-5）。★半透明＋「非公開」のタグは全員に出す（プレビューでも残す）。
+  //   左のチェックは編集中だけ。人によってバラバラなら非公開の側（taskShareState）。
+  //   ★切り替えは archiveInlineEdit.js の setTaskShared（描き直さずに DOM を書き換える）
+  const share = taskShareState(p, m.id);
+  const shareBox = editing ? `
+        <input type="checkbox" class="p-archive__share-box" data-task-share="${_esc(m.id)}" aria-label="公開する"
+          ${share.shared ? 'checked' : ''}${share.eligible.length === 0 ? ' disabled title="振り返りを書くと、公開の候補にできます"' : ''}>` : '';
   return `
-    <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
+    <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${share.shared ? '' : ' is-unshared'}${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
       <div class="p-archive__entry-head">
+        ${shareBox}
         ${_archiveEntryTitleHtml(m, editing)}
+        <span class="p-archive__unshared-tag${share.shared ? ' u-hidden' : ''}">非公開</span>
         ${actionBtn}
       </div>
       <div class="p-archive__entry-meta">

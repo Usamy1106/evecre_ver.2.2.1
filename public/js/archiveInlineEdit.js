@@ -25,7 +25,7 @@ import { api } from './api.js';
 import { logEvent } from './logger.js';
 import { readEditor, bindClearEditor, loadEditorContent, itemsForKeys } from './clearEditor.js';
 import { uploadEditorEmbeds, editorContentAndFormat, embedsPayload } from './modals/helpers.js';
-import { getArchiveSummary, setArchiveVenue, reflectShowsStruggle, submissionText } from './utils.js';
+import { getArchiveSummary, setArchiveVenue, reflectShowsStruggle, submissionText, taskShareState } from './utils.js';
 import { saveSummaryText, savePurposeText, shouldAskPillarsAfterPurpose } from './initialTasks.js';
 import { confirmFirstShare, applyShareConfirmed } from './modals/shareConfirmModal.js';
 import { REFLECT_LABELS } from './constants.js';
@@ -351,8 +351,66 @@ export function isArchiveBusy() {
     .some(n => n._dirty || n._saving);
 }
 
+// ── タスク単位の公開（タスクの左のチェック・メニューの「公開する／しない」。2026-11-07。指示書B §4-5）──
+// ★そのタスクの提出物すべての shareable を同じ値にする（個別完了は人数ぶん）。本文の無い振り返りは公開候補にできない。
+// ★公開する側へ切り替えるときは confirmFirstShare を必ず通す（このイベントで初めてのときだけ確認が出る）。
+// ★保存しても state.render() を呼ばない（書いている途中の欄とカーソルが消える）。見た目は DOM を直接書き換える
+let _sharing = false;
+
+/** タスクの公開の見た目（チェック・半透明・「非公開」のタグ）を、手元のデータに合わせる */
+export function syncTaskShareDom(missionId) {
+  const p = _event();
+  if (!p) return;
+  const { eligible, shared } = taskShareState(p, missionId);
+  document.querySelectorAll('.p-archive__entry').forEach(entry => {
+    if (entry.dataset.missionId !== missionId) return;
+    entry.classList.toggle('is-unshared', !shared);
+    entry.querySelector('.p-archive__unshared-tag')?.classList.toggle('u-hidden', shared);
+    const box = entry.querySelector('[data-task-share]');
+    if (box) { box.checked = shared; box.disabled = eligible.length === 0; }
+  });
+}
+
+export async function setTaskShared(missionId, on) {
+  const p = _event();
+  if (!p || _sharing || !state.canManageCurrentEvent()) return;
+  const { eligible } = taskShareState(p, missionId);
+  if (eligible.length === 0) {
+    window._app?.showToast?.('振り返りを書くと、公開の候補にできます');
+    syncTaskShareDom(missionId);
+    return;
+  }
+  // ★呼び出し箇所の4つ目（指示書B §4-5）。shareConfirmModal.js の冒頭の一覧も参照
+  if (on && !(await confirmFirstShare(p))) { syncTaskShareDom(missionId); return; }
+  _sharing = true;
+  let failed = false;
+  try {
+    // ★1つずつ順番に（個別完了は人数ぶん）。送るのは shareable だけ（サーバーは送られた欄だけを書く）
+    for (const key of eligible) {
+      const userId = key === missionId ? undefined : key.slice(missionId.length + 3);
+      const r = await api.updateReflection(p.id, missionId, { shareable: on, targetUserId: userId });
+      if (!r?.ok) { failed = true; continue; }
+      if (p.clearedData?.[key] && r.reflection && 'shareable' in r.reflection) p.clearedData[key].shareable = !!r.reflection.shareable;
+      applyShareConfirmed(p, r);
+    }
+  } finally {
+    _sharing = false;
+  }
+  syncTaskShareDom(missionId);
+  logEvent('archive_task_share_toggled', { missionId, on, count: eligible.length, failed });
+  window._app?.showToast?.(failed ? '保存できなかった記録があります'
+    : on ? '公開の候補にしました' : '非公開にしました');
+}
+
+function _bindTaskShare(box) {
+  if (box._bound) return;
+  box._bound = true;
+  box.addEventListener('change', () => setTaskShared(box.dataset.taskShare, box.checked));
+}
+
 /** 編集モードの欄を配線する（renderMainBoard の最後に呼ぶ。二重には配線しない） */
 export function bindArchiveInlineEditing(root = document) {
+  root.querySelectorAll('[data-task-share]').forEach(_bindTaskShare);
   root.querySelectorAll('[data-inline]').forEach(_bindBasic);
   root.querySelectorAll('.c-editor[data-sub-mission]').forEach(_bindSubmission);
   root.querySelectorAll('[data-reflect-field]').forEach(_bindReflection);

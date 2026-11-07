@@ -459,6 +459,25 @@ export function taskSubmissions(project, missionId) {
 }
 
 /**
+ * タスク単位の公開の状態（アーカイブのタスクの左のチェック・メニュー。2026-11-07。指示書B §4-5）。
+ *   keys     … そのタスクの提出物のキー（通常は missionId、個別完了は <mid>_u_<userId>）
+ *   eligible … そのうち、振り返りの本文があるもの（サーバーは本文の無い振り返りの shareable を true にしない）
+ *   shared   … eligible が1つ以上あり、**すべて** shareable が true
+ * ★人によってバラバラ（混在）なら shared は false＝非公開の側に倒す（本人がオフにした記録を公開候補に入れない）
+ */
+export function taskShareState(project, missionId) {
+  const prefix = `${missionId}_u_`;
+  const keys = Object.keys(project?.clearedData || {})
+    .filter(k => project.clearedData[k] && (k === missionId || k.startsWith(prefix)));
+  const eligible = keys.filter(k => {
+    const cd = project.clearedData[k];
+    return String(cd.struggle || '').trim() !== '' || String(cd.solution || '').trim() !== '';
+  });
+  const shared = eligible.length > 0 && eligible.every(k => project.clearedData[k].shareable === true);
+  return { keys, eligible, shared };
+}
+
+/**
  * アーカイブのリードの数字3つ（2026-11-07。指示書B §4-3）。★すべてタスク単位で数える。
  *   done     … 渡したタスク（＝完了したタスク。除外は呼び出し側で済ませておく）の数
  *   records  … そのうち、提出物のどれか1つでも「2つ目の欄（solution）」が書いてあるタスクの数（共有かどうかは問わない）
