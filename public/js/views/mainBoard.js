@@ -9,7 +9,7 @@ import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { pillarCharacter } from '../pillarChars.js';
 import { isRichSubmission } from '../initialTasks.js';
-import { bindArchiveInlineEditing, bindArchiveTapToEdit, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
+import { bindArchiveInlineEditing, bindArchivePreviewTap, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 import { isDashboard } from '../layoutMode.js';
@@ -276,7 +276,7 @@ export function renderMainBoard(container) {
   if (state.mainBoardTab === 'ARCHIVE') {
     restoreInlineEdits();
     if (state.archiveEditing) bindArchiveInlineEditing(container);
-    else bindArchiveTapToEdit(container);
+    else bindArchivePreviewTap(container);
     _focusArchiveMission();
   }
   // ★セグメンテッドコントロールのつまみを滑らせる（通知タブの絞り込み）
@@ -1543,9 +1543,11 @@ function _isOverviewMission(m) {
 //
 // ★1本の文書として読ませる（2026-09-26。Phase 3）。並びは
 //   ヘッダー画像 → タイトル → 概要 → 期間・場所 → 目次 → タスクごとの内容。
-// ★閲覧（既定）は囲みを持たず、余白と見出しで区切る（カードにしない。通読のため）。
-//   編集モード（管理者だけ。state.archiveEditing）では、各タスクに囲みを出し、
-//   未完了のタスクも下にまとめて並べる。見た目の切り替えは .p-archive--editing だけ。
+// ★囲みを持たず、余白と見出しで区切る（カードにしない。通読のため）。
+// ★管理者は最初から編集中（state.archiveEditing は state.js の導出。2026-11-07。指示書B §4-1）。
+//   右上の「プレビュー」で読む姿に切り替える（手元だけ・一時的）。メンバーは常に読むだけ。
+//   編集中は未完了のタスクも下にまとめて並べる。見た目の切り替えは .p-archive--editing / --preview だけ。
+// ★プレビューは「外に出る姿」ではない（非公開の部分も見える）。外に出る姿は公開の確認ページの役目
 // ★目次の並びは 3つ（ラベル別・完了日順・優先度順）。本文も同じ順に並ぶ。
 //   「完了者別」「作成者別」「やること一覧」は廃止した（目次と役割が重なる）。
 // ★目次のタップはその記録までスクロールする（_scrollToArchiveEntry。通知からの遷移と共用）。
@@ -1605,10 +1607,16 @@ function _archivePublicBannerHtml(p, canMgr) {
 
 function _renderArchiveTab(p) {
   const canMgr  = state.canManageCurrentEvent();
-  // ★編集できるのは管理者だけ。権限が無いのに編集中のまま残っていたら閲覧に戻す
-  const editing = canMgr && !!state.archiveEditing;
-  // ★閲覧中でも、管理者は欄をタップすればそこから編集に入れる（archiveInlineEdit.js の bindArchiveTapToEdit）
-  const tap = (target) => (canMgr && !editing ? ` data-archive-tap="${_esc(target)}"` : '');
+  // ★編集できるのは管理者だけ。管理者はプレビュー中でなければ編集中（state.js の getter）
+  const editing = canMgr && state.archiveEditing;
+  const preview = canMgr && !editing;
+  // ★プレビュー中に本文をタップしたら「右上の『編集』で書けます」と知らせる（archiveInlineEdit.js の bindArchivePreviewTap）
+  const tap = (target) => (preview ? ` data-archive-tap="${_esc(target)}"` : '');
+  // 基礎情報の行のペン（編集中だけ）。★押せる範囲は 44px 四方（CSS）。アイコンは c-icon（色は文字に追従）
+  const fieldIcon = (label, icon, onclick, mod = '') => `
+    <button type="button" class="p-archive__field-icon${mod ? ` p-archive__field-icon--${mod}` : ''}" aria-label="${_esc(label)}" onclick="${onclick}">
+      <span class="c-icon p-archive__field-icon-mark" style="--icon:url('/images/icon/${icon}')" aria-hidden="true"></span>
+    </button>`;
 
   // ── 基礎情報（すべてイベント自身の項目。utils.js の getter が旧データも読み替える）──
   const title      = p.name || '未設定';
@@ -1673,7 +1681,7 @@ function _renderArchiveTab(p) {
 
   const hasDatesA = Array.isArray(p.dates) && p.dates.length > 0;
   return `
-    <div class="p-archive${editing ? ' p-archive--editing' : ''}${canMgr && !editing ? ' p-archive--tap-edit' : ''} u-page-transition">
+    <div class="p-archive${editing ? ' p-archive--editing' : ''}${preview ? ' p-archive--preview' : ''} u-page-transition">
       <div class="p-archive__head">
         <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
           class="p-archive__days">
@@ -1689,21 +1697,26 @@ function _renderArchiveTab(p) {
             <span class="c-icon p-archive__copy-icon" style="--icon:url('/images/icon/icon-link.svg')" aria-hidden="true"></span>
             予定をコピー
           </button>
-          ${canMgr && !editing ? `
-            <button type="button" onclick="window._app.toggleArchiveEditing()" data-log="archive_edit_toggle"
-              class="p-archive__edit-toggle">
-              <span class="c-icon p-archive__edit-toggle-icon" style="--icon:url('/images/icon/icon-edit.svg')" aria-hidden="true"></span>
-              編集する
+          ${canMgr ? `
+            <!-- ★編集 ⇄ プレビュー。行き先を書く（編集中は「プレビュー」、プレビュー中は「編集」）。プレビュー中も必ず出す -->
+            <button type="button" onclick="window._app.toggleArchivePreview()"
+              data-log="${editing ? 'archive_preview_on' : 'archive_preview_off'}"
+              class="p-archive__view-toggle${preview ? ' is-preview' : ''}">
+              ${preview ? `<span class="c-icon p-archive__view-toggle-icon" style="--icon:url('/images/icon/icon-edit.svg')" aria-hidden="true"></span>` : ''}
+              ${preview ? '編集' : 'プレビュー'}
             </button>` : ''}
         </div>
       </div>
+      ${preview ? `
+        <!-- ★プレビュー＝公開される姿、と受け取られないように（非公開の部分もここでは見えている） -->
+        <p class="p-archive__preview-note" role="status">編集の表示を隠しています。外に出る内容は「公開する」から確認できます。</p>` : ''}
 
       <!-- ① ヘッダー画像（3:2。ホームのサムネイルと同じ比率）-->
       <div class="p-archive__visual"${tap('image')}>
         ${mainVisual
           ? `<img src="${_esc(mainVisual)}" class="p-archive__visual-image" alt="" data-fallback="archive-visual">`
           : Components.ThumbnailEmptyState()}
-        ${editing ? `<button type="button" onclick="window._app.editArchiveItem('image')" class="p-archive__visual-edit">画像を変更</button>` : ''}
+        ${editing ? fieldIcon('ヘッダー画像を変更', 'icon-image.svg', "window._app.editArchiveItem('image')", 'visual') : ''}
       </div>
 
       <article class="p-archive__doc">
@@ -1712,6 +1725,7 @@ function _renderArchiveTab(p) {
           ${editing ? `
             <h1 class="p-archive__title p-archive__inline" contenteditable="true" role="textbox" aria-label="タイトル"
               data-inline="title" data-inline-key="title" data-placeholder="タイトル">${_esc(p.name || '')}</h1>
+            ${fieldIcon('タイトルを編集', 'icon-edit.svg', "window._app.focusArchiveInline('title')")}
             <span class="p-archive__save-status" data-save-status></span>`
           : `<h1 class="p-archive__title"${tap('title')}>${_esc(title)}</h1>`}
         </div>
@@ -1735,7 +1749,8 @@ function _renderArchiveTab(p) {
           <div data-inline-block>
             <div class="p-archive__label-row">
               <h2 class="p-archive__label">概要</h2>
-              ${editing ? `<span class="p-archive__save-status" data-save-status></span>` : ''}
+              ${editing ? `<span class="p-archive__save-status" data-save-status></span>
+                ${fieldIcon('概要を編集', 'icon-edit.svg', summaryRich ? "window._app.openMissionDetail('def-3')" : "window._app.focusArchiveInline('summary')")}` : ''}
             </div>
             ${summaryRich ? `
               <!-- ★概要（def-3）に画像・PDF・書式があるときは、ここでは直さずタスクの画面で編集する -->
@@ -1750,13 +1765,15 @@ function _renderArchiveTab(p) {
           </div>
           <dl class="p-archive__facts">
             <dt class="p-archive__fact-label">期間</dt>
-            <dd class="p-archive__fact-value"${tap('period')}>${period || '未設定'}
-              ${editing ? `<button type="button" onclick="window._app.editArchiveItem('period')" class="p-archive__inline-button">変更</button>` : ''}</dd>
+            <dd class="p-archive__fact-value p-archive__fact-value--with-icon"${tap('period')}>
+              <span class="p-archive__fact-text">${period || '未設定'}</span>
+              ${editing ? fieldIcon('期間を変更', 'icon-calendar-default.svg', "window._app.editArchiveItem('period')") : ''}</dd>
             <dt class="p-archive__fact-label">場所</dt>
-            <dd class="p-archive__fact-value" data-inline-block${tap('venue')}>
+            <dd class="p-archive__fact-value${editing ? ' p-archive__fact-value--with-icon' : ''}" data-inline-block${tap('venue')}>
               ${editing ? `
                 <span class="p-archive__inline p-archive__inline--line${venue ? '' : ' is-empty'}" contenteditable="true" role="textbox"
                   aria-label="場所" data-inline="venue" data-inline-key="venue" data-placeholder="例：大学ギャラリー">${_esc(venue)}</span>
+                ${fieldIcon('場所を編集', 'icon-edit.svg', "window._app.focusArchiveInline('venue')")}
                 <span class="p-archive__save-status" data-save-status></span>`
               : (venue ? _esc(venue) : '未設定')}
             </dd>
@@ -1771,13 +1788,6 @@ function _renderArchiveTab(p) {
         ${pendingHtml}
       </article>
 
-      ${editing ? `
-        <!-- 編集中の帯（画面の下に常に出す）。★保存は欄ごとに自動。完了で保存待ちを流してから閲覧に戻る -->
-        <div class="p-archive__editbar" role="status">
-          <span class="p-archive__editbar-text">編集中・変更は自動で保存されます</span>
-          <button type="button" onclick="window._app.toggleArchiveEditing()" data-log="archive_edit_done"
-            class="c-button c-button--primary p-archive__editbar-done">完了</button>
-        </div>` : ''}
 
     </div>`;
 }
@@ -1815,7 +1825,7 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
   if (!cd) return '';
   if (editing) return _archiveSubmissionEditHtml(p, m, cd, userId);
   const canMgr = state.canManageCurrentEvent();
-  // ★管理者はタップでその欄から編集に入れる（bindArchiveTapToEdit）。値は「sub|ref:タスク:人」
+  // ★プレビュー中のタップは「右上の『編集』で書けます」を出す（bindArchivePreviewTap）。値は「sub|ref:タスク:人」
   const tapKey = `${m.id}:${userId || ''}`;
   const tap = (kind) => (canMgr ? ` data-archive-tap="${kind}:${_esc(tapKey)}"` : '');
   // ★画像・PDF は本文の途中にも入る。読み分けは utils.js の submissionSegments

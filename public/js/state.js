@@ -122,7 +122,15 @@ export const state = {
   missionFilterPillar: null,   // 柱での絞り込み（柱の id。null=全表示）
   archiveDisplayMode: 'label', // 'label' | 'date' | 'priority'（目次と本文の並び。完了者別・作成者別は廃止）
   boardPanelView: null,        // 広い画面のメインボード右列（'list'|'calendar'|'gantt'）。null＝localStorage から読む（views/mainBoard.js）
-  archiveEditing: false,       // アーカイブの編集モード（管理者のみ）。★画面を離れたら閲覧に戻す（setView）
+  // ★アーカイブは管理者なら最初から書ける（2026-11-07。指示書B §4-1）。プレビュー（読む姿）は手元だけの一時的な切り替えで、
+  //   保存しない・CRDT に持たない。画面・タブを離れたら編集に戻す（setView / setTab）
+  archivePreview: false,
+  // アーカイブの編集中か（導出。代入しないこと＝getter だけなので strict mode では例外になる）。
+  // ★「アーカイブのタブを開いていて、管理者で、プレビュー中でない」。保存待ちを流してから画面を離れる仕組みはこれを見る
+  get archiveEditing() {
+    return this.currentView === 'MAIN_BOARD' && this.mainBoardTab === 'ARCHIVE' && !this.archivePreview
+      && this.canManageCurrentEvent();
+  },
   editingMissionId: null,
   draftEvent: newDraftEvent(),   // イベント作成フローの下書き。リセットは state.resetDraftEvent()
   draftMission: { title: '', labels: [], priority: 0, dates: [], clearFormat: 'text', note: '' },
@@ -826,15 +834,17 @@ export const state = {
     // ★アーカイブの編集モードのまま画面を離れるときは、保存待ちの欄を保存し終えてから移る。
     //   先に描き直すと書きかけの欄が DOM から外れ、selectedEventId も変わるので保存できない
     //   （保存は欄ごとに自動。archiveInlineEdit.js）。保存待ちが無ければすぐ移る
-    if (this.archiveEditing && this.currentView === 'MAIN_BOARD' && this.mainBoardTab === 'ARCHIVE') {
+    // ★archiveEditing は導出（getter）なので、保存し終えたあとの呼び直しは _archiveLeaveFlushed で素通りさせる
+    //   （そうしないと同じ条件で永遠に呼び直す）
+    if (this.archiveEditing && !this._archiveLeaveFlushed) {
       if (this._leavingArchiveEdit) return;   // 保存中の連打は無視する
       this._leavingArchiveEdit = true;
       Promise.resolve(window._app?.finishArchiveEditing?.())
         .catch(() => {})
         .finally(() => {
           this._leavingArchiveEdit = false;
-          this.archiveEditing = false;
-          this.setView(view, id, opts);
+          this._archiveLeaveFlushed = true;
+          try { this.setView(view, id, opts); } finally { this._archiveLeaveFlushed = false; }
         });
       return;
     }
@@ -888,7 +898,7 @@ export const state = {
     this.missionFilterPillar = null;
     this.notifFilter = null;   // 通知の絞り込みは自動（未読優先）に戻す
     this.archiveFocusMissionId = null;
-    this.archiveEditing = false;   // 編集モードのまま別の画面・イベントへ持ち越さない
+    this.archivePreview = false;   // プレビューのまま別の画面・イベントへ持ち越さない（戻ったら編集から）
     this.render();
     window.scrollTo(0, 0);
   },

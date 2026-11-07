@@ -13,6 +13,7 @@ import { showCoachMark, isCoachMarkOpen } from './modals/coachMark.js';
 import { isAnyAutoModalOpen } from './modalGuard.js';
 import { isIntroRunning } from './onboardingIntro.js';
 import { checkPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
+import { isArchiveBusy } from './archiveInlineEdit.js';
 
 const _key = (userId) => `evecre:archiveTour:v1:${userId}`;
 function _seen(userId) { try { return localStorage.getItem(_key(userId)) === 'done'; } catch (_) { return false; } }
@@ -23,8 +24,8 @@ const STEPS = [
     body: '完了したタスクの内容が、1つの文書にまとまっていくよ。' },
   { selector: '.p-archive__toc-head', title: '目次から、各記録へ飛べるよ。',
     body: 'ラベル・完了日・優先度で並べ替えられるよ。' },
-  { selector: '.p-archive__edit-toggle', title: 'ここから、記録をまるごと直せるよ。',
-    body: 'タイトル・概要・場所や、それぞれのタスクの内容と振り返りを書き直せるよ。', managerOnly: true },
+  { selector: '.p-archive__view-toggle', title: '記録はそのまま書き直せるよ。',
+    body: 'タイトル・概要・場所や、タスクの内容と振り返りは、タップしてそのまま書けるよ。通して読みたいときは「プレビュー」。', managerOnly: true },
   { selector: '.p-archive__public', title: 'ここの情報は、宣伝に使えるよ。',
     body: 'タイトル・概要・期間・場所・ヘッダー画像を、イベクリの外に公開できるよ。' },
 ];
@@ -35,7 +36,8 @@ let _running = false;
 export function checkArchiveTour() {
   if (state.currentView !== 'MAIN_BOARD' || state.mainBoardTab !== 'ARCHIVE') return;
   const userId = state.currentUser?.id;
-  if (!userId || _running || state.archiveEditing) return;
+  // ★管理者は常に編集中なので、「書いている途中か」で待つ（isArchiveBusy）。プレビュー中も出してよい
+  if (!userId || _running || isArchiveBusy()) return;
   if (_seen(userId)) { checkPublicBasicInfoModal(); return; }
   if (isIntroRunning() || isCoachMarkOpen() || isAnyAutoModalOpen()) return;   // 重なったら次の render へ持ち越す
 

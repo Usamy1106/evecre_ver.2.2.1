@@ -70,7 +70,7 @@ import { isInitialTask } from './utils.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
-import { flushArchiveInlineEdits } from './archiveInlineEdit.js';
+import { flushArchiveInlineEdits, focusArchiveInline } from './archiveInlineEdit.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkPublicBasicInfoModal, openPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkPublicKnowledgeModal } from './modals/publicKnowledgeModal.js';
@@ -86,15 +86,16 @@ import {
   enablePush, disablePush, getPushState, hasSubscription,
 } from './push.js';
 
-// ★アーカイブの編集モードを終える：書きかけの欄を離れさせ、保存待ちを全部保存してから閲覧に戻す。
-//   「完了」ボタン・別のタブ・別の画面の3つの出口で共用する（描き直しは呼び出し側）
+// ★アーカイブの書きかけを片づける：欄を離れさせ、保存待ちを全部保存する。
+//   プレビューへの切り替え・別のタブ・別の画面の3つの出口で共用する（描き直しは呼び出し側）。
+//   ★state.archiveEditing は導出（state.js の getter）なので、ここでは代入しない
 async function finishArchiveEditing() {
   document.activeElement?.blur?.();
-  // ★保存に失敗しても編集モードは抜ける（失敗した欄はその場に「保存できませんでした」が出ている）
+  // ★保存に失敗しても先へ進む（失敗した欄はその場に「保存できませんでした」が出ている）
   try { await flushArchiveInlineEdits(); } catch (_) { /* 抜けるのを止めない */ }
-  state.archiveEditing = false;
 }
 let _leavingArchiveTab = false;
+let _togglingPreview = false;
 
 // ===== ビューレンダラーの登録 =====
 // アカウント作成は STEP 0〜3 の段階フロー（views/signup.js）。
@@ -295,12 +296,14 @@ window._app = {
   // 通知の許可を次に開いたときに聞く（state.js。false＝ほかのモーダルが出ていて出せなかった）
   checkPushPromptOnLaunch: () => checkPushPromptOnLaunch(),
   setTab: async (tab) => {
-    // ★アーカイブの編集モードは、別のタブへ移ったら解除する（保存待ちを保存し終えてから移る）
-    if (state.archiveEditing && state.mainBoardTab === 'ARCHIVE' && tab !== 'ARCHIVE') {
+    // ★アーカイブから別のタブへ移るときは、保存待ちを保存し終えてから移る
+    if (state.archiveEditing && tab !== 'ARCHIVE') {
       if (_leavingArchiveTab) return;
       _leavingArchiveTab = true;
       try { await finishArchiveEditing(); } finally { _leavingArchiveTab = false; }
     }
+    // ★プレビューは一時的。タブを移ったら、次にアーカイブを開いたときは編集から
+    if (tab !== 'ARCHIVE') state.archivePreview = false;
     state.mainBoardTab = tab;
     logEvent('board_tab_switched', { tab });
     if (tab === 'ARCHIVE')       logEvent('archive_viewed');
@@ -512,12 +515,11 @@ window._app = {
     menu.className = 'c-context-menu c-context-menu--archive u-animate-fade';
     menu.style.top   = `${rect.bottom + 4}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
-    // ★「編集する」は編集モードに入ってそのタスクへ移る（編集中は出さない）
-    // ★初期タスク（目的・企画）は「未完了に戻す」「削除する」を出さない（2026-11-05）。書いた内容は「編集する」で直せる
+    // ★「編集する」は外した（2026-11-07。管理者は最初から書けるので要らない）
+    // ★初期タスク（目的・企画）は「未完了に戻す」「削除する」を出さない（2026-11-05）。書いた内容はその場で直せる
     const initial = isInitialTask(state.events.find(p => p.id === state.selectedEventId)?.missions?.find(m => m.id === missionId));
     menu.innerHTML = `
       <button id="amm-copy-link" class="c-context-menu__item">リンクをコピー</button>
-      ${state.archiveEditing ? '' : '<button id="amm-edit" class="c-context-menu__item">編集する</button>'}
       ${initial ? '' : `<button id="amm-revert" class="c-context-menu__item">未完了に戻す</button>
       <button id="amm-delete" class="c-context-menu__item c-context-menu__item--danger">削除する</button>`}`;
     document.body.appendChild(menu);
@@ -525,10 +527,6 @@ window._app = {
       ev.stopPropagation(); menu.remove();
       window._app.copyMissionLink(missionId);
     };
-    document.getElementById('amm-edit')?.addEventListener('click', (ev) => {
-      ev.stopPropagation(); menu.remove();
-      window._app.editArchiveEntry(missionId);
-    });
     if (!initial) document.getElementById('amm-revert').onclick = (ev) => {
       ev.stopPropagation(); menu.remove();
       window._app.revertMissionToIncomplete(missionId);
@@ -1220,24 +1218,16 @@ window._app = {
     state.render();
   },
 
-  // --- アーカイブ：目次から記録へ飛ぶ／編集モードの切り替え（管理者のみ）---
+  // --- アーカイブ：目次から記録へ飛ぶ／編集とプレビューの切り替え（管理者のみ）---
   jumpToArchiveEntry: (missionId) => jumpToArchiveEntry(missionId),
-  // タスクのメニューの「編集する」：編集モードに入り、そのタスクまで移って入力欄にカーソルを置く
-  editArchiveEntry: (missionId) => {
-    if (!state.canManageCurrentEvent()) return;
-    state.archiveEditing = true;
-    state.render();
-    jumpToArchiveEntry(missionId);
-    const entry = [...document.querySelectorAll('.p-archive__entry')].find(x => x.dataset.missionId === missionId);
-    const details = entry?.querySelector('.p-archive__sub');
-    if (details) details.open = true;   // 個別完了は1人目の行を開く
-    entry?.querySelector('.c-editor')?.focus({ preventScroll: true });
-  },
-  // ★終えるときは、保存待ちの欄を全部保存してから閲覧に戻す（保存は欄ごとに自動。archiveInlineEdit.js）
-  toggleArchiveEditing: async () => {
-    if (!state.canManageCurrentEvent()) return;
-    if (state.archiveEditing) {
-      await finishArchiveEditing();
+  // 編集 ⇄ プレビュー（2026-11-07。指示書B §4-1）。★プレビューは手元だけ・保存しない。
+  //   プレビューへ切り替えるときは、保存待ちの欄を全部保存してから（保存は欄ごとに自動。archiveInlineEdit.js）
+  toggleArchivePreview: async () => {
+    if (!state.canManageCurrentEvent() || _togglingPreview) return;
+    if (!state.archivePreview) {
+      _togglingPreview = true;
+      try { await finishArchiveEditing(); } finally { _togglingPreview = false; }
+      state.archivePreview = true;
       // ★編集中に目的を書いた（完了させた）なら、ここで柱のページへ進める（「あとで」で抜けられる）
       if (state._askPillarsAfterEdit) {
         state._askPillarsAfterEdit = false;
@@ -1245,9 +1235,12 @@ window._app = {
         state.openPillarEdit({ from: 'purpose_archive', afterPurpose: true });
         return;
       }
-    } else state.archiveEditing = true;
+    } else state.archivePreview = false;
     state.render();
   },
+  // 基礎情報の行のペン（タイトル・概要・場所）：その場の欄にカーソルを置く。
+  // ★focus はタップのハンドラから同期で当てる（iOS は操作の外の focus を無視してキーボードが出ない）
+  focusArchiveInline: (kind) => focusArchiveInline(kind),
   // 画面・タブを離れるときに state.setView / setTab から呼ぶ（描き直しはしない）
   finishArchiveEditing: () => finishArchiveEditing(),
 
@@ -1861,8 +1854,7 @@ const _LOG_LABELS = {
   board_filter_date:         'メインボードのカレンダーで日付を選んだ（広い画面）',
   public_knowledge_prompt_shown: 'タスクも含めた公開の確認が出た（振り返りの終了後）',
   public_knowledge_answered:     'タスクも含めた公開の確認に答えた',
-  archive_tap_edit:          'アーカイブの欄をタップして編集に入った',
-  archive_edit_exit_tap:     'アーカイブの編集を周りのタップで終えた',
+  archive_preview_tap:       'アーカイブのプレビュー中に本文をタップした',
   share_confirm_shown:       '「この活動記録を共有する」の初回確認が出た',
   share_confirm_answered:    '「この活動記録を共有する」の初回確認に答えた',
   reflection_edited:       '振り返りを編集した',

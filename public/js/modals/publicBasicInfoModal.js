@@ -22,6 +22,7 @@
 // ★ここで公開されるのは基礎情報だけ。タスク・メンバー・チャットは含めない。
 
 import { state } from '../state.js';
+import { isArchiveBusy } from '../archiveInlineEdit.js';
 import { logEvent } from '../logger.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
 import { basicInfoStatus, canPromptPublicBasic } from '../utils.js';
@@ -57,7 +58,7 @@ export function checkPublicBasicInfoModal() {
   if (state.currentView !== 'MAIN_BOARD' || state.mainBoardTab !== 'ARCHIVE') return;
   if (p.publicBasicInfo !== undefined) return;          // もう答えた（公開する／今はしない）
   if (state._publicBasicPromptedFor === p.id) return;   // この訪問ではもう出した
-  if (state.archiveEditing) return;                     // 編集中は割り込まない（完了のあとに出る）
+  if (isArchiveBusy()) return;                          // 書いている途中は割り込まない（欄を離れたあとの render で出る）
   if (!isManagerStrict(p, userId)) return;
   if (document.getElementById(OVERLAY_ID)) return;
   if (isAnyAutoModalOpen(OVERLAY_ID)) return;           // 重なるなら次の render() へ持ち越す

@@ -1,6 +1,7 @@
 // ===== アーカイブの編集モード：文書をその場で書き換える（管理者だけ）=====
 //
-// 編集モード（state.archiveEditing）では、文書の全部をその場で直せる。
+// 管理者は最初から編集中（state.archiveEditing は state.js の導出。プレビュー中でなければ true。2026-11-07）。
+// 編集中は、文書の全部をその場で直せる。
 //   タイトル・概要・場所 … その場で入力（contenteditable の1行／複数行）
 //   期間・ヘッダー画像   … タップで選ぶ画面（calendar / 画像ダイアログ。helpers.js の editArchiveItem）
 //   各タスクの提出内容   … 完了フォームと同じ編集欄（clearEditor.js）。1タスク（個別完了は1人）に1つ
@@ -89,7 +90,7 @@ async function _saveBasic(node) {
     await state.saveNow(p.id);
     _status(node, 'saved', '保存しました');
     logEvent('archive_inline_saved', { field });
-    // ★「宣伝用に公開するか」はここでは聞かない（書き終えた瞬間に割り込むため）。編集を「完了」したあとの render() で判定する
+    // ★「宣伝用に公開するか」はここでは聞かない（書き終えた瞬間に割り込むため）。書いていないときの render() で判定する（isArchiveBusy）
   } catch (_) {
     _status(node, 'error', '保存できませんでした');
   }
@@ -109,7 +110,7 @@ async function _saveInitialTask(node, p, field, value) {
   }
   _status(node, 'saved', '保存しました');
   logEvent('archive_inline_saved', { field, completed: !!r.completed });
-  // ★目的を書いたら、編集を終えたときに柱のページへ進める（編集の途中では割り込まない。main.js の toggleArchiveEditing）
+  // ★目的を書いたら、プレビューへ切り替えたときに柱のページへ進める（編集の途中では割り込まない。main.js の toggleArchivePreview）
   if (field === 'purpose' && r.completed && shouldAskPillarsAfterPurpose(_event())) state._askPillarsAfterEdit = true;
 }
 
@@ -300,21 +301,15 @@ function _bindOutcomePick(btn) {
 
 // ── 公開する関数 ───────────────────────────────────────────
 
-// ── 閲覧中のタップで編集に入る（管理者だけ）──────────────────────
+// ── プレビュー中に本文をタップしたら、編集の場所を知らせる（管理者だけ。2026-11-07）──────────
 //
-// 閲覧中の欄（data-archive-tap）をタップすると、編集モードに入ってその欄にカーソルを置く。
-//   title / summary / venue … その場の入力欄
-//   sub:<タスク>:<人> … 提出内容の編集欄／ ref:<タスク>:<人> … 振り返りの1つ目の欄
-//   period / image … 選ぶ画面を直接開く（編集モードには入らない）
-// ★タスク名はここに入れない（閲覧ではタップでタスク詳細へ行く）。
-// ★リンク・ボタン・PDF のカード・個別完了の行の開閉・文字を選んでいるときは入らない（コピーを邪魔しない）。
-// ★focus() はタップのハンドラから同期で当てる（iOS は操作の外の focus を無視してキーボードが出ない）。
-//   state.render() は同期なので、描き直した直後にそのまま当てられる。
-
+// プレビュー中の欄（data-archive-tap）をタップしたら「右上の『編集』で書けます」と知らせるだけ。
+// ★勝手に編集へ戻さない（プレビューは自分で選んだ状態。戻るのは右上のボタンから）。
+// ★リンク・ボタン・PDF のカード・個別完了の行の開閉・文字を選んでいるときは知らせない（コピーを邪魔しない）。
 const _TAP_IGNORE = 'a, button, summary, input, textarea, label, select, video, [role="button"], .c-file-card';
 
-export function bindArchiveTapToEdit(root = document) {
-  const doc = root.querySelector('.p-archive--tap-edit');
+export function bindArchivePreviewTap(root = document) {
+  const doc = root.querySelector('.p-archive--preview');
   if (!doc || doc._tapBound) return;
   doc._tapBound = true;
   doc.addEventListener('click', (e) => {
@@ -323,84 +318,40 @@ export function bindArchiveTapToEdit(root = document) {
     if (e.target.closest(_TAP_IGNORE)) return;
     const sel = window.getSelection?.();
     if (sel && !sel.isCollapsed && t.contains(sel.anchorNode)) return;
-    startArchiveEditAt(t.dataset.archiveTap);
+    logEvent('archive_preview_tap', { target: String(t.dataset.archiveTap).split(':')[0] });
+    window._app?.showToast?.('いまはプレビューです。右上の「編集」で書けます。');
   });
 }
 
-export function startArchiveEditAt(target) {
-  if (!state.canManageCurrentEvent()) return;
-  const [kind, missionId = '', userId = ''] = String(target).split(':');
-  logEvent('archive_tap_edit', { target: kind });
-  if (kind === 'period' || kind === 'image') { window._app?.editArchiveItem?.(kind); return; }
-  // 個別完了の行は開いたまま編集モードへ（編集モードでも同じ行が開いて出る）
-  if (userId) window._app?.rememberArchiveRow?.(`${missionId}:${userId}`, true);
-  state.archiveEditing = true;
-  state.render();
-  let el = null;
-  if (kind === 'sub') {
-    el = [...document.querySelectorAll('.c-editor[data-sub-mission]')]
-      .find(x => x.dataset.subMission === missionId && (x.dataset.subUser || '') === userId);
-  } else if (kind === 'ref') {
-    // ★未記入なら、入力欄はまだ隠れている（先に成否を選ぶ）。そのときは選ぶ場所まで送るだけ
-    const pick = [...document.querySelectorAll('[data-reflect-outcome="success"]')]
-      .find(x => x.dataset.reflectMission === missionId && (x.dataset.reflectUser || '') === userId);
-    if (pick) { pick.scrollIntoView({ block: 'center' }); return; }
-    // ★1つ目の欄が隠れている（うまくいった側）ときは、見えている最初の欄へ
-    const fields = [...document.querySelectorAll('[data-reflect-field="struggle"], [data-reflect-field="solution"]')]
-      .filter(x => x.dataset.reflectMission === missionId && (x.dataset.reflectUser || '') === userId);
-    el = fields.find(x => !x.closest('.u-hidden')) || fields[0];
-  } else {
-    el = document.querySelector(`[data-inline="${kind}"]`);
-  }
+// ── 基礎情報の行のペン：その場の欄にカーソルを置く ─────────────────────
+// ★タップのハンドラから同期で呼ぶこと（iOS は操作の外の focus を無視する）。カーソルは末尾（全選択にしない）
+export function focusArchiveInline(kind) {
+  const el = document.querySelector(`[data-inline="${CSS.escape(String(kind))}"]`);
   if (!el) return;
-  el.closest('details')?.setAttribute('open', '');
   el.focus({ preventScroll: true });
-  // カーソルは末尾へ（全選択にしない。うっかり上書きさせない）
-  if (el.tagName === 'TEXTAREA') {
-    el.setSelectionRange(el.value.length, el.value.length);
-  } else {
-    const r = document.createRange();
-    r.selectNodeContents(el);
-    r.collapse(false);
-    const s = window.getSelection();
-    s.removeAllRanges();
-    s.addRange(r);
-  }
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  r.collapse(false);
+  const s = window.getSelection();
+  s.removeAllRanges();
+  s.addRange(r);
   el.scrollIntoView({ block: 'center' });
 }
 
-// ── 編集モードは、白い文書の外（周り）をタップしても抜けられる ──────────────
-//
-// 白い文書（.p-archive__doc）の外をタップしたら、「完了」と同じく
-// 保存待ちを保存してから閲覧に戻る（main.js の toggleArchiveEditing）。
-// ★白い文書の中では抜けない（2026-09-26 の要望。欄の押し損ねで抜けないように）。
-//   外側でも、ボタン・ヘッダー画像・上部・下の帯などの「触る場所」では抜けない。
-// ★文字を選んでいる途中（ドラッグが欄の外で終わった）では抜けない。
-// ★モーダル（期間・画像を選ぶ画面）は body 直下なので、ここには来ない。
-const _EXIT_IGNORE = [
-  '[contenteditable="true"]', 'textarea', 'input', 'select', 'button', 'a', 'label', 'summary',
-  '.c-editor-field', '.c-share-check', '.c-file-card',
-  '.p-archive__head', '.p-archive__editbar', '.p-archive__visual', '.p-archive__doc',
-].join(', ');
-
-function _bindTapToExit(root) {
-  const page = root.querySelector('.p-main-board__page');
-  if (!page || page._exitBound) return;
-  page._exitBound = true;
-  page.addEventListener('click', (e) => {
-    // ★白い文書の外なら、.p-archive の外（ページ下の余白）でも抜ける
-    if (!state.archiveEditing || state.mainBoardTab !== 'ARCHIVE') return;
-    if (e.target.closest(_EXIT_IGNORE)) return;
-    const sel = window.getSelection?.();
-    if (sel && !sel.isCollapsed) return;
-    logEvent('archive_edit_exit_tap');
-    window._app?.toggleArchiveEditing?.();
-  });
+/**
+ * アーカイブで書いている途中か（欄にフォーカスがある／保存待ち／保存中）。
+ * ★自動で出すモーダル・コーチマークは、これが true のあいだ出さない（書いている最中に割り込まない）。
+ *   以前は「編集モード中は出さない」だったが、管理者は常に編集中になったので、実際に書いているかで見る
+ */
+export function isArchiveBusy() {
+  const a = document.activeElement;
+  if (a && a.closest?.('.p-archive') && (a.isContentEditable || /^(TEXTAREA|INPUT)$/.test(a.tagName))) return true;
+  return [...document.querySelectorAll('.p-archive [data-inline], .p-archive [data-reflect-field], .p-archive .c-editor[data-sub-mission]')]
+    .some(n => n._dirty || n._saving);
 }
 
 /** 編集モードの欄を配線する（renderMainBoard の最後に呼ぶ。二重には配線しない） */
 export function bindArchiveInlineEditing(root = document) {
-  _bindTapToExit(root);
   root.querySelectorAll('[data-inline]').forEach(_bindBasic);
   root.querySelectorAll('.c-editor[data-sub-mission]').forEach(_bindSubmission);
   root.querySelectorAll('[data-reflect-field]').forEach(_bindReflection);
