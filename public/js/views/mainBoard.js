@@ -1756,6 +1756,13 @@ function _renderArchiveTab(p) {
               ${preview ? '編集' : 'プレビュー'}
             </button>` : ''}
           ${publishHtml}
+          <!-- ★メニュー（⋯）：編集／プレビュー・リンクをコピー・公開されている内容を見る・公開を停止する（main.js の openArchiveMenu） -->
+          <button type="button" onclick="window._app.openArchiveMenu(event)" class="p-archive__menu" aria-label="アーカイブのメニュー"
+            data-log="archive_menu_open">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>
+            </svg>
+          </button>
         </div>
       </div>
       ${preview ? `

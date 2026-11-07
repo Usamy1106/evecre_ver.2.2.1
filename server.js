@@ -1477,6 +1477,9 @@ app.get('/api/config', (req, res) => {
     ok: true,
     googleClientId: process.env.GOOGLE_CLIENT_ID || null,
     googleEnabled:  !!googleAuthClient,
+    // 外部サイト（公開ページ）の本番の URL（2026-11-07。指示書B §4-6）。★新しい環境変数は足さず、
+    //   PUBLIC_SITE_ORIGINS の「localhost でない最初の値」を使う。無ければ null（アーカイブのメニューに「リンクをコピー」を出さない）
+    publicSiteUrl: _publicSiteUrl(),
   });
 });
 
@@ -4928,6 +4931,10 @@ app.post('/api/auth/password-reset/confirm', strictLimiter, async (req, res) => 
 const PUBLIC_SITE_ORIGINS = new Set(
   String(process.env.PUBLIC_SITE_ORIGINS || '').split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean)
 );
+// 外部サイトの本番の URL（GET /api/config が返す）。★localhost・127.0.0.1 は除く（開発用）
+function _publicSiteUrl() {
+  return [...PUBLIC_SITE_ORIGINS].find(o => !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)) || null;
+}
 const PUBLIC_CACHE = 'public, max-age=300';
 
 /** 公開 API：60回 / 分 / IP */

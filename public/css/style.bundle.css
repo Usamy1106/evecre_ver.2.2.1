@@ -4538,6 +4538,20 @@ body {
   background-color: var(--color-bg);
 }
 
+/* 押せない項目（理由を下に小さく添える。2026-11-07 アーカイブの「リンクをコピー」） */
+.c-context-menu__item.is-disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.c-context-menu__note {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
 /* 取り消せない操作は色を変える。文言でも「削除」と明示する */
 .c-context-menu__item--danger {
   color: var(--color-danger);
@@ -6166,6 +6180,21 @@ body {
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);
   white-space: nowrap;
+}
+
+/* 右上のメニュー（⋯）。★押せる範囲は 36px 四方 */
+.p-archive__menu {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+}
+
+.p-archive__menu:active {
+  background-color: var(--button-secondary);
 }
 
 .p-archive__published {

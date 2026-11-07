@@ -314,6 +314,21 @@
   white-space: nowrap;
 }
 
+/* 右上のメニュー（⋯）。★押せる範囲は 36px 四方 */
+.p-archive__menu {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+}
+
+.p-archive__menu:active {
+  background-color: var(--button-secondary);
+}
+
 .p-archive__published {
   padding: 2px var(--space-3);
   border: 1px solid var(--color-primary);

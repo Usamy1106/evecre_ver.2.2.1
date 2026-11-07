@@ -96,6 +96,12 @@ async function finishArchiveEditing() {
   try { await flushArchiveInlineEdits(); } catch (_) { /* 抜けるのを止めない */ }
 }
 let _leavingArchiveTab = false;
+// 外部サイト（公開ページ）の URL。GET /api/config から1回だけ読む（無ければ null）
+let _publicSiteUrlPromise = null;
+function _publicSiteUrl() {
+  _publicSiteUrlPromise ||= api.getConfig().then(r => (typeof r?.publicSiteUrl === 'string' ? r.publicSiteUrl : null)).catch(() => null);
+  return _publicSiteUrlPromise;
+}
 let _togglingPreview = false;
 
 // ===== ビューレンダラーの登録 =====
@@ -1252,6 +1258,64 @@ window._app = {
   focusArchiveInline: (kind) => focusArchiveInline(kind),
   // 公開の確認ページ（アーカイブ右上の「公開する」・メニュー。modals/publishConfirmModal.js）
   openPublishConfirm: (opts) => openPublishConfirm(opts),
+  // アーカイブ右上のメニュー（⋯。2026-11-07。指示書B §4-6）。
+  // ★入れないもの：タスクの並び順（目次にある）・複製・イベントの削除（イベント設定にある。ここから消せると事故る）・PDF
+  openArchiveMenu: async (e) => {
+    e.stopPropagation();
+    const existing = document.getElementById('archive-menu');
+    if (existing) { existing.remove(); return; }
+    const p = state.events.find(x => x.id === state.selectedEventId);
+    if (!p) return;
+    const triggerEl = e.currentTarget ?? e.target;
+    const canMgr = state.canManageCurrentEvent();
+    const published = p.publicBasicInfo === true;
+    const site = await _publicSiteUrl();
+    const rect = triggerEl.getBoundingClientRect();
+    const menu = document.createElement('div');
+    menu.id = 'archive-menu';
+    menu.className = 'c-context-menu c-context-menu--archive u-animate-fade';
+    menu.style.top   = `${rect.bottom + 4}px`;
+    menu.style.right = `${window.innerWidth - rect.right}px`;
+    // ★リンクは外部サイトの詳細ページ（https://<サイト>/events/<id>）。未公開だとリンク先が 404 なので押せなくする。
+    //   外部サイトの URL が分からない（PUBLIC_SITE_ORIGINS が localhost だけ）ときは出さない
+    menu.innerHTML = `
+      ${canMgr ? `<button id="am-view" class="c-context-menu__item">${state.archivePreview ? '編集' : 'プレビュー'}</button>` : ''}
+      ${site ? `<button id="am-link" class="c-context-menu__item${published ? '' : ' is-disabled'}"${published ? '' : ' aria-disabled="true"'}>
+        リンクをコピー${published ? '' : '<span class="c-context-menu__note">公開するとコピーできます</span>'}</button>` : ''}
+      ${canMgr && published ? `<button id="am-public-view" class="c-context-menu__item">公開されている内容を見る</button>
+      <button id="am-unpublish" class="c-context-menu__item c-context-menu__item--danger">公開を停止する</button>` : ''}`;
+    if (!menu.children.length) return;
+    document.body.appendChild(menu);
+    const on = (id, fn) => document.getElementById(id)?.addEventListener('click', (ev) => { ev.stopPropagation(); fn(); });
+    on('am-view', () => { menu.remove(); window._app.toggleArchivePreview(); });
+    on('am-link', () => {
+      if (!published) return;   // ★押せない（メニューは閉じずに注記を読ませる）
+      menu.remove();
+      const url = `${site}/events/${encodeURIComponent(p.id)}`;
+      logEvent('archive_public_link_copied', { eventId: p.id });
+      navigator.clipboard.writeText(url)
+        .then(() => _showToast('公開ページのリンクをコピーしました'))
+        .catch(() => _showToast('コピーに失敗しました: ' + url));
+    });
+    on('am-public-view', () => { menu.remove(); openPublishConfirm({ mode: 'view' }); });
+    on('am-unpublish', async () => {
+      menu.remove();
+      const ok = await showConfirmDialog({
+        message: '公開を停止しますか？\n外部サイトへの反映には時間がかかります。',
+        confirmLabel: '停止する',
+        cancelLabel: 'キャンセル',
+      });
+      if (!ok) return;
+      p.publicBasicInfo = false;
+      p.publicKnowledge = false;
+      logEvent('archive_unpublished', { eventId: p.id });
+      try { await state.saveNow(p.id); _showToast('公開を停止しました'); }
+      catch (_) { _showToast('保存できませんでした'); }
+      state.render();
+    });
+    const close = () => { menu.remove(); document.removeEventListener('click', close); };
+    setTimeout(() => document.addEventListener('click', close), 10);
+  },
   // 画面・タブを離れるときに state.setView / setTab から呼ぶ（描き直しはしない）
   finishArchiveEditing: () => finishArchiveEditing(),
 
@@ -1866,6 +1930,8 @@ const _LOG_LABELS = {
   public_confirm_canceled:   '公開の確認ページを閉じた',
   public_published:          '公開した（確認済み）',
   archive_task_share_toggled: 'タスクの公開を切り替えた',
+  archive_public_link_copied: '公開ページのリンクをコピーした',
+  archive_unpublished:       '公開を停止した',
   board_panel_switched:      'メインボードの右列を切り替えた（広い画面）',
   gantt_zoomed:              'ガントをピンチで拡大・縮小した（広い画面）',
   board_filter_date:         'メインボードのカレンダーで日付を選んだ（広い画面）',
