@@ -27,7 +27,8 @@
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { logEvent } from '../logger.js';
-import { placeholderFor, reflectShowsStruggle, isKnowledgePublished } from '../utils.js';
+import { placeholderFor, reflectShowsStruggle, isKnowledgePublished, taskSubmissions } from '../utils.js';
+import { setArchiveLanding } from './mainBoard.js';
 import { characterFigureHtml } from '../character.js';
 import { densityForEvent, DENSITY } from '../onboarding.js';
 import { Components } from '../components.js';
@@ -165,7 +166,7 @@ export function renderMissionReflect(appEl) {
           <div class="p-mission-reflect__share">${Components.ShareCheck({ id: 'reflect-shareable', checked: !!d.shareable, published: isKnowledgePublished(p) })}</div>
 
           <button type="button" onclick="window._app.saveMissionReflect()" id="reflect-save" data-cmd-enter
-            class="c-button c-button--primary p-mission-reflect__save">保存して戻る</button>
+            class="c-button c-button--primary p-mission-reflect__save">保存して記録を見る</button>
         </div>
 
         <button type="button" onclick="window._app.skipMissionReflect()" data-log="reflect_skip"
@@ -275,7 +276,7 @@ export function skipMissionReflect() {
   state.closeMissionReflect();
 }
 
-/** 「保存して戻る」。本文が空でも押せる（そのまま戻る）*/
+/** 「保存して記録を見る」。本文が空でも押せる（そのときは保存せずにもとの画面へ戻る）*/
 export async function saveMissionReflect() {
   const p = state.events.find(x => x.id === state.selectedEventId);
   const missionId = state.reflectMissionId;
@@ -288,13 +289,15 @@ export async function saveMissionReflect() {
 
   const btn = document.getElementById('reflect-save');
   if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+  // 保存の前から「記録が残っているもの」（2つ目の欄が書いてある）に数えられていたか（着地で数字を上げるかどうか）
+  const wasRecorded = taskSubmissions(p, missionId).some(cd => String(cd.solution || '').trim() !== '');
 
   const r = await api.updateReflection(p.id, missionId, {
     struggle, solution, shareable: !!d.shareable,
     ...(d.outcome ? { outcome: d.outcome } : {}),
   });
   if (!r?.ok) {
-    if (btn) { btn.disabled = false; btn.textContent = '保存して戻る'; }
+    if (btn) { btn.disabled = false; btn.textContent = '保存して記録を見る'; }
     window._app?.showToast(r?.error || '保存に失敗しました', 'error');
     return;
   }
@@ -305,6 +308,10 @@ export async function saveMissionReflect() {
     missionId, outcome: d.outcome || null,
     hasStruggle: !!struggle, hasSolution: !!solution, shareable: !!d.shareable,
   });
-  state.closeMissionReflect();
+  // ★保存したらアーカイブのその記録に着地する（2026-11-07。指示書B §7-3）。ボードへはボトムナビ・左端の列で戻れる。
+  //   「あとで」（skipMissionReflect）は今までどおりボードへ
+  setArchiveLanding(missionId, wasRecorded);
+  state.archiveFocusMissionId = missionId;
+  state.closeMissionReflect({ tab: 'ARCHIVE' });
   window._app?.showToast('振り返りを保存しました');
 }

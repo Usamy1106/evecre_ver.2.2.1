@@ -769,6 +769,21 @@ body {
   100% { filter: none; }
 }
 
+/* 使用: object/project/_archive.css（振り返りを保存したあと、アーカイブのその記録に着地する。2026-11-07。指示書B §7-3）
+   ★「収まる」動き：少し下から持ち上がって定位置に入り、中身がポンッと出る。完了の2択の火の粉（祝う）は使わない。
+   ★transform / opacity だけ */
+@keyframes archiveLand {
+  0%   { opacity: 0; transform: translateY(16px) scale(.98); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes archiveStatBump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
 /* ===== foundation/_typography.css ===== */
 /* ==========================================================================
    Foundation / typography — タイプスケール
@@ -6401,6 +6416,8 @@ body {
 .p-archive__entry {
   padding-block: var(--space-6);
   transition: background-color var(--duration-slow) var(--ease), box-shadow var(--duration-slow) var(--ease);
+  /* ★目次・通知・振り返りの着地でここへ送るとき、貼り付いた上部（ヘッダー＋タブ＋.p-archive__head）の裏に隠れないように */
+  scroll-margin-top: calc(var(--board-stack-h, 0px) + var(--archive-head-h, 120px));
 }
 
 .p-archive__entry + .p-archive__entry {
@@ -6409,6 +6426,23 @@ body {
 
 /* 目次・通知から飛んできた記録を2秒だけ光らせる（_scrollToArchiveEntry が付け外しする）。
    ★枠線ではなく背景と box-shadow で描く（幅が変わるとスクロールで合わせた位置からずれる） */
+/* 振り返りを保存したあとの着地（1回だけ。JS がクラスを足して、終わったら外す）。★動かすのは着地した記録だけ */
+.p-archive__entry.is-landing {
+  animation: archiveLand .55s var(--ease) both;
+}
+
+.p-archive__stat-value.is-bump {
+  display: inline-block;
+  animation: archiveStatBump .4s var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .p-archive__entry.is-landing,
+  .p-archive__stat-value.is-bump {
+    animation: none;
+  }
+}
+
 .p-archive__entry.is-focused {
   border-top-color: transparent;
   background-color: var(--color-primary-tint2);

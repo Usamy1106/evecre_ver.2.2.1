@@ -1008,16 +1008,18 @@ export const state = {
     window.scrollTo(0, 0);
   },
 
-  closeMissionReflect() {
-    const ret = this.reflectReturn || {};
+  // opts.tab … 戻り先のタブを決める（振り返りを保存したらアーカイブへ着地する。2026-11-07）
+  closeMissionReflect(opts = {}) {
+    const ret = { ...(this.reflectReturn || {}), ...(opts.tab ? { tab: opts.tab } : {}) };
     this.reflectMissionId = null;
     this.reflectReturn = null;
     this.reflectDraft = null;
     logEvent('view_changed', { from: 'MISSION_REFLECT', to: 'MAIN_BOARD' });
     this.currentView = 'MAIN_BOARD';
     this.mainBoardTab = ret.tab || 'MAIN';
-    this.render();
+    // ★先に上へ戻してから描く。描いたあとに戻すと、アーカイブの記録へ送るスクロール（archiveFocusMissionId）を打ち消す
     window.scrollTo(0, 0);
+    this.render();
   },
 
   // --- タスク詳細ページから戻る ---

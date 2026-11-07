@@ -271,6 +271,9 @@ export function renderMainBoard(container) {
     // ★アーカイブ上部（.p-archive__head）を貼り付ける位置＝ヘッダー＋タブの高さ（safe-area 込み）
     const stack = container.querySelector('.js-mountain-sticky');
     if (stack) container.querySelector('.p-main-board')?.style.setProperty('--board-stack-h', `${stack.offsetHeight}px`);
+    // ★アーカイブ上部（.p-archive__head）の高さ。記録へ送るとき、その裏に隠れないようにする（scroll-margin-top）
+    const ahead = container.querySelector('.p-archive__head');
+    if (ahead) container.querySelector('.p-main-board')?.style.setProperty('--archive-head-h', `${ahead.offsetHeight + 8}px`);
   }
 
   if (state.mainBoardTab === 'ARCHIVE') {
@@ -350,7 +353,42 @@ function _focusArchiveMission() {
   const id = state.archiveFocusMissionId;
   if (!id) return;
   state.archiveFocusMissionId = null;
-  _scrollToArchiveEntry(id);
+  if (_scrollToArchiveEntry(id)) _playArchiveLanding(id);
+}
+
+// 振り返りを保存したあとの着地（2026-11-07。指示書B §7-3）。書いたものが記録として並んだ姿を見せる。
+// ★一度だけ。モジュールで持ち、DOM にクラスを足すだけにする（描き直しのテンプレートには入れない＝ SSE で再発火しない。
+//   _archiveOpenRows と同じ方式）。動かすのは着地した記録だけ。
+// ★動き（位置・scale・opacity）だけで作る。火の粉（完了の2択で「祝う」もの）は使わない＝完了は祝う、着地は収まる
+let _archiveLanding = null;   // { id, wasRecorded }
+
+/** missionReflect.js が保存の直後に呼ぶ。wasRecorded＝保存の前から「記録が残っているもの」に数えられていたか */
+export function setArchiveLanding(id, wasRecorded) {
+  _archiveLanding = { id, wasRecorded: !!wasRecorded };
+}
+
+function _playArchiveLanding(id) {
+  const landing = _archiveLanding;
+  if (!landing || landing.id !== id) return;
+  _archiveLanding = null;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+  const el = [...document.querySelectorAll('.p-archive__entry')].find(x => x.dataset.missionId === id);
+  if (el) {
+    el.classList.add('is-landing');
+    el.addEventListener('animationend', () => el.classList.remove('is-landing'), { once: true });
+  }
+  // 「記録が残っているもの」が1つ増えたなら、数字を1つ前から上げる
+  const stat = document.querySelector('[data-archive-stat="records"]');
+  const num = stat?.firstChild;
+  const now = parseInt(num?.nodeValue, 10);
+  if (landing.wasRecorded || !num || !(now > 0)) return;
+  num.nodeValue = String(now - 1);
+  setTimeout(() => {
+    if (!document.contains(stat)) return;
+    num.nodeValue = String(now);
+    stat.classList.add('is-bump');
+    stat.addEventListener('animationend', () => stat.classList.remove('is-bump'), { once: true });
+  }, 450);
 }
 
 // 下部パネル（提案＋やること一覧）の開閉状態。再レンダリングをまたいで保持する。

@@ -150,3 +150,18 @@
   0%   { filter: brightness(1.8) saturate(.4); }
   100% { filter: none; }
 }
+
+/* 使用: object/project/_archive.css（振り返りを保存したあと、アーカイブのその記録に着地する。2026-11-07。指示書B §7-3）
+   ★「収まる」動き：少し下から持ち上がって定位置に入り、中身がポンッと出る。完了の2択の火の粉（祝う）は使わない。
+   ★transform / opacity だけ */
+@keyframes archiveLand {
+  0%   { opacity: 0; transform: translateY(16px) scale(.98); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes archiveStatBump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
