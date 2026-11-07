@@ -4,7 +4,7 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS, OUTCOME_CHOICES, EVENT_TYPES } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated, taskShareState } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated, taskShareState, countPublishableReflections } from '../utils.js';
 import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { pillarCharacter } from '../pillarChars.js';
@@ -1582,15 +1582,16 @@ function _archiveSections(p, missions, mode) {
 }
 
 // アーカイブの「宣伝用に公開できる」帯（概要・期間・場所の上。2026-10-02）。
-// ★ヘッダー画像・タイトル・概要・期間・場所は宣伝用に公開できる欄だと伝える。全員に今の状態を見せ、
-//   ボタン（公開する）は管理者だけ・非公開のときだけ。概要が無いうちは「概要を書くと公開できます」と伝える
-//   （公開の確認を出す条件が「概要がある」こと。utils.js の canPromptPublicBasic）
+// ★ヘッダー画像・タイトル・概要・期間・場所は宣伝用に公開できる欄だと伝える。全員に今の状態を見せる。
+// ★2026-11-07：帯からは「公開する」を外し、状態の表示だけにした（公開は右上の「公開する」＝確認ページの1か所）。
+//   管理者には、開催後なら「公開できる記録 N件」（countPublishableReflections。公開の可否の判定と同じ数）も出す
 function _archivePublicBannerHtml(p, canMgr) {
   const on = p.publicBasicInfo === true;
   const ready = canPromptPublicBasic(p);
   const text = on ? 'ヘッダー画像・タイトル・概要・期間・場所を、宣伝用に公開しています'
-    : ready ? 'ヘッダー画像・タイトル・概要・期間・場所は、宣伝用に公開できます'
+    : ready ? 'ヘッダー画像・タイトル・概要・期間・場所は、右上の「公開する」から宣伝用に公開できます'
     : '概要を書くと、ヘッダー画像・タイトル・概要・期間・場所を宣伝用に公開できます';
+  const n = canMgr && isAfterEventDates(p) ? countPublishableReflections(p) : null;
   return `
     <div class="p-archive__public${on ? ' is-public' : ''}">
       <svg class="p-archive__public-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -1598,10 +1599,8 @@ function _archivePublicBannerHtml(p, canMgr) {
         <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
         <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
       </svg>
-      <span class="p-archive__public-text">${text}</span>
+      <span class="p-archive__public-text">${text}${n !== null ? `<br>公開できる記録：${n}件` : ''}</span>
       ${on ? '<span class="p-archive__public-state">公開中</span>'
-        : canMgr && ready ? `<button type="button" onclick="window._app.openPublicBasicInfoModal()" data-log="archive_public_basic_open"
-            class="p-archive__public-button">公開する</button>`
         : '<span class="p-archive__public-state p-archive__public-state--off">非公開</span>'}
     </div>`;
 }
@@ -1724,6 +1723,13 @@ function _renderArchiveTab(p) {
     </details>`;
 
   const hasDatesA = Array.isArray(p.dates) && p.dates.length > 0;
+  // 公開（右上。2026-11-07。指示書B §5-2）。★公開は確認ページ（publishConfirmModal.js）の1か所から。
+  //   まだ公開していない、または開催後でタスクの記録をまだ公開していないなら「公開する」。公開し終えていれば「公開中」
+  const knowledgeOpen = isAfterEventDates(p) && countPublishableReflections(p) > 0 && p.publicKnowledge !== true;
+  const publishHtml = p.publicBasicInfo === true && !knowledgeOpen
+    ? '<span class="p-archive__published">公開中</span>'
+    : canMgr ? `<button type="button" onclick="window._app.openPublishConfirm()" data-log="archive_publish_open"
+        class="p-archive__publish">公開する</button>` : '';
   return `
     <div class="p-archive${editing ? ' p-archive--editing' : ''}${preview ? ' p-archive--preview' : ''} u-page-transition">
       <div class="p-archive__head">
@@ -1749,6 +1755,7 @@ function _renderArchiveTab(p) {
               ${preview ? `<span class="c-icon p-archive__view-toggle-icon" style="--icon:url('/images/icon/icon-edit.svg')" aria-hidden="true"></span>` : ''}
               ${preview ? '編集' : 'プレビュー'}
             </button>` : ''}
+          ${publishHtml}
         </div>
       </div>
       ${preview ? `

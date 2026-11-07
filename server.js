@@ -2667,8 +2667,9 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
   if (flat.publicKnowledge !== undefined && typeof flat.publicKnowledge !== 'boolean') delete flat.publicKnowledge;
   // 「タスクも含めて公開するか」を聞いた時刻。★数値以外は捨てる
   if (flat.publicKnowledgePromptedAt !== undefined && !Number.isFinite(flat.publicKnowledgePromptedAt)) delete flat.publicKnowledgePromptedAt;
-  // ★初回確認の印はサーバーだけが書く（クライアントの値は信用しない）
+  // ★初回確認の印・公開前の確認の印はサーバーだけが書く（クライアントの値は信用しない）
   delete flat.shareConfirmedAt;
+  delete flat.publishCheckedAt;
   // 目的を支える柱（最大3つ）。★id は書き換えない（クライアントが振った id をそのまま通す）。
   //   形の合わないもの・名前が空のもの・id が重複するものは捨てる
   if (flat.pillars !== undefined) {
@@ -2713,6 +2714,13 @@ const TAG_NAME_MAX = 30;
  */
 async function _guardPublicKnowledge(eventId, flat, existing) {
   if (flat.publicKnowledge !== true || existing?.fields?.publicKnowledge?.v === true) return;
+  // ★公開の確認ページ（3つのチェック）を一度も通していないイベントは、どの経路からも公開にできない（指示書B §5-3）。
+  //   確認ページは POST /api/events/:id/publish が publishCheckedAt を立てる
+  if (!existing?.fields?.publishCheckedAt?.v) {
+    console.warn(`[public] knowledge publish rejected event=${eventId} reason=not_checked`);
+    delete flat.publicKnowledge;
+    return;
+  }
   const dates = Array.isArray(flat.dates) ? flat.dates : (existing?.fields?.dates?.v || []);
   const subs  = await submissionStore.getSubmissionsForProject(eventId);
   const check = publicData.canPublishKnowledge(dates, subs);
@@ -4974,6 +4982,62 @@ app.get('/api/public/events', async (_req, res) => {
   } catch (e) {
     console.error('GET /api/public/events error:', e);
     res.status(500).set('Cache-Control', 'no-store').json({ ok: false, error: 'server_error' });
+  }
+});
+
+// ===== 公開の確認（管理者だけ。2026-11-07。指示書B §5）=====
+// ★/api/public の下に置かないこと（あちらは認証なしの経路）。こちらは requireAuth ＋ canManage。
+
+/** 公開の確認ページの中身：公開したら外に出る姿（公開フラグだけを無視して buildPublicEvent を通す） */
+app.get('/api/events/:id/public-preview', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p || !eventStore.isMember(p, req.user.id)) return res.status(404).set('Cache-Control', 'no-store').json({ ok: false, error: 'not_found' });
+    if (!eventStore.canManage(p, req.user.id)) return res.status(403).set('Cache-Control', 'no-store').json({ ok: false, error: 'forbidden' });
+    const flat = crdt.crdtToFlat(p);
+    const subs = await submissionStore.getSubmissionsForProject(flat.id);
+    const pub  = publicData.buildPublicEvent(flat, subs, undefined, { preview: true });
+    res.set('Cache-Control', 'no-store').json({
+      ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat), basic: pub.basic, knowledge: pub.knowledge,
+      // 公開の判断に使う数字（確認ページに出す）。★公開できる記録の数は countPublishable（公開の可否の判定と同じ）
+      publishable: publicData.countPublishable(subs),
+      knowledgeReady: publicData.canPublishKnowledge(flat.dates, subs).ok,
+      published: { basic: flat.publicBasicInfo === true, knowledge: flat.publicKnowledge === true },
+    });
+  } catch (e) {
+    console.error('GET public-preview error:', e);
+    res.status(500).set('Cache-Control', 'no-store').json({ ok: false, error: 'server_error' });
+  }
+});
+
+/**
+ * 確認ページで3つのチェックを通して公開する。基礎情報は必ず、ナレッジは公開できるとき（開催後・公開できる記録が1件以上）だけ。
+ * ★publishCheckedAt を立てるのはここだけ。body.checks は3つとも true でなければ 400
+ */
+app.post('/api/events/:id/publish', requireAuth, async (req, res) => {
+  try {
+    const p = await eventStore.loadEvent(req.params.id);
+    if (!p || !eventStore.isMember(p, req.user.id)) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (!eventStore.canManage(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    const checks = req.body?.checks;
+    if (!Array.isArray(checks) || checks.length !== 3 || !checks.every(x => x === true)) {
+      return res.status(400).json({ ok: false, error: '確認の3つにチェックを入れてください' });
+    }
+    const flat0 = crdt.crdtToFlat(p);
+    const subs  = await submissionStore.getSubmissionsForProject(flat0.id);
+    const knowledge = publicData.canPublishKnowledge(flat0.dates, subs).ok;
+    const now = Date.now();
+    const updated = await eventStore.applyPatch(p.id, {
+      id: p.id, publicBasicInfo: true, publishCheckedAt: now, ...(knowledge ? { publicKnowledge: true } : {}),
+    });
+    const flat = crdt.crdtToFlat(updated);
+    await _mergeSubmissions(p.id, flat);
+    eventBus.broadcast(p.id, 'eventUpdated', { eventId: p.id, rev: updated.rev, event: flat }, req.get('X-Client-Id') || null);
+    logServerEvent(p.id, req.user.id, 'public_published', { knowledge });
+    res.json({ ok: true, publicBasicInfo: true, publicKnowledge: flat.publicKnowledge === true, publishCheckedAt: now });
+  } catch (e) {
+    console.error('POST publish error:', e);
+    res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });
   }
 });
 

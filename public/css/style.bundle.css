@@ -252,6 +252,7 @@
   --z-overlay: 100;          /* ミッション作成モーダル（全画面）*/
   --z-auto-modal: 180;       /* 自動表示モーダル（リマインド・オンボーディング）*/
   --z-form-modal: 240;       /* 1問ずつ聞くフォーム（参加申請・スキル回収）*/
+  --z-publish-confirm: 245;  /* 公開の確認ページ（アーカイブの「公開する」）。シートより前 */
   --z-edit-modal: 150;       /* アーカイブの項目を編集するモーダル */
   --z-date-picker: 200;      /* 日付を選ぶモーダル */
   --z-pending: 150;          /* 承認待ちの一覧シート */
@@ -2105,6 +2106,12 @@ body {
 
 /* 「他の団体にも公開してよい」の初回確認（modals/shareConfirmModal.js）。
    振り返りを書くモーダルの上に重ねて出すので、それより前に置く */
+/* 公開の確認ページ（modals/publishConfirmModal.js）。★中身は画面いっぱい（広い画面は読む幅で中央） */
+.c-overlay--publish {
+  z-index: var(--z-publish-confirm);
+  justify-content: center;
+}
+
 .c-overlay--share {
   z-index: var(--z-share-confirm);
 }
@@ -6146,14 +6153,29 @@ body {
   color: var(--color-text-muted);
 }
 
-.p-archive__public-button {
-  flex: none;
-  padding: var(--space-1) var(--space-3);
+/* 右上の「公開する」（管理者・公開の確認ページへ）と「公開中」（全員）。2026-11-07 */
+.p-archive__publish {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-full);
   background-color: var(--color-primary);
-  font-size: var(--font-size-xs);
+  box-shadow: var(--shadow-primary);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);
+  white-space: nowrap;
+}
+
+.p-archive__published {
+  padding: 2px var(--space-3);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  white-space: nowrap;
 }
 
 .p-archive__intro > * + * {
@@ -14502,6 +14524,226 @@ border: 2px solid var(--bg-textbox);
   margin-bottom: var(--space-6);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+}
+
+/* ===== object/project/_publish-confirm.css ===== */
+/* ==========================================================================
+   Object / Project / publish-confirm — 公開の確認ページ（2026-11-07。指示書B §5-2）
+   使用箇所: public/js/modals/publishConfirmModal.js
+
+   ★中身はサーバーの public-preview（＝外に出る姿）から描く。アーカイブの見た目を真似しすぎない
+     （非公開の部分がここには無い、ということが伝わればよい）。
+   ★3つのチェックと「公開する」は画面の下に固定（本文がどれだけ長くても押せる場所に残す）。
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-07 時点）
+     public/js/modals/publishConfirmModal.js … openPublishConfirm / _basicHtml / _knowledgeHtml
+   ========================================================================== */
+
+.p-publish-confirm {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--reading-max-width);
+  height: 100%;
+  background-color: var(--color-surface);
+}
+
+.p-publish-confirm__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.p-publish-confirm__heading {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-publish-confirm__close {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-right: calc(var(--space-2) * -1);
+  font-size: 24px;
+  color: var(--color-text-muted);
+}
+
+.p-publish-confirm__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  -webkit-overflow-scrolling: touch;
+}
+
+.p-publish-confirm__body > * + * {
+  margin-top: var(--space-4);
+}
+
+.p-publish-confirm__loading {
+  color: var(--color-text-muted);
+}
+
+.p-publish-confirm__intro {
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.p-publish-confirm__hints {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+}
+
+.p-publish-confirm__hints summary {
+  font-weight: var(--font-weight-heavy);
+  cursor: pointer;
+}
+
+.p-publish-confirm__hints ul {
+  margin-top: var(--space-1);
+  padding-left: 1.25em;
+  list-style: disc;
+}
+
+.p-publish-confirm__scope {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-primary-pale);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+/* 外に出る姿（プレビュー）。★枠で囲み、「ここから下が外に出るもの」と分かるようにする */
+.p-publish-confirm__preview {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.p-publish-confirm__preview > * + * {
+  margin-top: var(--space-6);
+}
+
+.p-publish-confirm__visual {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.p-publish-confirm__title {
+  margin-top: var(--space-3);
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.p-publish-confirm__fact {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.p-publish-confirm__fact-label {
+  display: inline-block;
+  min-width: 3em;
+  margin-right: var(--space-2);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-publish-confirm__text {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.p-publish-confirm__entry + .p-publish-confirm__entry {
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.p-publish-confirm__entry-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-publish-confirm__entry-meta {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-publish-confirm__image {
+  width: 100%;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.p-publish-confirm__file {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.p-publish-confirm__reflect-label {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+/* 画面の下に固定するチェックと「公開する」 */
+.p-publish-confirm__foot {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.p-publish-confirm__check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.p-publish-confirm__check input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  accent-color: var(--color-primary);
+}
+
+.p-publish-confirm__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.p-publish-confirm__actions > * {
+  flex: 1;
 }
 
 /* ===== object/project/_create-event.css ===== */

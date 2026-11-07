@@ -215,6 +215,12 @@
 
 /* 「他の団体にも公開してよい」の初回確認（modals/shareConfirmModal.js）。
    振り返りを書くモーダルの上に重ねて出すので、それより前に置く */
+/* 公開の確認ページ（modals/publishConfirmModal.js）。★中身は画面いっぱい（広い画面は読む幅で中央） */
+.c-overlay--publish {
+  z-index: var(--z-publish-confirm);
+  justify-content: center;
+}
+
 .c-overlay--share {
   z-index: var(--z-share-confirm);
 }

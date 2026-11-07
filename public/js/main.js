@@ -71,6 +71,7 @@ import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
 import { flushArchiveInlineEdits, focusArchiveInline, setTaskShared } from './archiveInlineEdit.js';
+import { openPublishConfirm } from './modals/publishConfirmModal.js';
 import { checkEventDateReminderModal } from './modals/eventDateReminderModal.js';
 import { checkPublicBasicInfoModal, openPublicBasicInfoModal } from './modals/publicBasicInfoModal.js';
 import { checkPublicKnowledgeModal } from './modals/publicKnowledgeModal.js';
@@ -1249,6 +1250,8 @@ window._app = {
   // 基礎情報の行のペン（タイトル・概要・場所）：その場の欄にカーソルを置く。
   // ★focus はタップのハンドラから同期で当てる（iOS は操作の外の focus を無視してキーボードが出ない）
   focusArchiveInline: (kind) => focusArchiveInline(kind),
+  // 公開の確認ページ（アーカイブ右上の「公開する」・メニュー。modals/publishConfirmModal.js）
+  openPublishConfirm: (opts) => openPublishConfirm(opts),
   // 画面・タブを離れるときに state.setView / setTab から呼ぶ（描き直しはしない）
   finishArchiveEditing: () => finishArchiveEditing(),
 
@@ -1857,6 +1860,12 @@ const _LOG_LABELS = {
   public_basic_answered:     '基礎情報の公開を選んだ',
   public_basic_toggled:      '基礎情報の公開を切り替えた',
   public_knowledge_toggled:  'ナレッジの公開を切り替えた',
+  public_knowledge_to_confirm: 'ナレッジの公開から確認ページへ移った',
+  public_confirm_shown:      '公開の確認ページを開いた',
+  public_confirm_published:  '公開の確認ページから公開した',
+  public_confirm_canceled:   '公開の確認ページを閉じた',
+  public_published:          '公開した（確認済み）',
+  archive_task_share_toggled: 'タスクの公開を切り替えた',
   board_panel_switched:      'メインボードの右列を切り替えた（広い画面）',
   gantt_zoomed:              'ガントをピンチで拡大・縮小した（広い画面）',
   board_filter_date:         'メインボードのカレンダーで日付を選んだ（広い画面）',

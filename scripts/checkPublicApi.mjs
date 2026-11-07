@@ -177,6 +177,21 @@ console.log('[7] 非公開テキスト・見出し・箇条書き（指示書B �
   ok(!JSON.stringify(pub.buildPublicEvent(event(), rs, TODAY)).includes(SECRET), '振り返り（solution）の非公開も消える');
 }
 
+console.log('[8] 公開の確認ページ（preview。指示書B §5-1）');
+{
+  const SECRET = '内線1234';
+  const hidden = event({ publicBasicInfo: false, publicKnowledge: false });
+  const s = { ...subs(), m1: { ...subs().m1, content: `本文{{p}}${SECRET}{{/p}}` } };
+  ok(pub.buildPublicEvent(hidden, s, TODAY).basic === null, 'preview でなければ、非公開のイベントは basic が null');
+  const r = pub.buildPublicEvent(hidden, s, TODAY, { preview: true });
+  ok(r.basic && r.basic.title === 'テスト展示会', 'preview は公開フラグを見ずに basic を組み立てる');
+  ok(Array.isArray(r.knowledge) && r.knowledge.length === 2, `preview でも shareable・solution の条件はそのまま（実際：${r.knowledge?.length}件）`);
+  ok(!JSON.stringify(r).includes(SECRET), 'preview でも非公開テキストは消える');
+  ok(leaks(r).length === 0, `preview に個人を指すキーが無い（見つかった：${leaks(r)}）`);
+  ok(!JSON.stringify(r).includes('u_owner') && !JSON.stringify(r).includes('u_a'), 'preview に userId の値も出ない');
+  ok(pub.buildPublicEvent({ ...hidden, dates: ['2026-11-20'] }, s, TODAY, { preview: true }).knowledge === null, 'preview でも開催前は knowledge が null');
+}
+
 // ── 動いているサーバーへ ─────────────────────────────────────
 const arg = (n) => process.argv.find(a => a.startsWith(`--${n}=`))?.slice(n.length + 3);
 const BASE = arg('base');

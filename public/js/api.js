@@ -249,6 +249,16 @@ export const api = {
   // 提出内容（本文・画像・PDF）を書き換える（管理者のみ。アーカイブの編集モード）。
   // ★画像・PDF は先に uploadSubmissionImage / uploadSubmissionFile で送り、URL だけを渡す。
   //   個別完了は targetUserId でその人の提出物を指す。
+  // 公開の確認ページ（管理者だけ）。公開したら外に出る姿（GET /api/events/:id/public-preview）
+  async publicPreview(eventId) {
+    const { json } = await _send('GET', `/api/events/${eventId}/public-preview`);
+    return json || { ok: false };
+  },
+  // 確認ページで3つのチェックを通して公開する（checks は3つの true）
+  async publishEvent(eventId, checks) {
+    const { json } = await _send('POST', `/api/events/${eventId}/publish`, { checks });
+    return json || { ok: false };
+  },
   async updateSubmission(eventId, missionId, { targetUserId, content = '', format = 'text', images = [], files = [] } = {}) {
     const { json } = await _send('PATCH', `/api/events/${eventId}/missions/${missionId}/submission`,
       { targetUserId, content, format, images, files });

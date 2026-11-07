@@ -1100,6 +1100,14 @@ function _bindEvents(p, sec) {
   // ナレッジの公開の切り替え（管理者のみ・開催後のみ。サーバーが条件を確かめ、満たさなければ無視する）
   document.querySelector('[data-ps-public-knowledge]')?.addEventListener('click', async (e) => {
     if (e.currentTarget.disabled) return;
+    // ★公開の確認ページ（3つのチェック）をまだ通していないイベントは、オンにする代わりにそちらを開く（指示書B §5-3）。
+    //   確認ページはアーカイブのタブの上に開くので、先にアーカイブへ移る
+    if (p.publicKnowledge !== true && !p.publishCheckedAt) {
+      logEvent('public_knowledge_to_confirm', { eventId: p.id });
+      state.setView('MAIN_BOARD', p.id, { tab: 'ARCHIVE' });
+      window._app?.openPublishConfirm?.();
+      return;
+    }
     p.publicKnowledge = p.publicKnowledge !== true;
     logEvent('public_knowledge_toggled', { eventId: p.id, value: p.publicKnowledge });
     await state.saveNow(p.id);

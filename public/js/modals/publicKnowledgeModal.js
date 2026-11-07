@@ -71,6 +71,14 @@ function _open(p, n) {
     overlay.remove();
     logEvent('public_knowledge_answered', { eventId: p.id, value });
     p.publicKnowledgePromptedAt = Date.now();
+    // ★公開の確認ページ（3つのチェック）をまだ通していないイベントは、そちらへ送る（指示書B §5-3）。
+    //   サーバーも publishCheckedAt が無いと publicKnowledge を true にしない（_guardPublicKnowledge）
+    if (value && !p.publishCheckedAt) {
+      await state.saveNow(p.id);
+      state.render();
+      window._app?.openPublishConfirm?.();
+      return;
+    }
     if (value) p.publicKnowledge = true;
     await state.saveNow(p.id);
     if (value) {
