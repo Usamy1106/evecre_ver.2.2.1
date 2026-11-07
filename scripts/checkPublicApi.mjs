@@ -134,6 +134,49 @@ console.log('[5] 一覧の1件');
   ok(leaks(it).length === 0, `個人を指すキーが無い（見つかった：${leaks(it)}）`);
 }
 
+console.log('[7] 非公開テキスト・見出し・箇条書き（指示書B §6-4）');
+{
+  const SECRET = '電話090-1234-5678';
+  const withMarks = {
+    ...subs(),
+    m1: { ...subs().m1,
+      content: `{{h}}準備{{/h}}\n{{l}}A4を300部{{/l}}\n{{l}}12店舗に置いた{{/l}}\n公開する文{{p}}${SECRET}{{image:2}}{{file:1}}{{/p}}のあと{{image:1}}`,
+      images: [`${R2}/img_open.webp`, `${R2}/img_secret.webp`],
+      files: [{ url: `${R2}/file_secret.pdf`, name: '内部資料.pdf', size: 10, thumb: `${R2}/img_secret_t.webp` },
+              { url: `${R2}/file_open.pdf`, name: '公開資料.pdf', size: 10, thumb: null }] },
+  };
+  const r = pub.buildPublicEvent(event(), withMarks, TODAY);
+  const k = r.knowledge.find(x => x.title === 'ポスターを作る');
+  const json = JSON.stringify(r);
+  ok(!json.includes(SECRET), '{{p}}…{{/p}} の中身が応答に含まれない（文字列で探す）');
+  ok(k.text.includes('公開する文') && k.text.includes('のあと'), `{{p}} の外は残る（実際：${k.text}）`);
+  ok(!json.includes('img_secret'), '{{p}} の中の画像の URL が images に含まれない');
+  ok(json.includes('img_open'), '{{p}} の外の画像は残る');
+  ok(!json.includes('file_secret') && !json.includes('内部資料'), '{{p}} の中の PDF が files に含まれない');
+  ok(json.includes('file_open'), '{{p}} の外の PDF は残る');
+  ok(k.text.includes('準備') && k.text.includes('A4を300部') && k.text.includes('12店舗に置いた'), '{{h}} / {{l}} の中身は残る');
+  ok(!/\{\{/.test(json), `印（{{…}}）が1つも残らない（実際：${json.match(/\{\{[^}]*\}\}/g)}）`);
+
+  // 閉じていない {{p}} は末尾まで非公開
+  const open = { ...subs(), m1: { ...subs().m1, content: `ここは出る{{p}}${SECRET}\n最後まで隠れる` } };
+  const ko = pub.buildPublicEvent(event(), open, TODAY).knowledge.find(x => x.title === 'ポスターを作る');
+  ok(ko.text === 'ここは出る', `閉じの印が無い {{p}} はそこから末尾まで出ない（実際：${ko.text}）`);
+  // 入れ子・対応しない閉じ
+  ok(pub.publicText(`a{{p}}b{{p}}c{{/p}}d{{/p}}e`) === 'ae', '入れ子の {{p}} は外側の閉じまで消す');
+  ok(pub.publicText(`a{{/p}}b`) === 'ab', '対応しない {{/p}} は無視（印だけ外す）');
+  ok(pub.publicText(`{{b}}太{{/b}}{{i}}斜{{/i}}`) === '太斜', '太字・斜体は印だけ外す');
+
+  // 概要（def-3 の本文・description）にも効く
+  const legacy = event({ description: '' });
+  const bs = pub.buildPublicEvent(legacy, { ...subs(), 'def-3': { content: `概要です{{p}}${SECRET}{{/p}}`, format: 'text' } }, TODAY).basic;
+  ok(bs.summary === '概要です', `概要（def-3）の非公開も消える（実際：${bs.summary}）`);
+  const bd = pub.buildPublicEvent(event({ description: `説明{{p}}${SECRET}{{/p}}` }), subs(), TODAY).basic;
+  ok(bd.summary === '説明', `description に残っていた非公開も消える（実際：${bd.summary}）`);
+  // 振り返りの欄
+  const rs = { ...subs(), m1: { ...subs().m1, solution: `次は{{p}}${SECRET}{{/p}}早めに` } };
+  ok(!JSON.stringify(pub.buildPublicEvent(event(), rs, TODAY)).includes(SECRET), '振り返り（solution）の非公開も消える');
+}
+
 // ── 動いているサーバーへ ─────────────────────────────────────
 const arg = (n) => process.argv.find(a => a.startsWith(`--${n}=`))?.slice(n.length + 3);
 const BASE = arg('base');

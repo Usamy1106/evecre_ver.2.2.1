@@ -820,9 +820,9 @@ function _setMissionField(p, mid, field, value, ts) {
 const SUMMARY_TASK_ID = 'def-3';
 function _summaryTextOf(content, format) {
   if (format === 'image') return '';
-  return String(content || '')
-    .replace(/\{\{(image|file):\d+\}\}/g, '').replace(/\{\{\/?[bi]\}\}/g, '')
-    .replace(/\n{3,}/g, '\n\n').trim();
+  // ★非公開テキスト（{{p}}…{{/p}}）は中身ごと消してから印を外す（publicData.publicText）。
+  //   description は公開の概要・招待ページ・AI の提案に使われるので、ここで非公開を残さない
+  return publicData.publicText(content);
 }
 
 function _setEventField(p, field, value, ts) {
