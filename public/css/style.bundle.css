@@ -275,6 +275,7 @@
   --z-drag-ghost: 400;       /* 掴んで動かしている画像の分身。何より前に出す */
   --z-drag-caret: 410;       /* 差し込み先の線。分身の下に隠れないよう、さらに前 */
   --z-context-menu: 260;     /* 長押しメニュー。ピッカーより前 */
+  --z-format-popup: 270;     /* 文字を選んだときの書式のポップアップ。シート・モーダルの中の編集欄でも前に出す */
   /* ★プロフィールカード。**あらゆるシートより前**に出すこと。
      担当者シート(210)・承認待ち(150)などから開くので、
      既定の --z-overlay(100) のままだとシートの裏に隠れて見えない（実際に起きた）。 */
@@ -4316,6 +4317,57 @@ body {
 }
 
 .c-editor-field__format-btn--italic {
+  font-family: Georgia, serif;
+  font-style: italic;
+}
+
+/* 文字で示すボタン（見出し・箇条書き・非公開。2026-11-07）。★幅は中身に合わせる */
+.c-editor-field__format-btn--heading,
+.c-editor-field__format-btn--list,
+.c-editor-field__format-btn--private {
+  width: auto;
+  min-width: 32px;
+  padding-inline: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* --- 文字を選んだときの書式のポップアップ（clearEditor.js の _showPopup。body 直下に1つ）------------------
+   ★位置は JS が選んだ範囲から決める（上。タッチの端末は下＝純正のメニューと重ねない）。
+   ★押せる範囲は 40px 以上（タッチ） */
+.c-format-popup {
+  position: fixed;
+  z-index: var(--z-format-popup);
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-text);
+  box-shadow: var(--shadow-lg);
+}
+
+.c-format-popup[hidden] {
+  display: none;
+}
+
+.c-format-popup-btn {
+  display: inline-flex;
+  min-width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-inverse);
+}
+
+.c-format-popup-btn.is-active {
+  background-color: var(--color-primary);
+}
+
+.c-format-popup-btn--italic {
   font-family: Georgia, serif;
   font-style: italic;
 }

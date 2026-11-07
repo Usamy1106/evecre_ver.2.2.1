@@ -245,6 +245,12 @@ export function richTextHtml(text) {
     }
     if (count[k] === 0) continue;            // 対応しない閉じの印は無視
     if (--count[k] > 0) continue;            // 同じ印が重ねて開いている
+    // ★中身の無いタグは出さない（非公開の線だけが残るなど）。いちばん内側で、開いた直後なら取り消す
+    if (stack.at(-1) === k && html.endsWith(_INLINE_TAGS[k][0])) {
+      html = html.slice(0, -_INLINE_TAGS[k][0].length);
+      stack.pop();
+      continue;
+    }
     // k より後に開いたタグを一度閉じ、k を閉じてから開き直す（タグを交差させない）
     const at = stack.lastIndexOf(k);
     const above = stack.splice(at);
@@ -304,8 +310,8 @@ export function submissionSegments(cd) {
   //   画像・PDF は、非公開の中にあれば private: true（アプリでは半透明。外へは出さない＝ publicData.js）
   const open = { b: 0, i: 0, h: 0, l: 0, p: 0 };
   const pushText = (t) => {
-    // 画像・ファイルの前後の改行は、それ自体が区切りになるので落とす
-    const s = t.replace(/^\n+|\n+$/g, '');
+    // 画像・ファイルの前後の改行は、それ自体が区切りになるので落とす（★印をはさんでいても落とす）
+    const s = t.replace(/^((?:\{\{\/?[bihlp]\}\})*)\n+/, '$1').replace(/\n+((?:\{\{\/?[bihlp]\}\})*)$/, '$1');
     const prefix = _INLINE_KEYS.filter(k => open[k] > 0).map(k => `{{${k}}}`).join('');
     if (stripInlineMarks(s).trim()) out.push({ type: 'text', text: prefix + s });
     for (const m of t.matchAll(_INLINE_MARK_RE)) open[m[2]] = Math.max(0, open[m[2]] + (m[1] ? -1 : 1));

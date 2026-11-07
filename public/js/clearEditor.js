@@ -30,7 +30,7 @@
 
 import { SUBMISSION_MAX_IMAGES, SUBMISSION_MAX_FILES, SUBMISSION_FILE_MAX_BYTES } from './constants.js';
 import { renderPdfThumb } from './pdfThumb.js';
-import { formatFileSize, submissionSegments, inlineRuns, stripInlineMarks } from './utils.js';
+import { formatFileSize, submissionImages, submissionFiles, stripInlineMarks } from './utils.js';
 
 // 本文の中の画像・添付ファイル（PDF）の印。★utils.js の IMAGE_MARK_RE / FILE_MARK_RE と同じ形に保つこと
 // ★編集欄の中の塊は、画像も PDF も data-img-key を持つ（並べ替え・×・差し込み先の判定を共通にするため）。
@@ -161,9 +161,19 @@ export function fileCount(el = editorEl()) {
   return el ? el.querySelectorAll('[data-img-key][data-kind="file"]').length : 0;
 }
 
+// 書式の印と、編集欄の中での持ち方（★表示の utils.js richTextHtml と同じクラスを使い、見た目を揃える）
+//   太字 b → <b> ／ 斜体 i → <i> ／ 見出し h → span.c-rich-text__h ／ 箇条書き l → span.c-rich-text__l ／ 非公開 p → span.u-private-text
+const _SPAN_CLASS = { h: 'c-rich-text__h', l: 'c-rich-text__l', p: 'u-private-text' };
+const _LINE_KEYS = ['h', 'l'];                 // 1行だけの書式（改行で閉じる）
+const _NEST_ORDER = ['p', 'h', 'l', 'b', 'i']; // 編集欄の中で入れ子にする順（外 → 内）
+// 書式を切り替えるあいだだけ置く、選択範囲の目印（私用領域の文字。保存には残さない）
+const SEL_START = '';
+const SEL_END   = '';
+const ZWSP = '​';
+
 /**
  * 編集欄を「本文（印つき）」と「画像の key の並び」に変換する。
- * ★HTML は捨てる。取り出すのは文字・改行・画像の印だけ。
+ * ★HTML は捨てる。取り出すのは文字・改行・画像の印・書式の印だけ。
  * @returns {{ text: string, plain: string, keys: string[], fileKeys: string[] }}
  *   text     … 画像・PDF の位置に {{image:N}} / {{file:N}} を入れた本文（保存用）
  *   plain    … 印を外した本文（下書き・空判定用）
@@ -173,65 +183,156 @@ export function readEditor(el = editorEl()) {
   const out = [];
   const keys = [];
   const fileKeys = [];
-  // ★書式（太字・斜体）は印 {{b}}…{{/b}} / {{i}}…{{/i}} にする（utils.js の inlineRuns が読む）。
-  //   開いている書式を stack で持ち、画像・PDF の印の前後では閉じて開き直す
-  //   （表示は印で区切った文章ごとに読むので、またがせると片側の書式が消える）。
+  // ★書式は印にする（utils.js の inlineRuns が読む）：{{b}} {{i}} {{h}} {{l}} {{p}}。
+  //   開いている書式を stack で持つ。
+  // ★画像・PDF の印の前後では、太字・斜体・見出し・箇条書きは閉じて開き直す（表示は文章のかたまりごとに読む）。
+  //   ★非公開（p）だけは閉じない＝非公開の中に置いた画像・PDF も非公開になる（外へ出すとき lib/publicData.js が外す）。
+  //   ここで p を閉じると、画像が非公開の外に出て公開されてしまう。
+  // ★見出し・箇条書きは1行だけ：改行に当たったら閉じる。前後は改行で区切る（表示はその改行を飲む）。
   const open = [];
-  const endsWithNewline = () => { const s = out.join(''); return s === '' || s.endsWith('\n'); };
+  let pendingNewline = false;   // 見出し・箇条書きを閉じた直後。次に何か書くときに改行を入れる
+  const tail = () => out.join('').replace(/(\{\{\/?[bihlp]\}\})+$/, '');
+  const endsWithNewline = () => { const s = tail(); return s === '' || s.endsWith('\n'); };
+  const flushNewline = () => { if (pendingNewline) { if (!endsWithNewline()) out.push('\n'); pendingNewline = false; } };
   const isBold = (n) => /^(B|STRONG)$/.test(n.tagName) || n.style?.fontWeight === 'bold' || +n.style?.fontWeight >= 600;
   const isItal = (n) => /^(I|EM)$/.test(n.tagName) || n.style?.fontStyle === 'italic';
+  const has = (n, k) => !!n.classList?.contains(_SPAN_CLASS[k]);
+  // 見出し・箇条書きを閉じる（その内側で開いているものは閉じて、見出し・箇条書き以外を開き直す）
+  const closeLine = () => {
+    const at = open.findIndex(t => _LINE_KEYS.includes(t));
+    if (at < 0) return;
+    const above = open.splice(at);
+    for (let k = above.length - 1; k >= 0; k--) out.push(`{{/${above[k]}}}`);
+    for (const t of above) if (!_LINE_KEYS.includes(t)) { out.push(`{{${t}}}`); open.push(t); }
+    pendingNewline = true;
+  };
+  const newline = () => { closeLine(); pendingNewline = false; out.push('\n'); };
   const walk = (node) => {
     for (const n of node.childNodes) {
-      if (n.nodeType === Node.TEXT_NODE) { out.push(n.nodeValue.replace(/​/g, '')); continue; }
-      if (n.nodeType !== Node.ELEMENT_NODE) continue;
-      if (n.dataset?.imgKey) {
-        for (let k = open.length - 1; k >= 0; k--) out.push(`{{/${open[k]}}}`);
-        if (n.dataset.kind === 'file') { fileKeys.push(n.dataset.imgKey); out.push(MARK_FILE(fileKeys.length)); }
-        else { keys.push(n.dataset.imgKey); out.push(MARK(keys.length)); }
-        for (const t of open) out.push(`{{${t}}}`);
+      if (n.nodeType === Node.TEXT_NODE) {
+        const t = n.nodeValue.replace(/​/g, '');
+        if (t) { flushNewline(); out.push(t); }
         continue;
       }
-      if (n.tagName === 'BR') { out.push('\n'); continue; }
+      if (n.nodeType !== Node.ELEMENT_NODE) continue;
+      if (n.dataset?.imgKey) {
+        flushNewline();
+        closeLine();
+        pendingNewline = false;
+        for (let k = open.length - 1; k >= 0; k--) if (open[k] !== 'p') out.push(`{{/${open[k]}}}`);
+        if (n.dataset.kind === 'file') { fileKeys.push(n.dataset.imgKey); out.push(MARK_FILE(fileKeys.length)); }
+        else { keys.push(n.dataset.imgKey); out.push(MARK(keys.length)); }
+        for (const t of open) if (t !== 'p') out.push(`{{${t}}}`);
+        continue;
+      }
+      if (n.tagName === 'BR') { newline(); continue; }
       // Enter でブラウザが作る <div>/<p> は「その前で改行」
-      if (/^(DIV|P|LI)$/.test(n.tagName) && !endsWithNewline()) out.push('\n');
+      if (/^(DIV|P|LI)$/.test(n.tagName) && !endsWithNewline()) newline();
       const tags = [];
+      if (has(n, 'p') && !open.includes('p')) tags.push('p');
+      for (const k of _LINE_KEYS) {
+        if (has(n, k) && !open.some(t => _LINE_KEYS.includes(t))) {
+          // ★見出し・箇条書きは行の頭から。前に文字があれば改行で区切る
+          pendingNewline = false;
+          if (!endsWithNewline()) out.push('\n');
+          tags.push(k);
+        }
+      }
       if (isBold(n) && !open.includes('b')) tags.push('b');
       if (isItal(n) && !open.includes('i')) tags.push('i');
-      for (const t of tags) { out.push(`{{${t}}}`); open.push(t); }
+      for (const t of tags) { if (!_LINE_KEYS.includes(t)) flushNewline(); out.push(`{{${t}}}`); open.push(t); }
       walk(n);
-      for (const t of tags.reverse()) { out.push(`{{/${t}}}`); open.splice(open.lastIndexOf(t), 1); }
+      for (const t of tags.reverse()) {
+        const at = open.lastIndexOf(t);
+        if (at < 0) continue;   // ★見出し・箇条書きは途中の改行で閉じ済み
+        // その内側で開いているものを閉じて開き直す（交差させない）
+        const above = open.splice(at);
+        for (let k = above.length - 1; k >= 0; k--) out.push(`{{/${above[k]}}}`);
+        for (const x of above.slice(1)) { out.push(`{{${x}}}`); open.push(x); }
+        if (_LINE_KEYS.includes(t)) pendingNewline = true;
+      }
     }
   };
   if (el) walk(el);
-  // 中身の無い書式（{{b}}{{/b}}）を消す
+  for (let k = open.length - 1; k >= 0; k--) out.push(`{{/${open[k]}}}`);
   let text = out.join('');
-  for (let prev = ''; prev !== text;) { prev = text; text = text.replace(/\{\{([bi])\}\}(\s*)\{\{\/\1\}\}/g, '$2'); }
+  // 中身の無い書式（{{b}}{{/b}}）を消し、続けて同じ書式が閉じて開くところ（{{/b}}{{b}}）をつなぐ
+  for (let prev = ''; prev !== text;) {
+    prev = text;
+    text = text.replace(/\{\{([bihlp])\}\}(\s*)\{\{\/\1\}\}/g, '$2').replace(/\{\{\/([bip])\}\}\{\{\1\}\}/g, '');
+  }
   text = text.replace(/\s+$/, '');
-  const plain = stripInlineMarks(text.replace(/\{\{(image|file):\d+\}\}/g, '')).trim();
+  const plain = stripInlineMarks(text.replace(/\{\{(image|file):\d+\}\}/g, '')).replace(/[]/g, '').trim();
   return { text, plain, keys, fileKeys };
 }
 
 /**
- * 本文（書式の印つき）を編集欄に足す。改行は <br>、太字・斜体は <b> / <i>。
+ * 本文（書式の印つき）から編集欄の中身を作り直す。改行は <br>。
  * ★HTML として解釈しない（文字は必ずテキストノード）。
+ * ★画像・PDF は embedFor(kind, n) が返すノードを置く（無ければ飛ばす）。非公開の中にあれば非公開の span の中に置く。
+ * ★見出し・箇条書きの前後の改行は飲む（ブロックで行になるので、<br> を足すと空行が出る）。readEditor が改行を戻す
  */
-function _appendRich(el, text) {
-  for (const r of inlineRuns(text)) {
-    let host = el;
-    if (r.b) { const b = document.createElement('b'); host.appendChild(b); host = b; }
-    if (r.i) { const i = document.createElement('i'); host.appendChild(i); host = i; }
-    r.text.split('\n').forEach((line, k) => {
+function _renderMarked(el, text, embedFor = () => null) {
+  el.textContent = '';
+  const src = String(text ?? '')
+    .replace(/\n(\{\{[hl]\}\})/g, '$1')
+    .replace(/(\{\{\/[hl]\}\})\n/g, '$1');
+  const count = { b: 0, i: 0, h: 0, l: 0, p: 0 };
+  let chain = [];   // いま開いている要素（外 → 内）
+  const make = (k) => {
+    if (k === 'b' || k === 'i') return document.createElement(k);
+    const span = document.createElement('span');
+    span.className = _SPAN_CLASS[k];
+    return span;
+  };
+  const hostFor = (want) => {
+    let i = 0;
+    while (i < chain.length && i < want.length && chain[i].k === want[i]) i++;
+    chain = chain.slice(0, i);
+    let host = i ? chain[i - 1].node : el;
+    for (const k of want.slice(i)) { const n = make(k); host.appendChild(n); chain.push({ k, node: n }); host = n; }
+    return host;
+  };
+  const putText = (t) => {
+    if (!t) return;
+    const host = hostFor(_NEST_ORDER.filter(k => count[k] > 0));
+    t.split('\n').forEach((line, k) => {
       if (k > 0) host.appendChild(document.createElement('br'));
       if (line) host.appendChild(document.createTextNode(line));
     });
+  };
+  const used = new Set();
+  let last = 0;
+  for (const m of src.matchAll(/\{\{(\/?)([bihlp])\}\}|\{\{(image|file):(\d+)\}\}/g)) {
+    putText(src.slice(last, m.index));
+    last = m.index + m[0].length;
+    if (m[2]) {
+      const k = m[2];
+      if (!m[1]) { count[k]++; continue; }
+      if (count[k] === 0) continue;
+      if (--count[k] === 0) {
+        // ★閉じたら、次に同じ書式が来ても別の要素にする（箇条書きの項目が1つにつながらないように）
+        const at = chain.findIndex(x => x.k === k);
+        if (at >= 0) chain = chain.slice(0, at);
+      }
+      continue;
+    }
+    const id = `${m[3]}:${m[4]}`;
+    if (used.has(id)) continue;
+    used.add(id);
+    const node = embedFor(m[3], parseInt(m[4], 10));
+    if (!node) continue;
+    hostFor(count.p > 0 ? ['p'] : []).appendChild(node);
   }
+  putText(src.slice(last));
+  // ★末尾が画像・PDF だと Safari がその後ろにカーソルを置けない。受け皿の改行を足す
+  if (el.lastChild?.dataset?.imgKey || el.lastChild?.lastChild?.dataset?.imgKey) el.appendChild(document.createElement('br'));
 }
 
 /** 本文（文字だけ）を編集欄に入れる。下書きの復元用。★HTML として解釈しない */
 export function setEditorText(el, text) {
   if (!el) return;
-  el.textContent = '';
-  _appendRich(el, text);
+  _renderMarked(el, text);
   _syncEmpty(el);
 }
 
@@ -240,38 +341,149 @@ export function setEditorText(el, text) {
  * ★画像・PDF は送信済みなので url を持たせ、送り直さない（uploadEditorEmbeds が url 付きを飛ばす）。
  * ★PDF の1ページ目の絵も保存済みのものを使う（描き直さない）。
  * ★選んだ画像・PDF はこの編集欄だけが持つ（el._items）。他の編集欄とは混ざらない。
+ * ★本文は印つきのまま _renderMarked で並べる（非公開の中の画像を非公開の span の中に戻すため。
+ *   文章のかたまりごとに並べると、保存し直したときに画像が非公開の外に出て公開されてしまう）
  */
 export function loadEditorContent(el, cd) {
   if (!el) return;
   el._items = new Map();
   const _items = el._items;
-  el.textContent = '';
-  const appendText = (text) => _appendRich(el, text);
-  let prevWasText = false;
-  for (const seg of submissionSegments(cd)) {
-    if (seg.type === 'text') {
-      if (prevWasText) el.appendChild(document.createElement('br'));
-      appendText(seg.text);
-      prevWasText = true;
-      continue;
-    }
+  const imgs  = submissionImages(cd);
+  const files = submissionFiles(cd);
+  let text = cd?.format === 'image' ? '' : String(cd?.content || '');
+  // 本文に印の無い画像・PDF は、本文の後ろに並べる（submissionSegments と同じ）
+  for (let n = 1; n <= imgs.length; n++) if (!text.includes(MARK(n))) text += `\n${MARK(n)}`;
+  for (let n = 1; n <= files.length; n++) if (!text.includes(MARK_FILE(n))) text += `\n${MARK_FILE(n)}`;
+  _renderMarked(el, text, (kind, n) => {
     const key = `k${++_seq}`;
-    if (seg.type === 'image') {
-      _items.set(key, { dataUrl: null, url: seg.url });
-      el.appendChild(_imageNode(key, seg.url));
-    } else {
-      const f = seg.file;
-      _items.set(key, { kind: 'file', blob: null, name: f.name, size: f.size, url: f.url,
-        thumbUrl: f.thumb || null, thumbDataUrl: null, thumbReady: Promise.resolve() });
-      const node = _fileNode(key, f.name, f.size);
-      el.appendChild(node);
-      _fillFileThumb(node, f.thumb ? { dataUrl: f.thumb } : null);
+    if (kind === 'image') {
+      const url = imgs[n - 1];
+      if (!url) return null;
+      _items.set(key, { dataUrl: null, url });
+      return _imageNode(key, url);
     }
-    prevWasText = false;
-  }
-  // ★末尾が画像・PDF だと Safari がその後ろにカーソルを置けない。受け皿の改行を足す
-  if (el.lastChild?.dataset?.imgKey) el.appendChild(document.createElement('br'));
+    const f = files[n - 1];
+    if (!f) return null;
+    _items.set(key, { kind: 'file', blob: null, name: f.name, size: f.size, url: f.url,
+      thumbUrl: f.thumb || null, thumbDataUrl: null, thumbReady: Promise.resolve() });
+    const node = _fileNode(key, f.name, f.size);
+    _fillFileThumb(node, f.thumb ? { dataUrl: f.thumb } : null);
+    return node;
+  });
   _syncEmpty(el);
+}
+
+// ── 書式の切り替え（見出し・箇条書き・非公開。2026-11-07）──────────────
+// ★DOM を直接いじらず、選択範囲に目印を置いて「保存する形（印つきの本文）」を書き換え、編集欄を作り直す。
+//   保存の形がただ1つの正なので、入れ子や画像をまたぐ非公開もずれない。画像・PDF のノードは使い回す。
+
+/** 選択範囲（無ければ最後のカーソル）に目印を置き、本文を fn で書き換えて作り直す。fn が null を返したら何もしない */
+function _transformEditor(el, fn) {
+  const sel = window.getSelection?.();
+  let r = sel && sel.rangeCount > 0 && el.contains(sel.getRangeAt(0).commonAncestorContainer) ? sel.getRangeAt(0) : el._lastRange;
+  if (!r || !el.contains(r.startContainer)) { r = document.createRange(); r.selectNodeContents(el); r.collapse(false); }
+  r = r.cloneRange();
+  if (r.collapsed) r.insertNode(document.createTextNode(SEL_START + SEL_END));
+  else {
+    const endR = r.cloneRange(); endR.collapse(false); endR.insertNode(document.createTextNode(SEL_END));
+    r.collapse(true); r.insertNode(document.createTextNode(SEL_START));
+  }
+  const nodes = new Map();
+  el.querySelectorAll('[data-img-key]').forEach(n => nodes.set(n.dataset.imgKey, n));
+  const { text, keys, fileKeys } = readEditor(el);
+  const next = fn(text);
+  const embedFor = (kind, n) => nodes.get(kind === 'image' ? keys[n - 1] : fileKeys[n - 1]) || null;
+  _renderMarked(el, next ?? text, embedFor);
+  _restoreSelection(el);
+  return next != null;
+}
+
+/** 目印の文字を消して、そこに選択範囲を戻す */
+function _restoreSelection(el) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const texts = [];
+  while (walker.nextNode()) texts.push(walker.currentNode);
+  let start = null, end = null;
+  for (const n of texts) {
+    let i;
+    while ((i = n.nodeValue.indexOf(SEL_START)) >= 0) { n.nodeValue = n.nodeValue.slice(0, i) + n.nodeValue.slice(i + 1); start = { n, o: i }; }
+    while ((i = n.nodeValue.indexOf(SEL_END)) >= 0) { n.nodeValue = n.nodeValue.slice(0, i) + n.nodeValue.slice(i + 1); end = { n, o: i }; }
+  }
+  if (!start) return;
+  end ||= start;
+  // ★カーソルだけ（範囲なし）で文字が空になったら、ゼロ幅の文字を置いて入れ物を残す（readEditor は消す）
+  if (start.n === end.n && start.o === end.o && start.n.nodeValue === '') { start.n.nodeValue = ZWSP; start.o = end.o = 1; }
+  for (const n of texts) if (n.nodeValue === '' && n !== start.n && n !== end.n) n.remove();
+  const sel = window.getSelection?.();
+  if (!sel) return;
+  const range = document.createRange();
+  range.setStart(start.n, start.o);
+  range.setEnd(end.n, end.o);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  el._lastRange = range.cloneRange();
+}
+
+/** 見出し・箇条書きを、選んだ行（カーソルのある行）ごとに付ける／外す。★画像・PDF だけの行は飛ばす */
+export function toggleLineMark(text, key) {
+  const lines = text.split('\n');
+  const sLine = lines.findIndex(x => x.includes(SEL_START));
+  if (sLine < 0) return null;
+  let eLine = lines.findIndex(x => x.includes(SEL_END));
+  if (eLine < sLine) eLine = sLine;
+  const target = [];
+  for (let i = sLine; i <= eLine; i++) if (!/\{\{(image|file):\d+\}\}/.test(lines[i])) target.push(i);
+  if (target.length === 0) return null;
+  const hasKey = (ln) => ln.includes(`{{${key}}}`);
+  const remove = target.every(i => hasKey(lines[i]));
+  for (const i of target) {
+    const bare = lines[i].replace(/\{\{\/?[hl]\}\}/g, '');
+    lines[i] = remove ? bare : `{{${key}}}${bare}{{/${key}}}`;
+  }
+  return lines.join('\n');
+}
+
+/**
+ * 選んだ範囲を非公開にする／戻す。★範囲の中に公開の文字が1つでもあれば非公開に、全部非公開なら公開に戻す。
+ * 画像・PDF も文字と同じに扱う（範囲に入っていれば一緒に非公開）。範囲が無ければ null
+ */
+export function togglePrivateMark(text) {
+  const toks = [];
+  let depth = 0;
+  for (const m of text.matchAll(/\{\{(\/?)p\}\}|\{\{\/?[bihl]\}\}|\{\{(?:image|file):\d+\}\}|[\s\S]/gu)) {
+    if (m[0] === '{{p}}') { depth++; continue; }
+    if (m[0] === '{{/p}}') { depth = Math.max(0, depth - 1); continue; }
+    const zero = /^\{\{\/?[bihl]\}\}$/.test(m[0]) || m[0] === SEL_START || m[0] === SEL_END;
+    toks.push({ raw: m[0], zero, priv: depth > 0 });
+  }
+  const si = toks.findIndex(t => t.raw === SEL_START);
+  const ei = toks.findIndex(t => t.raw === SEL_END);
+  if (si < 0 || ei < 0) return null;
+  const inside = toks.slice(si + 1, ei).filter(t => !t.zero);
+  if (inside.length === 0) return null;
+  const makePrivate = inside.some(t => !t.priv);
+  for (let j = si + 1; j < ei; j++) toks[j].priv = makePrivate;
+  let out = '', cur = false;
+  for (const t of toks) {
+    if (t.zero) { out += t.raw; continue; }
+    if (t.priv !== cur) { out += t.priv ? '{{p}}' : '{{/p}}'; cur = t.priv; }
+    out += t.raw;
+  }
+  if (cur) out += '{{/p}}';
+  return out;
+}
+
+/** 見出し・箇条書きの中で Enter：その書式を抜けて次の行へ（カーソルより後ろは普通の文字として次の行に） */
+function _exitLineOnEnter(text) {
+  const at = text.indexOf(SEL_START);
+  if (at < 0) return null;
+  const lineStart = text.lastIndexOf('\n', at - 1) + 1;
+  const head = text.slice(lineStart, at);
+  const k = /\{\{h\}\}/.test(head) && !/\{\{\/h\}\}/.test(head) ? 'h'
+    : /\{\{l\}\}/.test(head) && !/\{\{\/l\}\}/.test(head) ? 'l' : null;
+  if (!k) return null;
+  const rest = text.slice(at).replace(`{{/${k}}}`, '');
+  return `${text.slice(0, at)}{{/${k}}}\n${rest}`;
 }
 
 /** key の並びから、送るもの（画像 { dataUrl, url } ／ PDF { kind:'file', blob, name, size, ... }）を返す */
@@ -520,14 +732,18 @@ function _bindDocumentOnce() {
   // ★書式のボタン（B / I）は document で委譲して受ける。タスク詳細は描き直しのたびに編集欄のノードだけを
   //   差し戻し、ボタンは作り直すので、ボタンに直接付けると描き直しのあと効かなくなる（実際にそうなった）
   // ★mousedown で止める。止めないとボタンにフォーカスが移り、選んでいた文字の範囲が外れる
-  document.addEventListener('mousedown', (e) => {
-    if (e.target.closest?.('[data-editor-format]')) e.preventDefault();
-  });
+  // ★タッチでも選択が外れないよう pointerdown でも止める（ポップアップのボタン）
+  for (const ev of ['mousedown', 'pointerdown']) {
+    document.addEventListener(ev, (e) => {
+      if (e.target.closest?.('[data-editor-format]')) e.preventDefault();
+    });
+  }
   document.addEventListener('click', (e) => {
     const btn = e.target.closest?.('[data-editor-format]');
     if (!btn) return;
-    const el = btn.closest('.c-editor-field')?.querySelector('.c-editor');
-    if (!el) return;
+    const el = btn.closest('.c-editor-field')?.querySelector('.c-editor')
+      || (btn.closest('.c-format-popup') ? _popup?._el : null);
+    if (!el || !document.contains(el)) return;
     e.preventDefault();
     e.stopPropagation();
     _applyFormat(el, btn.dataset.editorFormat, el._onEditorChange);
@@ -535,10 +751,14 @@ function _bindDocumentOnce() {
   // 最後のカーソル位置を覚える（画像ボタンを押すとフォーカスが外れるため）
   document.addEventListener('selectionchange', () => {
     const sel = window.getSelection?.();
-    if (!sel || sel.rangeCount === 0) return;
+    if (!sel || sel.rangeCount === 0) { _hidePopup(); return; }
     const el = _editorOf(sel.getRangeAt(0).startContainer);
     if (el) el._lastRange = sel.getRangeAt(0).cloneRange();
+    _syncPopup();
   });
+  // スクロール・大きさが変わったら付け直す（位置がずれたまま残さない）
+  window.addEventListener('scroll', () => { if (_popup && !_popup.hidden) _syncPopup(); }, { passive: true, capture: true });
+  window.addEventListener('resize', () => _hidePopup());
   // ★編集欄を少し外してファイルを落としたとき、ブラウザがその画像を開いて
   //   ページごと離れてしまう（書きかけが消える）。編集欄があるあいだは止める。
   //   完了フォームの枠の中なら、末尾に入れる。
@@ -569,39 +789,118 @@ function _bindDocumentOnce() {
  * @param {HTMLElement} el
  * @param {{ onChange?: () => void }} opts  入力・画像の追加／削除のたびに呼ぶ（下書きの保存）
  */
-// ===== 書式（太字・斜体）=====
-/** 編集欄の左下に置く B / I のボタン。★置き場所は .c-editor-field の中（bindClearEditor が拾う） */
+// ===== 書式（太字・斜体・見出し・箇条書き・非公開）=====
+// ボタンは2か所：編集欄の左下のツールバー（キーボードの受け皿・ポップアップが出ない場面の逃げ道）と、
+// 文字を選んだときに出るポップアップ。★どちらも同じ data-editor-format を持ち、document で委譲して受ける。
+// ★文字だけの欄（data-text-only。目的）には出さない
+const _FORMATS = [
+  { id: 'bold',    label: '太字',       text: 'B',     title: '太字（⌘B）' },
+  { id: 'italic',  label: '斜体',       text: 'I',     title: '斜体（⌘I）' },
+  { id: 'heading', label: '見出し',     text: '見出し', title: '見出し（1行）' },
+  { id: 'list',    label: '箇条書き',   text: '・',    title: '箇条書き（1行＝1項目）' },
+  { id: 'private', label: '非公開にする', text: '非公開', title: '非公開（外に公開しない。メンバーには見える）' },
+];
+const _MARK_OF = { heading: 'h', list: 'l', private: 'p' };
+
+function _formatButtonsHtml(cls) {
+  return _FORMATS.map(f => `
+      <button type="button" class="${cls}-btn ${cls}-btn--${f.id}" data-editor-format="${f.id}"
+        aria-label="${f.label}" aria-pressed="false" title="${f.title}">${f.text}</button>`).join('');
+}
+
+/** 編集欄の左下に置くツールバー。★置き場所は .c-editor-field の中（bindClearEditor が拾う） */
 export function editorFormatButtonsHtml() {
   return `
-    <div class="c-editor-field__format" role="toolbar" aria-label="文字の書式">
-      <button type="button" class="c-editor-field__format-btn c-editor-field__format-btn--bold" data-editor-format="bold"
-        aria-label="太字" aria-pressed="false" title="太字（⌘B）">B</button>
-      <button type="button" class="c-editor-field__format-btn c-editor-field__format-btn--italic" data-editor-format="italic"
-        aria-label="斜体" aria-pressed="false" title="斜体（⌘I）">I</button>
+    <div class="c-editor-field__format" role="toolbar" aria-label="文字の書式">${_formatButtonsHtml('c-editor-field__format')}
     </div>`;
 }
 
 function _applyFormat(el, cmd, onChange) {
   if (document.activeElement !== el && !el.contains(document.activeElement)) el.focus();
-  // ★<b> / <i> で入れる（style="font-weight" の span にしない）。readEditor はどちらも読めるが揃えておく
-  try { document.execCommand('styleWithCSS', false, false); } catch (_) {}
-  document.execCommand(cmd, false, null);
+  const mark = _MARK_OF[cmd];
+  if (mark) {
+    const fn = mark === 'p' ? togglePrivateMark : (t) => toggleLineMark(t, mark);
+    const done = _transformEditor(el, fn);
+    if (!done && mark === 'p') _toast('非公開にする文字を選んでください');
+  } else {
+    // ★<b> / <i> で入れる（style="font-weight" の span にしない）。readEditor はどちらも読めるが揃えておく
+    try { document.execCommand('styleWithCSS', false, false); } catch (_) {}
+    document.execCommand(cmd, false, null);
+  }
   _syncEmpty(el);
   _syncFormatButtons(el);
+  _hidePopup();
   onChange?.();
 }
 
 function _formatButtons(el) {
-  return el.closest('.c-editor-field')?.querySelectorAll('[data-editor-format]') || [];
+  const own = [...(el.closest('.c-editor-field')?.querySelectorAll('[data-editor-format]') || [])];
+  if (_popup && _popup._el === el) own.push(..._popup.querySelectorAll('[data-editor-format]'));
+  return own;
+}
+
+// いまのカーソルが、その書式の中にあるか
+function _inMark(el, mark) {
+  const node = document.getSelection()?.anchorNode;
+  const host = node?.nodeType === 1 ? node : node?.parentElement;
+  const span = host?.closest?.(`.${_SPAN_CLASS[mark]}`);
+  return !!span && el.contains(span);
 }
 
 function _syncFormatButtons(el) {
+  const inside = el.contains(document.getSelection()?.anchorNode);
   for (const btn of _formatButtons(el)) {
+    const f = btn.dataset.editorFormat;
     let on = false;
-    try { on = document.queryCommandState(btn.dataset.editorFormat); } catch (_) {}
-    btn.classList.toggle('is-active', !!on && el.contains(document.getSelection()?.anchorNode));
+    if (_MARK_OF[f]) on = _inMark(el, _MARK_OF[f]);
+    else { try { on = document.queryCommandState(f); } catch (_) {} }
+    btn.classList.toggle('is-active', !!on && inside);
     btn.setAttribute('aria-pressed', String(!!on));
   }
+}
+
+// ── 文字を選んだときのポップアップ（2026-11-07。指示書B §6-3）────────────
+// ★出すのは書ける編集欄（.c-editor）で文字を選んだときだけ。文字だけの欄（data-text-only）には出さない。
+// ★位置は選んだ範囲の上。上に入らなければ下。★タッチの端末は最初から下に出す
+//   （iOS / Android は選んだ範囲の上に純正のメニュー（コピーなど）を出すので、重ならないように）。
+// ★body 直下に1つだけ置き、どの編集欄のものかは _popup._el で持つ。
+let _popup = null;
+
+function _hidePopup() {
+  if (_popup) _popup.hidden = true;
+}
+
+function _showPopup(el, range) {
+  if (!_popup) {
+    _popup = document.createElement('div');
+    _popup.className = 'c-format-popup';
+    _popup.setAttribute('role', 'toolbar');
+    _popup.setAttribute('aria-label', '文字の書式');
+    _popup.innerHTML = _formatButtonsHtml('c-format-popup');
+    document.body.appendChild(_popup);
+  }
+  _popup._el = el;
+  _popup.hidden = false;
+  const rect = range.getBoundingClientRect();
+  if (!rect || (rect.width === 0 && rect.height === 0)) { _hidePopup(); return; }
+  const pw = _popup.offsetWidth, ph = _popup.offsetHeight, gap = 8;
+  const touch = window.matchMedia?.('(pointer: coarse)').matches;
+  let top = touch ? rect.bottom + gap : rect.top - ph - gap;
+  if (top < gap) top = rect.bottom + gap;
+  if (top + ph > window.innerHeight - gap) top = Math.max(gap, rect.top - ph - gap);
+  const left = Math.min(Math.max(gap, rect.left + rect.width / 2 - pw / 2), window.innerWidth - pw - gap);
+  _popup.style.top  = `${Math.round(top)}px`;
+  _popup.style.left = `${Math.round(left)}px`;
+  _syncFormatButtons(el);
+}
+
+function _syncPopup() {
+  const sel = window.getSelection?.();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { _hidePopup(); return; }
+  const r = sel.getRangeAt(0);
+  const el = _editorOf(r.commonAncestorContainer);
+  if (!el || el.hasAttribute('data-text-only') || el.getAttribute('contenteditable') !== 'true') { _hidePopup(); return; }
+  _showPopup(el, r);
 }
 
 
@@ -620,6 +919,16 @@ export function bindClearEditor(el, { onChange } = {}) {
   // 書式は太字・斜体だけ（⌘B / ⌘I。2026-09-28）。下線などは持たない
   // ★ブラウザ任せにせず自分で execCommand する（ボタンと同じ経路にして、<b> / <i> で入れる）
   el.addEventListener('keydown', (e) => {
+    // ★見出し・箇条書きの中で Enter：その書式を抜けて次の行へ（変換中・Shift+Enter はブラウザに任せる）
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !e.metaKey && !e.ctrlKey && !textOnly
+        && (_inMark(el, 'h') || _inMark(el, 'l'))) {
+      e.preventDefault();
+      _transformEditor(el, _exitLineOnEnter);
+      _syncEmpty(el);
+      _syncFormatButtons(el);
+      onChange?.();
+      return;
+    }
     if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === 'u') { e.preventDefault(); return; }
