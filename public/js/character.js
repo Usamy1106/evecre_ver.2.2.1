@@ -69,6 +69,16 @@ export function sleepBubbleHtml() {
 // ★文言を足すときはこの配列に1行足すだけでよい。重み付けはしていないので、
 //   1体のメッセージを増やすとその体の中での出現率だけが下がる
 //   （どの体が出るかは常に3分の1）。
+// ★条件を1つ持たせられる（2026-11-07。指示書B Part 5）：{ text, when: (ctx) => boolean }。
+//   ctx は { events（自分のイベント一覧）, userId }。条件の無い文字列は今までどおりいつでも出る。
+//   タスクを1つも作っていない人に「ガントチャートも自動生成されるよ」を出さない、のように**明らかに外れる場面だけ**を除く。
+//   ★オンボーディングにしないこと：オンボーディング（onboarding.js）は「その段階に初めて来た瞬間に1回だけ、覚えてもらう」もの。
+//   ひとことは「いつでも出る軽い読み物。覚えなくていい」もの。条件で段階を追いかけ始めたら役割が重なる
+const _hasMissionWithDates = (ctx) => (ctx.events || []).some(p => (p.missions || []).some(m => Array.isArray(m.dates) && m.dates.length > 0));
+const _hasMissions = (ctx) => (ctx.events || []).some(p => (p.missions || []).length > 0);
+const _hasCleared  = (ctx) => (ctx.events || []).some(p => (p.missions || []).some(m => m.status === 'cleared'));
+const _hasTeam     = (ctx) => (ctx.events || []).some(p => (p.members || []).length >= 2);
+
 export const CHARACTER_TIPS = {
   mizu: [
     'スケジュールを逆算してやることを整理して進めよう！',
@@ -84,15 +94,15 @@ export const CHARACTER_TIPS = {
   ],
   mori: [
     'タスクの詳細設定からチェック項目をONにすると、タスク報告前にチェックしてもらうことができるよ！',
-    'やることを割り当てる時、ロールで一括指定することもできるよ！',
+    { text: 'やることを割り当てる時、ロールで一括指定することもできるよ！', when: _hasTeam },
     '各タスクのチャットはスレッドのように機能するよ👀',
-    'プロジェクト機能でイベントページをまとめることができるよ',
-    'カレンダーだけじゃなく、ガントチャートも自動生成されるよ',
-    'カレンダーとアーカイブから今度の予定を書き出せるよ👀',
+    { text: 'プロジェクト機能でイベントページをまとめることができるよ', when: (ctx) => (ctx.events || []).length >= 2 },
+    { text: 'カレンダーだけじゃなく、ガントチャートも自動生成されるよ', when: _hasMissionWithDates },
+    { text: 'カレンダーとアーカイブから今度の予定を書き出せるよ👀', when: _hasMissionWithDates },
     '開催日は、アーカイブから細かく時間も設定できるよ',
-    'やることを共有したい時は、タスク横の ⋯ ボタンからリンクをコピーできるよ👀',
-    'アーカイブからみんながどんなことが得意か、やりたいのか一覧で見れるよ',
-    'アーカイブからみんなの活躍が見れるよ',
+    { text: 'やることを共有したい時は、タスク横の ⋯ ボタンからリンクをコピーできるよ👀', when: _hasMissions },
+    { text: 'アーカイブからみんながどんなことが得意か、やりたいのか一覧で見れるよ', when: _hasTeam },
+    { text: 'アーカイブからみんなの活躍が見れるよ', when: _hasCleared },
   ],
   iwa: [
     'タスクを期限内に提出するとレアなものが出現するらしい…',
@@ -118,11 +128,20 @@ export const CHARACTER_TIPS = {
  *
  * @returns {{ character: object, text: string } | null}
  */
-export function pickCharacterTip() {
-  const ch = PROPOSAL_CHARACTERS[Math.floor(Math.random() * PROPOSAL_CHARACTERS.length)];
-  const list = CHARACTER_TIPS[ch.id] || [];
-  if (list.length === 0) return null;
-  return { character: ch, text: list[Math.floor(Math.random() * list.length)] };
+export function pickCharacterTip(ctx = {}) {
+  // ★条件で絞ってから、今までどおり「体 → メッセージ」の順に引く。条件で全滅した体は選び直す（候補から外す）
+  const fits = (t) => {
+    if (typeof t === 'string') return true;
+    if (!t || !t.text) return false;
+    try { return !t.when || !!t.when(ctx); } catch (_) { return false; }
+  };
+  const bodies = PROPOSAL_CHARACTERS
+    .map(ch => ({ ch, list: (CHARACTER_TIPS[ch.id] || []).filter(fits) }))
+    .filter(x => x.list.length > 0);
+  if (bodies.length === 0) return null;
+  const { ch, list } = bodies[Math.floor(Math.random() * bodies.length)];
+  const tip = list[Math.floor(Math.random() * list.length)];
+  return { character: ch, text: typeof tip === 'string' ? tip : tip.text };
 }
 
 /**

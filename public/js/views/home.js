@@ -18,7 +18,8 @@ export function renderHome(container) {
   //   setView が捨てるので、ここで null なら「今 HOME を開いた」ということ。
   //   render() のたびに引くと、タブ切り替えや SSE のたびに入れ替わってしまう。
   const showTip = state.events.length > 0;
-  if (showTip && !state.homeTip) state.homeTip = pickCharacterTip();
+  // ★条件つきのひとこと（例：タスクが無い人にガントチャートの話をしない）は、自分のイベント一覧で判定する
+  if (showTip && !state.homeTip) state.homeTip = pickCharacterTip({ events: state.events, userId: state.currentUser?.id });
 
   // スタイル: public/css/object/project/_home.css
   container.innerHTML = `
