@@ -192,6 +192,44 @@ console.log('[8] 公開の確認ページ（preview。指示書B §5-1）');
   ok(pub.buildPublicEvent({ ...hidden, dates: ['2026-11-20'] }, s, TODAY, { preview: true }).knowledge === null, 'preview でも開催前は knowledge が null');
 }
 
+console.log('[9] 種別（eventType）と最終更新（lastUpdated。指示書B §5-4）');
+{
+  const crdt = require('../lib/crdt.js');
+  const fs = await import('node:fs');
+  // 本体の EVENT_TYPES と同じ id か（ソースから読む。テストに値を複製しない）
+  const src = fs.readFileSync(new URL('../public/js/constants.js', import.meta.url), 'utf8');
+  const block = src.slice(src.indexOf('export const EVENT_TYPES'), src.indexOf('];', src.indexOf('export const EVENT_TYPES')));
+  const ids = [...block.matchAll(/id:\s*'([a-z_]+)'/g)].map(m => m[1]);
+  ok(JSON.stringify(ids) === JSON.stringify(pub.EVENT_TYPE_IDS), `EVENT_TYPE_IDS が constants.js の EVENT_TYPES と同じ（実際：${ids}）`);
+
+  const b = pub.buildPublicEvent(event({ eventType: 'exhibit' }), subs(), TODAY).basic;
+  ok(b.eventType === 'exhibit', 'eventType は id を返す');
+  ok(pub.buildPublicEvent(event({ eventType: '<x>' }), subs(), TODAY).basic.eventType === null, '知らない種別は null');
+  ok(pub.buildPublicEvent(event({ eventType: undefined }), subs(), TODAY).basic.eventType === null, '未設定は null');
+  ok(pub.publicListItem(event({ eventType: 'social' }), subs(), TODAY).eventType === 'social', '一覧にも eventType');
+
+  // 最終更新：CRDT のセルの t から（公開フラグの t は数えない）
+  const at = (s) => new Date(`${s}T12:00:00`).getTime();
+  const raw = {
+    id: 'E9', ownerId: 'u', members: [], rev: 1,
+    fields: {
+      name: { v: 'n', t: at('2026-10-05') }, description: { v: 'd', t: at('2026-10-03') },
+      dates: { v: ['2026-10-01'], t: at('2026-09-01') },
+      publicBasicInfo: { v: true, t: at('2026-11-04') }, publicKnowledge: { v: true, t: at('2026-11-04') },
+      publishCheckedAt: { v: 1, t: at('2026-11-04') }, eventType: { v: 'other', t: at('2026-11-03') },
+    },
+    missions: {}, proposals: {},
+  };
+  const flat = crdt.crdtToFlat(raw);
+  ok(pub.lastUpdatedOf(flat, {}) === '2026-10-05', `基礎情報の t の最大（公開フラグ・種別の t は数えない）（実際：${pub.lastUpdatedOf(flat, {})}）`);
+  ok(pub.lastUpdatedOf(flat, { a: { timestamp: at('2026-10-20') } }) === '2026-10-20', '提出物の時刻が新しければそちら');
+  const flat2 = crdt.crdtToFlat({ ...raw, fields: { ...raw.fields, publicBasicInfo: { v: false, t: at('2026-11-06') } } });
+  ok(pub.lastUpdatedOf(flat2, {}) === '2026-10-05', '公開の切り替えで lastUpdated が変わらない');
+  ok(pub.lastUpdatedOf({}, {}) === null, '何も無ければ null');
+  const bb = pub.buildPublicEvent({ ...flat, publicBasicInfo: true }, {}, TODAY).basic;
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(bb.lastUpdated), `basic.lastUpdated は YYYY-MM-DD（実際：${bb.lastUpdated}）`);
+}
+
 // ── 動いているサーバーへ ─────────────────────────────────────
 const arg = (n) => process.argv.find(a => a.startsWith(`--${n}=`))?.slice(n.length + 3);
 const BASE = arg('base');
