@@ -5014,6 +5014,33 @@ app.get('/api/public/events', async (_req, res) => {
   }
 });
 
+/**
+ * 公開されている全イベントの振り返りを1回で返す（2026-11-08。外部サイトの「つまずいたことの索引」用）。
+ * ★値は publicData.publicReflectionItems（＝ buildPublicEvent の knowledge から絞ったもの）だけ。詳細と必ず一致する。
+ * ★基礎情報が非公開のイベントは出さない。outcome では絞らない（どれを出すかは外部サイトが決める）。
+ * 並び：イベントは一覧と同じ（_publicListOrder）、同じイベントの中は詳細の knowledge[] と同じ。
+ * 上限 PUBLIC_REFLECTIONS_MAX 件。超えたらこの並び（新しいイベントが先）で切り、truncated: true
+ */
+const PUBLIC_REFLECTIONS_MAX = 1000;
+app.get('/api/public/reflections', async (_req, res) => {
+  try {
+    const flats = (await eventStore.listPublicEvents()).map(crdt.crdtToFlat);
+    // ★提出物は公開イベントの分を1回でまとめて読む（イベントごとに読まない）
+    const subsByEvent = await submissionStore.getSubmissionsForProjects(flats.map(f => f.id));
+    const groups = flats
+      .map(f => ({ id: String(f.id), items: publicData.publicReflectionItems(f, subsByEvent[f.id] || {}) }))
+      .filter(g => g.items.length > 0)
+      .map(g => ({ ...g, dates: g.items[0].event.dates }))
+      .sort(_publicListOrder);
+    const all = groups.flatMap(g => g.items);
+    const truncated = all.length > PUBLIC_REFLECTIONS_MAX;
+    res.set('Cache-Control', PUBLIC_CACHE).json({ ok: true, items: truncated ? all.slice(0, PUBLIC_REFLECTIONS_MAX) : all, truncated });
+  } catch (e) {
+    console.error('GET /api/public/reflections error:', e);
+    res.status(500).set('Cache-Control', 'no-store').json({ ok: false, error: 'server_error' });
+  }
+});
+
 // ===== 公開の確認（管理者だけ。2026-11-07。指示書B §5）=====
 // ★/api/public の下に置かないこと（あちらは認証なしの経路）。こちらは requireAuth ＋ canManage。
 
