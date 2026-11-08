@@ -230,6 +230,49 @@ console.log('[9] 種別（eventType）と最終更新（lastUpdated。指示書B
   ok(/^\d{4}-\d{2}-\d{2}$/.test(bb.lastUpdated), `basic.lastUpdated は YYYY-MM-DD（実際：${bb.lastUpdated}）`);
 }
 
+console.log('[10] 本文の構造 knowledge[].blocks（見出し・本文・箇条書き。2026-11-08）');
+{
+  const SECRET = '担当は田中さん090-1111-2222';
+  const content = [
+    '{{h}}決めたこと{{/h}}',
+    '3案を並べて{{b}}メンバー{{/b}}で投票した',
+    '2行目も同じ段落',
+    '',
+    '   ',
+    `{{l}}入稿は前日まで{{/l}}`,
+    `{{l}}サイズは A2{{p}}${SECRET}{{/p}}{{/l}}`,
+    '{{l}}{{/l}}',
+    '{{h}}{{/h}}',
+    `{{p}}${SECRET}`,
+    '最後まで非公開',
+  ].join('\n');
+  const b = pub.publicBlocks(content);
+  ok(JSON.stringify(b) === JSON.stringify([
+    { type: 'heading', text: '決めたこと' },
+    { type: 'text',    text: '3案を並べてメンバーで投票した\n2行目も同じ段落' },
+    { type: 'item',    text: '入稿は前日まで' },
+    { type: 'item',    text: 'サイズは A2' },
+  ]), `見出し・段落・項目に分かれる（空の行・空の見出し・項目は出さない）（実際：${JSON.stringify(b)}）`);
+  ok(!JSON.stringify(b).includes(SECRET), 'blocks に非公開テキストの中身が入らない（閉じ忘れの末尾まで）');
+  ok(b.every(x => ['heading', 'text', 'item'].includes(x.type)), 'type は heading / text / item の3つだけ');
+  ok(!/\{\{/.test(JSON.stringify(b)), 'blocks に印（{{…}}）が残らない');
+  ok(JSON.stringify(pub.publicBlocks('A{{image:1}}\n{{file:1}}\nB')) === JSON.stringify([{ type: 'text', text: 'A' }, { type: 'text', text: 'B' }]),
+    '画像・PDF だけの行は段落の区切り（印は外す）');
+  ok(JSON.stringify(pub.publicBlocks('ab{{h}}見{{/h}}cd')) === JSON.stringify([{ type: 'heading', text: 'ab見cd' }]), '行の途中の見出しの印は、その行ごと見出し');
+  ok(JSON.stringify(pub.publicBlocks('')) === '[]', '空の本文は []');
+
+  // knowledge に載る形（text は今までどおり）
+  const s = { ...subs(), m1: { ...subs().m1, content } };
+  const k = pub.buildPublicEvent(event(), s, TODAY).knowledge.find(x => x.title === 'ポスターを作る');
+  ok(Array.isArray(k.blocks) && k.blocks.length === 4, 'knowledge[].blocks が入る');
+  ok(k.text === pub.publicText(content), 'text は今までどおり（平文）');
+  ok(!JSON.stringify(k).includes(SECRET), 'knowledge に非公開の中身が無い（text・blocks とも）');
+  const img = pub.buildPublicEvent(event(), { ...subs(), m1: { ...subs().m1, format: 'image', content: `${R2}/x.webp` } }, TODAY)
+    .knowledge.find(x => x.title === 'ポスターを作る');
+  ok(Array.isArray(img.blocks) && img.blocks.length === 0, '画像だけの旧形式は blocks が []');
+  ok(leaks(pub.buildPublicEvent(event(), s, TODAY)).length === 0, 'blocks を足しても個人を指すキーが無い');
+}
+
 // ── 動いているサーバーへ ─────────────────────────────────────
 const arg = (n) => process.argv.find(a => a.startsWith(`--${n}=`))?.slice(n.length + 3);
 const BASE = arg('base');
