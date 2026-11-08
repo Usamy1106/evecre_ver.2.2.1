@@ -31,3 +31,6 @@ CLAUDE.md
 handoff-*.md
 # 草木の支給素材（png の元ファイル）。配信は npm run bg:objects で作る webp だけ
 public/images/bg/*/world-spawned-objects/*.png
+
+# 大規模な指示書（ローカル専用・GitHub には載せない）
+docs/
