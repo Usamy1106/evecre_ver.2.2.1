@@ -273,6 +273,26 @@ console.log('[10] 本文の構造 knowledge[].blocks（見出し・本文・箇�
   ok(leaks(pub.buildPublicEvent(event(), s, TODAY)).length === 0, 'blocks を足しても個人を指すキーが無い');
 }
 
+console.log('[11] 振り返りの一覧 publicReflectionItems（GET /api/public/reflections。2026-11-08）');
+{
+  const pick = (k) => ({ title: k.title, tags: k.tags, outcome: k.outcome, struggle: k.struggle, solution: k.solution });
+  const s = { ...subs(), m1: { ...subs().m1, solution: '次は{{p}}佐藤さんに{{/p}}早めに' } };
+  const items = pub.publicReflectionItems(event({ eventType: 'exhibit' }), s, TODAY);
+  const detail = pub.buildPublicEvent(event({ eventType: 'exhibit' }), s, TODAY).knowledge;
+  ok(JSON.stringify(items.map(({ event, ...k }) => k)) === JSON.stringify(detail.map(pick)), '詳細の knowledge[] と同じ項目・同じ順');
+  ok(items.every(i => JSON.stringify(Object.keys(i)) === JSON.stringify(['event', 'title', 'tags', 'outcome', 'struggle', 'solution'])),
+    'text / blocks / images / files は入れない（項目はこの6つだけ）');
+  ok(JSON.stringify(items[0].event) === JSON.stringify({ id: 'E1', title: 'テスト展示会', dates: ['2026-10-01', '2026-10-02'], eventType: 'exhibit' }),
+    `event は basic と同じ値（実際：${JSON.stringify(items[0].event)}）`);
+  ok(!JSON.stringify(items).includes('佐藤さん'), '非公開テキストは消えている');
+  ok(leaks(items).length === 0 && !JSON.stringify(items).includes('u_owner') && !JSON.stringify(items).includes('u_a'), '名前・userId が無い');
+  ok(pub.publicReflectionItems(event({ publicBasicInfo: false }), s, TODAY).length === 0, '基礎情報が非公開なら、knowledge が公開でも出さない');
+  ok(pub.publicReflectionItems(event({ dates: ['2026-11-20'] }), s, TODAY).length === 0, '開催前は出さない');
+  ok(pub.publicReflectionItems(event({ publicKnowledge: false }), s, TODAY).length === 0, 'publicKnowledge が false なら出さない');
+  const titles = items.map(i => i.title);
+  ok(!titles.includes('告知する') && !titles.includes('会場を下見する'), 'shareable の無いもの・solution が空のものは出ない');
+}
+
 // ── 動いているサーバーへ ─────────────────────────────────────
 const arg = (n) => process.argv.find(a => a.startsWith(`--${n}=`))?.slice(n.length + 3);
 const BASE = arg('base');
@@ -306,6 +326,38 @@ if (BASE) {
     ok(dj.status === e.status, `詳細 ${e.id} の status が一覧と同じ`);
     if (dj.status === 'upcoming') ok(dj.knowledge === null, `開催前の ${e.id} は knowledge が null`);
     ok((Array.isArray(dj.knowledge) && dj.knowledge.length > 0) === e.hasKnowledge, `${e.id} の hasKnowledge が詳細と合う`);
+  }
+
+  // ── 振り返りの一覧（GET /api/public/reflections）──
+  {
+    const pick = (k) => ({ title: k.title, tags: k.tags, outcome: k.outcome, struggle: k.struggle, solution: k.solution });
+    const rr = await get('/api/public/reflections', ORIGIN ? { Origin: ORIGIN } : {});
+    const rj = await rr.json();
+    ok(rr.status === 200 && rj.ok === true && Array.isArray(rj.items) && typeof rj.truncated === 'boolean', 'reflections：ok / items / truncated の形');
+    ok(rr.headers.get('cache-control') === 'public, max-age=300', 'reflections：Cache-Control');
+    ok(/origin/i.test(rr.headers.get('vary') || ''), 'reflections：Vary: Origin');
+    if (ORIGIN) ok(rr.headers.get('access-control-allow-origin') === ORIGIN, 'reflections：許可した Origin には Allow-Origin を返す');
+    const rEvil = await get('/api/public/reflections', { Origin: 'https://evil.example' });
+    ok(!rEvil.headers.get('access-control-allow-origin'), 'reflections：許可していない Origin には Allow-Origin を返さない');
+    ok(leaks(rj).length === 0, `reflections：個人を指すキーが無い（見つかった：${leaks(rj)}）`);
+    ok(rj.items.every(i => !('text' in i) && !('blocks' in i) && !('images' in i) && !('files' in i)), 'reflections：text / blocks / images / files が無い');
+    const listIds = lj.events.map(e => e.id);
+    ok(rj.items.every(i => listIds.includes(i.event.id)), 'reflections：一覧に出ていない（詳細が 404 の）イベントの振り返りが無い');
+    if (PRIVATE) ok(!rj.items.some(i => i.event.id === PRIVATE), 'reflections：非公開のイベントの振り返りが無い');
+    // 一致：公開イベントごとに、詳細の knowledge[] と順番も含めて同じ
+    for (const e of lj.events) {
+      const dj = await (await get(`/api/public/events/${encodeURIComponent(e.id)}`)).json();
+      const want = (dj.knowledge || []).map(pick);
+      const got  = rj.items.filter(i => i.event.id === e.id);
+      ok(JSON.stringify(got.map(pick)) === JSON.stringify(want), `reflections：${e.id} が詳細の knowledge と一致（${got.length}件）`);
+      ok(got.every(i => i.event.title === dj.basic.title && JSON.stringify(i.event.dates) === JSON.stringify(dj.basic.dates)
+        && i.event.eventType === dj.basic.eventType), `reflections：${e.id} の event が basic と同じ`);
+    }
+    // 並び：イベントの出てくる順が一覧の順と同じ
+    const seen = [...new Set(rj.items.map(i => i.event.id))];
+    ok(JSON.stringify(seen) === JSON.stringify(listIds.filter(id => seen.includes(id))), 'reflections：イベントの並びが一覧と同じ');
+    const rPost = await fetch(`${BASE}/api/public/reflections`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    ok(rPost.status === 405, 'reflections：GET 以外は 405');
   }
 
   const notFound = async (path, label) => {
