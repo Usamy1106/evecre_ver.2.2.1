@@ -266,8 +266,9 @@ export function renderMainBoard(container) {
   captureBgLayer();
 
   if (state.mainBoardTab !== 'MAIN') {
-    // 背景として見せるだけ。スクロール窓もマスも無いので軽い配線で足りる
-    syncMountainBackdrop();
+    // 背景として見せるだけ。スクロール窓もマスも無いので軽い配線で足りる。
+    // ★アーカイブだけ、読み進めるのに合わせて山頂から麓へ下りる（2026-11-09。通知タブは動かさない）
+    syncMountainBackdrop({ scroll: state.mainBoardTab === 'ARCHIVE' });
     // ★アーカイブ上部（.p-archive__head）を貼り付ける位置＝ヘッダー＋タブの高さ（safe-area 込み）
     const stack = container.querySelector('.js-mountain-sticky');
     if (stack) container.querySelector('.p-main-board')?.style.setProperty('--board-stack-h', `${stack.offsetHeight}px`);

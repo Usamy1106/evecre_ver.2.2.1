@@ -1033,6 +1033,15 @@ section('[J] 地形は background-image ＋「見えるぶんだけ敷く」（�
   // ★保険(b)：背景だけのタブ（アーカイブ・通知）でも敷く
   ok('★背景だけのタブでも絵を敷く（syncMountainBackdrop）',
     /_revealLandformsByRect\(bg\)/.test(src48.slice(src48.indexOf('export function syncMountainBackdrop'))));
+  // ★アーカイブの背景は読み進めると山頂から麓へ下りる（2026-11-09）。文字より遅く・同じ向き・transform だけ
+  {
+    const speed = K('BACKDROP_SPEED_MAX');
+    ok(`★背景は文字より遅く動く（BACKDROP_SPEED_MAX=${speed} < 1）`, speed > 0 && speed < 1);
+    const pb = src48.slice(src48.indexOf('function _paintBackdrop'), src48.indexOf('function _paintBackdrop') + 1500);
+    ok('★背景は文字と同じ向き（下へ読むと translateY が負へ）', /translateY\(\$\{-shift\}px\)/.test(pb));
+    ok('★スクロール中に DOM の寸法を読まない（_paintBackdrop）', !/getBoundingClientRect|offsetHeight|scrollHeight|clientHeight/.test(pb));
+    ok('★動きを減らす設定では動かさない', /prefers-reduced-motion: reduce[\s\S]{0,40}\)\?\.matches\) return;/.test(src48.slice(src48.indexOf('function _initBackdropScroll'))));
+  }
   // ★保険(c)：一度も敷かれなければ全部敷く（背景が丸ごと出ないのを防ぐ）
   ok('★時間切れの保険がある（一度も敷かれなければ全部敷く）',
     /_lfFallbackTimer = setTimeout\(\(\) => \{ if \(!_lfRevealed\) _revealAllLandforms\(\); \}/.test(src48));
