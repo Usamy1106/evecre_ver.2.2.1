@@ -1605,8 +1605,9 @@ function _archiveTagOf(m) {
 // 並べ替えた「節」の配列を返す。label のときは [{ heading, missions }]、ほかは見出し無しの1節
 function _archiveSections(p, missions, mode) {
   if (mode === 'date') {
+    // ★古い順（2026-11-09）。引き継ぎ書として、はじめにやったことから順に読めるように。以前は新しい順
     const sorted = [...missions].sort((a, b) =>
-      (p.clearedData?.[b.id]?.timestamp ?? 0) - (p.clearedData?.[a.id]?.timestamp ?? 0));
+      (p.clearedData?.[a.id]?.timestamp ?? 0) - (p.clearedData?.[b.id]?.timestamp ?? 0));
     return [{ heading: null, missions: sorted }];
   }
   if (mode === 'priority') {
