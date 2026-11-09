@@ -363,7 +363,7 @@ function _focusArchiveMission() {
 // ★動き（位置・scale・opacity）だけで作る。火の粉（完了の2択で「祝う」もの）は使わない＝完了は祝う、着地は収まる
 let _archiveLanding = null;   // { id, wasRecorded }
 
-/** missionReflect.js が保存の直後に呼ぶ。wasRecorded＝保存の前から「記録が残っているもの」に数えられていたか */
+/** missionReflect.js が保存の直後に呼ぶ。wasRecorded＝保存の前から「振り返り」に数えられていたか */
 export function setArchiveLanding(id, wasRecorded) {
   _archiveLanding = { id, wasRecorded: !!wasRecorded };
 }
@@ -378,7 +378,7 @@ function _playArchiveLanding(id) {
     el.classList.add('is-landing');
     el.addEventListener('animationend', () => el.classList.remove('is-landing'), { once: true });
   }
-  // 「記録が残っているもの」が1つ増えたなら、数字を1つ前から上げる
+  // 「振り返り」が1つ増えたなら、数字を1つ前から上げる
   const stat = document.querySelector('[data-archive-stat="records"]');
   const num = stat?.firstChild;
   const now = parseInt(num?.nodeValue, 10);
@@ -1690,7 +1690,7 @@ function _renderArchiveTab(p) {
     <dl class="p-archive__stats">
       <div class="p-archive__stat"><dt class="p-archive__stat-label">やったこと</dt>
         <dd class="p-archive__stat-value" data-archive-stat="done">${counts.done}<span class="p-archive__stat-unit">件</span></dd></div>
-      <div class="p-archive__stat"><dt class="p-archive__stat-label">記録が残っているもの</dt>
+      <div class="p-archive__stat"><dt class="p-archive__stat-label">振り返り</dt>
         <dd class="p-archive__stat-value" data-archive-stat="records">${counts.records}<span class="p-archive__stat-unit">件</span></dd></div>
       <div class="p-archive__stat"><dt class="p-archive__stat-label">つまずいた記録</dt>
         <dd class="p-archive__stat-value" data-archive-stat="struggles">${counts.struggles}<span class="p-archive__stat-unit">件</span></dd></div>
