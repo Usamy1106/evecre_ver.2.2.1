@@ -1569,7 +1569,7 @@ function _renderAnnounceCards(p, meId) {
 //   「場所」「ヘッダー画像」の読み替え元なので、記録には並べない。
 // ★p2（広報リンク）は外さない（2026-09-26）。URL の欄を廃止したので、隠すとアーカイブの
 //   どこにも出なくなる。ふつうのタスクとして記録に並べる。
-// ★def-1（目的）は記録ではなくリード（目次より前）に出す（2026-11-07。指示書B §4-3）。記録と二重に出さない
+// ★def-1（目的）は記録の先頭に固定で出す（2026-11-09。並び替え・数字の対象にはしない）。ここで外し、_renderArchiveTab が別に描く
 const _OVERVIEW_IDS     = new Set(['def-1', 'def-3']);
 const _OVERVIEW_ORIGINS = new Set(['p1', 'p3']);
 const _ARCHIVE_TAG_ORDER = ['企画', '運営', '制作', '広報'];
@@ -1661,7 +1661,6 @@ function _renderArchiveTab(p) {
   const summary    = getArchiveSummary(p);
   // 概要の実体（def-3）に画像・PDF・書式があるときは、文章・画像・PDF をその位置で描く（ここでは直さない）
   // 目的（def-1 の提出内容）。★リードに出す。編集中は、決まっていてもいなくてもその場で書ける（文字だけ。initialTasks.js）
-  const purposeTask = (p.missions || []).some(m => m.id === PURPOSE_MISSION_ID);
   const purpose     = submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
   const summaryCd  = p.clearedData?.['def-3'];
   const summaryRich = isRichSubmission(summaryCd) ? _segmentsHtml(p, summaryCd) : '';
@@ -1699,9 +1698,13 @@ function _renderArchiveTab(p) {
       <h2 class="p-archive__label">柱</h2>
       <ul class="p-archive__pillars">${pillars.map(x => `<li class="p-archive__pillar">${_esc(x.name)}</li>`).join('')}</ul>
     </div>`;
-  const purposeHtml = !purposeTask ? '' : editing ? `
-    <!-- ★目的は編集中ならその場で書ける（まだ決まっていなくても、決まったあとでも）。書いて欄を離れると def-1 が完了・更新される -->
-    <div class="p-archive__purpose" data-inline-block>
+  // 目的（def-1）は記録の先頭（2026-11-09）。★並び替えの対象にしない・リードの数字に数えない。
+  //   決まっていれば記録の形（タスクと同じ。外に出るのでチェック・「非公開」の札は出さない）。
+  //   まだなら、編集中だけここでその場で書ける（文字だけ。書いて欄を離れると def-1 が完了する。initialTasks.js）
+  const purposeMission = (p.missions || []).find(m => m.id === PURPOSE_MISSION_ID);
+  const purposeDone    = !!purposeMission && purposeMission.status === 'cleared';
+  const purposeHtml = !purposeMission ? '' : purposeDone ? _renderArchiveEntry(p, purposeMission, editing) : editing ? `
+    <div class="p-archive__entry p-archive__purpose" data-inline-block>
       <div class="p-archive__label-row">
         <h2 class="p-archive__label">目的</h2>
         <span class="p-archive__save-status" data-save-status></span>
@@ -1709,11 +1712,6 @@ function _renderArchiveTab(p) {
       <p class="p-archive__purpose-text p-archive__inline${purpose ? '' : ' is-empty'}" contenteditable="true" role="textbox"
         aria-multiline="true" aria-label="目的" data-inline="purpose" data-inline-key="purpose"
         data-placeholder="誰に、どんな価値を届けたいイベントか">${_esc(purpose)}</p>
-    </div>`
-    : purpose ? `
-    <div class="p-archive__purpose">
-      <h2 class="p-archive__label">目的</h2>
-      <p class="p-archive__purpose-text">${linkifyText(purpose)}</p>
     </div>` : '';
   const mode    = _ARCHIVE_MODES.some(x => x.id === state.archiveDisplayMode) ? state.archiveDisplayMode : 'label';
   const sections = _archiveSections(p, cleared, mode);
@@ -1722,11 +1720,12 @@ function _renderArchiveTab(p) {
     ? (p.missions || []).filter(m => m.status !== 'cleared' && !_isOverviewMission(m))
     : [];
 
-  const tocHtml = cleared.length === 0 ? '' : `
+  const tocCount = cleared.length + (purposeDone ? 1 : 0);
+  const tocHtml = tocCount === 0 ? '' : `
     <nav class="p-archive__toc" aria-label="目次">
       <div class="p-archive__toc-head">
         <h2 class="p-archive__toc-title">目次</h2>
-        <span class="p-archive__toc-count">${cleared.length}件</span>
+        <span class="p-archive__toc-count">${tocCount}件</span>
       </div>
       <div class="p-archive__modes" role="tablist">
         ${_ARCHIVE_MODES.map(x => `
@@ -1734,24 +1733,29 @@ function _renderArchiveTab(p) {
             onclick="window._app.setArchiveDisplayMode('${x.id}')"
             class="p-archive__mode${mode === x.id ? ' is-active' : ''}">${x.label}</button>`).join('')}
       </div>
+      ${purposeDone ? `
+        <ol class="p-archive__toc-list">
+          <li><button type="button" class="p-archive__toc-item" data-log="archive_toc_jump"
+            data-toc-mission="${PURPOSE_MISSION_ID}" onclick="window._app.jumpToArchiveEntry('${PURPOSE_MISSION_ID}')">${_esc(purposeMission.title)}</button></li>
+        </ol>` : ''}
       ${sections.map((sec, si) => `
         ${sec.heading ? `<p class="p-archive__toc-group">
           <span class="p-archive__category-dot" style="--tag-color:${_esc((LABEL_CONFIG[sec.heading] || {}).color || '#A7AAAC')}"></span>
           ${_esc(sec.heading)}</p>` : ''}
-        <ol class="p-archive__toc-list" start="${1 + sections.slice(0, si).reduce((n, x) => n + x.missions.length, 0)}">
+        <ol class="p-archive__toc-list" start="${1 + (purposeDone ? 1 : 0) + sections.slice(0, si).reduce((n, x) => n + x.missions.length, 0)}">
           ${sec.missions.map(m => `
             <li><button type="button" class="p-archive__toc-item" data-log="archive_toc_jump"
               data-toc-mission="${_esc(m.id)}" onclick="window._app.jumpToArchiveEntry('${m.id}')">${_esc(m.title)}</button></li>`).join('')}
         </ol>`).join('')}
     </nav>`;
 
-  const bodyHtml = cleared.length === 0
+  const bodyHtml = purposeHtml + (cleared.length === 0
     ? `<p class="p-archive__empty">完了したタスクがここに記録されます</p>`
     : sections.map(sec => `
         <section class="p-archive__section">
           ${sec.heading ? `<h2 class="p-archive__section-title">${_esc(sec.heading)}</h2>` : ''}
           ${sec.missions.map(m => _renderArchiveEntry(p, m, editing)).join('')}
-        </section>`).join('');
+        </section>`).join(''));
 
   const pendingHtml = !editing || pending.length === 0 ? '' : `
     <details class="p-archive__pending">
@@ -1830,7 +1834,6 @@ function _renderArchiveTab(p) {
         <!-- ③ 概要と基礎情報 -->
         <section class="p-archive__intro">
           ${_archivePublicBannerHtml(p, canMgr)}
-          ${purposeHtml}
           <div data-inline-block>
             <div class="p-archive__label-row">
               <h2 class="p-archive__label">概要</h2>
@@ -2124,8 +2127,10 @@ function _renderArchiveEntry(p, m, editing) {
   // 公開（タスク単位。2026-11-07。指示書B §4-5）。★半透明＋「非公開」のタグは全員に出す（プレビューでも残す）。
   //   左のチェックは編集中だけ。人によってバラバラなら非公開の側（taskShareState）。
   //   ★切り替えは archiveInlineEdit.js の setTaskShared（描き直さずに DOM を書き換える）
-  const share = taskShareState(p, m.id);
-  const shareBox = editing ? `
+  // ★目的（def-1）は振り返りを持たないが、タスクの記録と一緒に外に出る（lib/publicData.js の purpose）。チェックも札も出さない
+  const isPurpose = m.id === PURPOSE_MISSION_ID;
+  const share = isPurpose ? { shared: true, eligible: [] } : taskShareState(p, m.id);
+  const shareBox = editing && !isPurpose ? `
         <input type="checkbox" class="p-archive__share-box" data-task-share="${_esc(m.id)}" aria-label="公開する"
           ${share.shared ? 'checked' : ''}${share.eligible.length === 0 ? ' disabled title="振り返りを書くと、公開の候補にできます"' : ''}>` : '';
   return `

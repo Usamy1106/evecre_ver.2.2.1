@@ -43,6 +43,16 @@ function _basicHtml(b) {
     </section>`;
 }
 
+// 目的（タスクの記録と一緒に公開。2026-11-09）。★サーバーは記録が1件以上あるときだけ purpose を返す
+function _purposeHtml(text) {
+  if (!text) return '';
+  return `
+      <article class="p-publish-confirm__entry">
+        <h4 class="p-publish-confirm__entry-title">目的</h4>
+        <p class="p-publish-confirm__text">${_esc(text)}</p>
+      </article>`;
+}
+
 function _knowledgeHtml(list) {
   if (!Array.isArray(list) || list.length === 0) return '';
   return list.map(k => {
@@ -119,6 +129,7 @@ export async function openPublishConfirm({ mode = 'publish' } = {}) {
     <p class="p-publish-confirm__scope">${_esc(scope)}<br>公開できる記録：${Number(r.publishable) || 0}件</p>
     <div class="p-publish-confirm__preview">
       ${_basicHtml(r.basic)}
+      ${_purposeHtml(r.purpose)}
       ${_knowledgeHtml(kn)}
     </div>`;
 
