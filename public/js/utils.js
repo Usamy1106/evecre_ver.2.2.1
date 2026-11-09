@@ -603,11 +603,13 @@ export function goalQuestTask(p, userId) {
   const missions = p.missions || [];
   const purpose = missions.find(m => m.id === GOAL_PURPOSE_ID);
   const steps = goalQuestSteps(p);
+  // ★順番は 概要（def-3）→ 目的（def-1）→（柱）（2026-11-09。具体から抽象へ。以前は目的が先）
+  if (!steps.summary) return GOAL_SUMMARY_ID;
   if (!steps.purpose) {
     // ★目的のタスクが無い・入力欄の無い形で完了している、は促せない
     return purpose && purpose.status !== 'cleared' ? GOAL_PURPOSE_ID : null;
   }
-  return steps.summary ? null : GOAL_SUMMARY_ID;
+  return null;
 }
 
 /** 初期タスク（目的 def-1・企画 def-3）か。★名前・設定の編集と削除・未完了に戻すをさせない（書いた内容は直せる）。2026-11-05 */

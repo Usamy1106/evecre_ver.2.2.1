@@ -720,24 +720,24 @@ function _pillarBoardHtml(p, extraClass = '') {
     </section>`;
 }
 
-// ===== 初期クエストのカード（目的 → 柱 → 企画。2026-11-05）=====
+// ===== 初期クエストのカード（概要 → 目的 → 柱。2026-11-09 に並べ替え。以前は 目的 → 柱 → 企画）=====
 // ★次の1つだけを促す。訴えかけ・説教の文言にしない（設計思想）。済んだ段階は点にチェック、いまの段階は色で示す。
 // ★目的・企画は必ず書いてもらう（オーナーには goalQuest.js が強制のコーチマークでこのカードを指す。data-goal-quest）。
-//   柱は任意なので、目的のあと企画へ進む（柱が残っていれば最後に促す）。
+//   柱は任意なので最後（目的を書いた直後に柱のページへ進み、「あとで」なら最後にカードで促す）。
 // ★出すのは管理者だけ（書けるのは管理者）。スマホ・広い画面とも出す。
 //   スマホで目的の段階のときは、空の目的のボックス（「目的を決める」）を出さない（同じ役目が2つ並ぶため）
 // ★見た目の土台はお知らせのカード（p-main-board__announce-card）
 const QUEST_STEPS = [
+  { key: 'summary', label: '概要' },
   { key: 'purpose', label: '目的' },
   { key: 'pillars', label: '柱' },
-  { key: 'summary', label: '企画' },
 ];
 function _goalQuestCurrent(p) {
   if (!state.canManageCurrentEvent()) return null;
   const steps = goalQuestSteps(p);
   const missions = p.missions || [];
-  if (!steps.purpose) return missions.some(m => m.id === PURPOSE_MISSION_ID) ? { steps, key: 'purpose' } : null;
   if (!steps.summary) return { steps, key: 'summary' };
+  if (!steps.purpose) return missions.some(m => m.id === PURPOSE_MISSION_ID) ? { steps, key: 'purpose' } : null;
   if (!steps.pillars) return { steps, key: 'pillars' };
   return null;
 }
@@ -746,9 +746,9 @@ function _goalPromptCardHtml(p) {
   if (!cur) return '';
   const { steps, key } = cur;
   const card = {
-    purpose: { title: 'まずはイベントの目的・柱を決めましょう', reward: '書き終えると、山を1マス登れます',
+    purpose: { title: '次は、イベントの目的を決めましょう', reward: '書き終えると、山を1マス登れます',
       onclick: `window._app.openMissionDetail('${PURPOSE_MISSION_ID}')`, log: 'prompt_purpose_card', quest: PURPOSE_MISSION_ID },
-    summary: { title: '次は、企画をざっくり書いてみましょう', reward: '書き終えると、山を1マス登れます',
+    summary: { title: 'まずは、概要を書いてみましょう', reward: '書き終えると、山を1マス登れます',
       onclick: `window._app.openMissionDetail('${GOAL_SUMMARY_ID}')`, log: 'prompt_summary_card', quest: GOAL_SUMMARY_ID },
     pillars: { title: 'あとは、イベントの柱を決めましょう', reward: '柱を決めると、どこが手薄か見えるようになります',
       onclick: `window._app.openPillarEdit('prompt_card')`, log: 'prompt_pillars_card', quest: '' },
@@ -1362,7 +1362,7 @@ function _renderMainTab(p) {
       ${bannersHtml}
     </div>` : `
     <div class="p-main-board__pinned p-main-board__pinned--side">
-      <div class="p-main-board__pinned-main">${questCard}${_goalQuestCurrent(p)?.key === 'purpose' ? '' : _purposeBoxHtml(p, { compact: true })}${_pillarBoardHtml(p)}${bannersHtml}</div>
+      <div class="p-main-board__pinned-main">${questCard}${questCard && !purposeSet ? '' : _purposeBoxHtml(p, { compact: true })}${_pillarBoardHtml(p)}${bannersHtml}</div>
       ${sideActionsHtml}
     </div>`;
 
