@@ -137,6 +137,14 @@ console.log('[4-2] 目的 purpose（def-1。タスクの記録と一緒に公開
   ok(pub.buildPublicEvent(event(), subs(), TODAY).purpose === null, '目的のタスクが無ければ null');
   ok(leaks(r).length === 0, `個人を指すキーが無い（見つかった：${leaks(r)}）`);
   ok(pub.publicReflectionItems(withPurpose(), sp(), TODAY).every(x => x.title !== 'このイベントの目的・目標を決めよう'), 'reflections にも目的は入らない');
+  // 柱（目的と同じ条件。名前だけ・最大3つ・id は出さない）
+  const pil = [{ id: 'pil_a', name: '孤立させない' }, { id: 'pil_b', name: ' ' }, { id: 'pil_c', name: '地域とつながる' }, { id: 'pil_d', name: '4つ目' }, { id: 'pil_e', name: '5つ目' }];
+  const rp = pub.buildPublicEvent(withPurpose({ pillars: pil }), sp(), TODAY);
+  ok(JSON.stringify(rp.pillars) === '["孤立させない","地域とつながる","4つ目"]', `柱は名前だけ・空は除く・最大3つ（実際：${JSON.stringify(rp.pillars)}）`);
+  ok(!JSON.stringify(rp).includes('pil_a'), '柱の id は出さない');
+  ok(JSON.stringify(pub.buildPublicEvent(withPurpose(), sp(), TODAY).pillars) === '[]', '柱が無ければ []');
+  ok(pub.buildPublicEvent(withPurpose({ pillars: pil, publicKnowledge: false }), sp(), TODAY).pillars === null, 'publicKnowledge が false なら null');
+  ok(pub.buildPublicEvent(withPurpose({ pillars: pil }), noKn, TODAY).pillars === null, '公開される記録が0件なら柱も null');
 }
 
 console.log('[5] 一覧の1件');

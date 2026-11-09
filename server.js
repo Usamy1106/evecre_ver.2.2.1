@@ -5054,7 +5054,7 @@ app.get('/api/events/:id/public-preview', requireAuth, async (req, res) => {
     const subs = await submissionStore.getSubmissionsForProject(flat.id);
     const pub  = publicData.buildPublicEvent(flat, subs, undefined, { preview: true });
     res.set('Cache-Control', 'no-store').json({
-      ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat), basic: pub.basic, purpose: pub.purpose, knowledge: pub.knowledge,
+      ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat), basic: pub.basic, purpose: pub.purpose, pillars: pub.pillars, knowledge: pub.knowledge,
       // 公開の判断に使う数字（確認ページに出す）。★公開できる記録の数は countPublishable（公開の可否の判定と同じ）
       publishable: publicData.countPublishable(subs),
       knowledgeReady: publicData.canPublishKnowledge(flat.dates, subs).ok,
@@ -5108,7 +5108,7 @@ app.get('/api/public/events/:id', async (req, res) => {
     // ★基礎情報が非公開なら、ナレッジだけ公開されていても出さない
     if (!pub.basic) return _publicNotFound(res);
     res.set('Cache-Control', PUBLIC_CACHE).json({
-      ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat), basic: pub.basic, purpose: pub.purpose, knowledge: pub.knowledge,
+      ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat), basic: pub.basic, purpose: pub.purpose, pillars: pub.pillars, knowledge: pub.knowledge,
     });
   } catch (e) {
     console.error('GET /api/public/events/:id error:', e);
