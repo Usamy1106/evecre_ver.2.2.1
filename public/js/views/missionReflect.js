@@ -289,7 +289,7 @@ export async function saveMissionReflect() {
 
   const btn = document.getElementById('reflect-save');
   if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
-  // 保存の前から「記録が残っているもの」（2つ目の欄が書いてある）に数えられていたか（着地で数字を上げるかどうか）
+  // 保存の前から「振り返り」（2つ目の欄が書いてある）に数えられていたか（着地で数字を上げるかどうか）
   const wasRecorded = taskSubmissions(p, missionId).some(cd => String(cd.solution || '').trim() !== '');
 
   const r = await api.updateReflection(p.id, missionId, {
