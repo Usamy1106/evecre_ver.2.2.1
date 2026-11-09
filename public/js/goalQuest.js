@@ -1,4 +1,4 @@
-// ===== 初期クエスト：目的（def-1）→ 企画（def-3）を必ず書いてもらう（2026-11-05）=====
+// ===== 初期クエスト：概要（def-3）→ 目的（def-1）を必ず書いてもらう（2026-11-05。2026-11-09 に概要を先にした）=====
 // どのイベントでも（2つ目以降・既存のイベントでも）、目的と企画が空のあいだは、イベントを作った人（オーナー）に
 // コーチマークで促す。★ほかの場所はタップできない（showCoachMark に onDismiss を渡さない）。
 //
@@ -6,7 +6,7 @@
 //   2. タスク詳細は書き終えるまで戻れない（missionDetail.js が戻るボタンを出さない・state.closeMissionDetail も止める）
 //   3. 書かずにアプリを閉じた・再読み込みした → 次にこのイベントのメインボードに入ったら、タスク詳細から始める
 //      （「入った」印を localStorage に持つ。redirectGoalQuest）
-//   4. 目的を書く →（柱が無ければ柱のページ。ここは今どおり「あとで」でとばせる）→ ボードで企画のコーチマーク（強制）
+//   4. 概要を書く → ボードで目的のコーチマーク（強制）→ 目的を書く →（柱が無ければ柱のページ。「あとで」でとばせる）
 //
 // ★何を書いてもらうかの判定は utils.js の goalQuestTask だけ（開催後・完了にしたイベントでは求めない）。
 // ★初めてのイベントの初期オンボーディングとは、②（主要機能のコーチマーク）のあとに続く形でつながる。
@@ -15,14 +15,14 @@
 
 import { state } from './state.js';
 import { logEvent } from './logger.js';
-import { goalQuestTask, GOAL_PURPOSE_ID } from './utils.js';
+import { goalQuestTask } from './utils.js';
 import { setGoalQuestProbe } from './modalGuard.js';
 import { showCoachMark, isCoachMarkOpen } from './modals/coachMark.js';
 import { nextIntroStep, isIntroRunning, takePurposeCounter } from './onboardingIntro.js';
 
 const COPY = {
-  'def-1': { title: 'まずは、イベントの目的を決めよう。', body: '迷ったときに立ち返る軸になるよ。書き終えると、ほかの準備に進めます。' },
-  'def-3': { title: '次は、企画をざっくり書いてみよう。', body: 'どんなイベントにしたいか、思いつくところからでOK。' },
+  'def-3': { title: 'まずは、どんなイベントか概要を書いてみよう。', body: 'いつ・どこで・誰と・何をするか、思いつくところからでOK。' },
+  'def-1': { title: '次は、イベントの目的を決めよう。', body: 'その企画で、誰にどんな価値を届けたい？ 迷ったときに立ち返る軸になるよ。' },
 };
 
 const _enteredKey = (userId, eventId, mid) => `evecre:goalQuest:entered:v1:${userId}:${eventId}:${mid}`;
@@ -95,7 +95,8 @@ export function checkGoalQuest() {
     body: copy.body,
     hint: 'タップして書いてみよう',
     // ★初期オンボーディング②から続けて出たときだけ通し番号（②の最後の1つとして数える）
-    counter: task === GOAL_PURPOSE_ID ? takePurposeCounter() : '',
+    // ★番号が付くのは最初の段階（概要）だけ。takePurposeCounter は1回しか返さない
+    counter: takePurposeCounter(),
     finger: true,
     advanceOn: 'target',   // ★onDismiss を渡さない＝穴の外のタップでは何も起きない
     onAdvance: () => open('coach'),

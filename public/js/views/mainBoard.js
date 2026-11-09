@@ -720,24 +720,24 @@ function _pillarBoardHtml(p, extraClass = '') {
     </section>`;
 }
 
-// ===== 初期クエストのカード（目的 → 柱 → 企画。2026-11-05）=====
+// ===== 初期クエストのカード（概要 → 目的 → 柱。2026-11-09 に並べ替え。以前は 目的 → 柱 → 企画）=====
 // ★次の1つだけを促す。訴えかけ・説教の文言にしない（設計思想）。済んだ段階は点にチェック、いまの段階は色で示す。
 // ★目的・企画は必ず書いてもらう（オーナーには goalQuest.js が強制のコーチマークでこのカードを指す。data-goal-quest）。
-//   柱は任意なので、目的のあと企画へ進む（柱が残っていれば最後に促す）。
+//   柱は任意なので最後（目的を書いた直後に柱のページへ進み、「あとで」なら最後にカードで促す）。
 // ★出すのは管理者だけ（書けるのは管理者）。スマホ・広い画面とも出す。
 //   スマホで目的の段階のときは、空の目的のボックス（「目的を決める」）を出さない（同じ役目が2つ並ぶため）
 // ★見た目の土台はお知らせのカード（p-main-board__announce-card）
 const QUEST_STEPS = [
+  { key: 'summary', label: '概要' },
   { key: 'purpose', label: '目的' },
   { key: 'pillars', label: '柱' },
-  { key: 'summary', label: '企画' },
 ];
 function _goalQuestCurrent(p) {
   if (!state.canManageCurrentEvent()) return null;
   const steps = goalQuestSteps(p);
   const missions = p.missions || [];
-  if (!steps.purpose) return missions.some(m => m.id === PURPOSE_MISSION_ID) ? { steps, key: 'purpose' } : null;
   if (!steps.summary) return { steps, key: 'summary' };
+  if (!steps.purpose) return missions.some(m => m.id === PURPOSE_MISSION_ID) ? { steps, key: 'purpose' } : null;
   if (!steps.pillars) return { steps, key: 'pillars' };
   return null;
 }
@@ -746,9 +746,9 @@ function _goalPromptCardHtml(p) {
   if (!cur) return '';
   const { steps, key } = cur;
   const card = {
-    purpose: { title: 'まずはイベントの目的・柱を決めましょう', reward: '書き終えると、山を1マス登れます',
+    purpose: { title: '次は、イベントの目的を決めましょう', reward: '書き終えると、山を1マス登れます',
       onclick: `window._app.openMissionDetail('${PURPOSE_MISSION_ID}')`, log: 'prompt_purpose_card', quest: PURPOSE_MISSION_ID },
-    summary: { title: '次は、企画をざっくり書いてみましょう', reward: '書き終えると、山を1マス登れます',
+    summary: { title: 'まずは、概要を書いてみましょう', reward: '書き終えると、山を1マス登れます',
       onclick: `window._app.openMissionDetail('${GOAL_SUMMARY_ID}')`, log: 'prompt_summary_card', quest: GOAL_SUMMARY_ID },
     pillars: { title: 'あとは、イベントの柱を決めましょう', reward: '柱を決めると、どこが手薄か見えるようになります',
       onclick: `window._app.openPillarEdit('prompt_card')`, log: 'prompt_pillars_card', quest: '' },
@@ -1362,7 +1362,7 @@ function _renderMainTab(p) {
       ${bannersHtml}
     </div>` : `
     <div class="p-main-board__pinned p-main-board__pinned--side">
-      <div class="p-main-board__pinned-main">${questCard}${_goalQuestCurrent(p)?.key === 'purpose' ? '' : _purposeBoxHtml(p, { compact: true })}${_pillarBoardHtml(p)}${bannersHtml}</div>
+      <div class="p-main-board__pinned-main">${questCard}${questCard && !purposeSet ? '' : _purposeBoxHtml(p, { compact: true })}${_pillarBoardHtml(p)}${bannersHtml}</div>
       ${sideActionsHtml}
     </div>`;
 
@@ -1561,7 +1561,7 @@ function _renderAnnounceCards(p, meId) {
 // ── アーカイブ：概要カードスロット識別 ───────────────────────────
 // Layer 1（概要カード）が読むスロット。ここに一致するものは Layer 2（記録）から外す。
 //
-// ★def-3（企画をざっくり書いてみよう）は**外す**（2026-10-02）。提出内容が概要の実体になり、
+// ★def-3（どんなイベントか、概要を書いてみよう）は**外す**（2026-10-02）。提出内容が概要の実体になり、
 //   アーカイブの先頭の「概要」にそのまま出る（同じ文章を2回並べない。「やったのに残らない」にはならない）。
 //   ★2026-09-02〜10-02 は外していなかった（当時は概要と def-3 が別物だった）。
 // ★def-2（タイトル）は外さない。
@@ -1569,7 +1569,7 @@ function _renderAnnounceCards(p, meId) {
 //   「場所」「ヘッダー画像」の読み替え元なので、記録には並べない。
 // ★p2（広報リンク）は外さない（2026-09-26）。URL の欄を廃止したので、隠すとアーカイブの
 //   どこにも出なくなる。ふつうのタスクとして記録に並べる。
-// ★def-1（目的）は記録ではなくリード（目次より前）に出す（2026-11-07。指示書B §4-3）。記録と二重に出さない
+// ★def-1（目的）は記録の先頭に固定で出す（2026-11-09。並び替え・数字の対象にはしない）。ここで外し、_renderArchiveTab が別に描く
 const _OVERVIEW_IDS     = new Set(['def-1', 'def-3']);
 const _OVERVIEW_ORIGINS = new Set(['p1', 'p3']);
 const _ARCHIVE_TAG_ORDER = ['企画', '運営', '制作', '広報'];
@@ -1605,8 +1605,9 @@ function _archiveTagOf(m) {
 // 並べ替えた「節」の配列を返す。label のときは [{ heading, missions }]、ほかは見出し無しの1節
 function _archiveSections(p, missions, mode) {
   if (mode === 'date') {
+    // ★古い順（2026-11-09）。引き継ぎ書として、はじめにやったことから順に読めるように。以前は新しい順
     const sorted = [...missions].sort((a, b) =>
-      (p.clearedData?.[b.id]?.timestamp ?? 0) - (p.clearedData?.[a.id]?.timestamp ?? 0));
+      (p.clearedData?.[a.id]?.timestamp ?? 0) - (p.clearedData?.[b.id]?.timestamp ?? 0));
     return [{ heading: null, missions: sorted }];
   }
   if (mode === 'priority') {
@@ -1661,7 +1662,6 @@ function _renderArchiveTab(p) {
   const summary    = getArchiveSummary(p);
   // 概要の実体（def-3）に画像・PDF・書式があるときは、文章・画像・PDF をその位置で描く（ここでは直さない）
   // 目的（def-1 の提出内容）。★リードに出す。編集中は、決まっていてもいなくてもその場で書ける（文字だけ。initialTasks.js）
-  const purposeTask = (p.missions || []).some(m => m.id === PURPOSE_MISSION_ID);
   const purpose     = submissionText(p.clearedData?.[PURPOSE_MISSION_ID]);
   const summaryCd  = p.clearedData?.['def-3'];
   const summaryRich = isRichSubmission(summaryCd) ? _segmentsHtml(p, summaryCd) : '';
@@ -1699,9 +1699,13 @@ function _renderArchiveTab(p) {
       <h2 class="p-archive__label">柱</h2>
       <ul class="p-archive__pillars">${pillars.map(x => `<li class="p-archive__pillar">${_esc(x.name)}</li>`).join('')}</ul>
     </div>`;
-  const purposeHtml = !purposeTask ? '' : editing ? `
-    <!-- ★目的は編集中ならその場で書ける（まだ決まっていなくても、決まったあとでも）。書いて欄を離れると def-1 が完了・更新される -->
-    <div class="p-archive__purpose" data-inline-block>
+  // 目的（def-1）は記録の先頭（2026-11-09）。★並び替えの対象にしない・リードの数字に数えない。
+  //   決まっていれば記録の形（タスクと同じ。外に出るのでチェック・「非公開」の札は出さない）。
+  //   まだなら、編集中だけここでその場で書ける（文字だけ。書いて欄を離れると def-1 が完了する。initialTasks.js）
+  const purposeMission = (p.missions || []).find(m => m.id === PURPOSE_MISSION_ID);
+  const purposeDone    = !!purposeMission && purposeMission.status === 'cleared';
+  const purposeHtml = !purposeMission ? '' : purposeDone ? _renderArchiveEntry(p, purposeMission, editing) : editing ? `
+    <div class="p-archive__entry p-archive__purpose" data-inline-block>
       <div class="p-archive__label-row">
         <h2 class="p-archive__label">目的</h2>
         <span class="p-archive__save-status" data-save-status></span>
@@ -1709,11 +1713,6 @@ function _renderArchiveTab(p) {
       <p class="p-archive__purpose-text p-archive__inline${purpose ? '' : ' is-empty'}" contenteditable="true" role="textbox"
         aria-multiline="true" aria-label="目的" data-inline="purpose" data-inline-key="purpose"
         data-placeholder="誰に、どんな価値を届けたいイベントか">${_esc(purpose)}</p>
-    </div>`
-    : purpose ? `
-    <div class="p-archive__purpose">
-      <h2 class="p-archive__label">目的</h2>
-      <p class="p-archive__purpose-text">${linkifyText(purpose)}</p>
     </div>` : '';
   const mode    = _ARCHIVE_MODES.some(x => x.id === state.archiveDisplayMode) ? state.archiveDisplayMode : 'label';
   const sections = _archiveSections(p, cleared, mode);
@@ -1722,11 +1721,12 @@ function _renderArchiveTab(p) {
     ? (p.missions || []).filter(m => m.status !== 'cleared' && !_isOverviewMission(m))
     : [];
 
-  const tocHtml = cleared.length === 0 ? '' : `
+  const tocCount = cleared.length + (purposeDone ? 1 : 0);
+  const tocHtml = tocCount === 0 ? '' : `
     <nav class="p-archive__toc" aria-label="目次">
       <div class="p-archive__toc-head">
         <h2 class="p-archive__toc-title">目次</h2>
-        <span class="p-archive__toc-count">${cleared.length}件</span>
+        <span class="p-archive__toc-count">${tocCount}件</span>
       </div>
       <div class="p-archive__modes" role="tablist">
         ${_ARCHIVE_MODES.map(x => `
@@ -1734,24 +1734,29 @@ function _renderArchiveTab(p) {
             onclick="window._app.setArchiveDisplayMode('${x.id}')"
             class="p-archive__mode${mode === x.id ? ' is-active' : ''}">${x.label}</button>`).join('')}
       </div>
+      ${purposeDone ? `
+        <ol class="p-archive__toc-list">
+          <li><button type="button" class="p-archive__toc-item" data-log="archive_toc_jump"
+            data-toc-mission="${PURPOSE_MISSION_ID}" onclick="window._app.jumpToArchiveEntry('${PURPOSE_MISSION_ID}')">${_esc(purposeMission.title)}</button></li>
+        </ol>` : ''}
       ${sections.map((sec, si) => `
         ${sec.heading ? `<p class="p-archive__toc-group">
           <span class="p-archive__category-dot" style="--tag-color:${_esc((LABEL_CONFIG[sec.heading] || {}).color || '#A7AAAC')}"></span>
           ${_esc(sec.heading)}</p>` : ''}
-        <ol class="p-archive__toc-list" start="${1 + sections.slice(0, si).reduce((n, x) => n + x.missions.length, 0)}">
+        <ol class="p-archive__toc-list" start="${1 + (purposeDone ? 1 : 0) + sections.slice(0, si).reduce((n, x) => n + x.missions.length, 0)}">
           ${sec.missions.map(m => `
             <li><button type="button" class="p-archive__toc-item" data-log="archive_toc_jump"
               data-toc-mission="${_esc(m.id)}" onclick="window._app.jumpToArchiveEntry('${m.id}')">${_esc(m.title)}</button></li>`).join('')}
         </ol>`).join('')}
     </nav>`;
 
-  const bodyHtml = cleared.length === 0
+  const bodyHtml = purposeHtml + (cleared.length === 0
     ? `<p class="p-archive__empty">完了したタスクがここに記録されます</p>`
     : sections.map(sec => `
         <section class="p-archive__section">
           ${sec.heading ? `<h2 class="p-archive__section-title">${_esc(sec.heading)}</h2>` : ''}
           ${sec.missions.map(m => _renderArchiveEntry(p, m, editing)).join('')}
-        </section>`).join('');
+        </section>`).join(''));
 
   const pendingHtml = !editing || pending.length === 0 ? '' : `
     <details class="p-archive__pending">
@@ -1830,7 +1835,6 @@ function _renderArchiveTab(p) {
         <!-- ③ 概要と基礎情報 -->
         <section class="p-archive__intro">
           ${_archivePublicBannerHtml(p, canMgr)}
-          ${purposeHtml}
           <div data-inline-block>
             <div class="p-archive__label-row">
               <h2 class="p-archive__label">概要</h2>
@@ -2124,8 +2128,10 @@ function _renderArchiveEntry(p, m, editing) {
   // 公開（タスク単位。2026-11-07。指示書B §4-5）。★半透明＋「非公開」のタグは全員に出す（プレビューでも残す）。
   //   左のチェックは編集中だけ。人によってバラバラなら非公開の側（taskShareState）。
   //   ★切り替えは archiveInlineEdit.js の setTaskShared（描き直さずに DOM を書き換える）
-  const share = taskShareState(p, m.id);
-  const shareBox = editing ? `
+  // ★目的（def-1）は振り返りを持たないが、タスクの記録と一緒に外に出る（lib/publicData.js の purpose）。チェックも札も出さない
+  const isPurpose = m.id === PURPOSE_MISSION_ID;
+  const share = isPurpose ? { shared: true, eligible: [] } : taskShareState(p, m.id);
+  const shareBox = editing && !isPurpose ? `
         <input type="checkbox" class="p-archive__share-box" data-task-share="${_esc(m.id)}" aria-label="公開する"
           ${share.shared ? 'checked' : ''}${share.eligible.length === 0 ? ' disabled title="振り返りを書くと、公開の候補にできます"' : ''}>` : '';
   return `

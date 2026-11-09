@@ -527,11 +527,12 @@ export function showFeatureTour() {
 //   （②を中断したら②の頭からやり直すので、跨いで覚える必要が無い）。
 let _tourTotal = 0;
 
-/** ③「目的を定めよう」がこのあと出る見込みか（カウンターの分母に入れるか）*/
+/** ②のあと初期クエストのコーチマーク（概要）が続けて出る見込みか（カウンターの分母に入れるか）*/
 function _willShowPurpose(p) {
   if (!state.currentUser) return false;
   if (isJoinedManager(state.currentUser.id, p)) return false;   // 後から参加した管理者には出さない
-  return goalQuestTask(p, state.currentUser.id) === 'def-1';
+  // ★初期クエストの最初の段階（2026-11-09 から概要 def-3。目的はその次）が続けて出るか
+  return goalQuestTask(p, state.currentUser.id) !== null;
 }
 
 /**
