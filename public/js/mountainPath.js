@@ -227,6 +227,9 @@ const SUMMIT_TIP = 300;
 // ★0 にしないこと。地形が画面のてっぺんまで詰まり、「ここで終わり」が伝わらない
 //   （「まだ地形が画面一番上まであり空が見えない」という報告を受けて追加。2026-09-23）。
 const SUMMIT_SKY = 0.15;
+// アーカイブの背景を読み進めるのに合わせて動かすとき（2026-11-09）、背景が文字の何倍の速さまで動いてよいか。
+// ★1 未満に保つこと（背景が文字より速く動くと目が疲れる）。山が長いイベントでは麓まで下りきらずに終わる（それでよい）
+const BACKDROP_SPEED_MAX = 0.5;
 // ★かつてここに SUMMIT_REACH（看板の頭を「道の天井＋120px」で押さえる上限）があった。
 //   **復活させないこと。** 上限が常に効いてしまい、看板は一度も本来の位置に立てず、
 //   上に地形が 1500〜2200 素材px 残っていた（2026-09-23 に削除）。
@@ -1292,9 +1295,10 @@ export function renderMountainScrollWindow(p) {
  * ★スクロールもマスも無いので、paint() もリスナーも要らない。
  *   ここに毎フレームの処理を足さないこと（背景は動かない）。
  */
-export function syncMountainBackdrop() {
+export function syncMountainBackdrop({ scroll = false } = {}) {
   const bg = document.getElementById('mountain-bg');
   const canvas = document.getElementById('mountain-canvas');
+  _backdrop = null;
   if (!bg || !canvas) return;
 
   const sticky = document.querySelector('#app .js-mountain-sticky')
@@ -1306,9 +1310,96 @@ export function syncMountainBackdrop() {
   const w = bg.getBoundingClientRect().width || canvas.clientWidth || 0;
   if (w > 0) canvas.style.setProperty('--art-unit', `${w / ART_W}px`);
 
+  // ★アーカイブだけ：読み進めるのに合わせて山頂から麓へ下りる（_initBackdropScroll）
+  if (scroll && w > 0) _initBackdropScroll(bg, canvas, w);
+
   // ★背景だけのタブでも絵を敷く＝保険(b)。ここを外すと、アーカイブ・通知タブで
   //   下の LF_EAGER 枚しか出ない（＝背景がほとんど無い画面になる）。
   _revealLandformsByRect(bg);
+}
+
+// ===== アーカイブ：読み進めると山頂から麓へ下りる（2026-11-09）=====
+// ★開いたときは山の上（開催後なら山頂の看板と空）が見え、下へ読むほど麓へ下りる。
+//   背景は**文字と同じ向き**に、文字より**ゆっくり**動く（BACKDROP_SPEED_MAX）。逆向き（登る）にしないこと（目が疲れる）。
+// ★どの記録がどの高さ、という対応は持たない（並びはラベル別・完了日順・優先度順と変わるため）。
+// ★動かすのは transform だけ。scroll では DOM を読まない（寸法は初回・resize・中身の高さが変わったときだけ測る）。
+// ★prefers-reduced-motion では動かさない（従来どおり山の上を静止で見せる）。
+// ★リスナーは window に1組だけ（描き直しのたびに足さない）。_backdrop が null なら何もしない。
+let _backdrop = null;
+let _backdropBound = false;
+let _backdropScheduled = false;
+let _backdropRO = null;
+
+function _initBackdropScroll(bg, canvas, canvasW) {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return;
+  const canvasH = parseFloat(canvas.style.height) || canvas.offsetHeight || 0;
+  if (!canvasH) return;
+  const unit = canvasW / ART_W;
+  const bgTop = bg.getBoundingClientRect().top;
+  const viewH = Math.max(1, window.innerHeight || 640);
+  const bgH = Math.max(1, viewH - bgTop);
+  // 開催後：はじめに山頂の看板と最高点の上の空が見えるよう、キャンバスを下げる（メインタブの measure() と同じ式）
+  let headroom = 0;
+  const summitEl = bg.querySelector('.p-mountain__summit');
+  if (summitEl) {
+    const summitTop = (+bg.dataset.summitY || 0) * unit + summitEl.getBoundingClientRect().height;
+    const peakTop   = (+bg.dataset.peakY || 0) * unit;
+    headroom = Math.max(0, Math.round(Math.max(summitTop, peakTop + Math.round(bgH * SUMMIT_SKY)) - canvasH));
+  }
+  canvas.style.marginTop = `${headroom}px`;
+  const lf = [...bg.querySelectorAll('.p-mountain__lf[data-lf-img]:not([data-lf-loaded])')]
+    .map(el => ({ el, y: +el.dataset.lfY || 0, h: +el.dataset.lfH || 0 }));
+  _backdrop = { bg, canvas, canvasH, headroom, unit, bgTop, viewH, range: Math.max(0, canvasH + headroom - bgH), docMax: 1, lf };
+  _measureBackdropDoc();
+
+  if (!_backdropBound) {
+    _backdropBound = true;
+    window.addEventListener('scroll', _requestBackdropPaint, { passive: true });
+    window.addEventListener('resize', () => {
+      // 寸法が変わったら測り直す（描き直しはしない）
+      if (_backdrop && _backdrop.bg.isConnected) syncMountainBackdrop({ scroll: true });
+    });
+  }
+  // 中身の高さ（記録を開く・画像が読み込まれる）が変わったら、スクロールできる量だけ測り直す
+  if (typeof ResizeObserver === 'function') {
+    _backdropRO?.disconnect();
+    _backdropRO = new ResizeObserver(() => { _measureBackdropDoc(); _requestBackdropPaint(); });
+    _backdropRO.observe(document.body);
+  }
+  _paintBackdrop();
+}
+
+function _measureBackdropDoc() {
+  if (!_backdrop) return;
+  const el = document.scrollingElement || document.documentElement;
+  _backdrop.docMax = Math.max(1, el.scrollHeight - window.innerHeight);
+}
+
+function _requestBackdropPaint() {
+  if (!_backdrop || _backdropScheduled) return;
+  _backdropScheduled = true;
+  requestAnimationFrame(_paintBackdrop);
+}
+
+function _paintBackdrop() {
+  _backdropScheduled = false;
+  const b = _backdrop;
+  if (!b) return;
+  if (!b.canvas.isConnected) { _backdrop = null; _backdropRO?.disconnect(); return; }
+  const k = Math.min(BACKDROP_SPEED_MAX, b.range / b.docMax);
+  const shift = Math.min(b.range, Math.max(0, window.scrollY * k));
+  b.canvas.style.transform = `translateY(${-shift}px)`;
+  // 見えるぶん（±LF_LOAD_MARGIN 画面）の地形に絵を敷く。算術だけ（paint() と同じ式）。追加のみ
+  if (b.lf.length > 0) {
+    const margin = b.viewH * LF_LOAD_MARGIN;
+    const base = b.bgTop + b.headroom + b.canvasH - shift;   // キャンバス下端の画面Y
+    b.lf = b.lf.filter(o => {
+      const bottom = base - o.y * b.unit;
+      const top = bottom - o.h * b.unit;
+      if (top < b.viewH + margin && bottom > -margin) { _revealLandform(o.el); return false; }
+      return true;
+    });
+  }
 }
 
 /**
