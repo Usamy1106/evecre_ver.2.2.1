@@ -2476,7 +2476,7 @@ app.post('/api/events/:id/proposals/generate', requireAuth, proposalLimiter, asy
       const aiProps = await aiProposalClient.generateMissionProposals({
         name:        flat.name || '',
         description: flat.description || '',
-        // 初期タスク「企画をざっくり書いてみよう」(def-3) に書かれた内容。
+        // 初期タスク「どんなイベントか、概要を書いてみよう」(def-3) に書かれた内容。
         // ★概要（description）とは切り離したので、別の行で渡す（どちらも読ませる）
         // ★概要は def-3 の写しなので、同じ文章なら二重に渡さない
         planning:    planningText && planningText !== String(flat.description || '').trim() ? planningText : '',
@@ -3855,7 +3855,7 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
         content, format, images, files, title: m.title, timestamp: now, submittedBy: userId,
         ...reflection, ...rolled,
       });
-      // ★初期タスク def-3（企画をざっくり書いてみよう）の提出内容が概要の実体（2026-10-02 にふたたびつないだ）。
+      // ★初期タスク def-3（どんなイベントか、概要を書いてみよう）の提出内容が概要の実体（2026-10-02 にふたたびつないだ）。
       //   description に同じ文章（印を外したもの）を写す。AI の提案・公開データ・招待ページが description を読むため
       if (mid === SUMMARY_TASK_ID) _setEventField(p, 'description', _summaryTextOf(content, format), now);
       becameCleared = true;

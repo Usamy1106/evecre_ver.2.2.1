@@ -370,7 +370,7 @@ export function bindTapToEdit(root = document) {
 //   入出力をこの4関数に集約する。**個別に clearedData を触らないこと。**
 
 /**
- * 概要。実体は **初期タスク def-3（企画をざっくり書いてみよう）の提出内容**（2026-10-02 にふたたびつないだ）。
+ * 概要。実体は **初期タスク def-3（どんなイベントか、概要を書いてみよう）の提出内容**（2026-10-02 にふたたびつないだ）。
  * サーバーが def-3 の本文（印を外したもの）を description に写すので、読むのは description。
  * ★description が空で def-3 だけ書かれているイベント（つなぐ前のデータ。本番1件）は def-3 の本文を読む。
  * ★書くときは initialTasks.js の saveSummaryText を通す（def-3 を完了・書き換え）。description を直接書かないこと。
