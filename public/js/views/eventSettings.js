@@ -527,8 +527,8 @@ function _eventManagementSection(p, sec) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
 
-        <!-- 操作履歴（管理者のみ） -->
-        ${canMgr ? `
+        <!-- 操作履歴（管理者のみ。★運営の読み取り専用オブザーバーも読める） -->
+        ${canMgr || state.isObserverCurrentEvent() ? `
         <button onclick="window._app.openEventLogSheet()"
           class="c-settings-list__link">
           <div>
