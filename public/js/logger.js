@@ -16,11 +16,19 @@ let _sessionStart    = null;
 let _queue           = [];
 let _flushTimer      = null;
 let _projectIdGetter = () => null;
+let _observerCheck   = () => false;
 
 // ── 公開 API ──────────────────────────────────────────────────
 
 /** state.selectedEventId を取得する関数を登録する（循環 import 回避）*/
 export function setProjectIdGetter(fn) { _projectIdGetter = fn; }
+
+/**
+ * ★いま選んでいるイベントが「運営の読み取り専用オブザーバー（ゴースト）閲覧」かを返す関数を登録する。
+ *   true のときは projectId を送らない＝そのイベントの操作履歴にオブザーバーの行が残らない
+ *   （サーバー側でも非メンバーの projectId は落とすので二重の保険）。
+ */
+export function setObserverCheck(fn) { _observerCheck = fn; }
 
 /** ロガーを起動する（main.js の起動フックから呼ぶ） */
 export function initLogger() {
@@ -51,7 +59,8 @@ export function logEvent(name, props = {}) {
     event:     name,
     clientTs:  new Date().toISOString(),
     sessionId: _sessionId,
-    projectId: _projectIdGetter(),
+    // ★ゴースト閲覧のイベントでは projectId を送らない（相手の操作履歴に残さない）
+    projectId: _observerCheck() ? null : _projectIdGetter(),
     props,
     ctx: {
       // ★ua（約120バイト）は**セッションの先頭だけ**に載せる（2026-09-20）。

@@ -3,7 +3,7 @@
 
 import { state, registerRenderer } from './state.js';
 import { api } from './api.js';
-import { logEvent, initLogger, setProjectIdGetter } from './logger.js';
+import { logEvent, initLogger, setProjectIdGetter, setObserverCheck } from './logger.js';
 
 // ビュー
 import { renderHome }               from './views/home.js';
@@ -1471,6 +1471,8 @@ function _showToast(msg, durationMs = 2500) {
 
 // ===== ロガー初期化 =====
 setProjectIdGetter(() => state.selectedEventId);
+// ★ゴースト閲覧のイベント（サーバーが _observer を立てたもの）では projectId を送らない
+setObserverCheck(() => !!state.events.find(x => x.id === state.selectedEventId)?._observer);
 initLogger();
 
 // ===== ボタンタップの宣言的ログ（委譲） =====

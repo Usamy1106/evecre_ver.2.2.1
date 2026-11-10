@@ -2078,6 +2078,49 @@ app.post('/api/push/unsubscribe', requireAuth, async (req, res) => {
 const OPS_USER_IDS = new Set(String(process.env.OPS_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean));
 function _isOpsUser(req) { return !!req.user && OPS_USER_IDS.has(req.user.id); }
 
+// ===== 運営の読み取り専用オブザーバー（ゴースト）=====
+// ★evecredeveloper のような運営アカウントが、テストユーザーの動きを調べるために
+//   「自分たち以外が作った全イベント」を**読み取りだけ**できるようにする（2026-11-10）。
+// ★members を一切さわらないので、相手にはオブザーバーの存在が分からない
+//   （イベント管理に出ない・人数に数えない・通知や SSE の宛先にならない）。
+// ★書き込み系は全エンドポイントが isMember / canManage を要求する。オブザーバーは
+//   メンバーではないので、追加・編集・完了・チャット送信はすべてサーバーが 403 で弾く。
+//   ★この経路で「読める」口を増やすときは、必ず読み取り（GET）だけにすること。
+// 設定はメールで持ち、起動時に userId へ解決する（_resolveObserverIds）。
+//   DEV_OBSERVER_EMAILS          … オブザーバー本人（複数可・カンマ区切り）
+//   DEV_OBSERVER_EXCLUDE_EMAILS  … 見せないオーナー（運営自身のアカウント。この人たちのイベントは出さない）
+const _observerEmails = String(process.env.DEV_OBSERVER_EMAILS || '')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+const _observerExcludeEmails = String(process.env.DEV_OBSERVER_EXCLUDE_EMAILS || '')
+  .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+let OBSERVER_USER_IDS      = new Set();  // オブザーバー本人の userId
+let OBSERVER_EXCLUDE_IDS   = new Set();  // 見せないオーナーの userId
+async function _resolveObserverIds() {
+  OBSERVER_USER_IDS    = new Set();
+  OBSERVER_EXCLUDE_IDS = new Set();
+  for (const email of _observerEmails) {
+    const u = await userStore.findByEmail(email).catch(() => null);
+    if (u) OBSERVER_USER_IDS.add(u.id);
+    else console.warn(`[observer] DEV_OBSERVER_EMAILS: ${email} のユーザーが見つかりません`);
+  }
+  for (const email of _observerExcludeEmails) {
+    const u = await userStore.findByEmail(email).catch(() => null);
+    if (u) OBSERVER_EXCLUDE_IDS.add(u.id);
+  }
+  // ★オブザーバー本人のイベントも「見せない側」に含める（自分のイベントは通常経路で出る）
+  for (const id of OBSERVER_USER_IDS) OBSERVER_EXCLUDE_IDS.add(id);
+  if (OBSERVER_USER_IDS.size > 0) {
+    console.log(`👁  観察アカウント: ${OBSERVER_USER_IDS.size}人 / 除外オーナー: ${OBSERVER_EXCLUDE_IDS.size}人`);
+  }
+}
+function _isObserver(req) { return !!req.user && OBSERVER_USER_IDS.has(req.user.id); }
+/** そのユーザーが、このイベントにオブザーバーとして（メンバーでなく）アクセスしているか＝ゴースト閲覧 */
+function _isObserverFor(user, event) {
+  return !!user && OBSERVER_USER_IDS.has(user.id)
+    && !eventStore.isMember(event, user.id)
+    && !OBSERVER_EXCLUDE_IDS.has(event?.ownerId);
+}
+
 // 定期通知の手動実行（検証用）。
 // ★無認証で公開しない。requireAuth に加えて、運営者（_isOpsUser）に限定する。
 //   全ユーザー宛てに送れ、dryRun でも宛先の名前と文面が返るため。
@@ -2397,7 +2440,21 @@ async function _enrichEventsForClient(rawEvents) {
 app.get('/api/data', requireAuth, async (req, res) => {
   try {
     const rawEvents = await eventStore.listEventsForUser(req.user.id);
+    // ★運営の読み取り専用オブザーバー（ゴースト）：自分がメンバーのイベントに加えて、
+    //   「自分たち以外が作った全イベント」も読めるようにする（重複はメンバー側を優先）。
+    if (_isObserver(req)) {
+      const mineIds = new Set(rawEvents.map(p => p.id));
+      const ghost = await eventStore.listEventsForObserver([...OBSERVER_EXCLUDE_IDS]);
+      for (const p of ghost) if (!mineIds.has(p.id)) rawEvents.push(p);
+    }
     const events    = await _enrichEventsForClient(rawEvents);
+    // ★ゴースト閲覧のイベントには印を付ける（クライアントのロガーが projectId を送らないため。
+    //   サーバー側でも非メンバーの projectId は落とすので二重の保険）。members は変えない。
+    if (_isObserver(req)) {
+      const rawById = {};
+      for (const p of rawEvents) rawById[p.id] = p;
+      for (const e of events) if (_isObserverFor(req.user, rawById[e.id])) e._observer = true;
+    }
     res.json({ events });
   } catch (e) {
     console.error('GET /api/data error:', e);
@@ -3158,7 +3215,8 @@ app.get('/api/events/:id/logs', requireAuth, async (req, res) => {
   try {
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'not_found' });
-    if (!eventStore.canManage(p, req.user.id))
+    // ★運営の読み取り専用オブザーバー（ゴースト）も操作履歴を読める（読み取りのみ）
+    if (!eventStore.canManage(p, req.user.id) && !_isObserverFor(req.user, p))
       return res.status(403).json({ ok: false, error: 'forbidden' });
 
     const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 200));
@@ -3934,7 +3992,9 @@ app.get('/api/events/:id/missions/:mid/chat', requireAuth, async (req, res) => {
   try {
     const p = await eventStore.loadEvent(req.params.id);
     if (!p) return res.status(404).json({ ok: false, error: 'project not found' });
-    if (!eventStore.isMember(p, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    // ★運営の読み取り専用オブザーバー（ゴースト）も読める。送信・削除・リアクションは isMember のままなので、読むだけ
+    if (!eventStore.isMember(p, req.user.id) && !_isObserverFor(req.user, p))
+      return res.status(403).json({ ok: false, error: 'forbidden' });
 
     const messages = await chatStore.listForMission(req.params.id, req.params.mid);
     res.json({ ok: true, messages: await _enrichChatMessages(messages) });
@@ -5131,6 +5191,9 @@ const PORT = process.env.PORT || 3000;
 
 async function start() {
   await connectDb();
+
+  // ★運営の読み取り専用オブザーバー（ゴースト）のメール → userId を解決する（DB 接続後）
+  await _resolveObserverIds().catch(e => console.warn('[observer] 解決に失敗:', e?.message));
 
   const server = app.listen(PORT, () => {
     eventBus.startHeartbeat();

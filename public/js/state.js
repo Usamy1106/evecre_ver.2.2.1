@@ -742,6 +742,14 @@ export const state = {
     this.saveNow(false);
   },
 
+  // --- いま開いているイベントが「運営の読み取り専用オブザーバー（ゴースト）閲覧」か ---
+  //   サーバーが GET /api/data で _observer を立てたイベント。読み取りだけで、相手には見えない。
+  //   ★ここでは「見えるが操作できない」UI を出し分けるためだけに使う（権限の担保はサーバー）。
+  isObserverCurrentEvent(pid = null) {
+    const p = this.events.find(x => x.id === (pid || this.selectedEventId));
+    return !!p?._observer;
+  },
+
   // --- 自分が現在のイベントで管理者権限を持つかどうか ---
   canManageCurrentEvent(pid = null) {
     const p = this.events.find(x => x.id === (pid || this.selectedEventId));
