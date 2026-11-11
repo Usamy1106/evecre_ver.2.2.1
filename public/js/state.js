@@ -24,13 +24,13 @@ const _renderers = {};
  * ★リセットは必ずこの関数（または state.resetDraftEvent()）を経由すること。
  *   以前は同じオブジェクトリテラルが state.js / main.js / createEvent.js の3箇所に
  *   散っており、項目を足すたびに入れ忘れる温床になっていた。
- * eventType / expectedScale / catchphrase / motivationTags / motivationText は
+ * eventType / expectedScale / motivationTags / motivationText は
  * すべて任意。未入力なら保存時に落とすので、既存イベントと同じ形になる。
  */
 function newDraftEvent() {
   return {
     name: '', description: '', dates: [], seedType: 'jack',
-    eventType: null, expectedScale: null, catchphrase: '',
+    eventType: null, expectedScale: null,
     motivationTags: [], motivationText: '',
     // STEP 7（Discord / Slack と連携）。★秘密情報。_createEventAndReturnId の newProject に載せないこと
     webhookUrl: '', webhookKind: null,
@@ -1084,7 +1084,6 @@ export const state = {
     const optional = {};
     if (d.eventType)      optional.eventType      = d.eventType;
     if (d.expectedScale)  optional.expectedScale  = d.expectedScale;
-    if (d.catchphrase?.trim())    optional.catchphrase    = d.catchphrase.trim();
     if (d.motivationTags?.length) optional.motivationTags = [...d.motivationTags];
     if (d.motivationText?.trim()) optional.motivationText = d.motivationText.trim();
 
@@ -1121,7 +1120,7 @@ export const state = {
       proposals: [], // 固定枠は廃止。3枠すべて作成直後の初回 _checkProposalCycle で AI 生成する
                      // （生成が返るまで mainBoard がローディングカードを出す。静的提案は出さない）
       lastProposalClearedTime: null,
-      ...optional,   // eventType / expectedScale / catchphrase / motivation*（入力があるものだけ）
+      ...optional,   // eventType / expectedScale / motivation*（入力があるものだけ）
       motivationReactions: [],   // CRDT対象外。専用エンドポイントの $addToSet / $pull でのみ更新する
       // 自分をオーナーとしてメンバーに含める（サーバー側でも同じ処理が走る）
       ownerId: this.currentUser?.id,

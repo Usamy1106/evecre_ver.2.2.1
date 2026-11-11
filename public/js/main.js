@@ -9,7 +9,7 @@ import { logEvent, initLogger, setProjectIdGetter, setObserverCheck } from './lo
 import { renderHome }               from './views/home.js';
 import {
   renderCreateEventInfo, renderCreateEventType, renderCreateEventScale,
-  renderCreateEventDates, renderCreateEventCatchphrase, renderCreateEventMotivation,
+  renderCreateEventDates, renderCreateEventMotivation,
   renderCreateEventIntegration, renderCreateEventInvite,
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
@@ -130,7 +130,6 @@ registerRenderer('CREATE_EVENT_INFO',        renderCreateEventInfo);
 registerRenderer('CREATE_EVENT_TYPE',        renderCreateEventType);
 registerRenderer('CREATE_EVENT_SCALE',       renderCreateEventScale);
 registerRenderer('CREATE_EVENT_DATES',       renderCreateEventDates);
-registerRenderer('CREATE_EVENT_CATCHPHRASE', renderCreateEventCatchphrase);
 registerRenderer('CREATE_EVENT_MOTIVATION',  renderCreateEventMotivation);
 registerRenderer('CREATE_EVENT_INTEGRATION', renderCreateEventIntegration);
 registerRenderer('CREATE_EVENT_INVITE',      renderCreateEventInvite);
@@ -384,23 +383,6 @@ window._app = {
   tryProceedFromDates: () => {
     // 開催日は任意。何も選択していなくても進める。
     logEvent('event_create_step_completed', { step: 'dates', count: state.draftEvent.dates?.length || 0 });
-    state.setView('CREATE_EVENT_CATCHPHRASE');
-  },
-
-  // STEP 5: 一言説明（旧キャッチコピー）。入力のたびに再描画すると入力欄のフォーカスが飛ぶので、
-  // state を更新するだけで再描画はしない（プレビューは廃止済み）。
-  updateDraftCatchphrase: (v) => {
-    state.draftEvent.catchphrase = v;
-  },
-  useCatchphraseExample: (text) => {
-    state.draftEvent.catchphrase = text;
-    logEvent('catchphrase_suggestion_used');
-    state.render();
-  },
-  proceedFromCatchphrase: () => {
-    state.draftEvent.catchphrase = (state.draftEvent.catchphrase || '').trim();
-    // 「次へ」でも空のまま進めるので、入力の有無を props に持たせる
-    logEvent('event_create_step_completed', { step: 'catchphrase', filled: !!state.draftEvent.catchphrase });
     state.setView('CREATE_EVENT_MOTIVATION');
   },
 
@@ -438,8 +420,7 @@ window._app = {
   skipStep: (step) => {
     const d = state.draftEvent;
     logEvent('event_create_step_skipped', { step });
-    if (step === 'dates')      { d.dates = [];          state.setView('CREATE_EVENT_CATCHPHRASE'); }
-    if (step === 'catchphrase'){ d.catchphrase = '';    state.setView('CREATE_EVENT_MOTIVATION'); }
+    if (step === 'dates')      { d.dates = [];          state.setView('CREATE_EVENT_MOTIVATION'); }
     if (step === 'motivation') { d.motivationTags = []; d.motivationText = ''; state.setView('CREATE_EVENT_INTEGRATION'); }
     if (step === 'integration'){ d.webhookUrl = ''; d.webhookKind = null; state.setView('CREATE_EVENT_INVITE'); }
   },

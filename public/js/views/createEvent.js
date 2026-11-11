@@ -20,7 +20,7 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { Components } from '../components.js';
 import { getConsecutiveGroups } from '../utils.js';
-import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, CATCHPHRASE_EXAMPLES, WEBHOOK_SERVICES, detectWebhookKind } from '../constants.js';
+import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, WEBHOOK_SERVICES, detectWebhookKind } from '../constants.js';
 import { logEvent } from '../logger.js';
 
 const TOTAL_STEPS = 7;   // 招待リンク（STEP 8）は分母に含めない
@@ -356,50 +356,6 @@ function _bindCalendarDrag(container) {
 }
 
 // =====================================================
-// STEP 5: 一言で言うとどんなイベント？（旧キャッチコピー。スキップ可）
-// ★スローガンではなく「何をするイベントか」を一行で書いてもらう。見出しを問いの形に
-//   しているのはそのため（「キャッチコピー」だと分かりづらいという声を受けて 2026-09-18 に変更）
-// ★入力中のプレビューは出さない（かつて「招待ページのプレビュー」を出していたが、
-//   そもそも招待ページという画面が存在せず、実体と食い違っていたため撤去した）。
-// =====================================================
-export function renderCreateEventCatchphrase(container) {
-  const d = state.draftEvent;
-  const examples = CATCHPHRASE_EXAMPLES[d.eventType] || CATCHPHRASE_EXAMPLES.other;
-
-  const body = `
-    <input type="text" id="cp-catch-input" placeholder="何をするイベントか一行で"
-      value="${_esc(d.catchphrase || '')}" maxlength="50"
-      oninput="window._app.updateDraftCatchphrase(this.value)"
-      class="c-input c-input--block p-create-event__input p-create-event__input--spaced">
-
-    <p class="p-create-event__examples-label">例文（タップで使う）</p>
-    <div class="p-create-event__examples">
-      ${examples.map(ex => `
-        <button type="button" data-cp-example="${_esc(ex)}" class="p-create-event__example">
-          ${_esc(ex)}
-        </button>`).join('')}
-    </div>`;
-
-  container.innerHTML = _stepShell({
-    step: 5, stepLabel: 'イベント作成（5/7）',
-    heading: '一言で言うと<br>どんなイベント？',
-    sub: '招待した相手に表示されます<br>あとで変更できます',
-    body,
-    footer: `
-      <button onclick="window._app.proceedFromCatchphrase()"
-        class="c-button c-button--primary p-create-event__next">次へ</button>
-      <button onclick="window._app.skipStep('catchphrase')"
-        class="p-create-event__skip">あとで決める</button>
-      <button onclick="window._app.setView('CREATE_EVENT_DATES')"
-        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
-  });
-
-  container.querySelectorAll('[data-cp-example]').forEach(el =>
-    el.addEventListener('click', () => window._app.useCatchphraseExample(el.dataset.cpExample))
-  );
-}
-
-// =====================================================
 // STEP 6: リーダーの意気込み（スキップ可）
 // ★「なぜこのイベントをやりたいか」ではなく「リーダーとしてどう臨むか」を聞く。
 //   参加が承認された直後にメンバーへ見せ、🔥で応援してもらうための言葉なので、
@@ -465,7 +421,7 @@ export function renderCreateEventMotivation(container) {
         class="c-button c-button--primary p-create-event__next">次へ</button>
       <button onclick="window._app.skipStep('motivation')"
         class="p-create-event__skip">スキップする</button>
-      <button onclick="window._app.setView('CREATE_EVENT_CATCHPHRASE')"
+      <button onclick="window._app.setView('CREATE_EVENT_DATES')"
         class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
 
@@ -738,7 +694,6 @@ async function _createAndIssueInvite() {
       eventType:          d.eventType || null,
       expectedScale:      d.expectedScale || null,
       hasDates:           (d.dates?.length || 0) > 0,
-      hasCatchphrase:     !!(d.catchphrase || '').trim(),
       motivationTagCount: d.motivationTags?.length || 0,
       hasMotivationText:  !!(d.motivationText || '').trim(),
       hasWebhook:         !!d.webhookUrl,
