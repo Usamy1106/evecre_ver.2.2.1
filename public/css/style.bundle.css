@@ -14923,7 +14923,7 @@ border: 2px solid var(--bg-textbox);
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
      public/js/views/createEvent.js … _renderCreating / _renderError / _renderShare / _stepShell
                                       renderCreateEventDates
-                                      renderCreateEventInfo / renderCreateEventIntegration
+                                      renderCreateEventHandover / renderCreateEventInfo / renderCreateEventIntegration
                                       renderCreateEventInvite / renderCreateEventMotivation
                                       renderCreateEventScale / renderCreateEventType
    ========================================================================== */
@@ -15562,6 +15562,24 @@ border: 2px solid var(--bg-textbox);
 }
 
 .p-create-event__integration-result.is-failed {
+  color: var(--color-danger);
+}
+
+/* ==========================================================================
+   STEP 7：前のイベントの引き継ぎ（2026-11-11。指示書C）。貼ったリンクを確かめた結果の1行
+   ========================================================================== */
+.p-create-event__handover-result {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-create-event__handover-result.is-ok {
+  color: var(--color-primary);
+}
+
+.p-create-event__handover-result.is-error {
   color: var(--color-danger);
 }
 

@@ -35,6 +35,10 @@ function newDraftEvent() {
     // STEP 7（Discord / Slack と連携）。★秘密情報。_createEventAndReturnId の newProject に載せないこと
     webhookUrl: '', webhookKind: null,
     webhookWanted: null,   // STEP 6 の「はい／いいえ」（null＝未回答）。保存しない
+    // STEP 7（前のイベントの引き継ぎ）。保存するのは parentEventId だけ（確かめたイベントの id）。
+    //   handoverLink（貼った文字）・handoverInfo（{title, dates}）・handoverWanted は画面用で保存しない
+    handoverWanted: null, handoverLink: '', handoverInfo: null, parentEventId: '',
+    handoverError: null, handoverChecking: false,
   };
 }
 
@@ -1087,6 +1091,7 @@ export const state = {
     if (d.expectedScale)  optional.expectedScale  = d.expectedScale;
     if (d.motivationTags?.length) optional.motivationTags = [...d.motivationTags];
     if (d.motivationText?.trim()) optional.motivationText = d.motivationText.trim();
+    if (d.parentEventId)          optional.parentEventId  = d.parentEventId;
 
     // 種をランダム選択
     const randomSeed = SEED_TYPES[Math.floor(Math.random() * SEED_TYPES.length)];

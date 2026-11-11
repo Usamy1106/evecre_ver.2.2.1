@@ -4,10 +4,12 @@
 // STEP 3  どのくらいの人に来てほしい？    CREATE_EVENT_SCALE
 // STEP 4  開催日はいつ？                  CREATE_EVENT_DATES
 // STEP 5  なんでやりたい？（意気込み）    CREATE_EVENT_MOTIVATION
-// STEP 6  チャットと連携（Discord / Slack） CREATE_EVENT_INTEGRATION
+// STEP 6  チャットと連携（Discord / Slack） CREATE_EVENT_INTEGRATION（はい／いいえ）
+// STEP 7  前のイベントの引き継ぎ？        CREATE_EVENT_HANDOVER（はい／いいえ。parentEventId だけ保存）
 // STEP 8  招待リンク                      CREATE_EVENT_INVITE
-// ★2026-11-11：「一言で言うとどんなイベント？」（旧 STEP 5・catchphrase）を外し、番号を繰り上げた。
-//   ビュー名は変えていない。catchphrase のフィールド・イベント設定の編集欄・招待ページの表示は残す
+// ★2026-11-11（指示書C）：「一言で言うとどんなイベント？」（旧 STEP 5・catchphrase）を外して番号を繰り上げ、
+//   STEP 7 に「引き継ぎ」を足した。ビュー名は変えていない。catchphrase のフィールド・イベント設定の
+//   編集欄・招待ページの表示は残す。URL を入れる2つ（STEP 6・7）は、まず「はい／いいえ」で聞く
 //
 // 進捗の分母は 7（STEP 8 の招待リンクは「完了」扱いで分母から外す）。
 // STEP 4〜7 はすべてスキップ可能。STEP 2・3 は選んだ瞬間に次へ自動遷移する。
@@ -23,6 +25,7 @@ import { Components } from '../components.js';
 import { getConsecutiveGroups } from '../utils.js';
 import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, WEBHOOK_SERVICES, detectWebhookKind } from '../constants.js';
 import { logEvent } from '../logger.js';
+import { loadHandoverOrigins, parseHandoverLink, handoverLinkErrorText, formatHandoverDates } from '../handoverLink.js';
 
 const TOTAL_STEPS = 7;   // 招待リンク（STEP 8）は分母に含めない
 
@@ -531,6 +534,113 @@ export function renderCreateEventIntegration(container) {
 }
 
 // =====================================================
+// STEP 7: 前のイベントの引き継ぎ？（2026-11-11。指示書C。「はい／いいえ」。いいえ＝スキップ）
+// ★「はい」のときだけ、前のイベントのアーカイブ（イベクリの外部サイト）のリンクを貼る欄を出す。
+// ★貼った直後に GET /api/public/events/:id でイベントがあるか確かめ、名前と日程を見せる。
+//   確かめられたときだけ「次へ」が押せる。保存するのは parentEventId だけ（タスクは取り込まない＝指示書D）
+// ★入力中は描き直さない（STEP 5・6 と同じ。結果の行と「次へ」だけ DOM で差し替える）
+// ★リンクの読み取りは handoverLink.js（指示書D でも使う）。ここで URL を解釈しないこと
+// =====================================================
+let _handoverSeq = 0;   // 入力が続いたとき、古い問い合わせの結果で上書きしないための通し番号
+
+function _handoverResultHtml(d) {
+  if (d.handoverInfo) {
+    const when = formatHandoverDates(d.handoverInfo.dates);
+    return `<p class="p-create-event__handover-result is-ok">「${_esc(d.handoverInfo.title || '（名前のないイベント）')}」${when ? `（${_esc(when)}）` : ''}を引き継ぎます</p>`;
+  }
+  if (d.handoverChecking) {
+    return `<p class="p-create-event__handover-result"><span class="c-spinner__inline"><span class="c-spinner c-spinner--xs"></span>イベントを確かめています…</span></p>`;
+  }
+  const msg = handoverLinkErrorText(d.handoverError);
+  return msg ? `<p class="p-create-event__handover-result is-error">${_esc(msg)}</p>` : '';
+}
+
+export function renderCreateEventHandover(container) {
+  const d = state.draftEvent;
+  const wanted = d.handoverWanted;
+  const valid = !!(d.parentEventId && d.handoverInfo);
+
+  const body = `
+    <button type="button" data-cp-ho-want="yes"
+      class="p-create-event__choice p-create-event__choice--roomy${wanted === true ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">はい、引き継ぐ</span>
+      <span class="p-create-event__choice-hint">去年の代など、イベクリで記録を残したイベントがある</span>
+    </button>
+    <button type="button" data-cp-ho-want="no"
+      class="p-create-event__choice p-create-event__choice--roomy${wanted === false ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">いいえ</span>
+      <span class="p-create-event__choice-hint">はじめてのイベント</span>
+    </button>
+    ${wanted === true ? `
+      <div class="p-create-event__integration-services">
+        <label for="cp-ho-url" class="p-create-event__label">前のイベントのアーカイブのリンクを貼ってください</label>
+        <input id="cp-ho-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+          value="${_esc(d.handoverLink || '')}" placeholder="https://…"
+          class="c-input c-input--block p-create-event__input">
+        <p class="p-create-event__note">イベクリの公開ページ（アーカイブ）のリンクです。アーカイブの右上の「⋯」→「リンクをコピー」で取れます</p>
+        <div id="cp-ho-result">${_handoverResultHtml(d)}</div>
+      </div>` : ''}`;
+
+  container.innerHTML = _stepShell({
+    step: 7, stepLabel: 'イベント作成（7/7）',
+    heading: '前のイベントの<br>引き継ぎですか？',
+    sub: '前の代のイベントとつなげておくと<br>あとでその記録を受け取れます',
+    body,
+    footer: `
+      ${wanted === true ? `
+        <button type="button" id="cp-ho-next" onclick="window._app.proceedFromHandover()"
+          class="c-button c-button--primary p-create-event__next" ${valid ? '' : 'disabled'}>次へ</button>` : ''}
+      <button type="button" onclick="window._app.setView('CREATE_EVENT_INTEGRATION')"
+        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
+  });
+
+  container.querySelectorAll('[data-cp-ho-want]').forEach(el =>
+    el.addEventListener('click', () => window._app.answerHandover(el.dataset.cpHoWant === 'yes'))
+  );
+
+  const input = container.querySelector('#cp-ho-url');
+  if (!input) return;
+  let timer = null;
+  const paint = () => {
+    const box = document.getElementById('cp-ho-result');
+    if (box) box.innerHTML = _handoverResultHtml(d);
+    const btn = document.getElementById('cp-ho-next');
+    if (btn) btn.disabled = !(d.parentEventId && d.handoverInfo);
+  };
+  const check = async () => {
+    const seq = ++_handoverSeq;
+    d.parentEventId = ''; d.handoverInfo = null; d.handoverError = null; d.handoverChecking = false;
+    const text = String(d.handoverLink || '').trim();
+    if (!text) { paint(); return; }
+    const origins = await loadHandoverOrigins();
+    if (seq !== _handoverSeq) return;
+    const parsed = parseHandoverLink(text, origins);
+    if (parsed.error) { d.handoverError = parsed.error === 'empty' ? null : parsed.error; paint(); return; }
+    d.handoverChecking = true; paint();
+    const r = await api.getPublicEvent(parsed.id);
+    if (seq !== _handoverSeq || state.draftEvent !== d) return;   // 入力が変わった・別の作成を始めた
+    d.handoverChecking = false;
+    if (r?.ok && r.basic) {
+      d.parentEventId = parsed.id;
+      d.handoverInfo = { title: String(r.basic.title || ''), dates: Array.isArray(r.basic.dates) ? r.basic.dates : [] };
+    } else {
+      d.handoverError = r?.code === 'network' ? 'network' : 'not_found';
+    }
+    paint();
+  };
+  input.addEventListener('input', () => {
+    d.handoverLink = input.value;
+    // 打っている途中で確かめに行かない（貼り付けはすぐ・打鍵は少し待つ）
+    clearTimeout(timer);
+    timer = setTimeout(check, 400);
+  });
+  input.addEventListener('paste', () => { clearTimeout(timer); setTimeout(() => { d.handoverLink = input.value; check(); }, 0); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); input.blur(); }
+  });
+}
+
+// =====================================================
 // STEP 8: 招待リンク発行（画面到達と同時に自動で作成＋発行）
 // =====================================================
 export function renderCreateEventInvite(container) {
@@ -568,7 +678,7 @@ export function renderCreateEventInvite(container) {
             <button type="button" id="cpi-retry"
               class="c-button c-button--primary p-create-event__next">もう一度試す</button>
           ` : ''}
-          <button type="button" onclick="window._app.setView('CREATE_EVENT_INTEGRATION')"
+          <button type="button" onclick="window._app.setView('CREATE_EVENT_HANDOVER')"
             class="c-button c-button--secondary p-create-event__back" ${sec.creating ? 'disabled' : ''}>戻る</button>
         </div>
       </main>
@@ -716,6 +826,7 @@ async function _createAndIssueInvite() {
       motivationTagCount: d.motivationTags?.length || 0,
       hasMotivationText:  !!(d.motivationText || '').trim(),
       hasWebhook:         !!d.webhookUrl,
+      hasParentEvent:     !!d.parentEventId,
     });
 
     state.render();
