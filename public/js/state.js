@@ -6,6 +6,7 @@ import { calculateDaysLeft, todayStr, goalQuestTask } from './utils.js';
 import { syncRealtime, disconnectRealtime } from './realtime.js';
 import { showConfirmDialog } from './dialog.js';
 import { applyLayoutClasses } from './layoutMode.js';
+import { syncBackGuard } from './browserBack.js';
 
 // AI 提案の生成に失敗したあと、そのイベントで呼び直すまでの間（_checkProposalCycle）
 const PROPOSAL_RETRY_MS = 10 * 60 * 1000;
@@ -1261,6 +1262,8 @@ export const state = {
     applyLayoutClasses(this.currentView);
     const fn = _renderers[this.currentView];
     if (fn) fn(appEl);
+    // ★ブラウザの「戻る」の見張りを、いまの画面に合わせる（browserBack.js）
+    syncBackGuard();
 
     // MAIN_BOARD 初回表示時にインフォモーダルをチェック（管理者のみ・セッション1回）
     if (this.currentView === 'MAIN_BOARD' &&
