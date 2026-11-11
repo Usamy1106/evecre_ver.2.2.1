@@ -455,7 +455,7 @@ export function renderCreateEventMotivation(container) {
 }
 
 // =====================================================
-// STEP 6: Discord / Slack と連携するか（スキップ可）
+// STEP 6: Discord / Slack と連携するか（「はい／いいえ」。いいえ＝スキップ）
 // ★URL は秘密情報。draftEvent に持つが、_createEventAndReturnId の newProject には載せない
 //   （載せると CRDT に入り、全メンバー・SSE に配られる）。登録は招待画面で eventId を得てから
 //   PUT /api/events/:id/webhook で行う（_createAndIssueInvite）
@@ -463,41 +463,59 @@ export function renderCreateEventMotivation(container) {
 // =====================================================
 export function renderCreateEventIntegration(container) {
   const d = state.draftEvent;
+  const wanted = d.webhookWanted;            // null＝まだ答えていない / true / false
   const kind = d.webhookKind;
   const svc = WEBHOOK_SERVICES.find(x => x.id === kind);
   const valid = !!detectWebhookKind(d.webhookUrl);
 
+  // ★まず「はい／いいえ」。URL の入力欄をいきなり見せると、連携しない人（多数派）に
+  //   「何か入れないといけない」圧がかかる。「はい」のときだけサービスと入力欄を出す（2026-11-11）
   const body = `
-    ${WEBHOOK_SERVICES.map(x => `
-      <button type="button" data-cp-wh-kind="${x.id}"
-        class="p-create-event__choice${kind === x.id ? ' is-selected' : ''}">
-        <span class="p-create-event__choice-label">${_esc(x.label)}</span>
-      </button>`).join('')}
-    ${svc ? `
-      <div class="p-create-event__integration">
-        <ol class="p-create-event__integration-steps">
-          ${svc.steps.map(t => `<li>${_esc(t)}</li>`).join('')}
-        </ol>
-        <input id="cp-wh-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-          value="${_esc(d.webhookUrl || '')}" placeholder="${_esc(svc.placeholder)}"
-          aria-label="ウェブフック URL" class="c-input c-input--block p-create-event__input">
-        <p class="p-create-event__note">イベントを作るときに、確認の投稿を送ります</p>
+    <button type="button" data-cp-wh-want="yes"
+      class="p-create-event__choice p-create-event__choice--roomy${wanted === true ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">はい、連携する</span>
+    </button>
+    <button type="button" data-cp-wh-want="no"
+      class="p-create-event__choice p-create-event__choice--roomy${wanted === false ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">いいえ</span>
+      <span class="p-create-event__choice-hint">あとで設定からも連携できます</span>
+    </button>
+    ${wanted === true ? `
+      <div class="p-create-event__integration-services">
+        ${WEBHOOK_SERVICES.map(x => `
+          <button type="button" data-cp-wh-kind="${x.id}"
+            class="p-create-event__choice${kind === x.id ? ' is-selected' : ''}">
+            <span class="p-create-event__choice-label">${_esc(x.label)}</span>
+          </button>`).join('')}
+        ${svc ? `
+          <div class="p-create-event__integration">
+            <ol class="p-create-event__integration-steps">
+              ${svc.steps.map(t => `<li>${_esc(t)}</li>`).join('')}
+            </ol>
+            <input id="cp-wh-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+              value="${_esc(d.webhookUrl || '')}" placeholder="${_esc(svc.placeholder)}"
+              aria-label="ウェブフック URL" class="c-input c-input--block p-create-event__input">
+            <p class="p-create-event__note">イベントを作るときに、確認の投稿を送ります</p>
+          </div>` : ''}
       </div>` : ''}`;
 
   container.innerHTML = _stepShell({
     step: 6, stepLabel: 'イベント作成（6/7）',
-    heading: 'Discord や Slack に<br>更新を流しますか？',
-    sub: 'タスクの作成・完了・締切をチャンネルに投稿します<br>あとで設定からも連携できます',
+    heading: 'Discord や Slack と<br>連携しますか？',
+    sub: 'タスクの作成・完了・締切をチャンネルに投稿します',
     body,
+    // ★「次へ」は「はい」のときだけ（「いいえ」は選んだ瞬間に次へ進む。STEP 2・3 と同じ）
     footer: `
-      <button type="button" id="cp-wh-next" onclick="window._app.proceedFromIntegration()"
-        class="c-button c-button--primary p-create-event__next" ${valid ? '' : 'disabled'}>次へ</button>
-      <button type="button" onclick="window._app.skipStep('integration')"
-        class="p-create-event__skip">スキップする</button>
+      ${wanted === true ? `
+        <button type="button" id="cp-wh-next" onclick="window._app.proceedFromIntegration()"
+          class="c-button c-button--primary p-create-event__next" ${valid ? '' : 'disabled'}>次へ</button>` : ''}
       <button type="button" onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
         class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
 
+  container.querySelectorAll('[data-cp-wh-want]').forEach(el =>
+    el.addEventListener('click', () => window._app.answerIntegration(el.dataset.cpWhWant === 'yes'))
+  );
   container.querySelectorAll('[data-cp-wh-kind]').forEach(el =>
     el.addEventListener('click', () => {
       d.webhookKind = el.dataset.cpWhKind;

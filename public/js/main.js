@@ -405,6 +405,21 @@ window._app = {
     });
     state.setView('CREATE_EVENT_INTEGRATION');
   },
+  // STEP 6：まず「はい／いいえ」。「いいえ」は選んだ瞬間に次へ（STEP 2・3 と同じく描画を1フレーム挟む）。
+  //   ★「いいえ」は従来のスキップと同じログ（event_create_step_skipped・step:'integration'）に answer:'no' を足す
+  answerIntegration: (yes) => {
+    const d = state.draftEvent;
+    if (yes) {
+      d.webhookWanted = true;
+      state.render();
+      return;
+    }
+    d.webhookWanted = false;
+    d.webhookUrl = ''; d.webhookKind = null;
+    logEvent('event_create_step_skipped', { step: 'integration', answer: 'no' });
+    state.render();
+    setTimeout(() => state.setView('CREATE_EVENT_INVITE'), 180);
+  },
   // STEP 6：Discord / Slack と連携する。★URL が形に合わなければ進めない（ボタンも disabled）
   proceedFromIntegration: () => {
     const d = state.draftEvent;

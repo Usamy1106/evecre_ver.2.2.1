@@ -15532,8 +15532,15 @@ border: 2px solid var(--bg-textbox);
 }
 
 /* ==========================================================================
-   STEP 7：Discord / Slack と連携（発行の手順＋URL の入力欄）と、招待画面の結果の1行
+   STEP 6：Discord / Slack と連携（はい／いいえ → 発行の手順＋URL の入力欄）と、招待画面の結果の1行
    ========================================================================== */
+/* 「はい」を選んだときだけ出る、サービスと入力欄のまとまり（2026-11-11。「はい／いいえ」と線で分ける） */
+.p-create-event__integration-services {
+  margin-top: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--bg-textbox);
+}
+
 .p-create-event__integration {
   margin-top: var(--space-2);
 }

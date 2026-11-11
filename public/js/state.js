@@ -34,6 +34,7 @@ function newDraftEvent() {
     motivationTags: [], motivationText: '',
     // STEP 7（Discord / Slack と連携）。★秘密情報。_createEventAndReturnId の newProject に載せないこと
     webhookUrl: '', webhookKind: null,
+    webhookWanted: null,   // STEP 6 の「はい／いいえ」（null＝未回答）。保存しない
   };
 }
 
