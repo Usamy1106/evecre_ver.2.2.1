@@ -3,10 +3,11 @@
 // STEP 2  どんなイベントを計画中？        CREATE_EVENT_TYPE
 // STEP 3  どのくらいの人に来てほしい？    CREATE_EVENT_SCALE
 // STEP 4  開催日はいつ？                  CREATE_EVENT_DATES
-// STEP 5  一言で言うとどんなイベント？    CREATE_EVENT_CATCHPHRASE（旧キャッチコピー）
-// STEP 6  なんでやりたい？（意気込み）    CREATE_EVENT_MOTIVATION
-// STEP 7  チャットと連携（Discord / Slack） CREATE_EVENT_INTEGRATION
+// STEP 5  なんでやりたい？（意気込み）    CREATE_EVENT_MOTIVATION
+// STEP 6  チャットと連携（Discord / Slack） CREATE_EVENT_INTEGRATION
 // STEP 8  招待リンク                      CREATE_EVENT_INVITE
+// ★2026-11-11：「一言で言うとどんなイベント？」（旧 STEP 5・catchphrase）を外し、番号を繰り上げた。
+//   ビュー名は変えていない。catchphrase のフィールド・イベント設定の編集欄・招待ページの表示は残す
 //
 // 進捗の分母は 7（STEP 8 の招待リンクは「完了」扱いで分母から外す）。
 // STEP 4〜7 はすべてスキップ可能。STEP 2・3 は選んだ瞬間に次へ自動遷移する。
@@ -356,7 +357,7 @@ function _bindCalendarDrag(container) {
 }
 
 // =====================================================
-// STEP 6: リーダーの意気込み（スキップ可）
+// STEP 5: リーダーの意気込み（スキップ可）
 // ★「なぜこのイベントをやりたいか」ではなく「リーダーとしてどう臨むか」を聞く。
 //   参加が承認された直後にメンバーへ見せ、🔥で応援してもらうための言葉なので、
 //   イベントの動機ではなく“この人がどういう姿勢でやるか”が伝わるほうがよい。
@@ -364,7 +365,7 @@ function _bindCalendarDrag(container) {
 //   自由記述（motivationText）は「意気込みを一言でまとめる」欄ではなく、
 //   **カードに無い意気込みを自分で足す**欄（アンケートの「その他」と同じ）。
 //   以前はカードの下に「ひとことで言うと？」という別の質問として置いていたため、
-//   STEP 5「一言で言うとどんなイベント？」と続けて読まれ、役割が伝わらなかった。
+//   旧 STEP 5「一言で言うとどんなイベント？」と続けて読まれ、役割が伝わらなかった（その質問は 2026-11-11 に廃止）。
 // ★データは motivationText（1件・50字）のまま。表示の形だけを変えている。
 // ★入力中は再描画しない（フォーカスが飛ぶ）。blur で描き直すのも禁止：
 //   入力したまま「次へ」を押すと blur → 再描画でボタンが差し替わり、
@@ -412,7 +413,7 @@ export function renderCreateEventMotivation(container) {
     </div>`;
 
   container.innerHTML = _stepShell({
-    step: 6, stepLabel: 'イベント作成（6/7）',
+    step: 5, stepLabel: 'イベント作成（5/7）',
     heading: 'リーダーとしての<br>意気込みは？',
     sub: '当てはまるものを選んでね（複数可）<br>参加してくれた仲間に届きます',
     body,
@@ -454,11 +455,11 @@ export function renderCreateEventMotivation(container) {
 }
 
 // =====================================================
-// STEP 7: Discord / Slack と連携するか（スキップ可）
+// STEP 6: Discord / Slack と連携するか（スキップ可）
 // ★URL は秘密情報。draftEvent に持つが、_createEventAndReturnId の newProject には載せない
 //   （載せると CRDT に入り、全メンバー・SSE に配られる）。登録は招待画面で eventId を得てから
 //   PUT /api/events/:id/webhook で行う（_createAndIssueInvite）
-// ★入力中は描き直さない（STEP 6 と同じ。ボタンの disabled だけ DOM で切り替える）
+// ★入力中は描き直さない（STEP 5 と同じ。ボタンの disabled だけ DOM で切り替える）
 // =====================================================
 export function renderCreateEventIntegration(container) {
   const d = state.draftEvent;
@@ -484,7 +485,7 @@ export function renderCreateEventIntegration(container) {
       </div>` : ''}`;
 
   container.innerHTML = _stepShell({
-    step: 7, stepLabel: 'イベント作成（7/7）',
+    step: 6, stepLabel: 'イベント作成（6/7）',
     heading: 'Discord や Slack に<br>更新を流しますか？',
     sub: 'タスクの作成・完了・締切をチャンネルに投稿します<br>あとで設定からも連携できます',
     body,
@@ -523,7 +524,7 @@ export function renderCreateEventInvite(container) {
     sec.creating = true;
     _createAndIssueInvite();
   } else if (sec.inviteUrl) {
-    // ★イベントを作ったあとに「戻る」で STEP 7 へ戻り、URL を入れて来たとき。
+    // ★イベントを作ったあとに「戻る」で STEP 6 へ戻り、URL を入れて来たとき。
     //   イベントは作り直さないので、連携だけここで登録する（以前はこの経路で登録されなかった）
     _registerWebhook(sec);
   }
@@ -589,7 +590,7 @@ function _webhookLabel(sec) {
 }
 
 /**
- * STEP 7 で入れた URL を登録する（確認の投稿が届いたときだけ保存される）。
+ * STEP 6 で入れた URL を登録する（確認の投稿が届いたときだけ保存される）。
  * ★イベントができてから呼ぶ。同じ URL は2回送らない（描き直しのたびに送らない）。
  *   失敗してもイベント作成と招待リンク発行は止めない。送っている間はスピナーを出す
  *   （確認の投稿を待つので数秒かかる。サーバーのタイムアウトは 5 秒）
@@ -670,7 +671,7 @@ async function _createAndIssueInvite() {
     }
     sec.eventId = eventId;
 
-    // STEP 7 で URL を入れていれば連携する（_registerWebhook。同じ URL は2回送らない）
+    // STEP 6 で URL を入れていれば連携する（_registerWebhook。同じ URL は2回送らない）
     await _registerWebhook(sec);
 
     const r = await api.createInvite(eventId);

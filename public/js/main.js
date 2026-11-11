@@ -386,7 +386,7 @@ window._app = {
     state.setView('CREATE_EVENT_MOTIVATION');
   },
 
-  // STEP 6: 意気込み。カード0件・一言なしでも進める。
+  // STEP 5: 意気込み。カード0件・一言なしでも進める。
   toggleMotivationTag: (id) => {
     const d = state.draftEvent;
     const cur = Array.isArray(d.motivationTags) ? d.motivationTags : [];
@@ -405,7 +405,7 @@ window._app = {
     });
     state.setView('CREATE_EVENT_INTEGRATION');
   },
-  // STEP 7：Discord / Slack と連携する。★URL が形に合わなければ進めない（ボタンも disabled）
+  // STEP 6：Discord / Slack と連携する。★URL が形に合わなければ進めない（ボタンも disabled）
   proceedFromIntegration: () => {
     const d = state.draftEvent;
     d.webhookUrl = String(d.webhookUrl || '').trim();
