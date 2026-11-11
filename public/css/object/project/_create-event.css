@@ -9,8 +9,8 @@
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
      public/js/views/createEvent.js … _renderCreating / _renderError / _renderShare / _stepShell
-                                      renderCreateEventCatchphrase / renderCreateEventDates
-                                      renderCreateEventInfo / renderCreateEventIntegration
+                                      renderCreateEventDates
+                                      renderCreateEventHandover / renderCreateEventInfo / renderCreateEventIntegration
                                       renderCreateEventInvite / renderCreateEventMotivation
                                       renderCreateEventScale / renderCreateEventType
    ========================================================================== */
@@ -370,43 +370,6 @@
   text-align: center;
 }
 
-/* --- STEP 5：一言説明の例文 -----------------------------------------
-   ★ここで AI を呼ばないこと（イベント作成のたびに Neurons を消費する）。
-     例文は constants.js の CATCHPHRASE_EXAMPLES から出す。 */
-
-.p-create-event__examples-label {
-  margin-bottom: var(--space-2);
-  font-size: 10px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.p-create-event__examples {
-  margin-bottom: var(--space-5);
-}
-
-.p-create-event__examples > * + * {
-  margin-top: var(--space-2);
-}
-
-.p-create-event__example {
-  width: 100%;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--bg-textbox);
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface);
-  text-align: left;
-  font-size: 13px;
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-  transition: all var(--duration-fast) var(--ease);
-}
-
-.p-create-event__example:active {
-  transform: scale(.99);
-  background-color: var(--color-bg);
-}
-
 /* --- STEP 6：意気込みのカード ---------------------------------------------
    ★複数選べる。0件でも次へ進める（自由記述を2連続にしないための二段構え）。
    ★色だけでなくチェックマークでも選択が分かるようにする。 */
@@ -505,11 +468,6 @@
 
 .p-create-event__card.is-selected .p-create-event__card-input {
   color: var(--color-danger);
-}
-
-/* 下に例文が続く入力欄 */
-.p-create-event__input--spaced {
-  margin-bottom: var(--space-3);
 }
 
 /* --- STEP 7：招待リンク ---------------------------------------------------
@@ -661,8 +619,15 @@
 }
 
 /* ==========================================================================
-   STEP 7：Discord / Slack と連携（発行の手順＋URL の入力欄）と、招待画面の結果の1行
+   STEP 6：Discord / Slack と連携（はい／いいえ → 発行の手順＋URL の入力欄）と、招待画面の結果の1行
    ========================================================================== */
+/* 「はい」を選んだときだけ出る、サービスと入力欄のまとまり（2026-11-11。「はい／いいえ」と線で分ける） */
+.p-create-event__integration-services {
+  margin-top: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--bg-textbox);
+}
+
 .p-create-event__integration {
   margin-top: var(--space-2);
 }
@@ -684,5 +649,23 @@
 }
 
 .p-create-event__integration-result.is-failed {
+  color: var(--color-danger);
+}
+
+/* ==========================================================================
+   STEP 7：前のイベントの引き継ぎ（2026-11-11。指示書C）。貼ったリンクを確かめた結果の1行
+   ========================================================================== */
+.p-create-event__handover-result {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-create-event__handover-result.is-ok {
+  color: var(--color-primary);
+}
+
+.p-create-event__handover-result.is-error {
   color: var(--color-danger);
 }

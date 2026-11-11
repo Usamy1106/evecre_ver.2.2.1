@@ -3,10 +3,13 @@
 // STEP 2  どんなイベントを計画中？        CREATE_EVENT_TYPE
 // STEP 3  どのくらいの人に来てほしい？    CREATE_EVENT_SCALE
 // STEP 4  開催日はいつ？                  CREATE_EVENT_DATES
-// STEP 5  一言で言うとどんなイベント？    CREATE_EVENT_CATCHPHRASE（旧キャッチコピー）
-// STEP 6  なんでやりたい？（意気込み）    CREATE_EVENT_MOTIVATION
-// STEP 7  チャットと連携（Discord / Slack） CREATE_EVENT_INTEGRATION
+// STEP 5  なんでやりたい？（意気込み）    CREATE_EVENT_MOTIVATION
+// STEP 6  チャットと連携（Discord / Slack） CREATE_EVENT_INTEGRATION（はい／いいえ）
+// STEP 7  前のイベントの引き継ぎ？        CREATE_EVENT_HANDOVER（はい／いいえ。parentEventId だけ保存）
 // STEP 8  招待リンク                      CREATE_EVENT_INVITE
+// ★2026-11-11（指示書C）：「一言で言うとどんなイベント？」（旧 STEP 5・catchphrase）を外して番号を繰り上げ、
+//   STEP 7 に「引き継ぎ」を足した。ビュー名は変えていない。catchphrase のフィールド・イベント設定の
+//   編集欄・招待ページの表示は残す。URL を入れる2つ（STEP 6・7）は、まず「はい／いいえ」で聞く
 //
 // 進捗の分母は 7（STEP 8 の招待リンクは「完了」扱いで分母から外す）。
 // STEP 4〜7 はすべてスキップ可能。STEP 2・3 は選んだ瞬間に次へ自動遷移する。
@@ -20,8 +23,9 @@ import { state } from '../state.js';
 import { api } from '../api.js';
 import { Components } from '../components.js';
 import { getConsecutiveGroups } from '../utils.js';
-import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, CATCHPHRASE_EXAMPLES, WEBHOOK_SERVICES, detectWebhookKind } from '../constants.js';
+import { EVENT_TYPES, EXPECTED_SCALES, MOTIVATION_CARDS, WEBHOOK_SERVICES, detectWebhookKind } from '../constants.js';
 import { logEvent } from '../logger.js';
+import { loadHandoverOrigins, parseHandoverLink, handoverLinkErrorText, formatHandoverDates } from '../handoverLink.js';
 
 const TOTAL_STEPS = 7;   // 招待リンク（STEP 8）は分母に含めない
 
@@ -356,51 +360,7 @@ function _bindCalendarDrag(container) {
 }
 
 // =====================================================
-// STEP 5: 一言で言うとどんなイベント？（旧キャッチコピー。スキップ可）
-// ★スローガンではなく「何をするイベントか」を一行で書いてもらう。見出しを問いの形に
-//   しているのはそのため（「キャッチコピー」だと分かりづらいという声を受けて 2026-09-18 に変更）
-// ★入力中のプレビューは出さない（かつて「招待ページのプレビュー」を出していたが、
-//   そもそも招待ページという画面が存在せず、実体と食い違っていたため撤去した）。
-// =====================================================
-export function renderCreateEventCatchphrase(container) {
-  const d = state.draftEvent;
-  const examples = CATCHPHRASE_EXAMPLES[d.eventType] || CATCHPHRASE_EXAMPLES.other;
-
-  const body = `
-    <input type="text" id="cp-catch-input" placeholder="何をするイベントか一行で"
-      value="${_esc(d.catchphrase || '')}" maxlength="50"
-      oninput="window._app.updateDraftCatchphrase(this.value)"
-      class="c-input c-input--block p-create-event__input p-create-event__input--spaced">
-
-    <p class="p-create-event__examples-label">例文（タップで使う）</p>
-    <div class="p-create-event__examples">
-      ${examples.map(ex => `
-        <button type="button" data-cp-example="${_esc(ex)}" class="p-create-event__example">
-          ${_esc(ex)}
-        </button>`).join('')}
-    </div>`;
-
-  container.innerHTML = _stepShell({
-    step: 5, stepLabel: 'イベント作成（5/7）',
-    heading: '一言で言うと<br>どんなイベント？',
-    sub: '招待した相手に表示されます<br>あとで変更できます',
-    body,
-    footer: `
-      <button onclick="window._app.proceedFromCatchphrase()"
-        class="c-button c-button--primary p-create-event__next">次へ</button>
-      <button onclick="window._app.skipStep('catchphrase')"
-        class="p-create-event__skip">あとで決める</button>
-      <button onclick="window._app.setView('CREATE_EVENT_DATES')"
-        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
-  });
-
-  container.querySelectorAll('[data-cp-example]').forEach(el =>
-    el.addEventListener('click', () => window._app.useCatchphraseExample(el.dataset.cpExample))
-  );
-}
-
-// =====================================================
-// STEP 6: リーダーの意気込み（スキップ可）
+// STEP 5: リーダーの意気込み（スキップ可）
 // ★「なぜこのイベントをやりたいか」ではなく「リーダーとしてどう臨むか」を聞く。
 //   参加が承認された直後にメンバーへ見せ、🔥で応援してもらうための言葉なので、
 //   イベントの動機ではなく“この人がどういう姿勢でやるか”が伝わるほうがよい。
@@ -408,7 +368,7 @@ export function renderCreateEventCatchphrase(container) {
 //   自由記述（motivationText）は「意気込みを一言でまとめる」欄ではなく、
 //   **カードに無い意気込みを自分で足す**欄（アンケートの「その他」と同じ）。
 //   以前はカードの下に「ひとことで言うと？」という別の質問として置いていたため、
-//   STEP 5「一言で言うとどんなイベント？」と続けて読まれ、役割が伝わらなかった。
+//   旧 STEP 5「一言で言うとどんなイベント？」と続けて読まれ、役割が伝わらなかった（その質問は 2026-11-11 に廃止）。
 // ★データは motivationText（1件・50字）のまま。表示の形だけを変えている。
 // ★入力中は再描画しない（フォーカスが飛ぶ）。blur で描き直すのも禁止：
 //   入力したまま「次へ」を押すと blur → 再描画でボタンが差し替わり、
@@ -456,7 +416,7 @@ export function renderCreateEventMotivation(container) {
     </div>`;
 
   container.innerHTML = _stepShell({
-    step: 6, stepLabel: 'イベント作成（6/7）',
+    step: 5, stepLabel: 'イベント作成（5/7）',
     heading: 'リーダーとしての<br>意気込みは？',
     sub: '当てはまるものを選んでね（複数可）<br>参加してくれた仲間に届きます',
     body,
@@ -465,7 +425,7 @@ export function renderCreateEventMotivation(container) {
         class="c-button c-button--primary p-create-event__next">次へ</button>
       <button onclick="window._app.skipStep('motivation')"
         class="p-create-event__skip">スキップする</button>
-      <button onclick="window._app.setView('CREATE_EVENT_CATCHPHRASE')"
+      <button onclick="window._app.setView('CREATE_EVENT_DATES')"
         class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
 
@@ -498,49 +458,67 @@ export function renderCreateEventMotivation(container) {
 }
 
 // =====================================================
-// STEP 7: Discord / Slack と連携するか（スキップ可）
+// STEP 6: Discord / Slack と連携するか（「はい／いいえ」。いいえ＝スキップ）
 // ★URL は秘密情報。draftEvent に持つが、_createEventAndReturnId の newProject には載せない
 //   （載せると CRDT に入り、全メンバー・SSE に配られる）。登録は招待画面で eventId を得てから
 //   PUT /api/events/:id/webhook で行う（_createAndIssueInvite）
-// ★入力中は描き直さない（STEP 6 と同じ。ボタンの disabled だけ DOM で切り替える）
+// ★入力中は描き直さない（STEP 5 と同じ。ボタンの disabled だけ DOM で切り替える）
 // =====================================================
 export function renderCreateEventIntegration(container) {
   const d = state.draftEvent;
+  const wanted = d.webhookWanted;            // null＝まだ答えていない / true / false
   const kind = d.webhookKind;
   const svc = WEBHOOK_SERVICES.find(x => x.id === kind);
   const valid = !!detectWebhookKind(d.webhookUrl);
 
+  // ★まず「はい／いいえ」。URL の入力欄をいきなり見せると、連携しない人（多数派）に
+  //   「何か入れないといけない」圧がかかる。「はい」のときだけサービスと入力欄を出す（2026-11-11）
   const body = `
-    ${WEBHOOK_SERVICES.map(x => `
-      <button type="button" data-cp-wh-kind="${x.id}"
-        class="p-create-event__choice${kind === x.id ? ' is-selected' : ''}">
-        <span class="p-create-event__choice-label">${_esc(x.label)}</span>
-      </button>`).join('')}
-    ${svc ? `
-      <div class="p-create-event__integration">
-        <ol class="p-create-event__integration-steps">
-          ${svc.steps.map(t => `<li>${_esc(t)}</li>`).join('')}
-        </ol>
-        <input id="cp-wh-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
-          value="${_esc(d.webhookUrl || '')}" placeholder="${_esc(svc.placeholder)}"
-          aria-label="ウェブフック URL" class="c-input c-input--block p-create-event__input">
-        <p class="p-create-event__note">イベントを作るときに、確認の投稿を送ります</p>
+    <button type="button" data-cp-wh-want="yes"
+      class="p-create-event__choice p-create-event__choice--roomy${wanted === true ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">はい、連携する</span>
+    </button>
+    <button type="button" data-cp-wh-want="no"
+      class="p-create-event__choice p-create-event__choice--roomy${wanted === false ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">いいえ</span>
+      <span class="p-create-event__choice-hint">あとで設定からも連携できます</span>
+    </button>
+    ${wanted === true ? `
+      <div class="p-create-event__integration-services">
+        ${WEBHOOK_SERVICES.map(x => `
+          <button type="button" data-cp-wh-kind="${x.id}"
+            class="p-create-event__choice${kind === x.id ? ' is-selected' : ''}">
+            <span class="p-create-event__choice-label">${_esc(x.label)}</span>
+          </button>`).join('')}
+        ${svc ? `
+          <div class="p-create-event__integration">
+            <ol class="p-create-event__integration-steps">
+              ${svc.steps.map(t => `<li>${_esc(t)}</li>`).join('')}
+            </ol>
+            <input id="cp-wh-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+              value="${_esc(d.webhookUrl || '')}" placeholder="${_esc(svc.placeholder)}"
+              aria-label="ウェブフック URL" class="c-input c-input--block p-create-event__input">
+            <p class="p-create-event__note">イベントを作るときに、確認の投稿を送ります</p>
+          </div>` : ''}
       </div>` : ''}`;
 
   container.innerHTML = _stepShell({
-    step: 7, stepLabel: 'イベント作成（7/7）',
-    heading: 'Discord や Slack に<br>更新を流しますか？',
-    sub: 'タスクの作成・完了・締切をチャンネルに投稿します<br>あとで設定からも連携できます',
+    step: 6, stepLabel: 'イベント作成（6/7）',
+    heading: 'Discord や Slack と<br>連携しますか？',
+    sub: 'タスクの作成・完了・締切をチャンネルに投稿します',
     body,
+    // ★「次へ」は「はい」のときだけ（「いいえ」は選んだ瞬間に次へ進む。STEP 2・3 と同じ）
     footer: `
-      <button type="button" id="cp-wh-next" onclick="window._app.proceedFromIntegration()"
-        class="c-button c-button--primary p-create-event__next" ${valid ? '' : 'disabled'}>次へ</button>
-      <button type="button" onclick="window._app.skipStep('integration')"
-        class="p-create-event__skip">スキップする</button>
+      ${wanted === true ? `
+        <button type="button" id="cp-wh-next" onclick="window._app.proceedFromIntegration()"
+          class="c-button c-button--primary p-create-event__next" ${valid ? '' : 'disabled'}>次へ</button>` : ''}
       <button type="button" onclick="window._app.setView('CREATE_EVENT_MOTIVATION')"
         class="c-button c-button--secondary p-create-event__back">戻る</button>`,
   });
 
+  container.querySelectorAll('[data-cp-wh-want]').forEach(el =>
+    el.addEventListener('click', () => window._app.answerIntegration(el.dataset.cpWhWant === 'yes'))
+  );
   container.querySelectorAll('[data-cp-wh-kind]').forEach(el =>
     el.addEventListener('click', () => {
       d.webhookKind = el.dataset.cpWhKind;
@@ -556,6 +534,113 @@ export function renderCreateEventIntegration(container) {
 }
 
 // =====================================================
+// STEP 7: 前のイベントの引き継ぎ？（2026-11-11。指示書C。「はい／いいえ」。いいえ＝スキップ）
+// ★「はい」のときだけ、前のイベントのアーカイブ（イベクリの外部サイト）のリンクを貼る欄を出す。
+// ★貼った直後に GET /api/public/events/:id でイベントがあるか確かめ、名前と日程を見せる。
+//   確かめられたときだけ「次へ」が押せる。保存するのは parentEventId だけ（タスクは取り込まない＝指示書D）
+// ★入力中は描き直さない（STEP 5・6 と同じ。結果の行と「次へ」だけ DOM で差し替える）
+// ★リンクの読み取りは handoverLink.js（指示書D でも使う）。ここで URL を解釈しないこと
+// =====================================================
+let _handoverSeq = 0;   // 入力が続いたとき、古い問い合わせの結果で上書きしないための通し番号
+
+function _handoverResultHtml(d) {
+  if (d.handoverInfo) {
+    const when = formatHandoverDates(d.handoverInfo.dates);
+    return `<p class="p-create-event__handover-result is-ok">「${_esc(d.handoverInfo.title || '（名前のないイベント）')}」${when ? `（${_esc(when)}）` : ''}を引き継ぎます</p>`;
+  }
+  if (d.handoverChecking) {
+    return `<p class="p-create-event__handover-result"><span class="c-spinner__inline"><span class="c-spinner c-spinner--xs"></span>イベントを確かめています…</span></p>`;
+  }
+  const msg = handoverLinkErrorText(d.handoverError);
+  return msg ? `<p class="p-create-event__handover-result is-error">${_esc(msg)}</p>` : '';
+}
+
+export function renderCreateEventHandover(container) {
+  const d = state.draftEvent;
+  const wanted = d.handoverWanted;
+  const valid = !!(d.parentEventId && d.handoverInfo);
+
+  const body = `
+    <button type="button" data-cp-ho-want="yes"
+      class="p-create-event__choice p-create-event__choice--roomy${wanted === true ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">はい、引き継ぐ</span>
+      <span class="p-create-event__choice-hint">去年の代など、イベクリで記録を残したイベントがある</span>
+    </button>
+    <button type="button" data-cp-ho-want="no"
+      class="p-create-event__choice p-create-event__choice--roomy${wanted === false ? ' is-selected' : ''}">
+      <span class="p-create-event__choice-label">いいえ</span>
+      <span class="p-create-event__choice-hint">はじめてのイベント</span>
+    </button>
+    ${wanted === true ? `
+      <div class="p-create-event__integration-services">
+        <label for="cp-ho-url" class="p-create-event__label">前のイベントのアーカイブのリンクを貼ってください</label>
+        <input id="cp-ho-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false"
+          value="${_esc(d.handoverLink || '')}" placeholder="https://…"
+          class="c-input c-input--block p-create-event__input">
+        <p class="p-create-event__note">イベクリの公開ページ（アーカイブ）のリンクです。アーカイブの右上の「⋯」→「リンクをコピー」で取れます</p>
+        <div id="cp-ho-result">${_handoverResultHtml(d)}</div>
+      </div>` : ''}`;
+
+  container.innerHTML = _stepShell({
+    step: 7, stepLabel: 'イベント作成（7/7）',
+    heading: '前のイベントの<br>引き継ぎですか？',
+    sub: '前の代のイベントとつなげておくと<br>あとでその記録を受け取れます',
+    body,
+    footer: `
+      ${wanted === true ? `
+        <button type="button" id="cp-ho-next" onclick="window._app.proceedFromHandover()"
+          class="c-button c-button--primary p-create-event__next" ${valid ? '' : 'disabled'}>次へ</button>` : ''}
+      <button type="button" onclick="window._app.setView('CREATE_EVENT_INTEGRATION')"
+        class="c-button c-button--secondary p-create-event__back">戻る</button>`,
+  });
+
+  container.querySelectorAll('[data-cp-ho-want]').forEach(el =>
+    el.addEventListener('click', () => window._app.answerHandover(el.dataset.cpHoWant === 'yes'))
+  );
+
+  const input = container.querySelector('#cp-ho-url');
+  if (!input) return;
+  let timer = null;
+  const paint = () => {
+    const box = document.getElementById('cp-ho-result');
+    if (box) box.innerHTML = _handoverResultHtml(d);
+    const btn = document.getElementById('cp-ho-next');
+    if (btn) btn.disabled = !(d.parentEventId && d.handoverInfo);
+  };
+  const check = async () => {
+    const seq = ++_handoverSeq;
+    d.parentEventId = ''; d.handoverInfo = null; d.handoverError = null; d.handoverChecking = false;
+    const text = String(d.handoverLink || '').trim();
+    if (!text) { paint(); return; }
+    const origins = await loadHandoverOrigins();
+    if (seq !== _handoverSeq) return;
+    const parsed = parseHandoverLink(text, origins);
+    if (parsed.error) { d.handoverError = parsed.error === 'empty' ? null : parsed.error; paint(); return; }
+    d.handoverChecking = true; paint();
+    const r = await api.getPublicEvent(parsed.id);
+    if (seq !== _handoverSeq || state.draftEvent !== d) return;   // 入力が変わった・別の作成を始めた
+    d.handoverChecking = false;
+    if (r?.ok && r.basic) {
+      d.parentEventId = parsed.id;
+      d.handoverInfo = { title: String(r.basic.title || ''), dates: Array.isArray(r.basic.dates) ? r.basic.dates : [] };
+    } else {
+      d.handoverError = r?.code === 'network' ? 'network' : 'not_found';
+    }
+    paint();
+  };
+  input.addEventListener('input', () => {
+    d.handoverLink = input.value;
+    // 打っている途中で確かめに行かない（貼り付けはすぐ・打鍵は少し待つ）
+    clearTimeout(timer);
+    timer = setTimeout(check, 400);
+  });
+  input.addEventListener('paste', () => { clearTimeout(timer); setTimeout(() => { d.handoverLink = input.value; check(); }, 0); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); input.blur(); }
+  });
+}
+
+// =====================================================
 // STEP 8: 招待リンク発行（画面到達と同時に自動で作成＋発行）
 // =====================================================
 export function renderCreateEventInvite(container) {
@@ -567,7 +652,7 @@ export function renderCreateEventInvite(container) {
     sec.creating = true;
     _createAndIssueInvite();
   } else if (sec.inviteUrl) {
-    // ★イベントを作ったあとに「戻る」で STEP 7 へ戻り、URL を入れて来たとき。
+    // ★イベントを作ったあとに「戻る」で STEP 6 へ戻り、URL を入れて来たとき。
     //   イベントは作り直さないので、連携だけここで登録する（以前はこの経路で登録されなかった）
     _registerWebhook(sec);
   }
@@ -593,7 +678,7 @@ export function renderCreateEventInvite(container) {
             <button type="button" id="cpi-retry"
               class="c-button c-button--primary p-create-event__next">もう一度試す</button>
           ` : ''}
-          <button type="button" onclick="window._app.setView('CREATE_EVENT_INTEGRATION')"
+          <button type="button" onclick="window._app.setView('CREATE_EVENT_HANDOVER')"
             class="c-button c-button--secondary p-create-event__back" ${sec.creating ? 'disabled' : ''}>戻る</button>
         </div>
       </main>
@@ -633,7 +718,7 @@ function _webhookLabel(sec) {
 }
 
 /**
- * STEP 7 で入れた URL を登録する（確認の投稿が届いたときだけ保存される）。
+ * STEP 6 で入れた URL を登録する（確認の投稿が届いたときだけ保存される）。
  * ★イベントができてから呼ぶ。同じ URL は2回送らない（描き直しのたびに送らない）。
  *   失敗してもイベント作成と招待リンク発行は止めない。送っている間はスピナーを出す
  *   （確認の投稿を待つので数秒かかる。サーバーのタイムアウトは 5 秒）
@@ -714,7 +799,7 @@ async function _createAndIssueInvite() {
     }
     sec.eventId = eventId;
 
-    // STEP 7 で URL を入れていれば連携する（_registerWebhook。同じ URL は2回送らない）
+    // STEP 6 で URL を入れていれば連携する（_registerWebhook。同じ URL は2回送らない）
     await _registerWebhook(sec);
 
     const r = await api.createInvite(eventId);
@@ -738,10 +823,10 @@ async function _createAndIssueInvite() {
       eventType:          d.eventType || null,
       expectedScale:      d.expectedScale || null,
       hasDates:           (d.dates?.length || 0) > 0,
-      hasCatchphrase:     !!(d.catchphrase || '').trim(),
       motivationTagCount: d.motivationTags?.length || 0,
       hasMotivationText:  !!(d.motivationText || '').trim(),
       hasWebhook:         !!d.webhookUrl,
+      hasParentEvent:     !!d.parentEventId,
     });
 
     state.render();

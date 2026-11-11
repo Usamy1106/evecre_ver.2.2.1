@@ -9,8 +9,8 @@ import { logEvent, initLogger, setProjectIdGetter, setObserverCheck } from './lo
 import { renderHome }               from './views/home.js';
 import {
   renderCreateEventInfo, renderCreateEventType, renderCreateEventScale,
-  renderCreateEventDates, renderCreateEventCatchphrase, renderCreateEventMotivation,
-  renderCreateEventIntegration, renderCreateEventInvite,
+  renderCreateEventDates, renderCreateEventMotivation,
+  renderCreateEventIntegration, renderCreateEventHandover, renderCreateEventInvite,
 } from './views/createEvent.js';
 import { renderEventSettings } from './views/eventSettings.js';
 import { renderProjectDetail } from './views/projectDetail.js';
@@ -130,9 +130,9 @@ registerRenderer('CREATE_EVENT_INFO',        renderCreateEventInfo);
 registerRenderer('CREATE_EVENT_TYPE',        renderCreateEventType);
 registerRenderer('CREATE_EVENT_SCALE',       renderCreateEventScale);
 registerRenderer('CREATE_EVENT_DATES',       renderCreateEventDates);
-registerRenderer('CREATE_EVENT_CATCHPHRASE', renderCreateEventCatchphrase);
 registerRenderer('CREATE_EVENT_MOTIVATION',  renderCreateEventMotivation);
 registerRenderer('CREATE_EVENT_INTEGRATION', renderCreateEventIntegration);
+registerRenderer('CREATE_EVENT_HANDOVER',    renderCreateEventHandover);
 registerRenderer('CREATE_EVENT_INVITE',      renderCreateEventInvite);
 registerRenderer('MAIN_BOARD',            renderMainBoard);
 registerRenderer('EVENT_SETTINGS',      renderEventSettings);
@@ -384,27 +384,10 @@ window._app = {
   tryProceedFromDates: () => {
     // 開催日は任意。何も選択していなくても進める。
     logEvent('event_create_step_completed', { step: 'dates', count: state.draftEvent.dates?.length || 0 });
-    state.setView('CREATE_EVENT_CATCHPHRASE');
-  },
-
-  // STEP 5: 一言説明（旧キャッチコピー）。入力のたびに再描画すると入力欄のフォーカスが飛ぶので、
-  // state を更新するだけで再描画はしない（プレビューは廃止済み）。
-  updateDraftCatchphrase: (v) => {
-    state.draftEvent.catchphrase = v;
-  },
-  useCatchphraseExample: (text) => {
-    state.draftEvent.catchphrase = text;
-    logEvent('catchphrase_suggestion_used');
-    state.render();
-  },
-  proceedFromCatchphrase: () => {
-    state.draftEvent.catchphrase = (state.draftEvent.catchphrase || '').trim();
-    // 「次へ」でも空のまま進めるので、入力の有無を props に持たせる
-    logEvent('event_create_step_completed', { step: 'catchphrase', filled: !!state.draftEvent.catchphrase });
     state.setView('CREATE_EVENT_MOTIVATION');
   },
 
-  // STEP 6: 意気込み。カード0件・一言なしでも進める。
+  // STEP 5: 意気込み。カード0件・一言なしでも進める。
   toggleMotivationTag: (id) => {
     const d = state.draftEvent;
     const cur = Array.isArray(d.motivationTags) ? d.motivationTags : [];
@@ -423,7 +406,22 @@ window._app = {
     });
     state.setView('CREATE_EVENT_INTEGRATION');
   },
-  // STEP 7：Discord / Slack と連携する。★URL が形に合わなければ進めない（ボタンも disabled）
+  // STEP 6：まず「はい／いいえ」。「いいえ」は選んだ瞬間に次へ（STEP 2・3 と同じく描画を1フレーム挟む）。
+  //   ★「いいえ」は従来のスキップと同じログ（event_create_step_skipped・step:'integration'）に answer:'no' を足す
+  answerIntegration: (yes) => {
+    const d = state.draftEvent;
+    if (yes) {
+      d.webhookWanted = true;
+      state.render();
+      return;
+    }
+    d.webhookWanted = false;
+    d.webhookUrl = ''; d.webhookKind = null;
+    logEvent('event_create_step_skipped', { step: 'integration', answer: 'no' });
+    state.render();
+    setTimeout(() => state.setView('CREATE_EVENT_HANDOVER'), 180);
+  },
+  // STEP 6：Discord / Slack と連携する。★URL が形に合わなければ進めない（ボタンも disabled）
   proceedFromIntegration: () => {
     const d = state.draftEvent;
     d.webhookUrl = String(d.webhookUrl || '').trim();
@@ -431,6 +429,30 @@ window._app = {
     if (!kind) return;
     d.webhookKind = kind;
     logEvent('event_create_step_completed', { step: 'integration', kind });
+    state.setView('CREATE_EVENT_HANDOVER');
+  },
+
+  // STEP 7：前のイベントの引き継ぎ？（2026-11-11。指示書C）。まず「はい／いいえ」。
+  //   「いいえ」は選んだ瞬間に次へ。★保存するのは parentEventId だけ（タスクは取り込まない。指示書D）
+  answerHandover: (yes) => {
+    const d = state.draftEvent;
+    if (yes) {
+      d.handoverWanted = true;
+      state.render();
+      document.getElementById('cp-ho-url')?.focus();
+      return;
+    }
+    d.handoverWanted = false;
+    d.handoverLink = ''; d.handoverInfo = null; d.parentEventId = '';
+    logEvent('event_create_step_skipped', { step: 'handover', answer: 'no' });
+    state.render();
+    setTimeout(() => state.setView('CREATE_EVENT_INVITE'), 180);
+  },
+  // ★確かめたイベント（handoverInfo）があるときだけ進める（ボタンも disabled）
+  proceedFromHandover: () => {
+    const d = state.draftEvent;
+    if (!d.parentEventId || !d.handoverInfo) return;
+    logEvent('event_create_step_completed', { step: 'handover' });
     state.setView('CREATE_EVENT_INVITE');
   },
 
@@ -438,10 +460,9 @@ window._app = {
   skipStep: (step) => {
     const d = state.draftEvent;
     logEvent('event_create_step_skipped', { step });
-    if (step === 'dates')      { d.dates = [];          state.setView('CREATE_EVENT_CATCHPHRASE'); }
-    if (step === 'catchphrase'){ d.catchphrase = '';    state.setView('CREATE_EVENT_MOTIVATION'); }
+    if (step === 'dates')      { d.dates = [];          state.setView('CREATE_EVENT_MOTIVATION'); }
     if (step === 'motivation') { d.motivationTags = []; d.motivationText = ''; state.setView('CREATE_EVENT_INTEGRATION'); }
-    if (step === 'integration'){ d.webhookUrl = ''; d.webhookKind = null; state.setView('CREATE_EVENT_INVITE'); }
+    if (step === 'integration'){ d.webhookUrl = ''; d.webhookKind = null; state.setView('CREATE_EVENT_HANDOVER'); }
   },
 
   // --- カレンダー ---
@@ -1847,7 +1868,8 @@ const _LOG_LABELS = {
   logout:                 'ログアウトした',
   // イベント作成フロー（views/createEvent.js、STEP 1〜7）。
   // signup_step_* と同じ考え方で、どのステップで落ちるか・何をスキップするかを追う。
-  // props の step は 'name' / 'type' / 'scale' / 'dates' / 'catchphrase' / 'motivation'。
+  // props の step は 'name' / 'type' / 'scale' / 'dates' / 'motivation' / 'integration' / 'handover'
+  //   （'catchphrase' は 2026-11-11 に質問ごと廃止。過去のログには残っている）。
   event_create_started:        'イベント作成を開始',
   project_info_completed:      'イベント情報を入力',
   event_create_step_completed: 'イベント作成の項目を入力',

@@ -1485,6 +1485,9 @@ app.get('/api/config', (req, res) => {
     // 外部サイト（公開ページ）の本番の URL（2026-11-07。指示書B §4-6）。★新しい環境変数は足さず、
     //   PUBLIC_SITE_ORIGINS の「localhost でない最初の値」を使う。無ければ null（アーカイブのメニューに「リンクをコピー」を出さない）
     publicSiteUrl: _publicSiteUrl(),
+    // 引き継ぎリンク（作成フローの STEP 7）を受け付ける外部サイトのオリジン（2026-11-11。指示書C）。
+    //   ★PUBLIC_SITE_ORIGINS そのもの。これ以外のホストのリンクはクライアントが弾く
+    publicSiteOrigins: [...PUBLIC_SITE_ORIGINS],
   });
 });
 
@@ -2735,6 +2738,14 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
   // ★初回確認の印・公開前の確認の印はサーバーだけが書く（クライアントの値は信用しない）
   delete flat.shareConfirmedAt;
   delete flat.publishCheckedAt;
+  // 前の代のイベント（2026-11-11。指示書C）。★文字列で SAFE_ITEM_ID_RE に合うものだけ（オブジェクトを
+  //   通すと Mongo の検索条件になりうる）。★自分自身の id は捨てる。空文字は「外す」なので通す。
+  //   ★公開されているかはここでは確かめない（公開は後から取り消されうる。形だけ守る）
+  if (flat.parentEventId !== undefined) {
+    const v = flat.parentEventId;
+    if (v === '' || v === null) flat.parentEventId = '';
+    else if (typeof v !== 'string' || !SAFE_ITEM_ID_RE.test(v) || v === eventId) delete flat.parentEventId;
+  }
   // 目的を支える柱（最大3つ）。★id は書き換えない（クライアントが振った id をそのまま通す）。
   //   形の合わないもの・名前が空のもの・id が重複するものは捨てる
   if (flat.pillars !== undefined) {

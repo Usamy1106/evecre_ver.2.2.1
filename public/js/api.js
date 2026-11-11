@@ -419,6 +419,12 @@ export const api = {
     const { json } = await _send('GET', '/api/config');
     return json || { ok: false };
   },
+  // 公開されているイベントの詳細（外部サイト向けの公開 API。認証なし）。引き継ぎリンクの確認に使う（handoverLink.js）。
+  //   非公開・存在しない・形が不正はすべて 404 { ok:false, error:'not_found' }。通信できなければ code:'network'
+  async getPublicEvent(id) {
+    const { json } = await _send('GET', `/api/public/events/${encodeURIComponent(id)}`);
+    return json || { ok: false };
+  },
   // consentVersion はアカウント作成の STEP 0 で同意した規約の版数。
   // 既存ユーザーのログイン時は undefined でよい（サーバー側で無視される）。
   async googleSignIn(credential, consentVersion) {

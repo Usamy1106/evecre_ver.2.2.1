@@ -385,7 +385,8 @@ const SURVEY_SUMMARY_PIPELINE = [
 // ── ビュー: イベント作成フローのファネル ────────────────────────
 // signup_funnel と同じ考え方。1ドキュメント=1回のイベント作成試行。
 // ★sessionId で束ねる（作成途中はイベントがまだ存在せず projectId が null のため）。
-// STEP は 'name' / 'type' / 'scale' / 'dates' / 'catchphrase' / 'motivation' / 'integration'（Discord / Slack と連携）。
+// STEP は 'name' / 'type' / 'scale' / 'dates' / 'motivation' / 'integration'（Discord / Slack と連携）/ 'handover'（前のイベントの引き継ぎ。2026-11-11）。
+// ★'catchphrase' は 2026-11-11 に質問ごと廃止（過去のログには残る。hasCatchphrase も新しい作成では入らない）。
 const EVENT_CREATE_FUNNEL_PIPELINE = [
   { $match: { event: { $in: [
     'event_create_started', 'event_create_step_completed', 'event_create_step_skipped',
