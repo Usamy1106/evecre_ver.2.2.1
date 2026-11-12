@@ -66,7 +66,7 @@ import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { checkGoalQuest } from './goalQuest.js';
 import { checkArchiveTour } from './archiveTour.js';
-import { isInitialTask, taskShareState } from './utils.js';
+import { isInitialTask, taskShareState, isKnowledgePublished } from './utils.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
@@ -99,6 +99,9 @@ async function finishArchiveEditing() {
 }
 let _leavingArchiveTab = false;
 // 外部サイト（公開ページ）の URL。GET /api/config から1回だけ読む（無ければ null）
+// ★2026-11-12（指示書05 §7）から使っていない（アーカイブの「リンクをコピー」は本体の /explore を出す）。
+//   指示書の指定で消さずに残す（外部サイトの URL が要る画面を作るとき用）。GET /api/config の publicSiteUrl は
+//   公開ページの「イベクリについて」（views/explore.js）が使っている
 let _publicSiteUrlPromise = null;
 function _publicSiteUrl() {
   _publicSiteUrlPromise ||= api.getConfig().then(r => (typeof r?.publicSiteUrl === 'string' ? r.publicSiteUrl : null)).catch(() => null);
@@ -1300,19 +1303,19 @@ window._app = {
     const triggerEl = e.currentTarget ?? e.target;
     const canMgr = state.canManageCurrentEvent();
     const published = p.publicBasicInfo === true;
-    const site = await _publicSiteUrl();
     const rect = triggerEl.getBoundingClientRect();
     const menu = document.createElement('div');
     menu.id = 'archive-menu';
     menu.className = 'c-context-menu c-context-menu--archive u-animate-fade';
     menu.style.top   = `${rect.bottom + 4}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
-    // ★リンクは外部サイトの詳細ページ（https://<サイト>/events/<id>）。未公開だとリンク先が 404 なので押せなくする。
-    //   外部サイトの URL が分からない（PUBLIC_SITE_ORIGINS が localhost だけ）ときは出さない
+    // ★リンクは本体の公開ページ「みんなの記録」（2026-11-12。指示書05 §7）。タスクも含めて公開していれば
+    //   ナレッジページ /explore/<id>、基礎情報だけなら告知モーダル /explore?event=<id>。
+    //   未公開だとリンク先が「見つかりませんでした」なので押せなくする
     menu.innerHTML = `
       ${canMgr ? `<button id="am-view" class="c-context-menu__item">${state.archivePreview ? '編集' : 'プレビュー'}</button>` : ''}
-      ${site ? `<button id="am-link" class="c-context-menu__item${published ? '' : ' is-disabled'}"${published ? '' : ' aria-disabled="true"'}>
-        リンクをコピー${published ? '' : '<span class="c-context-menu__note">公開するとコピーできます</span>'}</button>` : ''}
+      <button id="am-link" class="c-context-menu__item${published ? '' : ' is-disabled'}"${published ? '' : ' aria-disabled="true"'}>
+        リンクをコピー${published ? '' : '<span class="c-context-menu__note">公開するとコピーできます</span>'}</button>
       ${canMgr && published ? `<button id="am-public-view" class="c-context-menu__item">公開されている内容を見る</button>
       <button id="am-unpublish" class="c-context-menu__item c-context-menu__item--danger">公開を停止する</button>` : ''}`;
     if (!menu.children.length) return;
@@ -1322,7 +1325,9 @@ window._app = {
     on('am-link', () => {
       if (!published) return;   // ★押せない（メニューは閉じずに注記を読ませる）
       menu.remove();
-      const url = `${site}/events/${encodeURIComponent(p.id)}`;
+      const url = isKnowledgePublished(p)
+        ? `${location.origin}/explore/${encodeURIComponent(p.id)}`
+        : `${location.origin}/explore?event=${encodeURIComponent(p.id)}`;
       logEvent('archive_public_link_copied', { eventId: p.id });
       navigator.clipboard.writeText(url)
         .then(() => _showToast('公開ページのリンクをコピーしました'))
@@ -1332,7 +1337,7 @@ window._app = {
     on('am-unpublish', async () => {
       menu.remove();
       const ok = await showConfirmDialog({
-        message: '公開を停止しますか？\n外部サイトへの反映には時間がかかります。',
+        message: '公開を停止しますか？\n公開ページ「みんなの記録」からはすぐに見えなくなります。',
         confirmLabel: '停止する',
         cancelLabel: 'キャンセル',
       });
