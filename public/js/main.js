@@ -83,6 +83,9 @@ import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
 import { initBrowserBack } from './browserBack.js';
 import { renderExplore } from './views/explore.js';
+import { renderHandoverPick, openHandoverPick, closeHandoverPick } from './views/handoverPick.js';
+import { renderLineage, openLineage, closeLineage, openParentRegister } from './views/lineage.js';
+import { checkPillarCompare } from './modals/pillarCompareModal.js';
 import { watchLayoutMode } from './layoutMode.js';
 import {
   registerServiceWorker, initPushNavigation,
@@ -118,6 +121,8 @@ let _togglingPreview = false;
 registerRenderer('WELCOME',               renderWelcome);
 registerRenderer('CREATE_ACCOUNT_INFO',   renderSignup);
 registerRenderer('EXPLORE',               renderExplore);   // 公開ページ「みんなの記録」（/explore）
+registerRenderer('HANDOVER_PICK',         renderHandoverPick);   // 前の代のタスクから追加する（指示書D）
+registerRenderer('LINEAGE',               renderLineage);        // 系譜（前の代を見る。指示書D）
 registerRenderer('LOGIN',                 renderLogin);
 registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);
@@ -1292,6 +1297,23 @@ window._app = {
   focusArchiveInline: (kind) => focusArchiveInline(kind),
   // 公開の確認ページ（アーカイブ右上の「公開する」・メニュー。modals/publishConfirmModal.js）
   openPublishConfirm: (opts) => openPublishConfirm(opts),
+  // ── 引き継ぎ（指示書D）──
+  // 前の代のタスクから追加する（タスク作成のシート・メインボードのカード・アーカイブのメニュー）。シートが開いていれば閉じてから
+  openHandoverPick: (from) => {
+    if (document.getElementById('mission-overlay')) closeMissionModal();
+    openHandoverPick(from);
+  },
+  closeHandoverPick: () => closeHandoverPick(),
+  openLineage: () => openLineage(),
+  closeLineage: () => closeLineage(),
+  openParentRegister: () => openParentRegister(),
+  checkPillarCompare: () => checkPillarCompare(),
+  // メインボードの「前の代のタスクから追加する」のカードを閉じる（このイベントでは出さない）
+  dismissHandoverCard: (e) => {
+    e?.stopPropagation?.();
+    try { localStorage.setItem(`evecre:handoverCard:dismissed:v1:${state.currentUser?.id}:${state.selectedEventId}`, '1'); } catch (_) {}
+    state.render();
+  },
   // アーカイブ右上のメニュー（⋯。2026-11-07。指示書B §4-6）。
   // ★入れないもの：タスクの並び順（目次にある）・複製・イベントの削除（イベント設定にある。ここから消せると事故る）・PDF
   openArchiveMenu: async (e) => {
@@ -1316,6 +1338,9 @@ window._app = {
       ${canMgr ? `<button id="am-view" class="c-context-menu__item">${state.archivePreview ? '編集' : 'プレビュー'}</button>` : ''}
       <button id="am-link" class="c-context-menu__item${published ? '' : ' is-disabled'}"${published ? '' : ' aria-disabled="true"'}>
         リンクをコピー${published ? '' : '<span class="c-context-menu__note">公開するとコピーできます</span>'}</button>
+      ${p.parentEventId ? '<button id="am-lineage" class="c-context-menu__item">前の代を見る</button>'
+        : canMgr ? '<button id="am-register" class="c-context-menu__item">前の代を登録する</button>' : ''}
+      ${canMgr ? `<button id="am-handover" class="c-context-menu__item">前の代のタスクから追加</button>` : ''}
       ${canMgr && published ? `<button id="am-public-view" class="c-context-menu__item">公開されている内容を見る</button>
       <button id="am-unpublish" class="c-context-menu__item c-context-menu__item--danger">公開を停止する</button>` : ''}`;
     if (!menu.children.length) return;
@@ -1334,6 +1359,9 @@ window._app = {
         .catch(() => _showToast('コピーに失敗しました: ' + url));
     });
     on('am-public-view', () => { menu.remove(); openPublishConfirm({ mode: 'view' }); });
+    on('am-lineage', () => { menu.remove(); openLineage(); });
+    on('am-register', () => { menu.remove(); openParentRegister(); });
+    on('am-handover', () => { menu.remove(); openHandoverPick('archive_menu'); });
     on('am-unpublish', async () => {
       menu.remove();
       const ok = await showConfirmDialog({
@@ -1981,6 +2009,13 @@ const _LOG_LABELS = {
   explore_login_tapped:    'みんなの記録から「ログインしてコメントする」',
   explore_signup_tapped:   'みんなの記録から「イベクリをはじめる」',
   public_comment_notify_toggled: '公開ページへのコメントの通知を切り替えた',
+  // 引き継ぎ（指示書D）
+  handover_pick_opened:     '前の代から追加する画面を開いた',
+  handover_imported_client: '前の代のタスクを追加した',
+  handover_imported:        '前の代のタスクを取り込んだ',
+  lineage_opened:           '前の代（系譜）を開いた',
+  parent_event_registered:  '前の代のイベントを登録した',
+  pillar_compare_shown:     '前回と今回の柱を並べて見た',
   archive_unpublished:       '公開を停止した',
   board_panel_switched:      'メインボードの右列を切り替えた（広い画面）',
   gantt_zoomed:              'ガントをピンチで拡大・縮小した（広い画面）',

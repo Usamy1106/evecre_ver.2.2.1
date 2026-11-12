@@ -106,6 +106,7 @@
 | 公開の確認ページ（枠・説明・3つのチェック） | `object/project/_publish-confirm.css` |
 | 公開されるイベントの見た目（確認ページと公開ページ /explore で共通） | `object/project/_public-archive.css` |
 | 公開ページ「みんなの記録」（/explore の一覧・告知モーダル・ナレッジページ・コメント） | `object/project/_explore.css` |
+| 引き継ぎ（前の代から追加・タスク詳細の前回の記録・系譜・前回と今回の柱） | `object/project/_handover.css` |
 | ミッションの作成・編集モーダル | `object/project/_mission-form.css` |
 | タスク作成の確認モーダル（未設定の項目を知らせる） | `object/project/_mission-check.css` |
 | 担当者の選択・おすすめ | `object/project/_assignee.css` |
@@ -348,6 +349,7 @@ public/css/
 │  ├─ _publish-confirm.css      ✅ 公開の確認ページ
 │  ├─ _public-archive.css       ✅ 公開されるイベントの見た目（確認ページ・公開ページ共通）
 │  ├─ _explore.css              ✅ 公開ページ「みんなの記録」（/explore）
+│  ├─ _handover.css             ✅ 引き継ぎ（前の代から追加・前回の記録・系譜・柱の比較）
 │  ├─ _mission-form.css         ✅ ミッションの作成・編集モーダル
 │  ├─ _mission-check.css        ✅ p-mission-check
 │  ├─ _assignee.css             ✅ 担当者の選択・おすすめ

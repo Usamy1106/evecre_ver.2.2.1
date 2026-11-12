@@ -433,3 +433,13 @@
   flex: 2;
   margin-top: 0;
 }
+
+/* 前の代のタスクから追加する（新規作成のときだけ。引き継ぎ。2026-11-12。指示書D §4-1）。★押すとシートを閉じて取り込みの画面へ */
+.p-mission-form__handover {
+  display: block;
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-primary);
+  text-decoration: underline;
+}

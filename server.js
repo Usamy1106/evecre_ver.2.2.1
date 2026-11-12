@@ -2814,6 +2814,9 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
   // タスクの柱。pillarIds＝id の配列（重複なし・最大3つ）。旧 pillarId＝単一の文字列か null（読むだけだが形は守る）
   if (Array.isArray(flat.missions)) {
     for (const m of flat.missions) {
+      // ★前の代の記録（inherited）を書けるのは引き継ぎの取り込み（POST handover-import）だけ。
+      //   ふだんの保存で送られてきた値は捨てる＝ LWW で前の値が残る（クライアントに記録を差し替えさせない）
+      if (m && m.inherited !== undefined) delete m.inherited;
       if (!m) continue;
       if (m.pillarIds !== undefined) {
         if (!Array.isArray(m.pillarIds)) delete m.pillarIds;
@@ -5165,6 +5168,179 @@ app.get('/api/public/reflections', async (_req, res) => {
   }
 });
 
+// ===== 引き継ぎ（前の代のタスクと記録を受け取る。2026-11-12。指示書D ＋ 返信 docs/app-04_handover_reply_2026-11-12.md）=====
+// ★原則1：目的・柱・キャッチコピー・意気込み・開催日・期日は継承しない（取り込むのはタスク名・タグ・前の代の記録だけ）
+// ★原則2：タスクは自動で入れない（選んだものだけ。POST handover-import）
+// ★原則3：取り込める内容は buildPublicEvent を通したものだけ（shareable かつ solution のある記録）。生の submissions を使わない
+// ★鍵は taskKey（publicData.taskKeyOf。HMAC(eventId:missionId)）。個別完了の提出物は1つのタスクにまとめる（records）
+
+const HANDOVER_PICK_MAX     = 30;   // 1回の取り込みの上限
+const HANDOVER_RECORDS_MAX  = 10;   // 1タスクに持たせる前の代の記録の上限（個別完了で膨らませない）
+const LINEAGE_MAX           = 10;   // 系譜をさかのぼる代の上限
+
+/**
+ * 引き継ぎ元として読む。メンバーなら非公開でも（開催日も問わず）、メンバーでなければ公開されているときだけ。
+ * @returns {{ raw, flat, pub, member } | null}
+ */
+async function _loadHandoverSource(sourceId, userId) {
+  if (typeof sourceId !== 'string' || !SAFE_ITEM_ID_RE.test(sourceId)) return null;
+  const raw = await eventStore.loadEvent(sourceId);
+  if (!raw) return null;
+  const member = eventStore.isMember(raw, userId);
+  if (!member && !(raw.fields?.publicBasicInfo?.v === true)) return null;
+  const flat = crdt.crdtToFlat(raw);
+  const subs = await submissionStore.getSubmissionsForProject(flat.id);
+  // ★メンバーは団体の中の受け渡し：公開フラグと開催日を問わない（返信 §3）。メンバーでなければ公開側と同じ条件
+  const pub = member
+    ? publicData.buildPublicEvent(flat, subs, undefined, { preview: true, ignoreDates: true })
+    : publicData.buildPublicEvent(flat, subs);
+  return { raw, flat, pub, member };
+}
+
+/** knowledge[]（提出物単位）を taskKey でタスク単位にまとめる。並びは knowledge の順（＝元のタスクの順） */
+function _groupHandoverTasks(knowledge) {
+  const map = new Map();
+  for (const k of knowledge || []) {
+    let g = map.get(k.taskKey);
+    if (!g) { g = { taskKey: k.taskKey, title: k.title, tags: k.tags, records: [] }; map.set(k.taskKey, g); }
+    if (g.records.length < HANDOVER_RECORDS_MAX) {
+      g.records.push({ outcome: k.outcome, struggle: k.struggle, solution: k.solution, text: k.text, blocks: k.blocks, images: k.images, files: k.files });
+    }
+  }
+  return [...map.values()];
+}
+
+/**
+ * 引き継ぎ元の中身（選択画面用）。:id は**引き継ぎ元**のイベント。
+ * ★メンバーであることを要求する（非公開のイベントから引き継ぐ経路）。メンバーでなければ 404（存在を漏らさない）。
+ *   公開されているイベントは、メンバーでなくても /api/explore/events/:id で読める（そちらは公開側の条件）
+ */
+app.get('/api/events/:id/handover-source', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const src = await _loadHandoverSource(req.params.id, req.user.id);
+    if (!src || !src.member) return res.status(404).json({ ok: false, error: 'not_found' });
+    const { flat, pub } = src;
+    res.json({
+      ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat),
+      basic: pub.basic, purpose: pub.purpose, pillars: pub.pillars, knowledge: pub.knowledge,
+    });
+  } catch (e) {
+    console.error('GET handover-source error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/**
+ * 前の代のタスクを取り込む。:id は**取り込み先**（canManage 必須）。body { sourceEventId, pick: [taskKey, …] }
+ * ★取り込む中身はクライアントから受け取らない。サーバーが元イベントを読み直し、buildPublicEvent の結果から組み立てる
+ */
+app.post('/api/events/:id/handover-import', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const target = await eventStore.loadEvent(req.params.id);
+    if (!target || !eventStore.isMember(target, req.user.id)) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (!eventStore.canManage(target, req.user.id)) return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    const sourceId = req.body?.sourceEventId;
+    if (typeof sourceId !== 'string' || !SAFE_ITEM_ID_RE.test(sourceId) || sourceId === target.id) {
+      return res.status(400).json({ ok: false, error: 'invalid_source' });
+    }
+    const pick = Array.isArray(req.body?.pick) ? [...new Set(req.body.pick.filter(k => typeof k === 'string' && /^[0-9a-f]{24}$/.test(k)))] : [];
+    if (pick.length === 0) return res.status(400).json({ ok: false, error: 'empty_pick' });
+    if (pick.length > HANDOVER_PICK_MAX) return res.status(400).json({ ok: false, error: 'too_many', max: HANDOVER_PICK_MAX, count: pick.length });
+
+    const src = await _loadHandoverSource(sourceId, req.user.id);
+    if (!src || !Array.isArray(src.pub.knowledge)) return res.status(404).json({ ok: false, error: 'not_found' });
+
+    // すでに取り込んだタスク（inherited.sourceKey）は二度と取り込まない
+    const imported = new Set(Object.values(target.missions || {})
+      .filter(m => !m.deletedAt && m.fields?.inherited?.v?.sourceKey)
+      .map(m => m.fields.inherited.v.sourceKey));
+    const groups = new Map(_groupHandoverTasks(src.pub.knowledge).map(g => [g.taskKey, g]));
+    // clearFormat は元のタスクから（taskKey → missionId はサーバーだけが逆引きできる）
+    const keyToMission = new Map((src.flat.missions || []).map(m => [publicData.taskKeyOf(src.flat.id, m.id), m]));
+
+    const now = Date.now();
+    const missions = [];
+    let skipped = 0, missing = 0;
+    for (const key of pick) {
+      const g = groups.get(key);
+      if (!g) { missing++; continue; }
+      if (imported.has(key)) { skipped++; continue; }
+      const orig = keyToMission.get(key);
+      const id = `ho_${crypto.randomBytes(6).toString('hex')}`;
+      missions.push({
+        id, title: g.title.slice(0, 200), tags: g.tags, tag: g.tags[0] || '',
+        status: 'yet', dates: [], daysLeft: null, priority: 0,          // ★期日は移植しない（年が違う）
+        assignee: null, assignees: [], pillarIds: [],                     // ★柱は継承しない（原則1）
+        clearFormat: ['text', 'image', 'link'].includes(orig?.clearFormat) ? orig.clearFormat : 'text',
+        checklist: [], description: '', isDeletable: true,
+        createdBy: req.user.id, createdAt: now,
+        // ★1代分だけ持つ（元の inherited は引き継がない）。表示用に元の名前と日程も保存する（元が非公開になっても出せる）
+        inherited: {
+          sourceEventId: String(src.flat.id),
+          sourceEventTitle: String(src.flat.name || '').slice(0, 200),
+          sourceEventDates: (src.flat.dates || []).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort(),
+          sourceKey: key,
+          records: g.records,
+        },
+      });
+      imported.add(key);
+    }
+    if (!missions.length) return res.json({ ok: true, added: [], skipped, missing });
+
+    const patch = { id: target.id, missions };
+    const parent = target.fields?.parentEventId?.v;
+    if (!parent) patch.parentEventId = String(src.flat.id);   // まだ前の代が無ければ、ここで記録する
+    const updated = await eventStore.applyPatch(target.id, patch);
+    if (!updated) return res.status(404).json({ ok: false, error: 'not_found' });
+    const flat = crdt.crdtToFlat(updated);
+    await _mergeSubmissions(target.id, flat);
+    eventBus.broadcast(target.id, 'eventUpdated', { eventId: target.id, rev: updated.rev, event: flat }, req.get('X-Client-Id') || null);
+    logServerEvent(target.id, req.user.id, 'handover_imported', { sourceEventId: String(src.flat.id), count: missions.length, skipped });
+    res.json({ ok: true, added: missions.map(m => m.id), skipped, missing });
+  } catch (e) {
+    console.error('POST handover-import error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/**
+ * 系譜：parentEventId の鎖を上へ最大10代。:id のメンバーであること。
+ * ★輪（A → B → A）は見た id を覚えて止める。★閲覧権限のない代（メンバーでも公開でもない）は名前と日程を返さない
+ */
+app.get('/api/events/:id/lineage', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const self = await eventStore.loadEvent(req.params.id);
+    if (!self || !eventStore.isMember(self, req.user.id)) return res.status(404).json({ ok: false, error: 'not_found' });
+    const seen = new Set([self.id]);
+    const ancestors = [];
+    let cur = self;
+    while (ancestors.length < LINEAGE_MAX) {
+      const pid = cur.fields?.parentEventId?.v;
+      if (typeof pid !== 'string' || !SAFE_ITEM_ID_RE.test(pid) || seen.has(pid)) break;
+      seen.add(pid);
+      const p = await eventStore.loadEvent(pid);
+      if (!p) { ancestors.push({ id: null, title: null, dates: [], isPublic: false, canView: false, missing: true }); break; }
+      const member = eventStore.isMember(p, req.user.id);
+      const isPublic = p.fields?.publicBasicInfo?.v === true;
+      const canView = member || isPublic;
+      ancestors.push(canView
+        ? { id: p.id, title: String(p.fields?.name?.v || ''), dates: (p.fields?.dates?.v || []).slice().sort(), isPublic, canView, member }
+        : { id: null, title: null, dates: [], isPublic: false, canView: false, member: false });
+      if (!canView) break;   // ★見られない代より上は辿らない（その先の名前も漏らさない）
+      cur = p;
+    }
+    const descendantCount = await eventStore.countChildren(self.id);
+    res.json({ ok: true, ancestors, descendantCount });
+  } catch (e) {
+    console.error('GET lineage error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 // ===== 公開ページ（/explore）の API（2026-11-12。指示書05）=====
 // 一覧・告知・ナレッジを本体で見せ、いいね・コメントを付ける。★/api/public/* とは分ける
 //   （あちらは外部サイト用で CORS と public キャッシュ。こちらは同じドメイン専用・ログイン状態で中身が変わる）
@@ -5474,6 +5650,8 @@ const PORT = process.env.PORT || 3000;
 
 async function start() {
   await connectDb();
+  // ★引き継ぎの鍵（taskKey）の秘密鍵。COOKIE_SECRET から専用に作る（入れ替えると全部の鍵が変わる）
+  publicData.setTaskKeySecret(crypto.createHmac('sha256', COOKIE_SECRET).update('evecre:taskKey:v1').digest('hex'));
 
   // ★運営の読み取り専用オブザーバー（ゴースト）のメール → userId を解決する（DB 接続後）
   await _resolveObserverIds().catch(e => console.warn('[observer] 解決に失敗:', e?.message));

@@ -37,6 +37,8 @@ const BACK = {
   PROJECT_DETAIL:  () => _state.setView('HOME'),
   ACCOUNT:         () => _state.setView('HOME'),
   LEGAL:           () => _state.closeLegal(),
+  HANDOVER_PICK:   () => _app.closeHandoverPick(),
+  LINEAGE:         () => _app.closeLineage(),
   // イベント作成フロー：各ステップの「戻る」ボタンと同じ行き先
   CREATE_EVENT_INFO:        () => _state.setView('HOME'),
   CREATE_EVENT_TYPE:        () => _state.setView('CREATE_EVENT_INFO'),

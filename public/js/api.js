@@ -249,6 +249,21 @@ export const api = {
   // 提出内容（本文・画像・PDF）を書き換える（管理者のみ。アーカイブの編集モード）。
   // ★画像・PDF は先に uploadSubmissionImage / uploadSubmissionFile で送り、URL だけを渡す。
   //   個別完了は targetUserId でその人の提出物を指す。
+  // ── 引き継ぎ（前の代のタスクと記録。2026-11-12。指示書D）──
+  // 引き継ぎ元の中身（引き継ぎ元のメンバーだけ。非公開でもよい）
+  async handoverSource(sourceId) {
+    const { status, json } = await _send('GET', `/api/events/${encodeURIComponent(sourceId)}/handover-source`);
+    return { ...(json || { ok: false }), httpStatus: status };
+  },
+  // 取り込む（取り込み先の管理者だけ）。pick は taskKey の配列
+  async handoverImport(targetId, sourceEventId, pick) {
+    const { json } = await _send('POST', `/api/events/${encodeURIComponent(targetId)}/handover-import`, { sourceEventId, pick });
+    return json || { ok: false };
+  },
+  async lineage(eventId) {
+    const { json } = await _send('GET', `/api/events/${encodeURIComponent(eventId)}/lineage`);
+    return json || { ok: false };
+  },
   // ── 公開ページ（/explore）。ログインしていなくても呼べる（2026-11-12。指示書05）──
   async exploreList() {
     const { json } = await _send('GET', '/api/explore/events');

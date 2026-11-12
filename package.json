@@ -18,7 +18,8 @@
     "check:public": "node scripts/checkPublicApi.mjs",
     "js:version": "node scripts/genJsVersion.mjs",
     "css:build": "node scripts/buildCss.mjs",
-    "check:explore": "node scripts/checkExplore.mjs"
+    "check:explore": "node scripts/checkExplore.mjs",
+    "check:handover": "node scripts/checkHandover.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1054.0",

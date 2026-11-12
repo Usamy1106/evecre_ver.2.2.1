@@ -1285,3 +1285,9 @@
 .p-archive__summary--rich > * + * {
   margin-top: var(--space-2);
 }
+
+/* このアーカイブから生まれたイベントの数（系譜。2026-11-12。指示書D §4-6）。★1件以上のときだけ出す */
+.p-archive__born {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

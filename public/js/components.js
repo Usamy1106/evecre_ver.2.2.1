@@ -632,7 +632,9 @@ export function initImageFallback() {
     const box = document.createElement('div');
     box.className = 'c-broken-image';
     box.innerHTML =
-      `<span class="c-broken-image__text">画像を読み込めませんでした</span>` +
+      // ★引き継いだ「前回の記録」の画像は、前の代のイベントで削除されると読めなくなる（コピーしない。指示書D の返信 §2）。
+      //   技術的な失敗に見せないよう、原因が分かる文にする
+      `<span class="c-broken-image__text">${img.dataset.fallback === 'inherited' ? 'この画像は、前の代のイベントで削除されました' : '画像を読み込めませんでした'}</span>` +
       `<button type="button" class="c-broken-image__retry">再読み込み</button>`;
 
     box.querySelector('.c-broken-image__retry').addEventListener('click', (ev) => {

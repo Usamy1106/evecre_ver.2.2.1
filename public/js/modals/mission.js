@@ -380,6 +380,9 @@ function _renderBasicTab(isEdit, dateDisplay) {
   return `
     <div class="p-mission-form__inner">
       ${_missionTabs('BASIC')}
+      ${!isEdit && (project?.parentEventId || state.events.length > 1) ? `
+      <button type="button" class="p-mission-form__handover" onclick="window._app.openHandoverPick('mission_modal')"
+        data-log="handover_from_mission_modal">前の代のタスクから追加する</button>` : ''}
       <div class="p-mission-form__fields">
         <div>
           <label class="heading-rs p-mission-form__label">タスク名</label>

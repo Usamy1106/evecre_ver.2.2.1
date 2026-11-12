@@ -14,7 +14,7 @@
      public/js/archiveInlineEdit.js … _bindTapToExit
      public/js/components.js … BoardRail / refreshNotifBadge
      public/js/modals/mission.js … showProposalHelp
-     public/js/views/mainBoard.js … _characterBoxHtml / _initMissionPanelGesture / _missionDeadlineText
+     public/js/views/mainBoard.js … _characterBoxHtml / _initMissionPanelGesture / _missionDeadlineText / _handoverCardHtml
                                     _renderAnnounceCards / _renderClaimAnnouncementBanner / _renderDashboardMain
                                     _renderMainTab / _renderPendingMembersBanner / _resolveUserChips
                                     _withMonthHeadings / renderMainBoard
@@ -966,4 +966,19 @@
   margin-inline: 0;
   padding: var(--space-1) var(--space-3);
   gap: var(--space-2);
+}
+
+/* 前の代のタスクから追加する（初期クエストが終わったあと。引き継ぎ。2026-11-12。指示書D §4-1）。右上に閉じる × */
+.p-main-board__handover-card {
+  position: relative;
+}
+
+.p-main-board__handover-dismiss {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  color: var(--color-text-muted);
 }

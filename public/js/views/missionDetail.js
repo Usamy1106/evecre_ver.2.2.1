@@ -25,6 +25,7 @@ import { placeholderFor, submissionSegments, richTextHtml } from '../utils.js';
 import { editorFormatButtonsHtml } from '../clearEditor.js';
 import { showConfirmDialog } from '../dialog.js';
 import { logEvent } from '../logger.js';
+import { inheritedRecordsHtml } from './handoverPick.js';
 
 function _esc(s) {
   return String(s ?? '')
@@ -221,7 +222,8 @@ function _renderMissionInfo(p, m) {
     <h1 class="p-mission-detail__title">${_esc(m.title)}</h1>
     ${(tagsHtml || deadline) ? `
       <div class="p-mission-detail__meta">${tagsHtml}${deadline}</div>` : ''}
-    ${desc ? `<p class="p-mission-detail__description">${_esc(desc)}</p>` : '<div class="p-mission-detail__spacer"></div>'}`;
+    ${desc ? `<p class="p-mission-detail__description">${_esc(desc)}</p>` : '<div class="p-mission-detail__spacer"></div>'}
+    ${inheritedRecordsHtml(m)}`;
 }
 
 // ===============================================
