@@ -81,6 +81,7 @@ import { checkWelcomeTour, isWelcomeTourPending, markWelcomeTourPending } from '
 import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
+import { initBrowserBack } from './browserBack.js';
 import { watchLayoutMode } from './layoutMode.js';
 import {
   registerServiceWorker, initPushNavigation,
@@ -1531,6 +1532,7 @@ watchLayoutMode(() => {
   state.render();
 });
 initImageFallback();  // data-fallback を付けた画像の読み込み失敗を代替表示に差し替える
+initBrowserBack(state, window._app); // ブラウザ・端末の「戻る」をアプリの中の「戻る」につなぐ（browserBack.js）
 
 // ===== ⌘Enter / Ctrl+Enter で入力を完了する（2026-11-05）=====
 // ★入力欄（input / textarea / 編集欄）で押すと、いちばん近い「完了」のボタンを押す。
