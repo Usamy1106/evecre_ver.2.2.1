@@ -11,8 +11,8 @@
 import { state } from '../state.js';
 import { api } from '../api.js';
 import { logEvent } from '../logger.js';
-import { OUTCOME_CHOICES, REFLECT_LABELS } from '../constants.js';
-import { formatEventPeriodLines } from '../utils.js';
+// ★外に出る姿の描き方は公開ページ（/explore）と共通（views/publicArchive.js）。ここに書き写さないこと
+import { publicArchiveHtml } from '../views/publicArchive.js';
 
 const OVERLAY_ID = 'publish-confirm-overlay';
 
@@ -24,55 +24,6 @@ const CHECKS = [
 
 function _esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-// https の URL だけ（サーバーも https だけを出しているが、描く側でも確かめる）
-const _url = (u) => (typeof u === 'string' && /^https:\/\//.test(u) ? u : '');
-
-function _basicHtml(b) {
-  if (!b) return '';
-  const img = _url(b.headerImage);
-  const period = Array.isArray(b.dates) && b.dates.length ? formatEventPeriodLines(b.dates, b.dateTimes).map(_esc).join('<br>') : '';
-  return `
-    <section class="p-publish-confirm__basic">
-      ${img ? `<img src="${_esc(img)}" class="p-publish-confirm__visual" alt="" data-fallback="archive-visual">` : ''}
-      <h3 class="p-publish-confirm__title">${_esc(b.title)}</h3>
-      ${period ? `<p class="p-publish-confirm__fact"><span class="p-publish-confirm__fact-label">期間</span>${period}</p>` : ''}
-      ${b.venue ? `<p class="p-publish-confirm__fact"><span class="p-publish-confirm__fact-label">場所</span>${_esc(b.venue)}</p>` : ''}
-      ${b.summary ? `<p class="p-publish-confirm__text">${_esc(b.summary)}</p>` : ''}
-    </section>`;
-}
-
-// 目的と柱（タスクの記録と一緒に公開。2026-11-09）。★サーバーは記録が1件以上あるときだけ purpose / pillars を返す
-function _purposeHtml(text, pillars) {
-  const names = Array.isArray(pillars) ? pillars : [];
-  if (!text && names.length === 0) return '';
-  return `
-      <article class="p-publish-confirm__entry">
-        ${text ? `<h4 class="p-publish-confirm__entry-title">目的</h4>
-        <p class="p-publish-confirm__text">${_esc(text)}</p>` : ''}
-        ${names.length ? `<h4 class="p-publish-confirm__entry-title">柱</h4>
-        <p class="p-publish-confirm__text">${names.map(_esc).join('・')}</p>` : ''}
-      </article>`;
-}
-
-function _knowledgeHtml(list) {
-  if (!Array.isArray(list) || list.length === 0) return '';
-  return list.map(k => {
-    const labels = REFLECT_LABELS[k.outcome] || REFLECT_LABELS.struggle;
-    const outcome = OUTCOME_CHOICES[k.outcome]?.label;
-    const imgs = (k.images || []).map(_url).filter(Boolean);
-    return `
-      <article class="p-publish-confirm__entry">
-        <h4 class="p-publish-confirm__entry-title">${_esc(k.title)}</h4>
-        <p class="p-publish-confirm__entry-meta">${[outcome, ...(k.tags || [])].filter(Boolean).map(_esc).join('・')}</p>
-        ${k.text ? `<p class="p-publish-confirm__text">${_esc(k.text)}</p>` : ''}
-        ${imgs.map(u => `<img src="${_esc(u)}" class="p-publish-confirm__image" alt="" loading="lazy" data-fallback="submission">`).join('')}
-        ${(k.files || []).map(f => `<p class="p-publish-confirm__file">PDF：${_esc(f.name)}</p>`).join('')}
-        ${k.struggle ? `<p class="p-publish-confirm__reflect-label">${_esc(labels.struggle)}</p><p class="p-publish-confirm__text">${_esc(k.struggle)}</p>` : ''}
-        ${k.solution ? `<p class="p-publish-confirm__reflect-label">${_esc(labels.solution)}</p><p class="p-publish-confirm__text">${_esc(k.solution)}</p>` : ''}
-      </article>`;
-  }).join('');
 }
 
 function _close(overlay, reason) {
@@ -131,9 +82,7 @@ export async function openPublishConfirm({ mode = 'publish' } = {}) {
       </div>` : ''}
     <p class="p-publish-confirm__scope">${_esc(scope)}<br>公開できる記録：${Number(r.publishable) || 0}件</p>
     <div class="p-publish-confirm__preview">
-      ${_basicHtml(r.basic)}
-      ${_purposeHtml(r.purpose, r.pillars)}
-      ${_knowledgeHtml(kn)}
+      ${publicArchiveHtml(r)}
     </div>`;
 
   if (mode !== 'publish') return;

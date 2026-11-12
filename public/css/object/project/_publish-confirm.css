@@ -6,8 +6,10 @@
      （非公開の部分がここには無い、ということが伝わればよい）。
    ★3つのチェックと「公開する」は画面の下に固定（本文がどれだけ長くても押せる場所に残す）。
 
-   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-07 時点）
-     public/js/modals/publishConfirmModal.js … openPublishConfirm / _basicHtml / _knowledgeHtml
+   ★プレビューの中身（外に出る姿）の見た目は _public-archive.css（公開ページと共通。2026-11-12）。ここに足さないこと
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
+     public/js/modals/publishConfirmModal.js … openPublishConfirm
    ========================================================================== */
 
 .p-publish-confirm {
@@ -100,84 +102,6 @@
   padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-}
-
-.p-publish-confirm__preview > * + * {
-  margin-top: var(--space-6);
-}
-
-.p-publish-confirm__visual {
-  width: 100%;
-  aspect-ratio: 3 / 2;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-}
-
-.p-publish-confirm__title {
-  margin-top: var(--space-3);
-  font-size: 20px;
-  font-weight: var(--font-weight-heavy);
-  line-height: 1.4;
-  color: var(--color-text);
-}
-
-.p-publish-confirm__fact {
-  margin-top: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-}
-
-.p-publish-confirm__fact-label {
-  display: inline-block;
-  min-width: 3em;
-  margin-right: var(--space-2);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-}
-
-.p-publish-confirm__text {
-  margin-top: var(--space-2);
-  font-size: var(--font-size-md);
-  line-height: 1.7;
-  color: var(--color-text);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.p-publish-confirm__entry + .p-publish-confirm__entry {
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--color-border);
-}
-
-.p-publish-confirm__entry-title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-.p-publish-confirm__entry-meta {
-  margin-top: var(--space-1);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-}
-
-.p-publish-confirm__image {
-  width: 100%;
-  margin-top: var(--space-2);
-  border-radius: var(--radius-sm);
-}
-
-.p-publish-confirm__file {
-  margin-top: var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-}
-
-.p-publish-confirm__reflect-label {
-  margin-top: var(--space-3);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
 }
 
 /* 画面の下に固定するチェックと「公開する」 */
