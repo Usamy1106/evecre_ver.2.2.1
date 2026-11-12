@@ -23,6 +23,10 @@ const GUARD_KEY = 'evecreBackGuard';
 let _state = null;
 let _app = null;
 let _ignorePops = 0;   // 自分で history.back() したぶんの popstate を読み飛ばす
+// ★history.back() は非同期。戻り終わる（popstate が来る）までは history.state がまだ見張りのまま見えるので、
+//   その間に syncBackGuard がもう一度呼ばれると history.back() を2回呼び、**アプリの外へ出ていた**
+//   （イベント削除：確認モーダルが消える＋描き直し＋トーストで、ほぼ同時に何度も呼ばれる。2026-11-12）
+let _backPending = false;
 
 // 画面ごとの「戻る」。★画面の中の戻るボタンと同じ関数を呼ぶこと
 const BACK = {
@@ -98,6 +102,7 @@ function _goBack() {
  */
 export function syncBackGuard() {
   if (!_state) return;
+  if (_backPending) return;   // 戻り終わったら popstate の側で合わせ直す
   const need = _needsGuard();
   const on = _onGuard();
   if (need && !on) {
@@ -105,6 +110,7 @@ export function syncBackGuard() {
   } else if (!need && on) {
     // ホームに戻った（画面の中のボタンで）。見張りを外して、次の戻るでアプリの外へ出られるようにする
     _ignorePops++;
+    _backPending = true;
     history.back();
   }
 }
@@ -122,7 +128,13 @@ export function initBrowserBack(state, app) {
     try { history.replaceState(null, '', location.href); } catch (_) {}
   }
   window.addEventListener('popstate', () => {
-    if (_ignorePops > 0) { _ignorePops--; return; }
+    if (_ignorePops > 0) {
+      _ignorePops--;
+      _backPending = false;
+      // 戻っている間に画面が変わった（モーダルが開いた・ホームから出た）なら、ここで見張りを積み直す
+      syncBackGuard();
+      return;
+    }
     if (_onGuard()) return;               // 進む（forward）で見張りに戻ってきた
     if (!_needsGuard()) return;           // ホーム：そのまま外へ（見張りは無い）
     _goBack();
