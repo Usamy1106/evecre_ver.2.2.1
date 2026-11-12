@@ -247,6 +247,43 @@ async function run() {
   ok((await call('DELETE', `/api/explore/events/${EV.know}/comments/${own.json.comment.id}`, { cookie: C.outsider })).status === 200, '本人なら消せる');
   ok((await call('DELETE', `/api/explore/events/${EV.basic}/comments/${own.json.comment.id}`, { cookie: C.owner })).status === 404, '別のイベントの id では消せない（404）');
 
+  console.log('\n[コメントの通知]');
+  const notifs = () => getDb().collection('notifications');
+  const nCount = (role, extra = {}) => notifs().countDocuments({ userId: uid(role), eventId: EV.know, type: 'public_comment', ...extra });
+  const settle = () => new Promise(r => setTimeout(r, 400));   // 通知は応答のあとに書く
+  await notifs().deleteMany({ eventId: EV.know });
+  await call('POST', `/api/explore/events/${EV.know}/comments`, { cookie: C.outsider, body: { body: '通知の確認1' } });
+  await settle();
+  ok(await nCount('owner') === 1 && await nCount('member') === 1, '既定（未設定）ではメンバー全員に通知が届く');
+  ok(await nCount('outsider') === 0, 'メンバーでない書き手には届かない');
+  const nDoc = await notifs().findOne({ userId: uid('member'), eventId: EV.know, type: 'public_comment' });
+  ok(/^検証outsiderさん さんが公開ページにコメントしました$/.test(nDoc?.message || ''), '文面は「〇〇 さんが公開ページにコメントしました」', nDoc?.message);
+  await call('POST', `/api/explore/events/${EV.know}/comments`, { cookie: C.outsider, body: { body: '通知の確認2' } });
+  await settle();
+  ok(await nCount('member') === 1, '続けて書かれても未読の通知は1件のまま（上書き）');
+  await notifs().deleteMany({ eventId: EV.know });
+  const byMem = await call('POST', `/api/explore/events/${EV.know}/comments`, { cookie: C.member, body: { body: 'メンバーが書く' } });
+  await settle();
+  ok(await nCount('member') === 0 && await nCount('owner') === 1, '書いた本人（メンバー）には届かず、ほかのメンバーには届く');
+  // ★後ろの「応答にメンバー名が含まれない」の検査のため、メンバーのコメントは消しておく
+  await call('DELETE', `/api/explore/events/${EV.know}/comments/${byMem.json?.comment?.id}`, { cookie: C.member });
+  // イベント設定のスイッチ（PATCH /api/data）でオフにする
+  const mine2 = (await call('GET', '/api/data', { cookie: C.owner })).json?.events?.find(e => e.id === EV.know);
+  ok(!!mine2 && mine2.publicCommentNotify === undefined, '（前提）publicCommentNotify は未設定');
+  const bad = await call('PATCH', '/api/data', { cookie: C.owner, body: { events: [{ ...mine2, publicCommentNotify: 'no' }] } });
+  ok(bad.status === 200 && (await call('GET', '/api/data', { cookie: C.owner })).json.events.find(e => e.id === EV.know).publicCommentNotify === undefined,
+    'boolean 以外は捨てる');
+  const off = await call('PATCH', '/api/data', { cookie: C.owner, body: { events: [{ ...mine2, publicCommentNotify: false }] } });
+  ok(off.status === 200 && (await call('GET', '/api/data', { cookie: C.owner })).json.events.find(e => e.id === EV.know).publicCommentNotify === false,
+    '管理者がオフにできる');
+  const byMember = await call('PATCH', '/api/data', { cookie: C.member, body: { events: [{ ...mine2, publicCommentNotify: true }] } });
+  ok((await call('GET', '/api/data', { cookie: C.owner })).json.events.find(e => e.id === EV.know).publicCommentNotify === false,
+    '一般メンバーは切り替えられない', `status=${byMember.status}`);
+  await notifs().deleteMany({ eventId: EV.know });
+  await call('POST', `/api/explore/events/${EV.know}/comments`, { cookie: C.outsider, body: { body: '通知の確認3' } });
+  await settle();
+  ok(await nCount('owner') === 0 && await nCount('member') === 0, 'オフのイベントでは通知が作られない');
+
   console.log('\n[ページ送り]');
   const bulk = Array.from({ length: 35 }, (_, i) => ({ _id: `pc_bulk${i}`, eventId: EV.know, userId: uid('outsider'), body: `まとめ${i}`, createdAt: new Date(Date.now() - (i + 10) * 60000) }));
   await getDb().collection('public_comments').insertMany(bulk);

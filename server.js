@@ -2782,6 +2782,8 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
   if (flat.venue !== undefined) flat.venue = String(flat.venue ?? '').trim().slice(0, 200);
   // 基礎情報・ナレッジの公開。★boolean 以外は捨てる（"true" などの文字列を公開扱いにしない）
   if (flat.publicBasicInfo !== undefined && typeof flat.publicBasicInfo !== 'boolean') delete flat.publicBasicInfo;
+  // 公開ページへのコメントの通知（undefined＝通知する）。boolean 以外は捨てる
+  if (flat.publicCommentNotify !== undefined && typeof flat.publicCommentNotify !== 'boolean') delete flat.publicCommentNotify;
   if (flat.publicKnowledge !== undefined && typeof flat.publicKnowledge !== 'boolean') delete flat.publicKnowledge;
   // 「タスクも含めて公開するか」を聞いた時刻。★数値以外は捨てる
   if (flat.publicKnowledgePromptedAt !== undefined && !Number.isFinite(flat.publicKnowledgePromptedAt)) delete flat.publicKnowledgePromptedAt;
@@ -5341,8 +5343,22 @@ app.post('/api/explore/events/:id/comments', requireAuth, exploreCommentLimiter,
     if (!ev || ev.pub.knowledge === null) return _exploreNotFound(res);
     const body = exploreStore.normalizeCommentBody(req.body?.body);
     if (!body) return res.status(400).json({ ok: false, error: 'invalid_body', max: exploreStore.COMMENT_MAX_CHARS });
-    const row = await exploreStore.addComment(String(ev.flat.id), req.user.id, body);
+    const eventId = String(ev.flat.id);
+    const row = await exploreStore.addComment(eventId, req.user.id, body);
     res.json({ ok: true, comment: _exploreCommentOut(row, req.user, true) });
+    // ★通知：既定でメンバー全員（書いた本人を除く）。イベント設定でオフ（publicCommentNotify === false）にできる。
+    //   続けて書かれても積み上がらないよう、未読があれば上書きする（upsertEventNotification）。
+    //   ★Push は送らない（チャット chat_message と同じ扱い。アプリを開いたときに通知タブで気づけばよい）。
+    //   通知のタップは /explore/<id> を開く（main.js の openNotification）
+    if (ev.flat.publicCommentNotify !== false) {
+      const ids = [...new Set((ev.raw.members || []).map(m => m.userId))].filter(u => u && u !== req.user.id);
+      const name = req.user.username || 'だれか';
+      notifStore.upsertEventNotification(ids, {
+        type: 'public_comment', eventId,
+        message: `${name} さんが公開ページにコメントしました`,
+        actorId: req.user.id, actorName: name,
+      }).catch(e => console.warn('[explore] コメントの通知に失敗:', e.message));
+    }
   } catch (e) {
     console.error('POST /api/explore/events/:id/comments error:', e);
     res.status(500).json({ ok: false, error: 'server_error' });

@@ -733,6 +733,13 @@ window._app = {
     const n = state.notifications.find(x => x.id === notifId);
     if (n) n.read = true;
 
+    // ★公開ページへのコメントは、そのイベントの公開ページ（/explore/<id>）を開く（2026-11-12。指示書05 §4）。
+    //   公開ページはアプリの外の画面なので、ページを読み込み直して開く
+    if (n?.type === 'public_comment' && n.eventId) {
+      location.assign(`/explore/${encodeURIComponent(n.eventId)}`);
+      return;
+    }
+
     // ★完了の報せはアーカイブへ（2026-09-23）。完了したタスクは「これから
     //   やること」ではなく**記録**なので、詳細ページより記録の並びで見せる。
     //   該当の記録まで自動で送る（mainBoard.js の _focusArchiveMission）。
@@ -1968,6 +1975,7 @@ const _LOG_LABELS = {
   explore_comment_deleted: 'みんなの記録のコメントを消した',
   explore_login_tapped:    'みんなの記録から「ログインしてコメントする」',
   explore_signup_tapped:   'みんなの記録から「イベクリをはじめる」',
+  public_comment_notify_toggled: '公開ページへのコメントの通知を切り替えた',
   archive_unpublished:       '公開を停止した',
   board_panel_switched:      'メインボードの右列を切り替えた（広い画面）',
   gantt_zoomed:              'ガントをピンチで拡大・縮小した（広い画面）',

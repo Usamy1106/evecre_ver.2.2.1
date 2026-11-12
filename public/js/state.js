@@ -702,8 +702,11 @@ export const state = {
           //   次の保存で再送する（途中で失敗しても変更が失われない）。
           for (const id of (r?.savedIds || [])) this._dirtyIds.delete(id);
           syncRealtime();
+          return true;
         })
-        .catch(e => this._onSaveError(e));
+        // ★戻り値：保存できたら true、できなければ false（_onSaveError がトーストを出す）。
+        //   呼び出し側が「失敗したら手元を戻す」のに使う（イベント設定のスイッチなど）
+        .catch(e => { this._onSaveError(e); return false; });
     }
 
     // 全件送信（削除の意味を持つ経路。★ここを部分送信に変えないこと）
@@ -718,6 +721,7 @@ export const state = {
       .then(() => {
         // 新規イベントが追加されている可能性 → 購読対象を更新
         syncRealtime();
+        return true;
       })
       .catch(e => {
         // ★積み直すのは「もう一度送れば通りうる」失敗だけ（通信断・5xx）。
@@ -730,6 +734,7 @@ export const state = {
           this._forceFullSave = true;
         }
         this._onSaveError(e);
+        return false;
       });
   },
 

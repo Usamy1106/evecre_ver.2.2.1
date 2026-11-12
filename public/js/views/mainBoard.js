@@ -2410,6 +2410,7 @@ function _notifIconBg(type) {
     case 'mission_reverted':
     case 'self_claimed':          return 'var(--color-warning-tint)';
     case 'motivation_reaction':   return 'var(--color-danger-tint2)';
+    case 'public_comment':        return 'var(--color-primary-tint)';
     case 'mission_created':
     case 'mission_updated':       return 'var(--color-violet-tint)';
     default: return 'var(--button-secondary)';
@@ -2439,6 +2440,9 @@ function _notifIcon(type) {
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
     case 'self_claimed':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
+    case 'public_comment':
+      // 公開ページ（/explore）へのコメント。書いた人はメンバーでないことが多いのでアバターの代わりに吹き出し
+      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#009fe5" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
     case 'motivation_reaction':
       // 素材の縦横比（160.78:186.79）を保つ。背景の円は .p-notification__icon（--notif-color）のまま
       return `<img src="/images/icon/icon-fire.svg" width="16" height="19" alt="">`;
