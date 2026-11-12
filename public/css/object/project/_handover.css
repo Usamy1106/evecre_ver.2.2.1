@@ -1,0 +1,498 @@
+/* ==========================================================================
+   Object / Project / handover — 引き継ぎ（前の代のタスクと記録。2026-11-12。指示書D）
+   使用箇所: 前の代から追加する画面（p-handover）・タスク詳細の「前回の記録」（p-handover-record）・
+             系譜と前の代の登録（p-lineage）・前回と今回の柱（p-pillar-compare）
+
+   ★前の代の記録の本文・画像・振り返りの見た目は _public-archive.css（公開ページと共通）。ここに足さないこと
+   ★前の代の目的と柱は「読むだけ」（取り込まない）。入力欄のように見せない
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
+     public/js/views/handoverPick.js       … renderHandoverPick / _chooserHtml / _sourceHeadHtml / _listHtml / _rowHtml / inheritedRecordsHtml
+     public/js/views/lineage.js            … renderLineage / _genHtml / openParentRegister
+     public/js/modals/pillarCompareModal.js … checkPillarCompare
+   ========================================================================== */
+
+/* ── 前の代から追加する ── */
+.p-handover {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  background-color: var(--color-bg);
+}
+
+.p-handover__body {
+  padding: var(--space-4);
+}
+
+.p-handover__body > * + * {
+  margin-top: var(--space-4);
+}
+
+.p-handover__section-title {
+  display: block;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-handover__count {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
+.p-handover__note {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.p-handover__source {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.p-handover__source-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-handover__source-title {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-handover__source-dates {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
+/* 前の代の目的と柱（読むだけ） */
+.p-handover__reading {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-border);
+  background-color: var(--color-bg);
+}
+
+.p-handover__reading-note {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-handover__reading-label {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-handover__reading-text {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.p-handover__change {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+.p-handover__list {
+  margin-top: var(--space-3);
+}
+
+.p-handover__row + .p-handover__row {
+  margin-top: var(--space-2);
+}
+
+.p-handover__pick {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  cursor: pointer;
+}
+
+.p-handover__row.is-picked .p-handover__pick {
+  border-color: var(--color-primary);
+}
+
+.p-handover__row.is-imported .p-handover__pick {
+  opacity: .6;
+  cursor: default;
+}
+
+.p-handover__pick input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--color-primary);
+}
+
+.p-handover__row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.p-handover__row-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.p-handover__row-meta,
+.p-handover__row-more {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-handover__row-line {
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.p-handover__row-line b {
+  margin-right: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* 元のイベントを選ぶ */
+.p-handover__choose {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.p-handover__events {
+  margin-top: var(--space-3);
+}
+
+.p-handover__event {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.p-handover__event-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-handover__event-dates {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-handover__link-label {
+  margin-top: var(--space-6);
+  font-size: var(--font-size-md);
+}
+
+/* ★入力欄の文字は 16px 以上（iOS のズーム） */
+.p-handover__link-input {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+}
+
+.p-handover__link-error {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+/* 画面の下に固定：選んだ件数と「追加する」 */
+.p-handover__foot {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  max-width: var(--reading-max-width);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.p-handover__picked {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-handover__picked.is-over {
+  color: var(--color-danger);
+}
+
+.p-handover__submit {
+  min-height: 44px;
+  padding: 0 var(--space-6);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* ── タスク詳細の「前回の記録」（読み取り専用）── */
+.p-handover-record {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.p-handover-record__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.p-handover-record__title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-handover-record__source {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-handover-record__body {
+  margin-top: var(--space-2);
+}
+
+.p-handover-record__outcome {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-handover-record__more {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.p-handover-record__more > summary {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+/* ── 系譜（前の代を見る）── */
+.p-lineage {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--color-bg);
+}
+
+.p-lineage__body {
+  padding: var(--space-4);
+}
+
+.p-lineage__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.p-lineage__gen {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.p-lineage__gen.is-self {
+  border: 2px solid var(--color-primary);
+}
+
+.p-lineage__gen.is-hidden {
+  color: var(--color-text-muted);
+}
+
+.p-lineage__gen-year,
+.p-lineage__gen-meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-lineage__gen-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  word-break: break-word;
+}
+
+.p-lineage__open {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.p-lineage__note {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.p-lineage__register {
+  min-height: 44px;
+  margin-top: var(--space-3);
+  padding: 0 var(--space-4);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* 前の代の登録（モーダル） */
+.p-lineage__register-box {
+  width: 100%;
+  max-width: var(--reading-max-width);
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.p-lineage__register-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-lineage__choices {
+  margin-top: var(--space-3);
+}
+
+.p-lineage__choice {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-md);
+  text-align: left;
+  color: var(--color-text);
+}
+
+/* ★入力欄の文字は 16px 以上（iOS のズーム） */
+.p-lineage__register-input {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  color: var(--color-text);
+}
+
+.p-lineage__register-msg {
+  min-height: 1.5em;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.p-lineage__register-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.p-lineage__register-btn {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+}
+
+/* ── 前回の柱と今回の柱 ── */
+.p-pillar-compare {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.p-pillar-compare__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  text-align: center;
+  color: var(--color-text);
+}
+
+.p-pillar-compare__table {
+  width: 100%;
+  margin-top: var(--space-4);
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.p-pillar-compare__table th {
+  padding: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.p-pillar-compare__table td {
+  padding: var(--space-2);
+  font-size: var(--font-size-md);
+  text-align: center;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  word-break: break-word;
+}
+
+.p-pillar-compare__close {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--space-4);
+  font-weight: var(--font-weight-heavy);
+}

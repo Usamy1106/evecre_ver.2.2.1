@@ -112,23 +112,33 @@ function _filesHtml(files) {
         </ul>`;
 }
 
+/**
+ * 記録1件の中身（本文 → 画像・PDF → 振り返り）。タスクの記録と、引き継いだ「前回の記録」（missionDetail.js）で共用
+ * @param {object} k  … { outcome, struggle, solution, text, blocks, images, files }
+ * @param {{ fallback?: string }} opts … 画像が読めないときの代替（data-fallback の値。前の代の記録は 'inherited'）
+ */
+export function publicRecordHtml(k, { fallback = 'submission' } = {}) {
+  const labels = REFLECT_LABELS[k.outcome] || REFLECT_LABELS.struggle;
+  const imgs = (k.images || []).map(_url).filter(Boolean);
+  return `
+        ${_bodyHtml(k)}
+        ${imgs.map(u => `<img src="${_esc(u)}" class="p-public-archive__image" alt="" loading="lazy" data-fallback="${_esc(fallback)}">`).join('')}
+        ${_filesHtml(k.files)}
+        ${k.struggle ? `<p class="p-public-archive__reflect-label">${_esc(labels.struggle)}</p>${_textHtml(k.struggle)}` : ''}
+        ${k.solution ? `<p class="p-public-archive__reflect-label">${_esc(labels.solution)}</p>${_textHtml(k.solution)}` : ''}`;
+}
+
 /** タスクの記録（1件の中は 本文 → 画像・PDF → 振り返り。本体のアーカイブと同じ並び） */
 export function publicKnowledgeHtml(list) {
   if (!Array.isArray(list) || list.length === 0) return '';
   const entries = list.map(k => {
-    const labels = REFLECT_LABELS[k.outcome] || REFLECT_LABELS.struggle;
     const outcome = OUTCOME_CHOICES[k.outcome]?.label;
-    const imgs = (k.images || []).map(_url).filter(Boolean);
     const meta = [outcome, ...(k.tags || [])].filter(Boolean);
     return `
       <article class="p-public-archive__entry">
         <h5 class="p-public-archive__entry-title">${_esc(k.title)}</h5>
         ${meta.length ? `<p class="p-public-archive__entry-meta">${meta.map(_esc).join('・')}</p>` : ''}
-        ${_bodyHtml(k)}
-        ${imgs.map(u => `<img src="${_esc(u)}" class="p-public-archive__image" alt="" loading="lazy" data-fallback="submission">`).join('')}
-        ${_filesHtml(k.files)}
-        ${k.struggle ? `<p class="p-public-archive__reflect-label">${_esc(labels.struggle)}</p>${_textHtml(k.struggle)}` : ''}
-        ${k.solution ? `<p class="p-public-archive__reflect-label">${_esc(labels.solution)}</p>${_textHtml(k.solution)}` : ''}
+        ${publicRecordHtml(k)}
       </article>`;
   }).join('');
   return `

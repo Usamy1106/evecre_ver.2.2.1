@@ -14,6 +14,7 @@ import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 import { isDashboard } from '../layoutMode.js';
 import { logEvent } from '../logger.js';
+import { lineageOf } from './lineage.js';
 import {
   newScheduleCtx, scheduleCssVars, scheduleBodyHtml, scheduleCalendarHtml, bindScheduleBody, scrollScheduleToToday,
 } from '../schedulePanel.js';
@@ -742,9 +743,30 @@ function _goalQuestCurrent(p) {
   if (!steps.pillars) return { steps, key: 'pillars' };
   return null;
 }
+// ★前の代のタスクから追加する（指示書D §4-1）。初期クエスト（概要・目的・柱）が**すべて終わったあと**に1回だけ促す。
+//   出すのは：管理者・前の代がある・まだ1件も取り込んでいない・閉じていない。★初期クエストと同時には出さない
+function _handoverCardHtml(p) {
+  if (!state.canManageCurrentEvent() || !p.parentEventId) return '';
+  const steps = goalQuestSteps(p);
+  if (!steps.summary || !steps.purpose || !steps.pillars) return '';
+  if ((p.missions || []).some(m => m?.inherited)) return '';
+  try { if (localStorage.getItem(`evecre:handoverCard:dismissed:v1:${state.currentUser?.id}:${p.id}`) === '1') return ''; } catch (_) { return ''; }
+  return `
+    <div class="p-main-board__announce-card p-main-board__announce-card--prompt p-main-board__handover-card">
+      <button type="button" class="p-main-board__announce-body" onclick="window._app.openHandoverPick('board_card')" data-log="handover_board_card">
+        <img src="/images/icon/icon-notification-default.svg" class="p-main-board__announce-icon" width="14" height="14" alt="">
+        <span class="p-main-board__announce-main">
+          <span class="p-main-board__announce-title">前の代のタスクから追加する</span>
+          <span class="p-main-board__quest-reward"><span>前の代の振り返りを見ながら、やることを選べます</span></span>
+        </span>
+      </button>
+      <button type="button" class="p-main-board__handover-dismiss" onclick="window._app.dismissHandoverCard(event)" aria-label="このカードを閉じる">×</button>
+    </div>`;
+}
+
 function _goalPromptCardHtml(p) {
   const cur = _goalQuestCurrent(p);
-  if (!cur) return '';
+  if (!cur) return _handoverCardHtml(p);
   const { steps, key } = cur;
   const card = {
     purpose: { title: '次は、イベントの目的を決めましょう', reward: '書き終えると、山を1マス登れます',
@@ -1681,10 +1703,13 @@ function _renderArchiveTab(p) {
   const lastTs    = isAfterEventDates(p) ? archiveLastUpdated(p) : null;
   const pillars   = getPillars(p);
   const counts    = taskReflectionCounts(p, cleared);
-  const leadMetaHtml = typeLabel || lastTs ? `
+  // ★このアーカイブから生まれたイベントの数（系譜。指示書D §4-6）。1件以上のときだけ。★0件では出さない
+  const born = lineageOf(p.id)?.descendantCount || 0;
+  const leadMetaHtml = typeLabel || lastTs || born ? `
     <div class="p-archive__lead-meta">
       ${typeLabel ? `<span class="p-archive__type">${_esc(typeLabel)}</span>` : ''}
       ${lastTs ? `<span class="p-archive__updated">最終更新 ${_fmtYmd(lastTs)}</span>` : ''}
+      ${born ? `<span class="p-archive__born">このアーカイブから ${born}件のイベントが生まれました</span>` : ''}
     </div>` : '';
   const statsHtml = counts.done === 0 ? '' : `
     <dl class="p-archive__stats">

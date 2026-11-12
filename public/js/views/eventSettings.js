@@ -17,6 +17,7 @@ import { openInviteIssueModal } from '../modals/inviteIssueModal.js';
 import { showConfirmDialog } from '../dialog.js';
 import { isManagerStrict } from '../modals/publicBasicInfoModal.js';
 import { logEvent } from '../logger.js';
+import { lineageOf } from './lineage.js';
 import { PURPOSE_ID, SUMMARY_ID, isRichSubmission, savePurposeText, saveSummaryText, shouldAskPillarsAfterPurpose } from '../initialTasks.js';
 import {
   formatEventPeriodLines,
@@ -469,6 +470,20 @@ function _eventManagementSection(p, sec) {
             <span class="c-settings-list__value">${_esc(p.eventPhase || '企画準備')}</span>
           `}
         </div>
+
+        <!-- 前の代のイベント（引き継ぎ。指示書D §4-1）。★目的・柱は引き継がない。登録は STEP 7 と同じ検査（views/lineage.js） -->
+        ${(() => {
+          const parentTitle = p.parentEventId ? (lineageOf(p.id)?.ancestors?.[0]?.title || '') : '';
+          return `
+        <div class="c-settings-list__row">
+          <p class="p-event-settings__sub-title">前の代のイベント</p>
+          <div class="c-settings-list__view c-settings-list__view--center">
+            <span class="c-settings-list__value c-settings-list__value--truncate">${p.parentEventId ? _esc(parentTitle || '登録済み') : '未登録'}</span>
+            ${p.parentEventId ? `<button type="button" class="c-settings-list__edit" onclick="window._app.openLineage()" data-log="settings_lineage">見る</button>` : ''}
+            ${canMgr ? `<button type="button" class="c-settings-list__edit" onclick="window._app.openParentRegister()" data-log="settings_parent_register">${p.parentEventId ? '変更' : '登録'}</button>` : ''}
+          </div>
+        </div>`;
+        })()}
 
         <!-- 基礎情報の公開（タイトル・ヘッダー画像・概要・場所・期間）。★変えられるのは管理者だけ -->
         <div class="c-settings-list__row p-event-settings__toggle-row">
