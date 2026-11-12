@@ -133,7 +133,7 @@ console.log('[4-2] 目的 purpose（def-1。タスクの記録と一緒に公開
   ok(pub.buildPublicEvent(withPurpose({ dates: ['2026-11-20'] }), sp(), TODAY).purpose === null, '開催前は null');
   ok(pub.buildPublicEvent(withPurpose({}, { status: 'yet' }), sp(), TODAY).purpose === null, '目的が未完了なら null');
   const noKn = Object.fromEntries(Object.entries(sp()).map(([k, v]) => [k, { ...v, shareable: false }]));
-  ok(pub.buildPublicEvent(withPurpose(), noKn, TODAY).purpose === null, '公開される記録が0件なら目的も出さない');
+  ok(pub.buildPublicEvent(withPurpose(), noKn, TODAY).purpose === '作品を身近に', '公開される記録が0件でも目的は出す（2026-11-12。指示書D の返信 §4）');
   ok(pub.buildPublicEvent(event(), subs(), TODAY).purpose === null, '目的のタスクが無ければ null');
   ok(leaks(r).length === 0, `個人を指すキーが無い（見つかった：${leaks(r)}）`);
   ok(pub.publicReflectionItems(withPurpose(), sp(), TODAY).every(x => x.title !== 'このイベントの目的・目標を決めよう'), 'reflections にも目的は入らない');
@@ -144,7 +144,25 @@ console.log('[4-2] 目的 purpose（def-1。タスクの記録と一緒に公開
   ok(!JSON.stringify(rp).includes('pil_a'), '柱の id は出さない');
   ok(JSON.stringify(pub.buildPublicEvent(withPurpose(), sp(), TODAY).pillars) === '[]', '柱が無ければ []');
   ok(pub.buildPublicEvent(withPurpose({ pillars: pil, publicKnowledge: false }), sp(), TODAY).pillars === null, 'publicKnowledge が false なら null');
-  ok(pub.buildPublicEvent(withPurpose({ pillars: pil }), noKn, TODAY).pillars === null, '公開される記録が0件なら柱も null');
+  ok(JSON.stringify(pub.buildPublicEvent(withPurpose({ pillars: pil }), noKn, TODAY).pillars) === '["孤立させない","地域とつながる","4つ目"]', '公開される記録が0件でも柱は出す（2026-11-12）');
+
+  console.log('[4-4] taskKey と ignoreDates（引き継ぎ。2026-11-12。指示書D）');
+  const ind = withPurpose({ missions: [...withPurpose().missions, { id: 'mi', title: '個別完了', tags: [], status: 'cleared' }] });
+  const isub = { ...sp(),
+    'mi_u_a': { content: 'Aの記録', format: 'text', solution: '次はA', shareable: true, submittedBy: 'a' },
+    'mi_u_b': { content: 'Bの記録', format: 'text', solution: '次はB', shareable: true, submittedBy: 'b' } };
+  const kn = pub.buildPublicEvent(ind, isub, TODAY).knowledge;
+  const ik = kn.filter(k => k.title === '個別完了');
+  ok(ik.length === 2 && ik[0].taskKey === ik[1].taskKey, '個別完了の提出物は同じ taskKey');
+  ok(new Set(kn.map(k => k.taskKey)).size === new Set(kn.map(k => k.title)).size, 'タスクが違えば taskKey も違う');
+  ok(kn.every(k => /^[0-9a-f]{24}$/.test(k.taskKey)), 'taskKey は16進24桁');
+  ok(!JSON.stringify(kn).includes('mi_u_a') && !JSON.stringify(kn).includes('"a"'), 'taskKey に提出物のキー・userId を出さない');
+  ok(kn[0].taskKey === pub.taskKeyOf(ind.id, 'm1') || kn.some(k => k.taskKey === pub.taskKeyOf(ind.id, 'mi')), 'taskKey は taskKeyOf(eventId, missionId)');
+  const future = withPurpose({ dates: ['2099-01-01'], pillars: pil });
+  ok(pub.buildPublicEvent(future, sp(), TODAY, { preview: true }).knowledge === null, 'preview でも開催前は knowledge が null（公開側は変えない）');
+  const fh = pub.buildPublicEvent(future, sp(), TODAY, { preview: true, ignoreDates: true });
+  ok(Array.isArray(fh.knowledge) && fh.knowledge.length > 0 && fh.purpose === '作品を身近に' && fh.pillars.length === 3, 'ignoreDates なら開催前でも記録・目的・柱が出る（引き継ぎだけ）');
+  ok(pub.buildPublicEvent({ ...future, publicKnowledge: false }, sp(), TODAY, { ignoreDates: true }).knowledge === null, 'ignoreDates だけでは公開の同意（preview / publicKnowledge）を飛ばさない');
 }
 
 console.log('[5] 一覧の1件');
