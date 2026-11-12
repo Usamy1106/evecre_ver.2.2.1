@@ -65,6 +65,8 @@ function _isBlocked() {
 /** いまの画面で見張りが要るか */
 function _needsGuard() {
   if (!_state?.currentUser) return false;
+  // ★公開ページ（/explore）は自分で URL と履歴を持つ（views/explore.js）。見張りを積まない
+  if (_state.currentView === 'EXPLORE') return false;
   if (_isBlocked() || _topLayer()) return true;
   return !!BACK[_state.currentView];
 }

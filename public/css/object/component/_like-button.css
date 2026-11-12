@@ -1,0 +1,40 @@
+/* ==========================================================================
+   Object / Component / like-button — いいねボタン（2026-11-12。指示書05 §5-5）
+   使用箇所: 公開ページ（/explore）の告知モーダルとナレッジページ（同じいいねを共有する）
+
+   ★押した状態は aria-pressed と .is-liked の両方。色だけに頼らず、♡ / ♥ の形も変える
+   ★押したらすぐ見た目を変え、応答が返るまで aria-busy（JS が次を送らない）
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
+     public/js/views/explore.js … _likeButtonHtml
+   ========================================================================== */
+
+.c-like-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  transition: background-color var(--duration-fast), border-color var(--duration-fast);
+}
+
+.c-like-button__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.c-like-button.is-liked {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background-color: var(--color-danger-pale);
+}
+
+.c-like-button[aria-busy='true'] {
+  opacity: .7;
+}

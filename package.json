@@ -17,7 +17,8 @@
     "check:flocss": "node scripts/checkFlocss.mjs",
     "check:public": "node scripts/checkPublicApi.mjs",
     "js:version": "node scripts/genJsVersion.mjs",
-    "css:build": "node scripts/buildCss.mjs"
+    "css:build": "node scripts/buildCss.mjs",
+    "check:explore": "node scripts/checkExplore.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1054.0",

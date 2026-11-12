@@ -7,6 +7,7 @@ import { syncRealtime, disconnectRealtime } from './realtime.js';
 import { showConfirmDialog } from './dialog.js';
 import { applyLayoutClasses } from './layoutMode.js';
 import { syncBackGuard } from './browserBack.js';
+import { consumeExploreReturn } from './exploreReturn.js';
 
 // AI 提案の生成に失敗したあと、そのイベントで呼び直すまでの間（_checkProposalCycle）
 const PROPOSAL_RETRY_MS = 10 * 60 * 1000;
@@ -179,6 +180,20 @@ export const state = {
   // --- 初期化（セッション確認 → ユーザーがいればデータ取得）---
   async init() {
     console.log('[init] 開始');
+
+    // ★公開ページ「みんなの記録」（/explore。views/explore.js）。ログインしていなくても見られる。
+    //   ほかの起動の流れ（招待・オンボーディング・タスクのリンク）を通さず、アプリのモーダルも出さない。
+    //   ログインしているかだけ確かめる（ヘッダーの「アプリに戻る」とコメント欄のため）。通信できなくても公開ページは描く
+    if (/^\/explore(\/|$)/.test(window.location.pathname)) {
+      const ex = await import('./views/explore.js');
+      if (ex.startExplore()) {
+        try { const me = await api.meRaw(); if (me?.user) this.currentUser = me.user; } catch (_) {}
+        this.currentView = 'EXPLORE';
+        this.render();
+        this._hideLoading();
+        return;
+      }
+    }
 
     // iOS の Google サインイン（フォーム POST → リダイレクト）失敗時のフィードバック
     const gerr = new URLSearchParams(window.location.search).get('gerror');
@@ -546,6 +561,9 @@ export const state = {
       return;
     }
 
+    // ★公開ページの「ログインしてコメントする」から来た → 同じページへ戻る（exploreReturn.js）
+    if (consumeExploreReturn()) return;
+
     console.log('[loadAfterAuth] HOME へ遷移');
     this.currentView = 'HOME';
     syncRealtime();
@@ -684,8 +702,11 @@ export const state = {
           //   次の保存で再送する（途中で失敗しても変更が失われない）。
           for (const id of (r?.savedIds || [])) this._dirtyIds.delete(id);
           syncRealtime();
+          return true;
         })
-        .catch(e => this._onSaveError(e));
+        // ★戻り値：保存できたら true、できなければ false（_onSaveError がトーストを出す）。
+        //   呼び出し側が「失敗したら手元を戻す」のに使う（イベント設定のスイッチなど）
+        .catch(e => { this._onSaveError(e); return false; });
     }
 
     // 全件送信（削除の意味を持つ経路。★ここを部分送信に変えないこと）
@@ -700,6 +721,7 @@ export const state = {
       .then(() => {
         // 新規イベントが追加されている可能性 → 購読対象を更新
         syncRealtime();
+        return true;
       })
       .catch(e => {
         // ★積み直すのは「もう一度送れば通りうる」失敗だけ（通信断・5xx）。
@@ -712,6 +734,7 @@ export const state = {
           this._forceFullSave = true;
         }
         this._onSaveError(e);
+        return false;
       });
   },
 

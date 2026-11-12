@@ -1,0 +1,196 @@
+/* ==========================================================================
+   Object / Project / public-archive — 公開されるイベントの描き方（2026-11-12。指示書05 §5-1）
+   使用箇所: 公開の確認ページ（publishConfirmModal.js）と公開ページ（/explore）の両方
+
+   ★「公開すると、アーカイブがほぼそのまま外に出る」ので、確認ページと公開ページで同じ見た目を使う。
+     どちらかの画面のためだけにここを変えないこと（変えると、確認した姿と外に出る姿がずれる）。
+   ★並びは本体のアーカイブ：基礎情報 → 目的・柱 → タスクの記録（1件の中は 本文 → 画像・PDF → 振り返り）
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
+     public/js/views/publicArchive.js … publicArchiveHtml / publicBasicHtml / publicPurposeHtml / publicKnowledgeHtml
+   ========================================================================== */
+
+.p-public-archive > * + * {
+  margin-top: var(--space-6);
+}
+
+/* ── 基礎情報 ── */
+.p-public-archive__visual {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.p-public-archive__label {
+  display: inline-block;
+  margin-top: var(--space-3);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+.p-public-archive__label--archive {
+  background-color: var(--color-primary-pale);
+}
+
+.p-public-archive__title {
+  margin-top: var(--space-2);
+  font-size: 20px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.p-public-archive__facts {
+  margin-top: var(--space-3);
+}
+
+.p-public-archive__fact {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.p-public-archive__fact-label {
+  flex-shrink: 0;
+  min-width: 4.5em;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-public-archive__fact-value {
+  min-width: 0;
+  word-break: break-word;
+}
+
+/* ── 本文（概要・目的・記録の本文・振り返りで共用）── */
+.p-public-archive__text {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.p-public-archive__block-heading {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-public-archive__list {
+  margin-top: var(--space-2);
+  padding-left: 1.25em;
+  list-style: disc;
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+/* ── 目的・柱・記録の見出し ── */
+.p-public-archive__section-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-public-archive__section-title:not(:first-child) {
+  margin-top: var(--space-4);
+}
+
+.p-public-archive__count {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
+.p-public-archive__pillars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.p-public-archive__pillar {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background-color: var(--color-warning-pale2);
+}
+
+/* ── タスクの記録 ── */
+.p-public-archive__entry {
+  margin-top: var(--space-4);
+}
+
+.p-public-archive__entry + .p-public-archive__entry {
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.p-public-archive__entry-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-public-archive__entry-meta {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-public-archive__image {
+  width: 100%;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.p-public-archive__files {
+  margin-top: var(--space-2);
+}
+
+.p-public-archive__file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.p-public-archive__file-kind {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-public-archive__file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-public-archive__reflect-label {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}

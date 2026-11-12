@@ -29,6 +29,7 @@ const pushScheduler    = require('./lib/pushScheduler');
 const pushRules        = require('./lib/pushRules');
 const pushDispatchLog  = require('./lib/pushDispatchLog');
 const webhookStore     = require('./lib/webhookStore');
+const exploreStore     = require('./lib/exploreStore');   // 公開ページ（/explore）のいいね・コメント
 const webhookClient    = require('./lib/webhookClient');
 const webhookScheduler = require('./lib/webhookScheduler');
 const eventLogStore    = require('./lib/eventLogStore');
@@ -492,6 +493,53 @@ async function attachSession(res, userId) {
     secure: isProd,
     signed: true, maxAge: SESSION_TTL_MS, path: '/',
   });
+  // ★公開ページ（/explore）で匿名で押したいいねを、ログインした直後に1回だけ自分のものに付け替える（2026-11-12）。
+  //   同じイベントに自分のいいねが既にあれば匿名の方を消す（二重に数えない）。★オブザーバーは付け替えない（読み取り専用）
+  //   失敗してもログインは止めない
+  const vid = _visitorId(res.req);
+  if (vid && !OBSERVER_USER_IDS.has(userId)) {
+    try { await exploreStore.claimAnonLikes(`a:${vid}`, `u:${userId}`); }
+    catch (e) { console.warn('[explore] いいねの付け替えに失敗:', e.message); }
+  }
+}
+
+// ── 公開ページ（/explore）の匿名の閲覧者 ID（いいねの「1人1回」に使う。2026-11-12）──
+// ★中身は推測できない乱数だけ（個人を特定する情報を入れない）。署名付き・httpOnly。発行は初めていいねを押したときだけ
+// ★署名が合わない値は cookie-parser が false にするので、無かったものとして扱われる
+const VISITOR_COOKIE = 'evecre_vid';
+const VISITOR_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const _VISITOR_ID_RE = /^[a-f0-9]{32}$/;
+function _visitorId(req) {
+  const v = req?.signedCookies?.[VISITOR_COOKIE];
+  return typeof v === 'string' && _VISITOR_ID_RE.test(v) ? v : null;
+}
+function _ensureVisitorId(req, res) {
+  let v = _visitorId(req);
+  if (!v) {
+    v = crypto.randomBytes(16).toString('hex');
+    res.cookie(VISITOR_COOKIE, v, {
+      httpOnly: true, signed: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production',
+      path: '/', maxAge: VISITOR_TTL_MS,
+    });
+  }
+  return v;
+}
+
+/**
+ * ログインしていれば req.user を入れる（していなければ null。応答は返さない）。
+ * ★確かめ方は requireAuth と同じ。ログインが任意のルート（公開ページ）で使う
+ */
+async function _optionalUser(req) {
+  req.user = null;
+  const raw = req.signedCookies?.[SESSION_COOKIE];
+  if (!raw || typeof raw !== 'string' || !raw.includes('.')) return null;
+  const [userId, token] = raw.split('.');
+  const sess = await sessionStore.findByToken(token);
+  if (!sess || sess.userId !== userId || sess.expiresAt < Date.now()) return null;
+  const user = await userStore.findById(userId);
+  if (!user) return null;
+  req.user = user;
+  return user;
 }
 
 async function requireAuth(req, res, next) {
@@ -1901,6 +1949,7 @@ app.delete('/api/account', requireAuth, async (req, res) => {
         await inviteStore.deleteForProject(p.id);
         await chatStore.deleteAllForEvent(p.id);
         await webhookStore.remove(p.id);   // 外部連携（Discord / Slack の URL）も残さない
+        await exploreStore.deleteForEvent(p.id);   // 公開ページのいいね・コメント
         eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
         eventBus.closeChannel(p.id);
         summary.eventsDeleted++;
@@ -1953,6 +2002,7 @@ app.delete('/api/account', requireAuth, async (req, res) => {
 
     // ユーザーに紐づくデータを消去
     await pushStore.deleteByUserId(userId);
+    await exploreStore.deleteForUser(userId);   // 公開ページのいいね・コメント（退会したら消す。2026-11-12 ユーザー決定）
     await notifStore.clearAll(userId);
     await eventLogStore.deleteByUser(userId);
     await sessionStore.deleteAllForUser(userId);
@@ -2732,6 +2782,8 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
   if (flat.venue !== undefined) flat.venue = String(flat.venue ?? '').trim().slice(0, 200);
   // 基礎情報・ナレッジの公開。★boolean 以外は捨てる（"true" などの文字列を公開扱いにしない）
   if (flat.publicBasicInfo !== undefined && typeof flat.publicBasicInfo !== 'boolean') delete flat.publicBasicInfo;
+  // 公開ページへのコメントの通知（undefined＝通知する）。boolean 以外は捨てる
+  if (flat.publicCommentNotify !== undefined && typeof flat.publicCommentNotify !== 'boolean') delete flat.publicCommentNotify;
   if (flat.publicKnowledge !== undefined && typeof flat.publicKnowledge !== 'boolean') delete flat.publicKnowledge;
   // 「タスクも含めて公開するか」を聞いた時刻。★数値以外は捨てる
   if (flat.publicKnowledgePromptedAt !== undefined && !Number.isFinite(flat.publicKnowledgePromptedAt)) delete flat.publicKnowledgePromptedAt;
@@ -3128,6 +3180,7 @@ app.put('/api/data', requireAuth, async (req, res) => {
         await inviteStore.deleteForProject(p.id);
         await chatStore.deleteAllForEvent(p.id);
         await webhookStore.remove(p.id);   // 外部連携（Discord / Slack の URL）も残さない
+        await exploreStore.deleteForEvent(p.id);   // 公開ページのいいね・コメント
         eventBus.broadcast(p.id, 'eventDeleted', { eventId: p.id });
         eventBus.closeChannel(p.id);
       } else if (role === 'member') {
@@ -5109,6 +5162,225 @@ app.get('/api/public/reflections', async (_req, res) => {
   } catch (e) {
     console.error('GET /api/public/reflections error:', e);
     res.status(500).set('Cache-Control', 'no-store').json({ ok: false, error: 'server_error' });
+  }
+});
+
+// ===== 公開ページ（/explore）の API（2026-11-12。指示書05）=====
+// 一覧・告知・ナレッジを本体で見せ、いいね・コメントを付ける。★/api/public/* とは分ける
+//   （あちらは外部サイト用で CORS と public キャッシュ。こちらは同じドメイン専用・ログイン状態で中身が変わる）
+// ★応答は必ず lib/publicData.js（publicListItem / buildPublicEvent）を通す。events / submissions を直接返さない
+// ★Cache-Control: no-store・CORS のヘッダーは付けない
+// ★存在しない・非公開・形の不正な id は、すべて同じ 404 { ok:false, error:'not_found' }
+// ★オブザーバー（運営の読み取り専用）は、いいね・コメント・削除をすべて 403
+// ★応答に userId / voterKey / メールを出さない（コメントの書き手は名前とアイコンだけ）
+
+/** 読み取り：60回 / 分 / IP（publicLimiter と同じ程度） */
+const exploreLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, skip: _skipInDev,
+  handler: (_req, res) => res.status(429).set('Cache-Control', 'no-store').json({ ok: false, error: 'rate_limited' }),
+});
+/** いいねの書き込み：10分で30回 / IP。★IP で「1回まで」にはしない（大学の Wi-Fi は大勢が同じ IP）。IP は数えるだけで保存しない */
+const exploreLikeLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, skip: _skipInDev,
+  handler: (_req, res) => res.status(429).set('Cache-Control', 'no-store').json({ ok: false, error: 'rate_limited' }),
+});
+/** コメントの書き込み：10分で10件 / ユーザー（requireAuth の後ろに置く） */
+const exploreCommentLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, skip: _skipInDev,
+  keyGenerator: (req) => `u:${req.user?.id || 'anon'}`,
+  handler: (_req, res) => res.status(429).set('Cache-Control', 'no-store').json({ ok: false, error: 'rate_limited' }),
+});
+
+app.use('/api/explore', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); }, exploreLimiter);
+
+function _exploreNotFound(res) {
+  return res.status(404).json({ ok: false, error: 'not_found' });
+}
+
+/** 基礎情報が公開されているイベントを読む（無い・非公開・形の不正は null） */
+async function _loadExploreEvent(id) {
+  if (typeof id !== 'string' || !SAFE_ITEM_ID_RE.test(id)) return null;
+  const raw = await eventStore.loadPublicEvent(id);
+  if (!raw) return null;
+  const flat = crdt.crdtToFlat(raw);
+  const subs = await submissionStore.getSubmissionsForProject(flat.id);
+  const pub  = publicData.buildPublicEvent(flat, subs);
+  if (!pub.basic) return null;
+  return { raw, flat, pub };
+}
+
+/** この閲覧者のいいねの鍵（ログイン中なら u: と、同じブラウザの a: の両方） */
+function _exploreVoterKeys(req) {
+  const vid = _visitorId(req);
+  return [req.user ? `u:${req.user.id}` : null, vid ? `a:${vid}` : null].filter(Boolean);
+}
+
+/** コメントを書けるか（ログイン済み・メール認証済み・ナレッジが出ている・オブザーバーでない） */
+function _exploreCanComment(req, pub) {
+  return !!req.user && req.user.isVerified === true && pub.knowledge !== null && !_isObserver(req);
+}
+
+function _exploreCommentOut(row, author, canDelete) {
+  return {
+    id: row._id,
+    body: row.body,
+    createdAt: new Date(row.createdAt).getTime(),
+    // ★退会などで引けないときは null（クライアントが「退会したユーザー」と出す）。userId は出さない
+    author: author ? { username: author.username || '', avatarUrl: author.avatarUrl || null } : null,
+    canDelete,
+  };
+}
+
+/** 一覧：基礎情報が公開されているイベント。publicListItem に likeCount を足しただけ */
+app.get('/api/explore/events', async (_req, res) => {
+  try {
+    const flats = (await eventStore.listPublicEvents()).map(crdt.crdtToFlat);
+    const subsByEvent = await submissionStore.getSubmissionsForProjects(flats.map(f => f.id));
+    const items = flats
+      .map(f => publicData.publicListItem(f, subsByEvent[f.id] || {}))
+      .filter(Boolean)
+      .sort(_publicListOrder);
+    const counts = await exploreStore.countLikesMany(items.map(e => e.id));
+    res.json({ ok: true, events: items.map(e => ({ ...e, likeCount: counts[e.id] || 0 })) });
+  } catch (e) {
+    console.error('GET /api/explore/events error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/** 詳細：buildPublicEvent ＋ id / status / likeCount / liked / viewer */
+app.get('/api/explore/events/:id', async (req, res) => {
+  try {
+    await _optionalUser(req);
+    const ev = await _loadExploreEvent(req.params.id);
+    if (!ev) return _exploreNotFound(res);
+    const { flat, pub } = ev;
+    const [likeCount, liked] = await Promise.all([
+      exploreStore.countLikes(flat.id),
+      exploreStore.hasLiked(flat.id, _exploreVoterKeys(req)),
+    ]);
+    res.json({
+      ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat),
+      basic: pub.basic, purpose: pub.purpose, pillars: pub.pillars, knowledge: pub.knowledge,
+      likeCount, liked,
+      viewer: { loggedIn: !!req.user, canComment: _exploreCanComment(req, pub) },
+    });
+  } catch (e) {
+    console.error('GET /api/explore/events/:id error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/** いいねする（アカウントなしで押せる。1つのイベントにつき1人1回） */
+app.post('/api/explore/events/:id/like', exploreLikeLimiter, async (req, res) => {
+  try {
+    await _optionalUser(req);
+    if (_isObserver(req)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    const ev = await _loadExploreEvent(req.params.id);
+    if (!ev) return _exploreNotFound(res);
+    const eventId = String(ev.flat.id);
+    if (req.user) {
+      // ★同じブラウザの匿名のいいねが残っていれば消して1件にまとめる
+      const vid = _visitorId(req);
+      if (vid) await exploreStore.removeLike(eventId, `a:${vid}`);
+      await exploreStore.addLike(eventId, `u:${req.user.id}`);
+    } else {
+      await exploreStore.addLike(eventId, `a:${_ensureVisitorId(req, res)}`);
+    }
+    res.json({ ok: true, liked: true, likeCount: await exploreStore.countLikes(eventId) });
+  } catch (e) {
+    console.error('POST /api/explore/events/:id/like error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/** いいねを取り消す */
+app.delete('/api/explore/events/:id/like', exploreLikeLimiter, async (req, res) => {
+  try {
+    await _optionalUser(req);
+    if (_isObserver(req)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    const ev = await _loadExploreEvent(req.params.id);
+    if (!ev) return _exploreNotFound(res);
+    const eventId = String(ev.flat.id);
+    for (const k of _exploreVoterKeys(req)) await exploreStore.removeLike(eventId, k);
+    res.json({ ok: true, liked: false, likeCount: await exploreStore.countLikes(eventId) });
+  } catch (e) {
+    console.error('DELETE /api/explore/events/:id/like error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/**
+ * コメントの一覧（新しい順に30件。?before=<createdAt ミリ秒> で続き）。
+ * ★ナレッジが出ている（開催後・タスクも含めて公開）ときだけ。公開を止めたら消さずに見えなくなる（404）
+ */
+app.get('/api/explore/events/:id/comments', async (req, res) => {
+  try {
+    await _optionalUser(req);
+    const ev = await _loadExploreEvent(req.params.id);
+    if (!ev || ev.pub.knowledge === null) return _exploreNotFound(res);
+    const before = req.query.before !== undefined ? Number(req.query.before) : null;
+    const { rows, hasMore } = await exploreStore.listComments(String(ev.flat.id), Number.isFinite(before) ? before : null);
+    const users = await userStore.findManyByIds([...new Set(rows.map(r => r.userId))]);
+    const byId = new Map(users.map(u => [u.id, u]));
+    const isMgr = !!req.user && eventStore.canManage(ev.raw, req.user.id);
+    const observer = _isObserver(req);
+    const comments = rows.map(r => _exploreCommentOut(r, byId.get(r.userId),
+      !!req.user && !observer && (r.userId === req.user.id || isMgr)));
+    res.json({ ok: true, comments, hasMore });
+  } catch (e) {
+    console.error('GET /api/explore/events/:id/comments error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/** コメントを書く（ログイン済み・メール認証済みだけ。1つのイベントに何回でも） */
+app.post('/api/explore/events/:id/comments', requireAuth, exploreCommentLimiter, async (req, res) => {
+  try {
+    if (_isObserver(req)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (req.user.isVerified !== true) return res.status(403).json({ ok: false, error: 'verification_required' });
+    const ev = await _loadExploreEvent(req.params.id);
+    if (!ev || ev.pub.knowledge === null) return _exploreNotFound(res);
+    const body = exploreStore.normalizeCommentBody(req.body?.body);
+    if (!body) return res.status(400).json({ ok: false, error: 'invalid_body', max: exploreStore.COMMENT_MAX_CHARS });
+    const eventId = String(ev.flat.id);
+    const row = await exploreStore.addComment(eventId, req.user.id, body);
+    res.json({ ok: true, comment: _exploreCommentOut(row, req.user, true) });
+    // ★通知：既定でメンバー全員（書いた本人を除く）。イベント設定でオフ（publicCommentNotify === false）にできる。
+    //   続けて書かれても積み上がらないよう、未読があれば上書きする（upsertEventNotification）。
+    //   ★Push は送らない（チャット chat_message と同じ扱い。アプリを開いたときに通知タブで気づけばよい）。
+    //   通知のタップは /explore/<id> を開く（main.js の openNotification）
+    if (ev.flat.publicCommentNotify !== false) {
+      const ids = [...new Set((ev.raw.members || []).map(m => m.userId))].filter(u => u && u !== req.user.id);
+      const name = req.user.username || 'だれか';
+      notifStore.upsertEventNotification(ids, {
+        type: 'public_comment', eventId,
+        message: `${name} さんが公開ページにコメントしました`,
+        actorId: req.user.id, actorName: name,
+      }).catch(e => console.warn('[explore] コメントの通知に失敗:', e.message));
+    }
+  } catch (e) {
+    console.error('POST /api/explore/events/:id/comments error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/** コメントを消す（本人か、そのイベントの管理者だけ。それ以外は 403） */
+app.delete('/api/explore/events/:id/comments/:cid', requireAuth, async (req, res) => {
+  try {
+    if (_isObserver(req)) return res.status(403).json({ ok: false, error: 'forbidden' });
+    const ev = await _loadExploreEvent(req.params.id);
+    if (!ev || ev.pub.knowledge === null) return _exploreNotFound(res);
+    const row = await exploreStore.getComment(req.params.cid);
+    if (!row || row.eventId !== String(ev.flat.id)) return _exploreNotFound(res);
+    if (row.userId !== req.user.id && !eventStore.canManage(ev.raw, req.user.id)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    await exploreStore.deleteComment(row._id);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('DELETE /api/explore/events/:id/comments/:cid error:', e);
+    res.status(500).json({ ok: false, error: 'server_error' });
   }
 });
 

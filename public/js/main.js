@@ -66,7 +66,7 @@ import { checkOnboarding } from './onboarding.js';
 import { checkIntro, abortIntroVisuals } from './onboardingIntro.js';
 import { checkGoalQuest } from './goalQuest.js';
 import { checkArchiveTour } from './archiveTour.js';
-import { isInitialTask, taskShareState } from './utils.js';
+import { isInitialTask, taskShareState, isKnowledgePublished } from './utils.js';
 import { openUserProfileModal } from './modals/userProfileModal.js';
 import { copySchedule } from './scheduleCopy.js';
 import { openReflectionEditModal } from './modals/reflectionEditModal.js';
@@ -82,6 +82,7 @@ import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
 import { initBrowserBack } from './browserBack.js';
+import { renderExplore } from './views/explore.js';
 import { watchLayoutMode } from './layoutMode.js';
 import {
   registerServiceWorker, initPushNavigation,
@@ -98,6 +99,9 @@ async function finishArchiveEditing() {
 }
 let _leavingArchiveTab = false;
 // 外部サイト（公開ページ）の URL。GET /api/config から1回だけ読む（無ければ null）
+// ★2026-11-12（指示書05 §7）から使っていない（アーカイブの「リンクをコピー」は本体の /explore を出す）。
+//   指示書の指定で消さずに残す（外部サイトの URL が要る画面を作るとき用）。GET /api/config の publicSiteUrl は
+//   公開ページの「イベクリについて」（views/explore.js）が使っている
 let _publicSiteUrlPromise = null;
 function _publicSiteUrl() {
   _publicSiteUrlPromise ||= api.getConfig().then(r => (typeof r?.publicSiteUrl === 'string' ? r.publicSiteUrl : null)).catch(() => null);
@@ -113,6 +117,7 @@ let _togglingPreview = false;
 //   アカウント作成画面から始まることになる。
 registerRenderer('WELCOME',               renderWelcome);
 registerRenderer('CREATE_ACCOUNT_INFO',   renderSignup);
+registerRenderer('EXPLORE',               renderExplore);   // 公開ページ「みんなの記録」（/explore）
 registerRenderer('LOGIN',                 renderLogin);
 registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);
@@ -731,6 +736,13 @@ window._app = {
     const n = state.notifications.find(x => x.id === notifId);
     if (n) n.read = true;
 
+    // ★公開ページへのコメントは、そのイベントの公開ページ（/explore/<id>）を開く（2026-11-12。指示書05 §4）。
+    //   公開ページはアプリの外の画面なので、ページを読み込み直して開く
+    if (n?.type === 'public_comment' && n.eventId) {
+      location.assign(`/explore/${encodeURIComponent(n.eventId)}`);
+      return;
+    }
+
     // ★完了の報せはアーカイブへ（2026-09-23）。完了したタスクは「これから
     //   やること」ではなく**記録**なので、詳細ページより記録の並びで見せる。
     //   該当の記録まで自動で送る（mainBoard.js の _focusArchiveMission）。
@@ -1291,19 +1303,19 @@ window._app = {
     const triggerEl = e.currentTarget ?? e.target;
     const canMgr = state.canManageCurrentEvent();
     const published = p.publicBasicInfo === true;
-    const site = await _publicSiteUrl();
     const rect = triggerEl.getBoundingClientRect();
     const menu = document.createElement('div');
     menu.id = 'archive-menu';
     menu.className = 'c-context-menu c-context-menu--archive u-animate-fade';
     menu.style.top   = `${rect.bottom + 4}px`;
     menu.style.right = `${window.innerWidth - rect.right}px`;
-    // ★リンクは外部サイトの詳細ページ（https://<サイト>/events/<id>）。未公開だとリンク先が 404 なので押せなくする。
-    //   外部サイトの URL が分からない（PUBLIC_SITE_ORIGINS が localhost だけ）ときは出さない
+    // ★リンクは本体の公開ページ「みんなの記録」（2026-11-12。指示書05 §7）。タスクも含めて公開していれば
+    //   ナレッジページ /explore/<id>、基礎情報だけなら告知モーダル /explore?event=<id>。
+    //   未公開だとリンク先が「見つかりませんでした」なので押せなくする
     menu.innerHTML = `
       ${canMgr ? `<button id="am-view" class="c-context-menu__item">${state.archivePreview ? '編集' : 'プレビュー'}</button>` : ''}
-      ${site ? `<button id="am-link" class="c-context-menu__item${published ? '' : ' is-disabled'}"${published ? '' : ' aria-disabled="true"'}>
-        リンクをコピー${published ? '' : '<span class="c-context-menu__note">公開するとコピーできます</span>'}</button>` : ''}
+      <button id="am-link" class="c-context-menu__item${published ? '' : ' is-disabled'}"${published ? '' : ' aria-disabled="true"'}>
+        リンクをコピー${published ? '' : '<span class="c-context-menu__note">公開するとコピーできます</span>'}</button>
       ${canMgr && published ? `<button id="am-public-view" class="c-context-menu__item">公開されている内容を見る</button>
       <button id="am-unpublish" class="c-context-menu__item c-context-menu__item--danger">公開を停止する</button>` : ''}`;
     if (!menu.children.length) return;
@@ -1313,7 +1325,9 @@ window._app = {
     on('am-link', () => {
       if (!published) return;   // ★押せない（メニューは閉じずに注記を読ませる）
       menu.remove();
-      const url = `${site}/events/${encodeURIComponent(p.id)}`;
+      const url = isKnowledgePublished(p)
+        ? `${location.origin}/explore/${encodeURIComponent(p.id)}`
+        : `${location.origin}/explore?event=${encodeURIComponent(p.id)}`;
       logEvent('archive_public_link_copied', { eventId: p.id });
       navigator.clipboard.writeText(url)
         .then(() => _showToast('公開ページのリンクをコピーしました'))
@@ -1323,7 +1337,7 @@ window._app = {
     on('am-unpublish', async () => {
       menu.remove();
       const ok = await showConfirmDialog({
-        message: '公開を停止しますか？\n外部サイトへの反映には時間がかかります。',
+        message: '公開を停止しますか？\n公開ページ「みんなの記録」からはすぐに見えなくなります。',
         confirmLabel: '停止する',
         cancelLabel: 'キャンセル',
       });
@@ -1957,6 +1971,16 @@ const _LOG_LABELS = {
   public_published:          '公開した（確認済み）',
   archive_task_share_toggled: 'タスクの公開を切り替えた',
   archive_public_link_copied: '公開ページのリンクをコピーした',
+  // 公開ページ「みんなの記録」（/explore。views/explore.js）
+  explore_opened:          'みんなの記録を開いた',
+  explore_card_opened:     'みんなの記録でイベントを開いた',
+  explore_liked:           'みんなの記録でいいねした',
+  explore_unliked:         'みんなの記録のいいねを取り消した',
+  explore_comment_posted:  'みんなの記録にコメントした',
+  explore_comment_deleted: 'みんなの記録のコメントを消した',
+  explore_login_tapped:    'みんなの記録から「ログインしてコメントする」',
+  explore_signup_tapped:   'みんなの記録から「イベクリをはじめる」',
+  public_comment_notify_toggled: '公開ページへのコメントの通知を切り替えた',
   archive_unpublished:       '公開を停止した',
   board_panel_switched:      'メインボードの右列を切り替えた（広い画面）',
   gantt_zoomed:              'ガントをピンチで拡大・縮小した（広い画面）',

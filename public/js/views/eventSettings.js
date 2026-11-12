@@ -486,6 +486,23 @@ function _eventManagementSection(p, sec) {
           `}
         </div>
 
+        <!-- 公開ページ（/explore）へのコメントをメンバーに通知するか（2026-11-12。指示書05 §6）。
+             ★undefined は「通知する」（既定でオン）。変えられるのは管理者だけ（メンバーには状態だけ見せる） -->
+        <div class="c-settings-list__row p-event-settings__toggle-row">
+          <div>
+            <p class="p-event-settings__sub-title">公開ページへのコメントをメンバーに通知する</p>
+            <p class="p-event-settings__toggle-note">タスクも含めて公開しているとき、公開ページに書かれたコメントをメンバー全員に知らせます</p>
+          </div>
+          ${canMgr ? `
+            <button type="button" data-ps-comment-notify role="switch" aria-checked="${p.publicCommentNotify !== false}"
+              aria-label="公開ページへのコメントをメンバーに通知する" class="c-toggle${p.publicCommentNotify !== false ? ' is-on' : ''}">
+              <span class="c-toggle__knob"></span>
+            </button>
+          ` : `
+            <span class="c-settings-list__value">${p.publicCommentNotify !== false ? '通知する' : '通知しない'}</span>
+          `}
+        </div>
+
         <!-- ナレッジの公開（タスクの内容・振り返り）。★開催日を過ぎるまで出さない（準備中の情報が漏れる経路を作らない）。
              ★公開してよい振り返りが0件ならオンにできない。サーバーも同じ条件を確かめる -->
         ${isAfterEventDates(p) ? (() => {
@@ -1095,6 +1112,25 @@ function _bindEvents(p, sec) {
     await state.saveNow(p.id);
     state.render();
     window._app?.showToast(p.publicBasicInfo ? '宣伝用に公開しました' : '宣伝用の公開をやめました');
+  });
+
+  // 公開ページへのコメントの通知の切り替え（管理者のみ）。★保存できなければ手元を元に戻す（saveNow が false を返す）
+  document.querySelector('[data-ps-comment-notify]')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    const prev = p.publicCommentNotify;
+    const next = p.publicCommentNotify === false;   // 今オフ → オンに。オン（undefined を含む）→ オフに
+    p.publicCommentNotify = next;
+    btn.disabled = true;
+    state.render();
+    const ok = await state.saveNow(p.id);
+    if (!ok) {
+      p.publicCommentNotify = prev;
+      state.render();
+      return;   // ★トーストは _onSaveError が出す
+    }
+    logEvent('public_comment_notify_toggled', { eventId: p.id, value: next });
+    window._app?.showToast(next ? 'コメントをメンバーに通知します' : 'コメントの通知をやめました');
   });
 
   // ナレッジの公開の切り替え（管理者のみ・開催後のみ。サーバーが条件を確かめ、満たさなければ無視する）
