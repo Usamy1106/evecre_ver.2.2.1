@@ -182,8 +182,10 @@ export const api = {
   //   ここを PUT に書き換えないこと。
   // ★戻り値の savedIds は「実際に保存できた id」。呼び出し側はこれだけを
   //   保存済みとして扱い、残りは次の保存で再送する。
-  async savePartial(events) {
-    const { ok, status, json } = await _send('PATCH', '/api/data', { events });
+  // ★opts.returnEvents = true のとき、保存したイベントだけを整形して同梱してもらう（イベント作成が使う）
+  async savePartial(events, opts = {}) {
+    const path = opts.returnEvents ? '/api/data?return=events' : '/api/data';
+    const { ok, status, json } = await _send('PATCH', path, { events });
     if (!ok) {
       const err = new Error(json?.error || 'データの保存に失敗しました');
       err.status = status;   // state.saveNow が「再送すれば通りうるか（5xx）」の判定に使う

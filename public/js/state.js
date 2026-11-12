@@ -1171,12 +1171,18 @@ export const state = {
     // ★events が返らなかった場合は楽観的更新のまま進む（新規イベントは既に
     //   this.events.push 済みなので、members が未正規化でも画面は成立する。
     //   canManageCurrentEvent に ownerId のフォールバックがある）。
+    // ★2026-11-12：新しいイベント**だけ**を PATCH で送る。以前は PUT で全イベントを送っていて、イベントが十数件の
+    //   ユーザーで10秒を超え、クライアントの打ち切り（8秒）で「作成に失敗しました」と出ていた
+    //   （サーバーでは作られていたので、やり直すたびに同じイベントが増えた）。PUT に戻さないこと。
+    //   ★PATCH は「送られなかったイベント＝削除」の意味を持たない。ほかのイベントの未送信の変更（_dirtyIds）は残し、次の保存で送る
     try {
-      const saved = await api.save({ events: this.events }, { returnEvents: true });
-      // ★全件送ったので、溜まっていた「変更あり」は解消済み
-      this._dirtyIds.clear();
-      this._forceFullSave = false;
-      if (saved?.events) this.events = saved.events;
+      const saved = await api.savePartial([newProject], { returnEvents: true });
+      if (!(saved?.savedIds || []).includes(newProject.id)) throw new Error('作成したイベントが保存されませんでした');
+      this._dirtyIds.delete(newProject.id);
+      for (const ev of saved.events || []) {
+        const i = this.events.findIndex(x => x.id === ev.id);
+        if (i >= 0) this.events[i] = ev; else this.events.push(ev);
+      }
       syncRealtime();
     } catch (e) {
       console.error('イベント保存エラー:', e);
