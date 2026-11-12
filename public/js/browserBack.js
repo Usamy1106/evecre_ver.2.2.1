@@ -114,6 +114,13 @@ export function initBrowserBack(state, app) {
   if (_state) return;
   _state = state;
   _app = app;
+  // ★再読み込みでは、ブラウザが今の履歴の state（見張りの印）を残したまま読み直す。アプリはホームから起動し直すので、
+  //   そのままだと「ホームなのに見張りがある」→ syncBackGuard が history.back() を呼び、**アプリの外へ出ていた**
+  //   （2026-11-12。ホーム以外の画面で再読み込み・引っぱって更新すると、前のページや空のページへ移った）。
+  //   起動時に見張りが残っていたら、ふつうの履歴に書き換えるだけにする（戻らない）
+  if (_onGuard()) {
+    try { history.replaceState(null, '', location.href); } catch (_) {}
+  }
   window.addEventListener('popstate', () => {
     if (_ignorePops > 0) { _ignorePops--; return; }
     if (_onGuard()) return;               // 進む（forward）で見張りに戻ってきた
