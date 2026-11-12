@@ -3252,6 +3252,15 @@ app.patch('/api/data', requireAuth, async (req, res) => {
     if (_ms > SLOW_SAVE_WARN_MS) {
       console.warn(`[slow] PATCH /api/data ${_ms}ms events=${incoming.length} user=${req.user.id}`);
     }
+    // ★?return=events のときは、保存したイベント（savedIds）だけを整形して同梱する（2026-11-12）。
+    //   イベント作成がこれを使う。以前は作成のたびに PUT で全イベントを送っていて、イベントが十数件のユーザーで
+    //   10秒を超え、クライアントの打ち切り（8秒）で「作成に失敗しました」と出ていた（実際には作られていた）。
+    // ★整形は GET /api/data と同じ _enrichEventsForClient（形をそろえる）
+    if (req.query.return === 'events') {
+      const fresh  = await eventStore.loadEvents(saved.savedIds || []);
+      const events = await _enrichEventsForClient(fresh);
+      return res.json({ ok: true, savedIds: saved.savedIds || [], events });
+    }
     res.json({ ok: true, savedIds: saved.savedIds || [] });
   } catch (e) {
     console.error('PATCH /api/data error:', e);
