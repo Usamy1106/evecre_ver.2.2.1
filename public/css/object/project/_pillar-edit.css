@@ -8,6 +8,7 @@
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
      public/js/views/pillarEdit.js … renderPillarEdit
+     public/js/modals/pillarNextModal.js … checkPillarNext
    ========================================================================== */
 
 .p-pillar-edit {
@@ -236,4 +237,58 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-primary);
   text-align: center;
+}
+
+/* ── 柱を初めて立てたあとの「やることを作ってみよう」（2026-11-12。modals/pillarNextModal.js）── */
+.p-pillar-next {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  border-radius: var(--radius-md);
+  text-align: center;
+  background-color: var(--color-surface);
+}
+
+.p-pillar-next__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-pillar-next__pillars {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.p-pillar-next__pillar {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background-color: var(--color-warning-pale2);
+}
+
+.p-pillar-next__text {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.p-pillar-next__go {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--space-4);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-pillar-next__later {
+  display: block;
+  margin: var(--space-3) auto 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }

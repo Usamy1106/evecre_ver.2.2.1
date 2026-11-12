@@ -239,10 +239,11 @@ export const api = {
   // struggle / solution / shareable は振り返り（任意）。サーバーが 200 字で切り、
   // submissions コレクションに保存する（★CRDT 対象外）。
   // images は uploadSubmissionImage で先に送った R2 の URL の配列（本文と同時に持てる）。
+  // ★outcome（うまくいった／つまずいた）も送る（2026-11-12。振り返りのページの最後で、振り返りと一緒に完了を確定するため）
   async completeMission(eventId, missionId,
-    { content = '', format = 'text', images = [], files = [], struggle = '', solution = '', shareable = false } = {}) {
+    { content = '', format = 'text', images = [], files = [], struggle = '', solution = '', shareable = false, outcome = null } = {}) {
     const { json } = await _send('POST', `/api/events/${eventId}/missions/${missionId}/complete`,
-      { content, format, images, files, struggle, solution, shareable });
+      { content, format, images, files, struggle, solution, shareable, ...(outcome ? { outcome } : {}) });
     return json || { ok: false };
   },
 

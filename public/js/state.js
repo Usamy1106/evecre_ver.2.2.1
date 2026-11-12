@@ -155,6 +155,9 @@ export const state = {
   reflectMissionId: null,      // 振り返り中のタスクID
   reflectReturn: null,         // 戻り先 { tab }（view は常に MAIN_BOARD）
   reflectDraft: null,          // { outcome, struggle, solution, shareable }
+  // ★保留中の完了（2026-11-12）。振り返りを聞くタスクは、振り返りのページの最後で完了を確定する（modals/helpers.js）
+  pendingClear: null,          // { eventId, missionId, payload, returnTab, imageCount, fileCount }
+  reflectStash: null,          // 振り返りのページから「戻る」で抜けたときの書きかけ { missionId, draft }
   // 柱を立てる・直すページ（PILLAR_EDIT）
   pillarDraft: null,           // { eventId, items: [{ id, name, saved }], confirmId }
   pillarReturn: null,          // 戻り先 { view, tab }（PILLAR_EDIT / PILLAR_ASSIGN 共通）
@@ -610,6 +613,8 @@ export const state = {
     this._signupSession = false;  // 次に入る人は「作ったその回」ではない
     this._pushPromptChecked = false;  // 再ログインしたら通知の案内をもう一度判定する
     this._devAnnouncementChecked = false;
+    this.pendingClear = null;     // 保留中の完了・書きかけの振り返りは次の人に持ち越さない
+    this.reflectStash = null;
     // ★入口へ戻す。別のアカウントで入り直す人も、新しく作る人もここから分かれる
     this.currentView = 'WELCOME';
     this.render();
@@ -640,6 +645,8 @@ export const state = {
     this.pendingApprovalMessage = null;
     this.pendingApprovalInvite = null;
     this.pendingMissionLink = null;
+    this.pendingClear = null;
+    this.reflectStash = null;
     this.currentView = 'WELCOME';
     this.render();
     setTimeout(() => window._app?.showToast?.('アカウントを削除しました', 'info'), 100);
@@ -991,7 +998,11 @@ export const state = {
     document.getElementById('clear-mission-modal')?.remove();
     this.reflectMissionId = missionId;
     this.reflectReturn = { tab: opts.tab ?? this.mainBoardTab };
-    this.reflectDraft = { outcome: null, struggle: '', solution: '', shareable: false };
+    // ★「戻る」で完了の入力に戻っていたら、書きかけの振り返りを戻す
+    this.reflectDraft = this.reflectStash?.missionId === missionId
+      ? this.reflectStash.draft || { outcome: null, struggle: '', solution: '', shareable: false }
+      : { outcome: null, struggle: '', solution: '', shareable: false };
+    this.reflectStash = null;
     logEvent('view_changed', { from: this.currentView, to: 'MISSION_REFLECT' });
     this.currentView = 'MISSION_REFLECT';
     this.render();
@@ -1354,6 +1365,8 @@ export const state = {
     // 前回の柱と今回の柱を並べて見せる（前の代があり、自分たちの柱を立てたあとに1回。modals/pillarCompareModal.js）
     if (this.currentView === 'MAIN_BOARD' && this.selectedEventId) {
       setTimeout(() => window._app?.checkPillarCompare?.(), 1600);
+      // 柱を初めて立てたあとの「やることを作ってみよう」（modals/pillarNextModal.js。比較が出ていれば閉じたあと）
+      setTimeout(() => window._app?.checkPillarNext?.(), 1800);
     }
 
     // オンボーディング（使い方の案内）。表示可否・優先度は onboarding.js が判定する。

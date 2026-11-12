@@ -4460,6 +4460,21 @@ body {
   font-style: italic;
 }
 
+/* ── 振り返りの欄（2026-11-12。clearEditor.js の reflectEditorHtml）──
+   ★完了後の振り返りのページ・アーカイブの編集・振り返りの編集モーダルの3か所で共用。書式は使える・画像と PDF は入れない（200 字）。
+     本文の欄より低くする（2〜3行ぶん）。文字は 16px 以上（iOS のズーム） */
+.c-editor--reflect {
+  /* ★下の書式のツールバー（高さ 32px ほど）を文字に重ねない。ツールバーのぶんの余白を下に取る（本文の欄と同じ考え方） */
+  min-height: 104px;
+  max-height: 40vh;
+  padding: var(--space-3);
+  padding-bottom: calc(var(--space-10) + var(--space-2));
+  font-size: 16px;
+  /* ★見出しの中（アーカイブの p-archive__reflect-label など）に置いても太さを受け継がない。
+     受け継ぐと、ブラウザが「もう太字」と判断して太字ボタンが「太字を外す」として働いた */
+  font-weight: normal;
+}
+
 /* ===== object/component/_rich-text.css ===== */
 /* ==========================================================================
    Object / Component / rich-text — 本文の見出し・箇条書き（書式の印 {{h}} / {{l}}。2026-11-07）
@@ -13758,6 +13773,15 @@ border: 2px solid var(--bg-textbox);
   height: var(--char-h);
 }
 
+/* 目の位置と大きさ（2026-11-12）。★メインボードの提案キャラ（_character.css の .p-char__face：上端 12%・幅 27%）とは違い、
+   素材の全身図（images/character/character-{mizu,mori,iwa}.svg）の目に合わせる：
+   目の中心が高さの約 37〜38%・左右の目を合わせた幅が約 37%（3体とも同じ）→ 目の部品の上端 27%・幅 37%。
+   ★外部サイトにも同じ値を渡している。変えるときは両方そろえること */
+.p-mission-reflect__guide-figure .p-char__face {
+  top: 27%;
+  width: 37%;
+}
+
 .p-mission-reflect__guide-bubble {
   flex: 1;
   min-width: 0;
@@ -13884,6 +13908,7 @@ border: 2px solid var(--bg-textbox);
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
      public/js/views/pillarEdit.js … renderPillarEdit
+     public/js/modals/pillarNextModal.js … checkPillarNext
    ========================================================================== */
 
 .p-pillar-edit {
@@ -14112,6 +14137,60 @@ border: 2px solid var(--bg-textbox);
   font-weight: var(--font-weight-bold);
   color: var(--color-primary);
   text-align: center;
+}
+
+/* ── 柱を初めて立てたあとの「やることを作ってみよう」（2026-11-12。modals/pillarNextModal.js）── */
+.p-pillar-next {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  border-radius: var(--radius-md);
+  text-align: center;
+  background-color: var(--color-surface);
+}
+
+.p-pillar-next__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-pillar-next__pillars {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.p-pillar-next__pillar {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background-color: var(--color-warning-pale2);
+}
+
+.p-pillar-next__text {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-md);
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.p-pillar-next__go {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--space-4);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-pillar-next__later {
+  display: block;
+  margin: var(--space-3) auto 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }
 
 /* ===== object/project/_pillar-char.css ===== */

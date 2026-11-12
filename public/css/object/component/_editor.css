@@ -348,3 +348,18 @@
 .c-editor em {
   font-style: italic;
 }
+
+/* ── 振り返りの欄（2026-11-12。clearEditor.js の reflectEditorHtml）──
+   ★完了後の振り返りのページ・アーカイブの編集・振り返りの編集モーダルの3か所で共用。書式は使える・画像と PDF は入れない（200 字）。
+     本文の欄より低くする（2〜3行ぶん）。文字は 16px 以上（iOS のズーム） */
+.c-editor--reflect {
+  /* ★下の書式のツールバー（高さ 32px ほど）を文字に重ねない。ツールバーのぶんの余白を下に取る（本文の欄と同じ考え方） */
+  min-height: 104px;
+  max-height: 40vh;
+  padding: var(--space-3);
+  padding-bottom: calc(var(--space-10) + var(--space-2));
+  font-size: 16px;
+  /* ★見出しの中（アーカイブの p-archive__reflect-label など）に置いても太さを受け継がない。
+     受け継ぐと、ブラウザが「もう太字」と判断して太字ボタンが「太字を外す」として働いた */
+  font-weight: normal;
+}

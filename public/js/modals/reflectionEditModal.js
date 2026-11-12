@@ -13,6 +13,7 @@ import { state } from '../state.js';
 import { api }   from '../api.js';
 import { logEvent } from '../logger.js';
 import { placeholderFor, reflectShowsStruggle, isKnowledgePublished } from '../utils.js';
+import { reflectEditorHtml, bindReflectEditor, readReflectEditor } from '../clearEditor.js';
 import { Components } from '../components.js';
 import { confirmFirstShare, applyShareConfirmed } from './shareConfirmModal.js';
 import {
@@ -22,7 +23,6 @@ import {
 } from '../constants.js';
 
 const OVERLAY_ID = 'reflection-edit-overlay';
-const MAX = 200;
 
 function _esc(s) {
   return String(s ?? '')
@@ -64,15 +64,12 @@ export function openReflectionEditModal(missionId, userId = null) {
 
       <!-- ★うまくいった側は欄を1つ（solution）だけ。以前に書いた「効いたこと」があれば出す（reflectShowsStruggle）-->
       ${reflectShowsStruggle(cd.outcome, cd.struggle) ? `
-      <label class="p-reflect-edit__label" for="re-struggle">${_esc(labels.struggle)}</label>
-      <textarea id="re-struggle" maxlength="${MAX}" rows="3"
-        class="c-input c-input--block p-reflect-edit__input"
-        placeholder="${_esc(placeholderFor(tables.struggle, m))}">${_esc(cd.struggle || '')}</textarea>` : ''}
+      <p class="p-reflect-edit__label" id="re-struggle-label">${_esc(labels.struggle)}</p>
+      ${reflectEditorHtml({ id: 're-struggle', label: labels.struggle, placeholder: placeholderFor(tables.struggle, m) })}` : ''}
 
-      <label class="p-reflect-edit__label" for="re-solution">${_esc(labels.solution)}</label>
-      <textarea id="re-solution" maxlength="${MAX}" rows="3"
-        class="c-input c-input--block p-reflect-edit__input"
-        placeholder="${_esc(placeholderFor(tables.solution, m))}">${_esc(cd.solution || '')}</textarea>
+      <p class="p-reflect-edit__label" id="re-solution-label">${_esc(labels.solution)}</p>
+      <!-- ★太字・非公開などの書式が使える欄（2026-11-12。clearEditor.js の reflectEditorHtml） -->
+      ${reflectEditorHtml({ id: 're-solution', label: labels.solution, placeholder: placeholderFor(tables.solution, m) })}
       ${REFLECT_HINTS[cd.outcome] ? `<p class="p-reflect-edit__hint">${_esc(REFLECT_HINTS[cd.outcome])}</p>` : ''}
 
       <div class="p-reflect-edit__share">${Components.ShareCheck({ id: 're-shareable', checked: !!cd.shareable, published: isKnowledgePublished(p) })}</div>
@@ -95,11 +92,15 @@ export function openReflectionEditModal(missionId, userId = null) {
     if (e.target.checked && !(await confirmFirstShare(p))) e.target.checked = false;
   });
 
+  bindReflectEditor(overlay.querySelector('#re-struggle'), cd.struggle || '');
+  bindReflectEditor(overlay.querySelector('#re-solution'), cd.solution || '');
+
   const saveBtn = overlay.querySelector('[data-re="save"]');
   saveBtn.onclick = async () => {
     // ★欄が無い（うまくいった側）ときは今の値のまま送る（空で潰さない）
-    const struggle  = (overlay.querySelector('#re-struggle')?.value ?? cd.struggle ?? '').trim();
-    const solution  = overlay.querySelector('#re-solution').value.trim();
+    const sEl = overlay.querySelector('#re-struggle');
+    const struggle  = sEl ? readReflectEditor(sEl) : String(cd.struggle ?? '').trim();
+    const solution  = readReflectEditor(overlay.querySelector('#re-solution'));
     const shareable = overlay.querySelector('#re-shareable').checked;
     // ★本文の無い振り返りは公開の候補にできない（サーバーが shareable を外す）。黙って外さず、先に知らせる
     if (shareable && !struggle && !solution) {

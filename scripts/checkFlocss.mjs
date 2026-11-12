@@ -683,7 +683,9 @@ section('[B] 実機で見つかった不具合');
 
     ok('★プレースホルダーを _esc に通している',
       /placeholder="\$\{_esc\(\(?(INITIAL_TASK_PLACEHOLDERS\[m\.id\] \|\| )?placeholderFor\(/.test(md) &&
-      /placeholder="\$\{_esc\(f(\.(struggle|solution)|\[key\])\.placeholder\)\}"/.test(mr));
+      // ★振り返りのページの例文は、振り返りの欄の部品（clearEditor.js の reflectEditorHtml）がエスケープする（2026-11-12）
+      /reflectEditorHtml\(\{ id: `reflect-\$\{key\}`, placeholder: f\[key\]\.placeholder/.test(mr) &&
+      /data-placeholder="\$\{esc\(placeholder\)\}"/.test(R('public/js/clearEditor.js')));
     // ★タグ別の出し分けは utils.js の placeholderFor 1本。各ファイルに書き写さないこと
     ok('★タグ別の例文の選び方が utils.js に1本化されている',
       /export function placeholderFor\(table, mission\)/.test(ut) &&
@@ -714,8 +716,19 @@ section('[B] 実機で見つかった不具合');
     //   引き直され、完了通知と Web Push も再送される
     // ★判定は codeOnly を通す。「completeMission を再送しないこと」という注意書き自体が
     //   引っかかるため（落とし穴 0-8）
-    ok('★振り返りの保存に completeMission を再送していない',
-      /api\.updateReflection\(/.test(mr) && !/completeMission/.test(codeOnly(mr)));
+    // ★2026-11-12：振り返りを聞くタスクは、完了の確定を振り返りのページの最後まで遅らせた（modals/helpers.js が state.pendingClear を作る）。
+    //   振り返りのページが completeMission を呼ぶのは、その「保留中の完了」を確定する1か所（_completePending）だけ。
+    //   すでに完了したタスクの振り返りは、今までどおり PATCH …/reflection（updateReflection）だけで保存する
+    {
+      const crm = codeOnly(mr);
+      const cp = (/async function _completePending[\s\S]*?\n\}\n/.exec(crm) || [])[0] || '';
+      const hp = codeOnly(R('public/js/modals/helpers.js'));
+      ok('★振り返りのページが completeMission を呼ぶのは保留中の完了の確定だけ（再送しない）',
+        /api\.updateReflection\(/.test(mr) && (crm.match(/completeMission/g) || []).length === 1 &&
+        /completeMission/.test(cp) && /_pending\(m\.id\)/.test(cp) && /state\.pendingClear = null/.test(cp));
+      ok('★振り返りを聞くタスクは、完了フォームで完了させずに保留する（state.pendingClear → 振り返りのページ）',
+        hp.indexOf('state.pendingClear = {') > 0 && hp.indexOf('state.pendingClear = {') < hp.indexOf('api.completeMission('));
+    }
     // ★成否で問いを変える（「どう乗り越えた？」だけだと、乗り越えられなかった人が書けない）
     ok('★成否で見出しを切り替えている（REFLECT_LABELS）',
       /REFLECT_LABELS/.test(mr) && /REFLECT_LABELS/.test(md) &&
