@@ -82,6 +82,7 @@ import { checkSkillCollectModal } from './modals/skillCollectModal.js';
 import { showConfirmDialog } from './dialog.js';
 import { initSheetDragClose } from './sheet.js';
 import { initBrowserBack } from './browserBack.js';
+import { renderExplore } from './views/explore.js';
 import { watchLayoutMode } from './layoutMode.js';
 import {
   registerServiceWorker, initPushNavigation,
@@ -113,6 +114,7 @@ let _togglingPreview = false;
 //   アカウント作成画面から始まることになる。
 registerRenderer('WELCOME',               renderWelcome);
 registerRenderer('CREATE_ACCOUNT_INFO',   renderSignup);
+registerRenderer('EXPLORE',               renderExplore);   // 公開ページ「みんなの記録」（/explore）
 registerRenderer('LOGIN',                 renderLogin);
 registerRenderer('PASSWORD_RESET_REQUEST', renderPasswordResetRequest);
 registerRenderer('PASSWORD_RESET_CONFIRM', renderPasswordResetConfirm);
@@ -1957,6 +1959,15 @@ const _LOG_LABELS = {
   public_published:          '公開した（確認済み）',
   archive_task_share_toggled: 'タスクの公開を切り替えた',
   archive_public_link_copied: '公開ページのリンクをコピーした',
+  // 公開ページ「みんなの記録」（/explore。views/explore.js）
+  explore_opened:          'みんなの記録を開いた',
+  explore_card_opened:     'みんなの記録でイベントを開いた',
+  explore_liked:           'みんなの記録でいいねした',
+  explore_unliked:         'みんなの記録のいいねを取り消した',
+  explore_comment_posted:  'みんなの記録にコメントした',
+  explore_comment_deleted: 'みんなの記録のコメントを消した',
+  explore_login_tapped:    'みんなの記録から「ログインしてコメントする」',
+  explore_signup_tapped:   'みんなの記録から「イベクリをはじめる」',
   archive_unpublished:       '公開を停止した',
   board_panel_switched:      'メインボードの右列を切り替えた（広い画面）',
   gantt_zoomed:              'ガントをピンチで拡大・縮小した（広い画面）',

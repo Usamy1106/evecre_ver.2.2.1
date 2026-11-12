@@ -1626,6 +1626,48 @@ body {
   box-shadow: 0 0 0 2px var(--white);
 }
 
+/* ===== object/component/_like-button.css ===== */
+/* ==========================================================================
+   Object / Component / like-button — いいねボタン（2026-11-12。指示書05 §5-5）
+   使用箇所: 公開ページ（/explore）の告知モーダルとナレッジページ（同じいいねを共有する）
+
+   ★押した状態は aria-pressed と .is-liked の両方。色だけに頼らず、♡ / ♥ の形も変える
+   ★押したらすぐ見た目を変え、応答が返るまで aria-busy（JS が次を送らない）
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
+     public/js/views/explore.js … _likeButtonHtml
+   ========================================================================== */
+
+.c-like-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  transition: background-color var(--duration-fast), border-color var(--duration-fast);
+}
+
+.c-like-button__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.c-like-button.is-liked {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background-color: var(--color-danger-pale);
+}
+
+.c-like-button[aria-busy='true'] {
+  opacity: .7;
+}
+
 /* ===== object/component/_thumbnail.css ===== */
 /* ==========================================================================
    Object / Component / thumbnail — イベントのサムネイル
@@ -15030,6 +15072,404 @@ border: 2px solid var(--bg-textbox);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-muted);
+}
+
+/* ===== object/project/_explore.css ===== */
+/* ==========================================================================
+   Object / Project / explore — 公開ページ「みんなの記録」（/explore。2026-11-12。指示書05 §5）
+   使用箇所: 一覧・告知モーダル・ナレッジページ・コメント
+
+   ★イベントの中身（基礎情報・目的・柱・タスクの記録）の見た目は _public-archive.css（公開の確認ページと共通）。
+     ここには足さないこと（確認した姿と外に出る姿がずれる）
+   ★ナレッジページは読む幅（--reading-max-width）。一覧は広い画面で横に並べる（ブレイクポイントに頼らず auto-fill）
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
+     public/js/views/explore.js … renderExplore / _headerHtml / _listHtml / _cardHtml / _detailHtml /
+                                  _commentsHtml / _syncModal
+   ========================================================================== */
+
+.p-explore {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--color-bg);
+}
+
+/* ── ヘッダー ── */
+.p-explore__head {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: calc(var(--space-2) + env(safe-area-inset-top)) var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.p-explore__brand {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-explore__logo {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+}
+
+.p-explore__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+
+.p-explore__nav-link {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+/* 小さめのボタン（ヘッダー・モーダル・コメント） */
+.p-explore__small {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+/* ── 本文 ── */
+.p-explore__main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-10);
+}
+
+.p-explore--detail .p-explore__main {
+  max-width: calc(var(--reading-max-width) + var(--space-4) * 2);
+}
+
+.p-explore__title {
+  font-size: 22px;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-explore__lead {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+
+.p-explore__message {
+  margin-top: var(--space-6);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ── 絞り込み ── */
+.p-explore__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.p-explore__filter {
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+}
+
+.p-explore__filter.is-active {
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
+  background-color: var(--color-primary);
+}
+
+.p-explore__count {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ── 一覧のカード ── */
+.p-explore__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.p-explore__card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  text-align: left;
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.p-explore__thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+
+.p-explore__thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-primary-pale);
+}
+
+.p-explore__thumb--empty img {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  opacity: .8;
+}
+
+.p-explore__card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+.p-explore__card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.p-explore__label {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+.p-explore__label--archive {
+  background-color: var(--color-primary-pale);
+}
+
+.p-explore__type {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-explore__card-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.4;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.p-explore__card-meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  word-break: break-word;
+}
+
+.p-explore__card-like {
+  margin-top: auto;
+  padding-top: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+}
+
+/* ── 告知モーダル ── */
+.p-explore__modal {
+  position: relative;
+  width: 100%;
+  max-width: var(--reading-max-width);
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.p-explore__modal-close {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  font-size: 24px;
+  color: var(--color-text-muted);
+  background-color: var(--color-surface);
+}
+
+.p-explore__modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* ── ナレッジページ ── */
+.p-explore__back {
+  display: inline-block;
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.p-explore__page {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+.p-explore__page-like {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── コメント ── */
+.p-explore__comments {
+  margin-top: var(--space-6);
+}
+
+.p-explore__section-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-explore__comment-form {
+  margin-top: var(--space-3);
+}
+
+/* ★入力欄の文字は 16px 以上（iOS が勝手にズームする） */
+.p-explore__comment-input {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  resize: vertical;
+}
+
+.p-explore__comment-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.p-explore__comment-left {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-explore__comment-left.is-over {
+  color: var(--color-danger);
+}
+
+.p-explore__comment-note,
+.p-explore__comment-empty {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.p-explore__comment-login {
+  min-height: 44px;
+  margin-top: var(--space-3);
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+}
+
+.p-explore__comment-list {
+  margin-top: var(--space-4);
+}
+
+.p-explore__comment {
+  display: flex;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.p-explore__comment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.p-explore__comment-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.p-explore__comment-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-explore__comment-time {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.p-explore__comment-body {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.p-explore__comment-delete {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+.p-explore__more {
+  display: block;
+  margin: var(--space-3) auto 0;
 }
 
 /* ===== object/project/_create-event.css ===== */

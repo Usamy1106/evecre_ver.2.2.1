@@ -61,6 +61,7 @@
 | 入力欄（`c-input`） | `object/component/_input.css` |
 | ラベルタグの色・形（`c-tag`） | `object/component/_tag.css` |
 | ユーザーアイコン（`c-avatar`） | `object/component/_avatar.css` |
+| いいねボタン（`c-like-button`。公開ページ） | `object/component/_like-button.css` |
 | イベントのサムネイル（`c-thumbnail`） | `object/component/_thumbnail.css` |
 | 読み込めなかった画像の代わり（`c-broken-image`） | `object/component/_broken-image.css` |
 | アイコンを文字の色で塗る（`c-icon`。SVG を mask で型抜き） | `object/component/_icon.css` |
@@ -104,6 +105,7 @@
 | 宣伝用に公開するかの確認（項目の設定済み／未設定） | `object/project/_public-basic.css` |
 | 公開の確認ページ（枠・説明・3つのチェック） | `object/project/_publish-confirm.css` |
 | 公開されるイベントの見た目（確認ページと公開ページ /explore で共通） | `object/project/_public-archive.css` |
+| 公開ページ「みんなの記録」（/explore の一覧・告知モーダル・ナレッジページ・コメント） | `object/project/_explore.css` |
 | ミッションの作成・編集モーダル | `object/project/_mission-form.css` |
 | タスク作成の確認モーダル（未設定の項目を知らせる） | `object/project/_mission-check.css` |
 | 担当者の選択・おすすめ | `object/project/_assignee.css` |
@@ -288,6 +290,7 @@ public/css/
 │  ├─ _input.css                ✅ c-input
 │  ├─ _tag.css                  ✅ c-tag（色は --tag-color）
 │  ├─ _avatar.css               ✅ c-avatar（大きさは --avatar-size）
+│  ├─ _like-button.css          ✅ c-like-button（公開ページのいいね）
 │  ├─ _thumbnail.css            ✅ c-thumbnail
 │  ├─ _broken-image.css         ✅ c-broken-image
 │  ├─ _icon.css                 ✅ c-icon（素材の SVG を currentColor で塗る）
@@ -344,6 +347,7 @@ public/css/
 │  ├─ _public-basic.css         ✅ 宣伝用に公開するかの確認
 │  ├─ _publish-confirm.css      ✅ 公開の確認ページ
 │  ├─ _public-archive.css       ✅ 公開されるイベントの見た目（確認ページ・公開ページ共通）
+│  ├─ _explore.css              ✅ 公開ページ「みんなの記録」（/explore）
 │  ├─ _mission-form.css         ✅ ミッションの作成・編集モーダル
 │  ├─ _mission-check.css        ✅ p-mission-check
 │  ├─ _assignee.css             ✅ 担当者の選択・おすすめ

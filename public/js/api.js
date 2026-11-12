@@ -249,6 +249,34 @@ export const api = {
   // 提出内容（本文・画像・PDF）を書き換える（管理者のみ。アーカイブの編集モード）。
   // ★画像・PDF は先に uploadSubmissionImage / uploadSubmissionFile で送り、URL だけを渡す。
   //   個別完了は targetUserId でその人の提出物を指す。
+  // ── 公開ページ（/explore）。ログインしていなくても呼べる（2026-11-12。指示書05）──
+  async exploreList() {
+    const { json } = await _send('GET', '/api/explore/events');
+    return json || { ok: false };
+  },
+  async exploreEvent(id) {
+    // ★応答の status（'archive'|'upcoming'）を上書きしないよう、HTTP の応答コードは httpStatus に入れる
+    const { status, json } = await _send('GET', `/api/explore/events/${encodeURIComponent(id)}`);
+    return { ...(json || { ok: false }), httpStatus: status };
+  },
+  // on=true でいいね、false で取り消し。★POST は本文 {} を JSON で送る（CSRF の決まりで JSON 以外は 415）
+  async exploreLike(id, on) {
+    const { json } = await _send(on ? 'POST' : 'DELETE', `/api/explore/events/${encodeURIComponent(id)}/like`, on ? {} : undefined);
+    return json || { ok: false };
+  },
+  async exploreComments(id, before = null) {
+    const q = before ? `?before=${encodeURIComponent(before)}` : '';
+    const { json } = await _send('GET', `/api/explore/events/${encodeURIComponent(id)}/comments${q}`);
+    return json || { ok: false };
+  },
+  async explorePostComment(id, body) {
+    const { status, json } = await _send('POST', `/api/explore/events/${encodeURIComponent(id)}/comments`, { body });
+    return { ...(json || { ok: false }), httpStatus: status };
+  },
+  async exploreDeleteComment(id, cid) {
+    const { json } = await _send('DELETE', `/api/explore/events/${encodeURIComponent(id)}/comments/${encodeURIComponent(cid)}`);
+    return json || { ok: false };
+  },
   // 公開の確認ページ（管理者だけ）。公開したら外に出る姿（GET /api/events/:id/public-preview）
   async publicPreview(eventId) {
     const { json } = await _send('GET', `/api/events/${eventId}/public-preview`);

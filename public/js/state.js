@@ -7,6 +7,7 @@ import { syncRealtime, disconnectRealtime } from './realtime.js';
 import { showConfirmDialog } from './dialog.js';
 import { applyLayoutClasses } from './layoutMode.js';
 import { syncBackGuard } from './browserBack.js';
+import { consumeExploreReturn } from './exploreReturn.js';
 
 // AI 提案の生成に失敗したあと、そのイベントで呼び直すまでの間（_checkProposalCycle）
 const PROPOSAL_RETRY_MS = 10 * 60 * 1000;
@@ -179,6 +180,20 @@ export const state = {
   // --- 初期化（セッション確認 → ユーザーがいればデータ取得）---
   async init() {
     console.log('[init] 開始');
+
+    // ★公開ページ「みんなの記録」（/explore。views/explore.js）。ログインしていなくても見られる。
+    //   ほかの起動の流れ（招待・オンボーディング・タスクのリンク）を通さず、アプリのモーダルも出さない。
+    //   ログインしているかだけ確かめる（ヘッダーの「アプリに戻る」とコメント欄のため）。通信できなくても公開ページは描く
+    if (/^\/explore(\/|$)/.test(window.location.pathname)) {
+      const ex = await import('./views/explore.js');
+      if (ex.startExplore()) {
+        try { const me = await api.meRaw(); if (me?.user) this.currentUser = me.user; } catch (_) {}
+        this.currentView = 'EXPLORE';
+        this.render();
+        this._hideLoading();
+        return;
+      }
+    }
 
     // iOS の Google サインイン（フォーム POST → リダイレクト）失敗時のフィードバック
     const gerr = new URLSearchParams(window.location.search).get('gerror');
@@ -545,6 +560,9 @@ export const state = {
       this._hideLoading();
       return;
     }
+
+    // ★公開ページの「ログインしてコメントする」から来た → 同じページへ戻る（exploreReturn.js）
+    if (consumeExploreReturn()) return;
 
     console.log('[loadAfterAuth] HOME へ遷移');
     this.currentView = 'HOME';
