@@ -313,6 +313,9 @@ const WIDE_BOTTOM_CLEAR = 52;
 //   中央 → 右端 → 中央 → 左端 → 中央 で 12 マス一巡になる（値を上げるほど緩い）。
 // ★X_CENTER ± X_AMPLITUDE が手前での振れ幅。
 const X_CENTER    = 50;
+// ★完了したマスの横に出すオブジェクト（絵文字）を描くか。2026-11-13 に非表示にした（素材を足すまで）。
+//   抽選と保存（サーバーが submissions の objectId に書く）は続けているので、true に戻せば過去の完了ぶんもそのまま出る
+const SHOW_OBJECTS = false;
 const X_AMPLITUDE = 28;   // 24%〜76%。マスの幅を足しても画面内に収まる
 const ARC_NODES   = 5;
 
@@ -1200,7 +1203,7 @@ export function renderMountainBg(p, opts = {}) {
     // ★完了したマスの横に、そのタスクで出たオブジェクトを置く。
     //   何を完了したかが景色として残る。抽選はサーバーが完了時に1回だけ行い、
     //   結果は clearedData（submissions）に入っている。ここは読むだけ。
-    const obj = isDone ? _objectFor(p, cleared[i]) : null;
+    const obj = SHOW_OBJECTS && isDone ? _objectFor(p, cleared[i]) : null;
     // 道の外側（中央から遠い側）へ置く。道やマスと重ならないようにするため
     const objHtml = obj
       ? `<span class="p-mountain__object${x < X_CENTER ? ' p-mountain__object--left' : ''}${i === popIdx ? ' p-mountain__object--pop' : ''}"
