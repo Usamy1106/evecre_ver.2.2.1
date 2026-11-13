@@ -6,7 +6,7 @@ import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated, taskShareState, countPublishableReflections } from '../utils.js';
 import { redirectGoalQuest } from '../goalQuest.js';
-import { editorFormatButtonsHtml } from '../clearEditor.js';
+import { editorFormatButtonsHtml, reflectEditorHtml } from '../clearEditor.js';
 import { pillarCharacter } from '../pillarChars.js';
 import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchivePreviewTap, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
@@ -1961,7 +1961,7 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
   const reflectRow = (label, text) => text
     ? `<div class="p-archive__reflect-row">
          <p class="p-archive__reflect-label">${label}</p>
-         <p class="p-archive__reflect-text">${linkifyText(text)}</p>
+         <p class="p-archive__reflect-text">${richTextHtml(text)}</p>
        </div>` : '';
   const hasReflect = struggle || solution;
   const uidArg = userId ? `, '${_esc(userId)}'` : '';
@@ -2021,12 +2021,13 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
         </div>` : ''}
         <div class="p-archive__reflect-fields${needsOutcome ? ' u-hidden' : ''}" data-reflect-fields>
           <!-- ★うまくいった側は1つ目の欄（struggle）を隠す。以前に書いた文字があれば出す（reflectShowsStruggle。2026-11-05） -->
-          <label class="p-archive__reflect-label${reflectShowsStruggle(cd.outcome, cd.struggle) ? '' : ' u-hidden'}" data-reflect-struggle-wrap><span data-reflect-label="struggle">${labels.struggle}</span>
-            <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('struggle')}>${_esc(cd.struggle || '')}</textarea>
-          </label>
-          <label class="p-archive__reflect-label"><span data-reflect-label="solution">${labels.solution}</span>
-            <textarea class="c-input c-input--block p-archive__reflect-input" rows="2" maxlength="200" ${reflectAttrs('solution')}>${_esc(cd.solution || '')}</textarea>
-          </label>
+          <!-- ★太字・非公開などの書式が使える欄（2026-11-12。clearEditor.js の reflectEditorHtml）。保存済みの文字は data-initial から入れる -->
+          <div class="p-archive__reflect-label${reflectShowsStruggle(cd.outcome, cd.struggle) ? '' : ' u-hidden'}" data-reflect-struggle-wrap><span data-reflect-label="struggle">${labels.struggle}</span>
+            ${reflectEditorHtml({ label: labels.struggle, attrs: `${reflectAttrs('struggle')} data-initial="${_esc(cd.struggle || '')}"` })}
+          </div>
+          <div class="p-archive__reflect-label"><span data-reflect-label="solution">${labels.solution}</span>
+            ${reflectEditorHtml({ label: labels.solution, attrs: `${reflectAttrs('solution')} data-initial="${_esc(cd.solution || '')}"` })}
+          </div>
           <!-- ★公開の候補にするかは、タスクの左のチェック1つにまとめた（2026-11-07。同じ値を2か所で触らせない） -->
         </div>
         <p class="p-archive__save-status" data-save-status></p>

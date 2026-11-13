@@ -935,8 +935,18 @@ const REFLECTION_OUTCOMES = ['success', 'struggle'];
  * @param {object} body
  * @param {{partial?: boolean, existing?: object}} opts
  */
+// ★振り返りの欄は書式の印（{{b}} {{i}} {{h}} {{l}} {{p}}）を持てる（2026-11-12）。200 字は印を外した文字で数える。
+//   超えたら印を外した文字を 200 字で切る（印の途中で切って壊さない）。印つきでも全体は 1000 字まで
+const _REFLECT_MARK_RE = /\{\{\/?(?:b|i|h|l|p)\}\}/g;
+function _trimReflectionText(v) {
+  const t = String(v ?? '').replace(/\r\n?/g, '\n').trim().replace(/\{\{(?:image|file):\d+\}\}/g, '');
+  const plain = t.replace(_REFLECT_MARK_RE, '');
+  if (plain.length <= REFLECTION_MAX && t.length <= REFLECTION_MAX * 5) return t;
+  return plain.slice(0, REFLECTION_MAX);
+}
+
 function _sanitizeReflection(body, opts = {}) {
-  const trim = (v) => String(v ?? '').trim().slice(0, REFLECTION_MAX);
+  const trim = (v) => _trimReflectionText(v);
   const has  = (k) => Object.prototype.hasOwnProperty.call(body || {}, k);
   const out = {};
   const partial = !!opts.partial;
@@ -4039,7 +4049,13 @@ app.post('/api/events/:id/missions/:mid/complete', requireAuth, async (req, res)
     }
     // ★引いたオブジェクトを返す。クライアントは完了トーストの文言に使う
     //   （アップグレードが起きたことが伝わらないと動機づけにならない）。
-    res.json({ ok: true, mission: _missionToFlat(p.missions[mid], mid), object: rolled });
+    // ★振り返りを一緒に送って（2026-11-12。完了の確定を振り返りのページの最後まで遅らせた）、共有してよいが選ばれていたら、
+    //   PATCH …/reflection と同じく、このイベントの初回確認を済ませた印を立てる
+    let shareConfirmedAt;
+    if (reflection.shareable === true) {
+      shareConfirmedAt = (await eventStore.markShareConfirmed(p.id)) ? Date.now() : (p.fields?.shareConfirmedAt?.v || Date.now());
+    }
+    res.json({ ok: true, mission: _missionToFlat(p.missions[mid], mid), object: rolled, ...(shareConfirmedAt ? { shareConfirmedAt } : {}) });
   } catch (e) {
     console.error('complete error:', e);
     res.status(500).json({ ok: false, error: 'サーバーエラーが発生しました' });

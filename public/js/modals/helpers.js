@@ -280,93 +280,81 @@ export async function submitMissionClear(missionId) {
     throw e;
   }
 
+  // ── 完了の確定はいつ？（2026-11-12）───────────────────────────
+  // ★振り返りを聞くタスクは、ここではまだ完了させない。送る中身を「保留中の完了」（state.pendingClear）として持ち、
+  //   振り返りのページ（views/missionReflect.js）の「保存して完了」「振り返らずに完了する」で、振り返りと一緒に1回で確定する。
+  //   振り返りのページで「戻る」を押したら、完了せずにこの入力画面へ戻る（入力した文章・画像・PDF もそのまま）。
+  //   ★以前は、ここで完了を確定してから振り返りへ進んでいた。戻っても完了したままで、取り消すと提出物とファイルが消えた
+  // ★振り返りを聞かないタスク（入力欄が無い・初期タスクの目的と概要）は、今までどおりここで確定する
+  const returnTab = state.currentView === 'MISSION_DETAIL'
+    ? (state.missionDetailReturn?.tab || state.mainBoardTab)
+    : state.mainBoardTab;
+  const payload = { content: textValue, format: detectedFormat, ...embedsPayload(images, files) };
+  const askReflect = !m.noInput && !REFLECT_SKIP_MISSION_IDS.includes(m.id);
+  if (askReflect) {
+    restore();
+    state.pendingClear = { eventId: project.id, missionId, payload, returnTab, imageCount: images.length, fileCount: files.length };
+    document.getElementById('clear-mission-modal')?.remove();
+    state.openMissionReflect(missionId, { tab: returnTab });
+    return;
+  }
+
   // ── サーバーで永続化 ─────────────────────────────────────
   // PUT /api/data は canManage 必須のため、一般メンバーの完了が保存されず
   // 再読み込みで未完了に戻る不具合があった。完了は専用エンドポイントで永続化する。
-  // ── 振り返りは完了**後**に聞く（views/missionReflect.js のページ）─────────
-  // ★完了フォームには振り返りの入力欄を置かない（2026-09-20 に移設）。
-  //   完了ボタンまでの道のりを軽くし、達成感がいちばん高い直後に聞くため。
-  //   ★ここで struggle / solution を送らないこと。送ると空文字で上書きされる。
-  const r = await api.completeMission(project.id, missionId, {
-    content: textValue, format: detectedFormat, ...embedsPayload(images, files),
-  });
+  const r = await api.completeMission(project.id, missionId, payload);
   restore();
   if (!r.ok) {
     window._app?.showToast(r.error || '完了の保存に失敗しました', 'error');
     return;
   }
-  // 送信済み → 選んだ画像を捨てる
-  resetEditorImages();
+  await afterMissionCleared(project, m, r, { format: detectedFormat, imageCount: images.length, fileCount: files.length });
 
-  logEvent('mission_completed', {
-    missionId,
-    tag:      m.tag || (Array.isArray(m.tags) ? m.tags[0] : null),
-    format:   detectedFormat,
-    imageCount: images.length,
-    fileCount:  files.length,
-    priority: m.priority,
-    // ★振り返りは完了後のページで書く。書かれたかどうかは reflect_saved で数える
-  });
-
-  // 送信成功 → ローカルドラフト破棄
-  _clearDraft.discard(missionId);
-
-  // サーバーの権威ある状態（status / individualClearedBy / clearedData）を取り込む
-  await state.silentReloadEvents();
-
-  // ★山の演出（マスに色がつく／次のマスが現れる）は、実際にマスが増えたときだけ。
-  //   マスの数は「完了数 + 先の1マス」なので、status が 'cleared' になった時にしか増えない。
-  //   individualClear で全員が終わっていない間は status が 'yet' のままなので、ここで祝うと
-  //   「増えていないのに祝う」ことになる。フラグは renderMainBoard が消費する。
-  if (r.mission?.status === 'cleared') state.mountainCelebrate = true;
-
-  document.getElementById('clear-mission-modal')?.remove();
-
-  // ★完了したら振り返りページへ進む（modals ではなくページ。views/missionReflect.js）。
-  //   ★入力欄が無いタスク（noInput）と、イベント作成時に入る初期タスク（目的・概要。
-  //     constants.js の REFLECT_SKIP_MISSION_IDS）では出さない。書くことが無い／
-  //     決める作業で成否を問う対象ではないため（アーカイブからはいつでも書ける）。
-  //   ★個別完了（自分ぶんだけ完了）でも出す。提出物はもう
-  //     作られていて、振り返りは自分の提出物に対して書けるため。
-  // ★タスク詳細ページから完了したときは、そのページを閉じてから遷移する。完了した画面に
-  //   留まり続ける理由がなく、ボードへ戻ったところでオンボーディングの
-  //   「はじめての完了」（M4 / L6）を出したいため。
-  const returnTab = state.currentView === 'MISSION_DETAIL'
-    ? (state.missionDetailReturn?.tab || state.mainBoardTab)
-    : state.mainBoardTab;
+  // ★タスク詳細ページから完了したときは、そのページを閉じてから遷移する（ボードで「はじめての完了」を出すため）
   if (state.currentView === 'MISSION_DETAIL' && state.selectedMissionId === missionId) {
     state.selectedMissionId = null;
     state.missionDetailReturn = null;
     state.missionChat = null;
   }
-  // ★初期タスク（目的・概要）でも出さない。決める作業で、成否を問う対象ではない
   // ★目的（def-1）を決めたら、管理者で柱がまだ無ければ柱のページへ（「あとで」で抜けられる。2026-10-02）
   if (m.id === PURPOSE_ID && r.mission?.status === 'cleared' && shouldAskPillarsAfterPurpose(project)) {
     state.currentView = 'MAIN_BOARD';
     state.mainBoardTab = returnTab;
     state.openPillarEdit({ from: 'purpose_done', afterPurpose: true });
-  } else if (m.noInput || REFLECT_SKIP_MISSION_IDS.includes(m.id)) {
+  } else {
     if (state.currentView === 'MISSION_DETAIL') {
       state.currentView = 'MAIN_BOARD';
       state.mainBoardTab = returnTab;
       window.scrollTo(0, 0);
     }
     state.render();
-  } else {
-    state.openMissionReflect(missionId, { tab: returnTab });
   }
+}
 
-  // トースト文言はサーバーが返した最新 status から判定
+/**
+ * 完了が確定したあとの片付け（完了フォームと、振り返りのページの「保存して完了」「振り返らずに完了する」で共用）。
+ * 行動ログ・下書きの破棄・取り直し・山の演出・トースト・山のオブジェクトの知らせ。★画面の移動はしない（呼び出し側が決める）
+ * @param {object} r … POST /complete の応答
+ */
+export async function afterMissionCleared(project, m, r, { format = null, imageCount = 0, fileCount = 0 } = {}) {
+  // 送信済み → 選んだ画像を捨てる
+  resetEditorImages();
+  logEvent('mission_completed', {
+    missionId: m.id,
+    tag:      m.tag || (Array.isArray(m.tags) ? m.tags[0] : null),
+    format, imageCount, fileCount,
+    priority: m.priority,
+  });
+  // 送信成功 → ローカルドラフト破棄
+  _clearDraft.discard(m.id);
+  // サーバーの権威ある状態（status / individualClearedBy / clearedData）を取り込む
+  await state.silentReloadEvents();
+  // ★山の演出は、実際にマスが増えたとき（status が 'cleared' になったとき）だけ。フラグは renderMainBoard が消費する
+  if (r.mission?.status === 'cleared') state.mountainCelebrate = true;
+  document.getElementById('clear-mission-modal')?.remove();
   const newStatus = r.mission?.status || 'yet';
-  if (m.individualClear && newStatus === 'yet') {
-    window._app?.showToast('完了を記録しました');
-  } else {
-    window._app?.showToast('タスク完了');
-  }
-
-  // 山に出たオブジェクトを続けて知らせる。
-  // ★期限内に終わらせて珍しいものが出たことが伝わらないと、動機づけとして働かない。
-  //   抽選はサーバーが行い、結果（tier つき）をレスポンスで返してくる。
+  window._app?.showToast(m.individualClear && newStatus === 'yet' ? '完了を記録しました' : 'タスク完了');
+  // 山に出たオブジェクトを続けて知らせる（抽選はサーバー。tier つき）
   _announceMountainObject(r.object);
 }
 

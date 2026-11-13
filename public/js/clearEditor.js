@@ -550,6 +550,20 @@ function _insertAt(el, range, node) {
   return after;
 }
 
+// ★欄ごとの上限（data-max。振り返りは 200 字。2026-11-12）。無ければ本文の上限（SUBMISSION_TEXT_MAX）
+function _maxOf(el) {
+  const n = Number(el?.dataset?.max);
+  return Number.isFinite(n) && n > 0 ? n : SUBMISSION_TEXT_MAX;
+}
+// 残りの字数を出し始める字数（上限の8割。本文は SUBMISSION_TEXT_COUNT_FROM）
+function _countFromOf(el) {
+  return el?.dataset?.max ? Math.floor(_maxOf(el) * 0.8) : SUBMISSION_TEXT_COUNT_FROM;
+}
+// ★画像・PDF を受けない欄（data-no-media。振り返り。書式は使える）。文字だけの欄（data-text-only）も受けない
+function _noMedia(el) {
+  return !!el && (el.hasAttribute('data-text-only') || el.hasAttribute('data-no-media'));
+}
+
 // 本文の文字数（印を外した文字。サーバーの _submissionTextLength と同じ数え方）
 function _textLength(el) {
   return readEditor(el).text.replace(/\{\{[^}]*\}\}/g, '').length;
@@ -561,7 +575,7 @@ function _syncCount(el) {
   if (!host) return;
   const n = _textLength(el);
   let out = host.querySelector('.c-editor-field__count');
-  if (n <= SUBMISSION_TEXT_COUNT_FROM) { if (out) out.hidden = true; return; }
+  if (n <= _countFromOf(el)) { if (out) out.hidden = true; return; }
   if (!out) {
     out = document.createElement('p');
     out.className = 'c-editor-field__count';
@@ -569,18 +583,18 @@ function _syncCount(el) {
     host.appendChild(out);
   }
   out.hidden = false;
-  const left = SUBMISSION_TEXT_MAX - n;
+  const left = _maxOf(el) - n;
   out.classList.toggle('is-over', left < 0);
   out.textContent = left >= 0 ? `あと ${left} 字` : `${-left} 字多いため、このままでは保存できません`;
 }
 
 function _insertText(el, range, text) {
   // ★貼り付けも本文の上限まで（はみ出した分は入れずに知らせる）
-  const room = SUBMISSION_TEXT_MAX - _textLength(el) + (range && !range.collapsed ? range.toString().length : 0);
+  const room = _maxOf(el) - _textLength(el) + (range && !range.collapsed ? range.toString().length : 0);
   let src = String(text || '').replace(/\r\n?/g, '\n');
   if (src.length > room) {
     src = src.slice(0, Math.max(0, room));
-    _toast(`本文は${SUBMISSION_TEXT_MAX.toLocaleString('ja-JP')}字までです。入りきらない分は貼り付けていません`);
+    _toast(`${_maxOf(el).toLocaleString('ja-JP')}字までです。入りきらない分は貼り付けていません`);
   }
   const lines = src.split('\n');
   const frag = document.createDocumentFragment();
@@ -942,6 +956,7 @@ export function bindClearEditor(el, { onChange } = {}) {
   // ★文字だけの欄（data-text-only。目的＝初期タスク def-1。2026-10-02）。画像・PDF・太字・斜体を受けない。
   //   ボタンは描画側で出さない。ここでは ⌘B / ⌘I・貼り付け・ドロップのファイルを止める
   const textOnly = el.hasAttribute('data-text-only');
+  const noMedia = _noMedia(el);   // ★画像・PDF を受けない（文字だけの欄・振り返り）
   _bindDocumentOnce();
   _syncEmpty(el);
 
@@ -952,7 +967,7 @@ export function bindClearEditor(el, { onChange } = {}) {
     if (!/^insert(Text|Paragraph|LineBreak|ReplacementText)$/.test(e.inputType)) return;
     const sel = window.getSelection?.();
     const replacing = sel && !sel.isCollapsed ? String(sel).length : 0;
-    if (_textLength(el) - replacing + (e.data ? e.data.length : 1) > SUBMISSION_TEXT_MAX) e.preventDefault();
+    if (_textLength(el) - replacing + (e.data ? e.data.length : 1) > _maxOf(el)) e.preventDefault();
   });
   _syncCount(el);
 
@@ -984,7 +999,7 @@ export function bindClearEditor(el, { onChange } = {}) {
     e.preventDefault();
     const files = _filesFrom(cd).filter(f => _isImageFile(f) || _isPdfFile(f));
     const range = _currentRange(el);
-    if (files.length > 0 && textOnly) {
+    if (files.length > 0 && noMedia) {
       if (!cd.getData('text/plain')) { _toast('ここは文字だけで書けます'); return; }
     } else if (files.length > 0) { insertFiles(el, files, range, onChange); return; }
     // ★Finder で「コピー」したファイルは、ブラウザによっては画像ではなく
@@ -1004,7 +1019,7 @@ export function bindClearEditor(el, { onChange } = {}) {
   // ★dragenter も止める（Safari は dragenter を止めないとドロップ先として扱わないことがある）
   el.addEventListener('dragenter', (e) => { if (_hasFiles(e)) e.preventDefault(); });
   el.addEventListener('dragover', (e) => {
-    if (!_hasFiles(e) || textOnly) return;   // ★文字だけの欄では「ここに入る」の線を出さない
+    if (!_hasFiles(e) || noMedia) return;   // ★文字だけの欄では「ここに入る」の線を出さない
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     // 別の編集欄から移ってきたら、前の欄の色を戻す
@@ -1030,7 +1045,7 @@ export function bindClearEditor(el, { onChange } = {}) {
     // ★線で示した位置に落とす（見せた場所と入る場所をずらさない）
     const range = (shown && _inside(el, shown.startContainer)) ? shown : _rangeFromPoint(el, e.clientX, e.clientY);
     if (_hasFiles(e)) {
-      if (textOnly) { _toast('ここは文字だけで書けます'); return; }
+      if (noMedia) { _toast('ここは文字だけで書けます'); return; }
       insertFiles(el, _filesFrom(e.dataTransfer), range, onChange); return;
     }
     const text = e.dataTransfer?.getData('text/plain');
@@ -1234,4 +1249,33 @@ function _bindImageDrag(el, onChange) {
     document.addEventListener('touchmove', blockScroll, { passive: false });
     if (e.pointerType !== 'mouse') holdTimer = setTimeout(lift, DRAG_HOLD_MS);
   });
+}
+
+// ===== 振り返りの欄（2026-11-12）=====
+// 完了後の振り返りのページ・アーカイブの編集・振り返りの編集モーダルの3か所で共用する。
+// ★書式（太字・斜体・見出し・箇条書き・非公開）は使える。画像・PDF は入れない（data-no-media）。上限 200 字（data-max。印は数えない）
+// ★保存するのは印つきの文字（readEditor(el).text）。HTML は保存しない
+export const REFLECT_TEXT_MAX = 200;
+
+/** 振り返りの欄の HTML。attrs は欄（contenteditable）に足す属性の文字列（data-* など。呼び出し側でエスケープ済み） */
+export function reflectEditorHtml({ id = '', placeholder = '', label = '', attrs = '' } = {}) {
+  const esc = (x) => String(x ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return `
+      <div class="c-editor-field">
+        <div${id ? ` id="${esc(id)}"` : ''} class="c-editor c-editor--reflect is-empty" contenteditable="true" role="textbox" aria-multiline="true"
+          ${label ? `aria-label="${esc(label)}"` : ''} data-placeholder="${esc(placeholder)}" data-no-media data-max="${REFLECT_TEXT_MAX}" ${attrs}></div>
+        ${editorFormatButtonsHtml()}
+      </div>`;
+}
+
+/** 振り返りの欄を配線して、保存済みの文字（印つき）を入れる。onChange は入力のたびに印つきの文字を渡す */
+export function bindReflectEditor(el, value, onChange) {
+  if (!el) return;
+  setEditorText(el, String(value || ''));
+  bindClearEditor(el, { onChange: () => onChange?.(readEditor(el).text) });
+}
+
+/** 振り返りの欄から印つきの文字を取り出す */
+export function readReflectEditor(el) {
+  return el ? readEditor(el).text.trim() : '';
 }

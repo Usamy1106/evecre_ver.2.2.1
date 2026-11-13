@@ -23,7 +23,7 @@ import { renderPasswordResetRequest, renderPasswordResetConfirm } from './views/
 import { renderLegal } from './views/legal.js';
 import { renderConnectionError } from './views/connectionError.js';
 import { refreshPushSubscribed, checkPushPromptOnLaunch } from './modals/pushSetupModal.js';
-import { renderMissionReflect, saveMissionReflect, skipMissionReflect } from './views/missionReflect.js';
+import { renderMissionReflect, saveMissionReflect, skipMissionReflect, backMissionReflect } from './views/missionReflect.js';
 import { renderPillarEdit } from './views/pillarEdit.js';
 import { renderPillarAssign } from './views/pillarAssign.js';
 import { checkMissionBeforeCreate } from './modals/missionCheckModal.js';
@@ -86,6 +86,7 @@ import { renderExplore } from './views/explore.js';
 import { renderHandoverPick, openHandoverPick, closeHandoverPick } from './views/handoverPick.js';
 import { renderLineage, openLineage, closeLineage, openParentRegister } from './views/lineage.js';
 import { checkPillarCompare } from './modals/pillarCompareModal.js';
+import { checkPillarNext } from './modals/pillarNextModal.js';
 import { watchLayoutMode } from './layoutMode.js';
 import {
   registerServiceWorker, initPushNavigation,
@@ -938,7 +939,8 @@ window._app = {
   openMissionDetail:  (mid) => state.openMissionDetail(mid),
   closeMissionDetail: ()    => state.closeMissionDetail(),
   // 完了直後の振り返りページ（views/missionReflect.js）
-  closeMissionReflect: ()   => state.closeMissionReflect(),
+  // ★振り返りのページの「戻る」。完了を確定していなければ完了前の入力画面へ戻す（views/missionReflect.js）
+  closeMissionReflect: ()   => backMissionReflect(),
   openPillarEdit:      (from) => state.openPillarEdit({ from }),
   saveMissionReflect: ()    => saveMissionReflect(),
   skipMissionReflect: ()    => skipMissionReflect(),
@@ -1308,6 +1310,7 @@ window._app = {
   closeLineage: () => closeLineage(),
   openParentRegister: () => openParentRegister(),
   checkPillarCompare: () => checkPillarCompare(),
+  checkPillarNext: () => checkPillarNext(),
   // メインボードの「前の代のタスクから追加する」のカードを閉じる（このイベントでは出さない）
   dismissHandoverCard: (e) => {
     e?.stopPropagation?.();
@@ -2016,6 +2019,10 @@ const _LOG_LABELS = {
   lineage_opened:           '前の代（系譜）を開いた',
   parent_event_registered:  '前の代のイベントを登録した',
   pillar_compare_shown:     '前回と今回の柱を並べて見た',
+  pillar_next_shown:        '柱のあとに「やることを作ってみよう」を見た',
+  pillar_next_create:       '柱のあとに「やることを作る」を押した',
+  pillar_next_later:        '柱のあとに「あとで」を押した',
+  reflect_back_to_clear:    '振り返りのページから完了の入力に戻った',
   archive_unpublished:       '公開を停止した',
   board_panel_switched:      'メインボードの右列を切り替えた（広い画面）',
   gantt_zoomed:              'ガントをピンチで拡大・縮小した（広い画面）',

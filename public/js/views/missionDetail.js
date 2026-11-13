@@ -348,7 +348,7 @@ function _reflectionHtml(cd) {
   const row = (label, text) => text
     ? `<div class="p-mission-detail__reflect-row">
          <p class="p-mission-detail__reflect-row-label">${label}</p>
-         <p class="p-mission-detail__reflect-row-text">${_esc(text)}</p>
+         <p class="p-mission-detail__reflect-row-text">${richTextHtml(text)}</p>
        </div>`
     : '';
   return `

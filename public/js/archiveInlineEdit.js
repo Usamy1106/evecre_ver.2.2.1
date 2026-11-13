@@ -23,7 +23,7 @@
 import { state } from './state.js';
 import { api } from './api.js';
 import { logEvent } from './logger.js';
-import { readEditor, bindClearEditor, loadEditorContent, itemsForKeys } from './clearEditor.js';
+import { readEditor, bindClearEditor, loadEditorContent, itemsForKeys, bindReflectEditor, readReflectEditor } from './clearEditor.js';
 import { uploadEditorEmbeds, editorContentAndFormat, embedsPayload } from './modals/helpers.js';
 import { getArchiveSummary, setArchiveVenue, reflectShowsStruggle, submissionText, taskShareState } from './utils.js';
 import { saveSummaryText, savePurposeText, shouldAskPillarsAfterPurpose } from './initialTasks.js';
@@ -225,7 +225,8 @@ async function _saveReflection(node) {
   const missionId = node.dataset.reflectMission;
   const userId    = node.dataset.reflectUser || null;
   const field     = node.dataset.reflectField;   // struggle | solution | shareable
-  const value     = field === 'shareable' ? node.checked : node.value.trim();
+  // ★振り返りの欄は書式の印つきの文字（2026-11-12。clearEditor.js の振り返りの欄）
+  const value     = field === 'shareable' ? node.checked : (node.matches('.c-editor') ? readReflectEditor(node) : node.value.trim());
   node._dirty = false;
   _status(node, 'saving', '保存中…');
   const r = await api.updateReflection(p.id, missionId, { [field]: value, targetUserId: userId || undefined });
@@ -249,8 +250,9 @@ async function _saveReflection(node) {
 }
 
 function _bindReflection(node) {
-  if (node._bound) return;
-  node._bound = true;
+  // ★目印は _reflectBound（編集欄の配線 bindClearEditor が _bound を使うので、同じ名前にすると配線されない）
+  if (node._reflectBound) return;
+  node._reflectBound = true;
   if (node.type === 'checkbox') {
     node.addEventListener('change', async () => {
       // ★このイベントで初めてのチェックなら確認する。「いいえ」ならチェックを外して保存しない
@@ -259,8 +261,17 @@ function _bindReflection(node) {
     });
     return;
   }
-  node.addEventListener('input', () => { node._dirty = true; });
-  node.addEventListener('focusout', () => { if (node._dirty) _saveReflection(node); });
+  if (node.matches('.c-editor')) {
+    bindReflectEditor(node, node.dataset.initial || '', () => { node._dirty = true; });
+  } else {
+    node.addEventListener('input', () => { node._dirty = true; });
+  }
+  // ★書式のボタン（同じ枠の中）を押してフォーカスが移ったときは保存しない（枠の外へ出たときだけ）
+  node.addEventListener('focusout', (e) => {
+    const field = node.closest('.c-editor-field');
+    if (field && e.relatedTarget && field.contains(e.relatedTarget)) return;
+    if (node._dirty) _saveReflection(node);
+  });
 }
 
 // 未記入の振り返り：「うまくいった／つまずいた」を選んだら、成否を保存して入力欄を出す（2026-10-14）
@@ -279,7 +290,8 @@ async function _pickOutcome(btn) {
   block.querySelector('[data-reflect-fields]')?.classList.remove('u-hidden');
   // ★うまくいった側は1つ目の欄（struggle）を隠し、カーソルは見えている最初の欄へ（2026-11-05）
   const struggleWrap = block.querySelector('[data-reflect-struggle-wrap]');
-  const struggleText = block.querySelector('[data-reflect-field="struggle"]')?.value || '';
+  const sNode = block.querySelector('[data-reflect-field="struggle"]');
+  const struggleText = sNode ? (sNode.matches('.c-editor') ? readReflectEditor(sNode) : sNode.value || '') : '';
   struggleWrap?.classList.toggle('u-hidden', !reflectShowsStruggle(outcome, struggleText));
   const first = struggleWrap && !struggleWrap.classList.contains('u-hidden') ? 'struggle' : 'solution';
   block.querySelector(`[data-reflect-field="${first}"]`)?.focus({ preventScroll: false });
