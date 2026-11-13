@@ -290,6 +290,15 @@
   height: var(--char-h);
 }
 
+/* 目の位置と大きさ（2026-11-12）。★メインボードの提案キャラ（_character.css の .p-char__face：上端 12%・幅 27%）とは違い、
+   素材の全身図（images/character/character-{mizu,mori,iwa}.svg）の目に合わせる：
+   目の中心が高さの約 37〜38%・左右の目を合わせた幅が約 37%（3体とも同じ）→ 目の部品の上端 27%・幅 37%。
+   ★外部サイトにも同じ値を渡している。変えるときは両方そろえること */
+.p-mission-reflect__guide-figure .p-char__face {
+  top: 27%;
+  width: 37%;
+}
+
 .p-mission-reflect__guide-bubble {
   flex: 1;
   min-width: 0;

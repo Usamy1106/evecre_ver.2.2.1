@@ -20,6 +20,7 @@ import { getPillars, pillarIdsOf, newPillarId, submissionText } from '../utils.j
 import { PILLARS_MAX, PILLAR_NAME_MAX, PILLAR_CANDIDATES } from '../constants.js';
 import { pillarCharHtml, pillarSlotHtml } from '../pillarChars.js';
 import { unassignedCount } from './pillarAssign.js';
+import { markPillarNextPending } from '../modals/pillarNextModal.js';
 
 function _esc(s) {
   return String(s ?? '')
@@ -235,6 +236,8 @@ async function _save(p, d) {
     suggested: items.filter(x => x.suggested).length,
   });
   window._app?.showToast(items.length ? '柱を保存しました' : '柱をすべて外しました');
+  // ★柱を初めて立てたら、メインボードに戻ったときに「やることを作ってみよう」を1回出す（modals/pillarNextModal.js）
+  if (before === 0 && items.length > 0) markPillarNextPending(p.id);
   // ★未分類のタスクがあれば、続けて振り分けのページへ（スキップできる）。
   //   途中から柱を立てると既存のタスクは全部未分類で、進み具合が「どれも0件」になって読めないため
   if (items.length && unassignedCount(p) > 0) { state.openPillarAssign(); return; }
