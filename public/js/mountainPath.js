@@ -1163,6 +1163,73 @@ function _objectFor(p, mission) {
 }
 
 /**
+ * 山頂の看板を、空と地面ごと丸く切り抜いた絵（2026-11-14。開催初日の「ついに今日から！」モーダルで使う）。
+ * ★山頂の看板（renderMountainBg の summitHtml）と同じもの：看板の絵（_pickSummitBoard）・「〇〇山頂」・標高。
+ * ★空と地面は、このイベントの山の**山頂に積まれる地形**（開催後と同じ積み方の、いちばん上の1枚）とそのテーマの空の色。
+ *   メインボードの山と景色がそろう。イベントIDから決まる（端末の高さで、いちばん上の1枚が変わることはある。山と同じ）
+ * ★CSS は object/project/_summit-badge.css
+ * @param {object} p イベント（flat 形式）
+ */
+export function summitBadgeHtml(p) {
+  const eventId = String(p?.id || '');
+  const { clearedCount, canvasH } = _layout(p || {});
+  const top = _landformPlan(eventId, _needTopArt(canvasH, undefined, undefined, true)).at(-1);
+  const sky = (top && BG_THEMES.find(t => t.id === top.theme)?.sky) || BG_THEMES[0]?.sky || '';
+  const ground = top ? bgUrl(top.theme, 'landform', top.file, top.v) : '';
+  const clouds = (BG_SHARED.cloud || []).slice(0, 2).map(c => bgUrl(null, BG_SHARED_DIR.cloud, c.f, c.v));
+  _loadSummitFonts();   // ★看板を描くときだけ Web フォントを取りに行く（山頂と同じ）
+  return `
+    <div class="p-summit-badge" style="--badge-sky:${_esc(sky)}" aria-hidden="true">
+      ${clouds.map((u, i) => `<img class="p-summit-badge__cloud p-summit-badge__cloud--${i + 1}" src="${_esc(u)}" alt="">`).join('')}
+      ${ground ? `<div class="p-summit-badge__ground" style="--badge-ground:url('${_esc(ground)}')"></div>` : ''}
+      <div class="p-summit-badge__board" style="--summit-img:${_pickSummitBoard(eventId)}">
+        <p class="p-summit-badge__title">${_esc(p?.name || 'イベント')}<span class="p-summit-badge__suffix">山頂</span></p>
+        <p class="p-summit-badge__alt">${clearedCount * METERS_PER_CLEAR}m</p>
+      </div>
+    </div>`;
+}
+
+// 看板の脚が立つあたり（画像の幅に対する割合）。円は地面の素材の中央 62% を映し、看板はそのまた中央にある
+const BADGE_RIDGE_XS = [0.42, 0.5, 0.58];
+
+/**
+ * summitBadgeHtml の地面を、看板の足元に稜線が来る高さへ合わせる（DOM に入れたあとに1回だけ呼ぶ）。
+ * ★素材ごとに稜線の高さが違う（中央で画像の高さの 0〜44%）ので、決め打ちの位置だと看板が宙に浮く。
+ *   画像の縦1列ずつ（3本）の不透明な最初の行を読み、いちばん低いもの（脚が両方地面に届く）を使う。
+ * ★失敗しても地面は出す（is-ready。上端合わせのまま）
+ * @param {Element} root summitBadgeHtml を入れた要素（またはその親）
+ */
+export function fitSummitBadge(root) {
+  const el = root?.querySelector?.('.p-summit-badge__ground');
+  if (!el) return;
+  const done = () => el.classList.add('is-ready');
+  const m = /url\(['"]?([^'")]+)['"]?\)/.exec(el.style.getPropertyValue('--badge-ground') || '');
+  if (!m) { done(); return; }
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0);
+      let ridge = 0;
+      for (const rx of BADGE_RIDGE_XS) {
+        const d = g.getImageData(Math.round(w * rx), 0, 1, h).data;
+        let y = 0;
+        while (y < h && d[y * 4 + 3] < 200) y++;
+        ridge = Math.max(ridge, y);
+      }
+      el.style.setProperty('--badge-img-ratio', String(h / w));
+      el.style.setProperty('--badge-ridge', String(ridge / h));
+    } catch (_) { /* 読めなければ上端合わせのまま */ }
+    done();
+  };
+  img.onerror = done;
+  img.src = m[1];
+}
+
+/**
  * 背景レイヤー（画面全体のビジュアル本体）。メインタブのときだけ描画する。
  * top はヘッダー高に依存するため initMountainPathSync が実測でセットする。
  * @param {object} p イベント（flat 形式）

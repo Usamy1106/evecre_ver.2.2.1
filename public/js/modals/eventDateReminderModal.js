@@ -8,6 +8,7 @@
 import { state } from '../state.js';
 import { isAnyAutoModalOpen } from '../modalGuard.js';
 import { todayStr } from '../utils.js';
+import { summitBadgeHtml, fitSummitBadge } from '../mountainPath.js';
 
 function _storageKey(userId, eventId, suffix) {
   return `evecre:eventDateReminder:v1:${userId}:${eventId}:${suffix}`;
@@ -47,7 +48,7 @@ export function checkEventDateReminderModal() {
 
   if (today === firstDate && !localStorage.getItem(startKey)) {
     localStorage.setItem(startKey, '1');
-    _openDayStartModal();
+    _openDayStartModal(p);
     return;
   }
   if (today === dayAfterLast && !localStorage.getItem(archiveKey)) {
@@ -56,18 +57,19 @@ export function checkEventDateReminderModal() {
   }
 }
 
-function _buildOverlay({ bgColor, color, iconPath, title, desc, buttonsHtml }) {
+// figureHtml を渡すと、丸いアイコンの代わりにそれを出す（開催初日の山頂の看板）
+function _buildOverlay({ bgColor, color, iconPath, figureHtml, title, desc, buttonsHtml }) {
   const overlay = document.createElement('div');
   overlay.id = 'event-date-reminder-overlay';
   overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
-      <div class="c-modal__icon" style="--icon-bg:${bgColor}">
+      ${figureHtml || `<div class="c-modal__icon" style="--icon-bg:${bgColor}">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           ${iconPath}
         </svg>
-      </div>
+      </div>`}
       <h3 class="c-modal__title">${title}</h3>
       <p class="c-modal__text">${desc}</p>
       ${buttonsHtml}
@@ -76,17 +78,16 @@ function _buildOverlay({ bgColor, color, iconPath, title, desc, buttonsHtml }) {
   return overlay;
 }
 
-function _openDayStartModal() {
+// ★アイコンの代わりに、山頂の看板（「〇〇山頂」・標高）を空と地面ごと丸く切り抜いた絵（2026-11-14）。
+//   看板の絵・景色はメインボードの山と同じ（mountainPath.js の summitBadgeHtml）
+function _openDayStartModal(p) {
   const overlay = _buildOverlay({
-    bgColor: '#ECF9F2',
-    color: '#28AB3D',
-    iconPath: `<path d="M12 2v4"/><path d="m6.4 5.4 2.8 2.8"/><path d="M2 13h4"/><path d="m5.4 20.6 2.8-2.8"/>
-      <path d="M12 22v-4"/><path d="m18.6 20.6-2.8-2.8"/><path d="M22 13h-4"/><path d="m18.6 5.4-2.8 2.8"/>
-      <circle cx="12" cy="13" r="4"/>`,
+    figureHtml: summitBadgeHtml(p),
     title: 'ついに今日から！',
     desc: '開催日を迎えました。準備してきたことを仕上げていきましょう。',
     buttonsHtml: `<button data-action="close" class="c-button c-button--primary c-modal__button">閉じる</button>`,
   });
+  fitSummitBadge(overlay);   // 地面の稜線を看板の足元に合わせる
   overlay.querySelector('[data-action="close"]').onclick = () => overlay.remove();
 }
 

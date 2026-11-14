@@ -120,6 +120,7 @@
 | 入口画面（新規登録 / ログイン） | `object/project/_welcome.css` |
 | アカウント作成フロー（STEP 0〜8） | `object/project/_signup.css` |
 | 山登りパスビジュアル（背景の地形・植物・雲・マス・スクロール窓） | `object/project/_mountain.css` |
+| 山頂の看板を丸く切り抜いた絵（開催初日の「ついに今日から！」モーダル） | `object/project/_summit-badge.css` |
 | 背景の景色の作り方（地形の間隔・植物の数と大きさ・雲の速さと向き） | `public/js/mountainThemes.js`（CSS ではない）|
 | 参加・招待まわりのモーダル（🔥・招待リンク） | `object/project/_invite.css` |
 | 開発者からのお知らせ | `object/project/_announcement.css` |
@@ -363,6 +364,7 @@ public/css/
 │  ├─ _welcome.css              ✅ 入口画面（新規登録 / ログイン）
 │  ├─ _signup.css               ✅ アカウント作成フロー
 │  ├─ _mountain.css             ✅ 山登りパスビジュアル
+│  ├─ _summit-badge.css         ✅ 山頂の看板を丸く切り抜いた絵
 │  ├─ _invite.css               ✅ 参加・招待まわりのモーダル
 │  ├─ _announcement.css         ✅ 開発者からのお知らせ
 │  ├─ _schedule.css             ✅ スケジュール（カレンダー・ガント）
