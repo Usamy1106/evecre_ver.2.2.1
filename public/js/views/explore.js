@@ -228,9 +228,11 @@ async function _deleteComment(id, cid) {
 
 // ── 描画の部品 ──
 
-// リンクをコピー（告知モーダルとナレッジページ）。★コピーしたリンクは、新しいイベントの「前のイベントの引き継ぎ」
+// リンクをコピー（告知モーダルとナレッジページ）。★開催後（status が archive）のイベントだけ。告知（開催前）は出さない（2026-11-14）
+//   ★コピーしたリンクは、新しいイベントの「前のイベントの引き継ぎ」
 //   （作成フロー STEP 7・イベント設定の「前の代のイベント」）にそのまま貼れる（handoverLink.js が両方の形を読む）
-function _copyButtonHtml(id, kind) {
+function _copyButtonHtml(id, kind, status) {
+  if (status !== 'archive') return '';
   return `<button type="button" class="c-button c-button--secondary p-explore__small" data-ex-copy="${_esc(id)}" data-ex-copy-kind="${kind}">リンクをコピー</button>`;
 }
 
@@ -397,7 +399,7 @@ function _detailHtml(id) {
       ${publicArchiveHtml(d)}
       <div class="p-explore__page-like">
         ${_likeButtonHtml(id, d.liked, d.likeCount)}
-        ${_copyButtonHtml(id, 'page')}
+        ${_copyButtonHtml(id, 'page', d.status)}
       </div>
       ${_commentsHtml(id, d.viewer)}
     </article>`;
@@ -428,7 +430,7 @@ function _syncModal() {
       ${publicBasicHtml(d.basic, { status: d.status })}
       <div class="p-explore__modal-actions">
         ${_likeButtonHtml(id, d.liked, d.likeCount)}
-        ${_copyButtonHtml(id, 'modal')}
+        ${_copyButtonHtml(id, 'modal', d.status)}
       </div>`;
   }
   ov.innerHTML = `
