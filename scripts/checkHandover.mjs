@@ -143,7 +143,7 @@ async function run() {
   const titles = (hs.json?.knowledge || []).map(k => k.title);
   ok(titles.includes('ポスターを作る'), '共有の記録は出る（非公開・開催前でも）');
   ok(!titles.includes('共有しない記録'), 'shareable でない記録は出ない');
-  ok(!titles.includes('次にやるならが空'), 'solution が空の記録は出ない');
+  ok(titles.includes('次にやるならが空'), 'solution が空でも shareable なら出る（2026-11-14）');
   ok(!titles.includes('未完了のタスク'), '未完了のタスクは出ない');
   ok(titles.filter(t => t === 'みんなで感想を書く').length === 2, '個別完了は提出物ごとに並ぶ（taskKey は同じ）');
   ok(hs.json?.purpose === '地域の人に学校を開く' && hs.json?.pillars?.length === 2, '目的と柱が読める（読ませるだけ）');

@@ -9,7 +9,7 @@
 // ★確かめること（指示書 A §4）
 //   - 非公開のイベントは一覧に出ず、詳細は 404
 //   - publicKnowledge が true でも、開催前なら knowledge は null
-//   - shareable でない振り返り・solution が空の振り返りは出ない
+//   - shareable でない記録は出ない（★2026-11-14 から solution が空でも shareable なら出る）
 //   - 応答に submittedBy / members / userId / organization 系のキーが無い（JSON を文字列で探す）
 
 import { createRequire } from 'node:module';
@@ -105,8 +105,8 @@ console.log('[4] ナレッジ');
 {
   const r = pub.buildPublicEvent(event(), subs(), TODAY);
   const titles = r.knowledge.map(k => k.title);
-  ok(JSON.stringify(titles) === '["ポスターを作る","個別に書く"]', `shareable かつ solution ありの完了タスクだけ（実際：${titles}）`);
-  ok(!titles.includes('会場を下見する'), 'solution が空は出ない');
+  ok(JSON.stringify(titles) === '["ポスターを作る","会場を下見する","個別に書く"]', `shareable の完了タスクだけ（実際：${titles}）`);
+  ok(titles.includes('会場を下見する'), 'solution が空でも shareable なら出る（2026-11-14）');
   ok(!titles.includes('告知する'), 'shareable でないものは出ない');
   ok(!titles.includes('まだ'), '未完了のタスクは出ない');
   const k1 = r.knowledge[0];
@@ -229,7 +229,7 @@ console.log('[8] 公開の確認ページ（preview。指示書B §5-1）');
   ok(pub.buildPublicEvent(hidden, s, TODAY).basic === null, 'preview でなければ、非公開のイベントは basic が null');
   const r = pub.buildPublicEvent(hidden, s, TODAY, { preview: true });
   ok(r.basic && r.basic.title === 'テスト展示会', 'preview は公開フラグを見ずに basic を組み立てる');
-  ok(Array.isArray(r.knowledge) && r.knowledge.length === 2, `preview でも shareable・solution の条件はそのまま（実際：${r.knowledge?.length}件）`);
+  ok(Array.isArray(r.knowledge) && r.knowledge.length === 3, `preview でも shareable の条件はそのまま（実際：${r.knowledge?.length}件）`);
   ok(!JSON.stringify(r).includes(SECRET), 'preview でも非公開テキストは消える');
   ok(leaks(r).length === 0, `preview に個人を指すキーが無い（見つかった：${leaks(r)}）`);
   ok(!JSON.stringify(r).includes('u_owner') && !JSON.stringify(r).includes('u_a'), 'preview に userId の値も出ない');
@@ -334,7 +334,7 @@ console.log('[11] 振り返りの一覧 publicReflectionItems（GET /api/public/
   ok(pub.publicReflectionItems(event({ dates: ['2026-11-20'] }), s, TODAY).length === 0, '開催前は出さない');
   ok(pub.publicReflectionItems(event({ publicKnowledge: false }), s, TODAY).length === 0, 'publicKnowledge が false なら出さない');
   const titles = items.map(i => i.title);
-  ok(!titles.includes('告知する') && !titles.includes('会場を下見する'), 'shareable の無いもの・solution が空のものは出ない');
+  ok(!titles.includes('告知する') && titles.includes('会場を下見する'), 'shareable の無いものは出ない・solution が空でも shareable なら出る');
 }
 
 // ── 動いているサーバーへ ─────────────────────────────────────

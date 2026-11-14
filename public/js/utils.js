@@ -440,12 +440,12 @@ export function canPromptPublicBasic(project) {
 }
 
 /**
- * 公開してよい振り返りの数（shareable かつ「次にやるなら／なぜうまくいった？」が空でない）。
+ * 公開してよい記録の数（shareable が付いている。2026-11-14 から振り返りが空でもよい）。
  * ★サーバーの lib/publicData.js の isPublishableSubmission と同じ条件に保つこと
  */
 export function countPublishableReflections(project) {
   return Object.values(project?.clearedData || {})
-    .filter(s => s && s.shareable === true && String(s.solution || '').trim() !== '').length;
+    .filter(s => s && s.shareable === true).length;
 }
 
 /**
@@ -469,10 +469,8 @@ export function taskShareState(project, missionId) {
   const prefix = `${missionId}_u_`;
   const keys = Object.keys(project?.clearedData || {})
     .filter(k => project.clearedData[k] && (k === missionId || k.startsWith(prefix)));
-  const eligible = keys.filter(k => {
-    const cd = project.clearedData[k];
-    return String(cd.struggle || '').trim() !== '' || String(cd.solution || '').trim() !== '';
-  });
+  // ★2026-11-14：振り返りが無くても公開の候補にできる（提出物があれば対象）
+  const eligible = keys;
   const shared = eligible.length > 0 && eligible.every(k => project.clearedData[k].shareable === true);
   return { keys, eligible, shared };
 }

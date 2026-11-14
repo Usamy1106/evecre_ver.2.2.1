@@ -955,11 +955,8 @@ function _sanitizeReflection(body, opts = {}) {
   if (!partial || has('struggle')) out.struggle = trim(body?.struggle);
   if (!partial || has('solution')) out.solution = trim(body?.solution);
   if (!partial || has('struggle') || has('solution') || has('shareable')) {
-    const struggle = 'struggle' in out ? out.struggle : String(ex.struggle || '').trim();
-    const solution = 'solution' in out ? out.solution : String(ex.solution || '').trim();
-    const want = !partial || has('shareable') ? body?.shareable === true : ex.shareable === true;
-    // 何も書いていないのに「公開してよい」だけ立つ状態を作らない
-    out.shareable = want && !!(struggle || solution);
+    // ★2026-11-14：振り返りを書いていなくても公開の候補にできる（タスクの内容＝提出物の本文・画像も記録として公開されるため）
+    out.shareable = !partial || has('shareable') ? body?.shareable === true : ex.shareable === true;
   }
   if (!opts.partial || has('outcome')) {
     out.outcome = REFLECTION_OUTCOMES.includes(body?.outcome) ? body.outcome : null;
