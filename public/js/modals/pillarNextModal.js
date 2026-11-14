@@ -1,7 +1,8 @@
 // ===== 柱を決めたあと「やることを作ってみよう」（2026-11-12）=====
 //
 // ★出すのは、柱を**初めて**保存したあとに1回だけ（views/pillarEdit.js の _save が印を立てる）。管理者だけ
-// ★メインボードに戻ったとき、他の自動モーダルが出ていなければ出す（前回と今回の柱の比較が先。modalGuard に登録済み）
+// ★メインボードに戻ったとき、他の自動モーダルが出ていなければ出す（modalGuard に登録済み）
+// ★前の代があるイベントでは「前の代のタスクから追加する」も出す（2026-11-14。views/handoverPick.js）
 // ★既読はユーザー×イベント（localStorage）。出せたときに 'done' にする
 // ★「やることを作る」でタスク作成のシートを開く。「あとで」で閉じるだけ
 
@@ -41,6 +42,7 @@ export function checkPillarNext() {
       <ul class="p-pillar-next__pillars">${pillars.map(n => `<li class="p-pillar-next__pillar">${_esc(n)}</li>`).join('')}</ul>
       <p class="p-pillar-next__text">次は、この柱を進める「やること」を作ってみよう。<br>まずはひとつで大丈夫です。</p>
       <button type="button" class="c-button c-button--primary p-pillar-next__go" data-pnext-go>やることを作る</button>
+      ${p.parentEventId ? `<button type="button" class="c-button c-button--secondary p-pillar-next__go p-pillar-next__handover" data-pnext-handover>前の代のタスクから追加する</button>` : ''}
       <button type="button" class="p-pillar-next__later" data-pnext-later>あとで</button>
     </div>`;
   document.body.appendChild(ov);
@@ -52,6 +54,11 @@ export function checkPillarNext() {
     logEvent('pillar_next_create', { eventId: p.id });
     close();
     window._app?.openMissionModal?.();
+  });
+  ov.querySelector('[data-pnext-handover]')?.addEventListener('click', () => {
+    logEvent('pillar_next_handover', { eventId: p.id });
+    close();
+    window._app?.openHandoverPick?.('pillar_next');
   });
   ov.querySelector('[data-pnext-later]').addEventListener('click', () => {
     logEvent('pillar_next_later', { eventId: p.id });

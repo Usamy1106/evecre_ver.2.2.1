@@ -64,6 +64,35 @@
   white-space: pre-wrap;
 }
 
+/* 前の代の柱（2026-11-14）。★読むだけ。候補のチップと形を変え、押せるように見せない */
+.p-pillar-edit__prev {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.p-pillar-edit__prev-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-pillar-edit__prev-list {
+  margin-top: var(--space-1);
+  padding-left: 1.2em;
+  list-style: disc;
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.p-pillar-edit__prev-note {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
 .p-pillar-edit__next {
   margin-top: var(--space-4);
   font-size: var(--font-size-sm);
@@ -284,6 +313,10 @@
   min-height: 44px;
   margin-top: var(--space-4);
   font-weight: var(--font-weight-heavy);
+}
+
+.p-pillar-next__handover {
+  margin-top: var(--space-2);
 }
 
 .p-pillar-next__later {

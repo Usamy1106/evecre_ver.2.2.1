@@ -179,7 +179,7 @@ function _listHtml(p) {
   if (!S.data) return '';
   const groups = _groupTasks(S.data.knowledge);
   if (!groups.length) {
-    return '<p class="p-handover__note">引き継げる記録がありません。前の代が「この活動記録を共有する」にして「次にやるなら」を書いた記録だけを引き継げます。</p>';
+    return '<p class="p-handover__note">引き継げる記録がありません。前の代が「この活動記録を共有する」にした記録だけを引き継げます。</p>';
   }
   const imported = _importedKeys(p);
   return `

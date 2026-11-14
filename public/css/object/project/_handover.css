@@ -1,7 +1,7 @@
 /* ==========================================================================
    Object / Project / handover — 引き継ぎ（前の代のタスクと記録。2026-11-12。指示書D）
    使用箇所: 前の代から追加する画面（p-handover）・タスク詳細の「前回の記録」（p-handover-record）・
-             系譜と前の代の登録（p-lineage）・前回と今回の柱（p-pillar-compare）
+             系譜と前の代の登録（p-lineage）
 
    ★前の代の記録の本文・画像・振り返りの見た目は _public-archive.css（公開ページと共通）。ここに足さないこと
    ★前の代の目的と柱は「読むだけ」（取り込まない）。入力欄のように見せない
@@ -9,7 +9,6 @@
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
      public/js/views/handoverPick.js       … renderHandoverPick / _chooserHtml / _sourceHeadHtml / _listHtml / _rowHtml / inheritedRecordsHtml
      public/js/views/lineage.js            … renderLineage / _genHtml / openParentRegister
-     public/js/modals/pillarCompareModal.js … checkPillarCompare
    ========================================================================== */
 
 /* ── 前の代から追加する ── */
@@ -447,52 +446,4 @@
 .p-lineage__register-btn {
   min-height: 40px;
   padding: 0 var(--space-4);
-}
-
-/* ── 前回の柱と今回の柱 ── */
-.p-pillar-compare {
-  width: 100%;
-  max-width: 420px;
-  padding: var(--space-6) var(--space-4) var(--space-4);
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface);
-}
-
-.p-pillar-compare__title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-heavy);
-  text-align: center;
-  color: var(--color-text);
-}
-
-.p-pillar-compare__table {
-  width: 100%;
-  margin-top: var(--space-4);
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.p-pillar-compare__table th {
-  padding: var(--space-2);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.p-pillar-compare__table td {
-  padding: var(--space-2);
-  font-size: var(--font-size-md);
-  text-align: center;
-  color: var(--color-text);
-  border-bottom: 1px solid var(--color-border);
-  word-break: break-word;
-}
-
-.p-pillar-compare__close {
-  display: block;
-  width: 100%;
-  min-height: 44px;
-  margin-top: var(--space-4);
-  font-weight: var(--font-weight-heavy);
 }

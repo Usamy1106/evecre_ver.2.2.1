@@ -13,6 +13,8 @@
 //   紐づいていたタスクの pillarIds は書き換えない。存在しない id は pillarIdsOf が数えない。
 // ★保存するまでイベントには書かない（下書き state.pillarDraft だけを触る）。「閉じる」で捨てる。
 // ★名前の入力中に描き直さないこと（フォーカスが飛ぶ）。描き直すのは足す・外す・選ぶときだけ。
+// ★前の代があるイベントでは、目的の下に前の代の柱を出す（2026-11-14。読むだけ。以前は柱を立てたあとにモーダルで比べていた）。
+//   取れないとき（非公開でメンバーでもない・前の代が柱を立てていない）は出さない
 
 import { state } from '../state.js';
 import { logEvent } from '../logger.js';
@@ -21,6 +23,7 @@ import { PILLARS_MAX, PILLAR_NAME_MAX, PILLAR_CANDIDATES } from '../constants.js
 import { pillarCharHtml, pillarSlotHtml } from '../pillarChars.js';
 import { unassignedCount } from './pillarAssign.js';
 import { markPillarNextPending } from '../modals/pillarNextModal.js';
+import { api } from '../api.js';
 
 function _esc(s) {
   return String(s ?? '')
@@ -41,6 +44,42 @@ function _draft(p) {
     };
   }
   return state.pillarDraft;
+}
+
+// 前の代の柱（sourceId → { loading, pillars, title }。画面を開いている間だけ覚える）
+const _prev = new Map();
+let _prevLogged = null;
+
+/** 前の代の柱を取る（1回だけ）。取れたら描き直す（名前の入力中は描き直さず、次の描き直しで出す） */
+function _prevPillars(sourceId) {
+  const c = _prev.get(sourceId);
+  if (c) return c;
+  const entry = { loading: true, pillars: null, title: '' };
+  _prev.set(sourceId, entry);
+  const member = state.events.some(e => e.id === sourceId);
+  (member ? api.handoverSource(sourceId) : api.exploreEvent(sourceId)).then(r => {
+    entry.loading = false;
+    entry.pillars = r?.ok && Array.isArray(r.pillars) && r.pillars.length ? r.pillars.filter(Boolean) : null;
+    entry.title = String(r?.basic?.title || '');
+    if (state.currentView === 'PILLAR_EDIT' && document.activeElement?.id !== 'pillar-name-input') state.render();
+  }).catch(() => { entry.loading = false; });
+  return entry;
+}
+
+function _prevHtml(p) {
+  if (!p.parentEventId) return '';
+  const c = _prevPillars(p.parentEventId);
+  if (!c.pillars) return '';
+  if (_prevLogged !== p.id) {
+    _prevLogged = p.id;
+    logEvent('pillar_prev_shown', { eventId: p.id, prev: c.pillars.length });
+  }
+  return `
+    <div class="p-pillar-edit__prev">
+      <p class="p-pillar-edit__prev-label">前の代${c.title ? `「${_esc(c.title)}」` : ''}の柱</p>
+      <ul class="p-pillar-edit__prev-list">${c.pillars.map(n => `<li>${_esc(n)}</li>`).join('')}</ul>
+      <p class="p-pillar-edit__prev-note">参考です。今回の柱は、今回の目的から決めます。</p>
+    </div>`;
 }
 
 /** その柱に紐づいているタスクの数（外す確認に出す） */
@@ -106,6 +145,7 @@ export function renderPillarEdit(appEl) {
             <p class="p-pillar-edit__purpose-label">このイベントの目的</p>
             <p class="p-pillar-edit__purpose-text">${_esc(purpose)}</p>
           </div>` : ''}
+        ${_prevHtml(p)}
 
         ${state.pillarAfterPurpose ? `<p class="p-pillar-edit__next">目的が決まりました。次に、柱を決めましょう。</p>` : ''}
         <p class="p-pillar-edit__catch">目的・目標を達成するために大事にすることを${PILLARS_MAX}つ決めよう！</p>

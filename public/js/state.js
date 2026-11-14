@@ -1368,10 +1368,9 @@ export const state = {
       // 振り返りフェーズが終わったら「タスクも含めて公開するか」を一度だけ聞く（管理者のみ。判定はモーダル側）
       setTimeout(() => window._app?.checkPublicKnowledgeModal?.(), 1450);
     }
-    // 前回の柱と今回の柱を並べて見せる（前の代があり、自分たちの柱を立てたあとに1回。modals/pillarCompareModal.js）
+    // ★前回の柱は、柱を立てるページ（views/pillarEdit.js）に出す（2026-11-14。以前は立てたあとにモーダルで比べていた）
     if (this.currentView === 'MAIN_BOARD' && this.selectedEventId) {
-      setTimeout(() => window._app?.checkPillarCompare?.(), 1600);
-      // 柱を初めて立てたあとの「やることを作ってみよう」（modals/pillarNextModal.js。比較が出ていれば閉じたあと）
+      // 柱を初めて立てたあとの「やることを作ってみよう」（modals/pillarNextModal.js）
       setTimeout(() => window._app?.checkPillarNext?.(), 1800);
     }
 
