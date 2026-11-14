@@ -102,11 +102,6 @@ export function openReflectionEditModal(missionId, userId = null) {
     const struggle  = sEl ? readReflectEditor(sEl) : String(cd.struggle ?? '').trim();
     const solution  = readReflectEditor(overlay.querySelector('#re-solution'));
     const shareable = overlay.querySelector('#re-shareable').checked;
-    // ★本文の無い振り返りは公開の候補にできない（サーバーが shareable を外す）。黙って外さず、先に知らせる
-    if (shareable && !struggle && !solution) {
-      window._app?.showToast('「この活動記録を共有する」を選ぶには、振り返りを書いてください', 'error');
-      return;
-    }
 
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中…';

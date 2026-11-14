@@ -528,8 +528,8 @@ function _eventManagementSection(p, sec) {
           <div>
             <p class="p-event-settings__sub-title">タスクも含めて公開（開催後）</p>
             <p class="p-event-settings__toggle-note">${n > 0
-              ? `「この活動記録を共有する」にした振り返り ${n}件と、そのタスクの内容も公開します。名前やチャットは公開されません`
-              : `「この活動記録を共有する」にした振り返りがまだありません。振り返りを書くときに選べます`}</p>
+              ? `「この活動記録を共有する」にした記録 ${n}件（タスクの内容と振り返り）を公開します。名前やチャットは公開されません`
+              : `「この活動記録を共有する」にした記録がまだありません。アーカイブの各タスクの左のチェックで選べます`}</p>
           </div>
           ${canMgr ? `
             <button type="button" data-ps-public-knowledge role="switch" aria-checked="${on}" aria-label="タスクも含めて公開（開催後）"

@@ -559,7 +559,7 @@ window._app = {
     // ★初期タスク（目的・企画）は「未完了に戻す」「削除する」を出さない（2026-11-05）。書いた内容はその場で直せる
     const ev = state.events.find(p => p.id === state.selectedEventId);
     const initial = isInitialTask(ev?.missions?.find(m => m.id === missionId));
-    // ★公開の切り替え（タスクの左のチェックと同じ状態。2026-11-07）。振り返りの本文が無いタスクは出さない
+    // ★公開の切り替え（タスクの左のチェックと同じ状態。2026-11-07）。提出物の無いタスクは出さない
     const share = ev ? taskShareState(ev, missionId) : { eligible: [] };
     menu.innerHTML = `
       <button id="amm-copy-link" class="c-context-menu__item">リンクをコピー</button>
