@@ -237,13 +237,6 @@ async function _saveReflection(node) {
   // ★サーバーが正規化した値（200字で切る／本文が無いと shareable は false）に合わせる
   if (field === 'shareable' && r.reflection && 'shareable' in r.reflection) {
     const accepted = !!r.reflection.shareable;
-    // ★本文の無い振り返りは公開の候補にできない（サーバーの _sanitizeReflection）。黙って外すと
-    //   押しても効かないように見えるので、理由を出す
-    if (value && !accepted) {
-      node.checked = false;
-      _status(node, 'error', '先に「困ったこと」か「次にやるなら」を書くと選べます');
-      return;
-    }
     node.checked = accepted;
   }
   _status(node, 'saved', '保存しました');
@@ -388,7 +381,7 @@ export async function setTaskShared(missionId, on) {
   if (!p || _sharing || !state.canManageCurrentEvent()) return;
   const { eligible } = taskShareState(p, missionId);
   if (eligible.length === 0) {
-    window._app?.showToast?.('振り返りを書くと、公開の候補にできます');
+    window._app?.showToast?.('このタスクには公開できる記録がありません');
     syncTaskShareDom(missionId);
     return;
   }

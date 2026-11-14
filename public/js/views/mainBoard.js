@@ -2160,7 +2160,7 @@ function _renderArchiveEntry(p, m, editing) {
   const share = isPurpose ? { shared: true, eligible: [] } : taskShareState(p, m.id);
   const shareBox = editing && !isPurpose ? `
         <input type="checkbox" class="p-archive__share-box" data-task-share="${_esc(m.id)}" aria-label="公開する"
-          ${share.shared ? 'checked' : ''}${share.eligible.length === 0 ? ' disabled title="振り返りを書くと、公開の候補にできます"' : ''}>` : '';
+          ${share.shared ? 'checked' : ''}${share.eligible.length === 0 ? ' disabled title="このタスクには公開できる記録がありません"' : ''}>` : '';
   return `
     <div data-mission-id="${_esc(m.id)}" class="p-archive__entry${share.shared ? '' : ' is-unshared'}${_isArchiveFocused(m.id) ? ' is-focused' : ''}">
       <div class="p-archive__entry-head">
