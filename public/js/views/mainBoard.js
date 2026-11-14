@@ -7,7 +7,7 @@ import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
 import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated, taskShareState, countPublishableReflections } from '../utils.js';
 import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml, reflectEditorHtml } from '../clearEditor.js';
-import { pillarCharacter } from '../pillarChars.js';
+import { pillarCharacterFor } from '../pillarChars.js';
 import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchivePreviewTap, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
@@ -699,7 +699,7 @@ function _pillarBoardHtml(p, extraClass = '') {
   const stats = _pillarStats(p, pillars);
   const active = state.missionFilterPillar;
   const cols = pillars.map((x, i) => {
-    const ch = pillarCharacter(i);
+    const ch = pillarCharacterFor(x, i);   // ★キャラは柱の区分で決まる（区分の無い古い柱は順番）
     const st = stats.get(x.id);
     const empty = st.total === 0;
     const pct = empty ? 0 : Math.round((st.done / st.total) * 100);

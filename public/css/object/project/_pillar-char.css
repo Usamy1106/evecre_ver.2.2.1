@@ -105,6 +105,12 @@
   opacity: .4;
 }
 
+/* 区分をまだ選んでいない自由記述の柱（2026-11-14）。区分を選ぶとその区分のキャラになる */
+.p-pillar-char.is-uncategorized .p-char__body,
+.p-pillar-char.is-uncategorized .p-char__iris {
+  filter: grayscale(1);
+}
+
 /* 選ばれている印（右上） */
 .p-pillar-char__check {
   position: absolute;

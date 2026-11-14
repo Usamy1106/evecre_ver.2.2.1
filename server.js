@@ -2813,7 +2813,8 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
       const seen = new Set();
       flat.pillars = flat.pillars
         .filter(x => x && typeof x.id === 'string' && PILLAR_ID_RE.test(x.id) && !seen.has(x.id) && seen.add(x.id))
-        .map(x => ({ id: x.id, name: String(x.name ?? '').trim().slice(0, PILLAR_NAME_MAX) }))
+        // ★cat（区分 ops / make / plan。2026-11-14）は知っている値だけ残す。無い柱（それ以前の柱）はクライアントが名前・順番から決める
+        .map(x => ({ id: x.id, name: String(x.name ?? '').trim().slice(0, PILLAR_NAME_MAX), ...(PILLAR_CATS.has(x.cat) ? { cat: x.cat } : {}) }))
         .filter(x => x.name)
         .slice(0, PILLARS_MAX);
     }
@@ -2838,6 +2839,8 @@ function _sanitizeEventFields(eventId, flat, prevHeader = null) {
 // 柱の上限・名前の長さ・id の形（クライアントの constants.js の PILLARS_MAX / PILLAR_NAME_MAX と同じ値に保つこと）
 const PILLARS_MAX = 3;
 const PILLAR_NAME_MAX = 20;
+// 柱の区分（クライアントの constants.js の PILLAR_CATEGORIES の id と同じ値に保つこと）
+const PILLAR_CATS = new Set(['ops', 'make', 'plan']);
 const PILLAR_ID_RE = /^pil_[a-z0-9]{4,24}$/;
 // タスク・提案・カスタムタグの id の形（_sanitizeEventFields）。タグ名の長さ
 // 初期タスク（イベント作成時に入る。編集・削除させない）

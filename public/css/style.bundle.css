@@ -14168,6 +14168,47 @@ border: 2px solid var(--bg-textbox);
   color: var(--color-text-muted);
 }
 
+.p-pillar-edit__panel-label--spaced {
+  margin-top: var(--space-4);
+}
+
+/* 柱の区分を選ぶボタン（柱の欄の中）。選ぶとその区分のキャラになる */
+.p-pillar-edit__cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.p-pillar-edit__cat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-4) var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+}
+
+.p-pillar-edit__cat.is-selected {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-tint2);
+  color: var(--color-primary);
+}
+
+.p-pillar-edit__cat-char {
+  width: 28px;
+  height: auto;
+}
+
+.p-pillar-edit__cat-note {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
 .p-pillar-edit__panel-actions {
   display: flex;
   justify-content: space-between;
@@ -14255,6 +14296,29 @@ border: 2px solid var(--bg-textbox);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-text);
+}
+
+/* 候補の区分（運営・進行／制作／企画。2026-11-14）。見出しの左にその区分のキャラ */
+.p-pillar-edit__group {
+  margin-top: var(--space-5);
+}
+
+.p-pillar-edit__group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+}
+
+.p-pillar-edit__group-char {
+  width: 28px;
+  height: auto;
+}
+
+.p-pillar-edit__group .p-pillar-edit__chips {
+  margin-top: var(--space-2);
 }
 
 /* 選んだ候補は押せない（柱の欄で直す・消す） */
@@ -14456,6 +14520,12 @@ border: 2px solid var(--bg-textbox);
 /* 選ばれていない（タスク作成）。★消さずに薄くする（どれを選べるかは見えている） */
 .p-pillar-char.is-dimmed {
   opacity: .4;
+}
+
+/* 区分をまだ選んでいない自由記述の柱（2026-11-14）。区分を選ぶとその区分のキャラになる */
+.p-pillar-char.is-uncategorized .p-char__body,
+.p-pillar-char.is-uncategorized .p-char__iris {
+  filter: grayscale(1);
 }
 
 /* 選ばれている印（右上） */
