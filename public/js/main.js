@@ -85,7 +85,6 @@ import { initBrowserBack } from './browserBack.js';
 import { renderExplore } from './views/explore.js';
 import { renderHandoverPick, openHandoverPick, closeHandoverPick } from './views/handoverPick.js';
 import { renderLineage, openLineage, closeLineage, openParentRegister } from './views/lineage.js';
-import { checkPillarCompare } from './modals/pillarCompareModal.js';
 import { checkPillarNext } from './modals/pillarNextModal.js';
 import { watchLayoutMode } from './layoutMode.js';
 import {
@@ -1309,7 +1308,6 @@ window._app = {
   openLineage: () => openLineage(),
   closeLineage: () => closeLineage(),
   openParentRegister: () => openParentRegister(),
-  checkPillarCompare: () => checkPillarCompare(),
   checkPillarNext: () => checkPillarNext(),
   // メインボードの「前の代のタスクから追加する」のカードを閉じる（このイベントでは出さない）
   dismissHandoverCard: (e) => {
@@ -2020,6 +2018,8 @@ const _LOG_LABELS = {
   lineage_opened:           '前の代（系譜）を開いた',
   parent_event_registered:  '前の代のイベントを登録した',
   pillar_compare_shown:     '前回と今回の柱を並べて見た',
+  pillar_prev_shown:        '柱を立てるページで前の代の柱を見た',
+  pillar_next_handover:     '柱を決めたあと、前の代のタスクから追加を開いた',
   pillar_next_shown:        '柱のあとに「やることを作ってみよう」を見た',
   pillar_next_create:       '柱のあとに「やることを作る」を押した',
   pillar_next_later:        '柱のあとに「あとで」を押した',

@@ -30,8 +30,7 @@ export const AUTO_MODAL_IDS = [
   'join-welcome-overlay',          // 参加した人への「ようこそ」（役割の明示。参加者の歓迎の先頭）
   'push-setup-modal',              // 通知をオンにしよう（次に開いたときに1回。pushSetupModal.js の checkPushPromptOnLaunch）
   'coach-mark-overlay',            // ★コーチマーク（初期オンボーディング・初期クエスト・アーカイブの案内）の上に重ねない
-  'pillar-compare-overlay',
-  'pillar-next-overlay',           // 柱を初めて立てたあとの「やることを作ってみよう」（自分の操作のあとに1回）        // 前回の柱と今回の柱（前の代があり、柱を立てたあとに1回。指示書D §4-4）
+  'pillar-next-overlay',           // 柱を初めて立てたあとの「やることを作ってみよう」（自分の操作のあとに1回）
   'parent-register-overlay',       // 前の代のイベントを登録する（自分で開くもの）
   'publish-confirm-overlay',       // 公開の確認ページ（自分で開くもの。開いている間は自動のモーダルを重ねない。2026-11-07）
 ];
