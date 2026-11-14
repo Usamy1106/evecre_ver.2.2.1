@@ -257,10 +257,10 @@ export const REFLECT_SOLUTION_PLACEHOLDERS = {
 export const REFLECT_SKIP_MISSION_IDS = ['def-1', 'def-3'];
 
 // 1つの提出に添えられる画像の枚数。★server.js の SUBMISSION_MAX_IMAGES と揃えること
-// 提出内容の本文の上限（印を外した文字数。2026-11-07 に 1,000 字。★server.js の SUBMISSION_TEXT_MAX と同じ値に保つこと）。
+// 提出内容の本文の上限（印を外した文字数。2026-11-07 に 1,000 字、2026-11-14 に 4,000 字。★server.js の SUBMISSION_TEXT_MAX と同じ値に保つこと）。
 // ★安全網であって、書く量の目安ではない。目安（300字前後）はプレースホルダーで示し、書き始めたら消える
-export const SUBMISSION_TEXT_MAX = 1000;
-export const SUBMISSION_TEXT_COUNT_FROM = 800;   // これを超えたら「あと N 字」を出す
+export const SUBMISSION_TEXT_MAX = 4000;
+export const SUBMISSION_TEXT_COUNT_FROM = 3200;   // 上限の8割。これを超えたら「あと N 字」を出す
 export const SUBMISSION_TEXT_HINT = '目安は300字前後';
 export const SUBMISSION_MAX_IMAGES = 5;
 
