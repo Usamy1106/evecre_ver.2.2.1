@@ -15448,10 +15448,28 @@ border: 2px solid var(--bg-textbox);
 
 /* ── ナレッジページ ── */
 .p-explore__back {
-  display: inline-block;
-  margin-bottom: var(--space-3);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  margin-bottom: var(--space-2);
+  padding-right: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: bold;
+  color: var(--color-text);
+}
+
+.p-explore__back-icon {
+  width: 32px;
+  height: 32px;
+  padding: 8px;
+  border-radius: var(--radius-full);
+  background-color: rgba(0, 0, 0, .05);
+  opacity: .7;
+}
+
+.p-explore__back--bottom {
+  margin-top: var(--space-4);
 }
 
 .p-explore__page {
