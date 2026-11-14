@@ -15461,6 +15461,10 @@ border: 2px solid var(--bg-textbox);
 }
 
 .p-explore__page-like {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   margin-top: var(--space-6);
   padding-top: var(--space-4);
   border-top: 1px solid var(--color-border);

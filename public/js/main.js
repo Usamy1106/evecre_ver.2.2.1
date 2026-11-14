@@ -2005,6 +2005,7 @@ const _LOG_LABELS = {
   // 公開ページ「みんなの記録」（/explore。views/explore.js）
   explore_opened:          'みんなの記録を開いた',
   explore_card_opened:     'みんなの記録でイベントを開いた',
+  explore_link_copied:     'みんなの記録のリンクをコピーした',
   explore_liked:           'みんなの記録でいいねした',
   explore_unliked:         'みんなの記録のいいねを取り消した',
   explore_comment_posted:  'みんなの記録にコメントした',
