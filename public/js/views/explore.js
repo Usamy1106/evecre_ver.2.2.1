@@ -37,6 +37,7 @@ const S = {
   draft: {},         // id → 入力中のコメント
   likeBusy: new Set(),
   siteUrl: undefined,  // 外部サイトの Top（未取得は undefined、無ければ null）
+  listScrollY: null,   // ナレッジページを開いたときの一覧のスクロール位置（戻ったときに戻す）
 };
 
 const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -88,6 +89,12 @@ export function startExplore() {
     if (!r) return;
     S.route = r;
     _rerender();
+    // 一覧へ戻ったら、開く前の位置へ（描き直しでページの高さが変わるので、ブラウザ任せにしない）
+    if (r.kind === 'list' && !r.event && S.listScrollY != null) {
+      const y = S.listScrollY;
+      S.listScrollY = null;
+      requestAnimationFrame(() => window.scrollTo(0, y));
+    }
   });
   _armKioskIdle();
   api.getConfig().then(r => { S.siteUrl = typeof r?.publicSiteUrl === 'string' ? r.publicSiteUrl : null; _rerender(); })
@@ -228,17 +235,21 @@ async function _deleteComment(id, cid) {
 
 // ── 描画の部品 ──
 
-// リンクをコピー（告知モーダルとナレッジページ）。★コピーしたリンクは、新しいイベントの「前のイベントの引き継ぎ」
-//   （作成フロー STEP 7・イベント設定の「前の代のイベント」）にそのまま貼れる（handoverLink.js が両方の形を読む）
-function _copyButtonHtml(id, kind) {
-  return `<button type="button" class="c-button c-button--secondary p-explore__small" data-ex-copy="${_esc(id)}" data-ex-copy-kind="${kind}">リンクをコピー</button>`;
+// リンクをコピー。★ナレッジページ（開催後のアーカイブ）だけに置く。告知（一覧の上のモーダル）には置かない（2026-11-14）
+//   ★コピーしたリンク（/explore/<id>）は、新しいイベントの「前のイベントの引き継ぎ」
+//   （作成フロー STEP 7・イベント設定の「前の代のイベント」）にそのまま貼れる（handoverLink.js が読む）
+function _copyButtonHtml(id, status) {
+  if (status !== 'archive') return '';
+  return `<button type="button" class="c-button c-button--secondary p-explore__small" data-ex-copy="${_esc(id)}">リンクをコピー</button>`;
 }
 
-/** ページのリンク：ナレッジページは /explore/<id>、告知モーダルは /explore?event=<id> */
-function _shareUrl(id, kind) {
-  const e = encodeURIComponent(id);
-  return kind === 'page' ? `${location.origin}/explore/${e}` : `${location.origin}/explore?event=${e}`;
+// 一覧へ戻る（ナレッジページの上と下。2026-11-14：小さな灰色の文字だと気づかれず、下まで読むと見えなくなっていた）
+function _backHtml(where = 'top') {
+  return `<a href="/explore" class="p-explore__back${where === 'bottom' ? ' p-explore__back--bottom' : ''}" data-ex-to-list>
+      <img src="/images/icon/icon-chevron.svg" class="p-explore__back-icon" alt="">みんなの記録へ戻る</a>`;
 }
+
+const _shareUrl = (id) => `${location.origin}/explore/${encodeURIComponent(id)}`;
 
 /** クリップボードへ。navigator.clipboard が無い（http の LAN など）・断られたときは選択してコピーする */
 async function _copyText(text) {
@@ -386,7 +397,7 @@ function _commentsHtml(id, viewer) {
 
 function _detailHtml(id) {
   const st = S.detail[id];
-  const back = `<a href="/explore" class="p-explore__back" data-ex-to-list>‹ みんなの記録へ戻る</a>`;
+  const back = _backHtml();
   if (!st || st.loading && !st.data) return `${back}<p class="p-explore__message">読み込み中…</p>`;
   if (st.notFound) return `${back}<p class="p-explore__message">見つかりませんでした。公開が止められたか、リンクが正しくない可能性があります。</p>`;
   if (st.error) return `${back}<p class="p-explore__message">読み込めませんでした。時間をおいて開き直してください。</p>`;
@@ -397,10 +408,11 @@ function _detailHtml(id) {
       ${publicArchiveHtml(d)}
       <div class="p-explore__page-like">
         ${_likeButtonHtml(id, d.liked, d.likeCount)}
-        ${_copyButtonHtml(id, 'page')}
+        ${_copyButtonHtml(id, d.status)}
       </div>
       ${_commentsHtml(id, d.viewer)}
-    </article>`;
+    </article>
+    ${_backHtml('bottom')}`;
 }
 
 // ── 告知モーダル（一覧の上で開く）──
@@ -428,7 +440,6 @@ function _syncModal() {
       ${publicBasicHtml(d.basic, { status: d.status })}
       <div class="p-explore__modal-actions">
         ${_likeButtonHtml(id, d.liked, d.likeCount)}
-        ${_copyButtonHtml(id, 'modal')}
       </div>`;
   }
   ov.innerHTML = `
@@ -473,6 +484,7 @@ function _bindOnce() {
       const id = el.dataset.exCard;
       logEvent('explore_card_opened', { eventId: id, knowledge: !!el.dataset.exKnowledge });
       if (el.dataset.exKnowledge) {
+        S.listScrollY = window.scrollY;
         history.pushState({ explore: true, exploreFromList: true }, '', `/explore/${encodeURIComponent(id)}`);
         S.route = { kind: 'detail', id, event: null };
         _rerender(); window.scrollTo(0, 0);
@@ -486,10 +498,9 @@ function _bindOnce() {
     if ((el = q('[data-ex-like]'))) { _toggleLike(el.dataset.exLike); return; }
     if ((el = q('[data-ex-close]'))) { _closeModal(); return; }
     if ((el = q('[data-ex-copy]'))) {
-      const kind = el.dataset.exCopyKind === 'page' ? 'page' : 'modal';
-      const url = _shareUrl(el.dataset.exCopy, kind);
+      const url = _shareUrl(el.dataset.exCopy);
       const ok = await _copyText(url);
-      if (ok) logEvent('explore_link_copied', { eventId: el.dataset.exCopy, kind });
+      if (ok) logEvent('explore_link_copied', { eventId: el.dataset.exCopy });
       window._app?.showToast?.(ok
         ? 'リンクをコピーしました。新しいイベントの「前のイベントの引き継ぎ」に貼り付けられます'
         : 'コピーできませんでした: ' + url);
@@ -543,7 +554,7 @@ export function renderExplore(appEl) {
 
   let main = '';
   if (r.kind === 'detail') {
-    if (!r.id) main = `<a href="/explore" class="p-explore__back" data-ex-to-list>‹ みんなの記録へ戻る</a><p class="p-explore__message">見つかりませんでした。</p>`;
+    if (!r.id) main = `${_backHtml()}<p class="p-explore__message">見つかりませんでした。</p>`;
     else {
       const st = S.detail[r.id];
       if (!st) _loadDetail(r.id);
