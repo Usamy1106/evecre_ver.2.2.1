@@ -8890,6 +8890,124 @@ body {
   overflow-y: auto;
 }
 
+/* ===== object/project/_summit-badge.css ===== */
+/* ==========================================================================
+   Object / Project / summit-badge — 山頂の看板を、空と地面ごと丸く切り抜いた絵
+   使用箇所: 開催初日の「ついに今日から！」モーダル（modals/eventDateReminderModal.js）
+
+   ★看板の見た目は山頂の看板（_mountain.css の .p-mountain__summit / __summit-title / __summit-alt）と同じ比率。
+     文字の大きさは看板の幅（--badge-board-w）から決める。山頂側を変えたら、ここもそろえること
+   ★空の色・地面の絵は JS（mountainPath.js の summitBadgeHtml）がイベントの山から選んで渡す
+     （--badge-sky / --badge-ground。看板の絵は --summit-img）
+
+   ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-14 時点）
+     public/js/mountainPath.js … summitBadgeHtml / fitSummitBadge
+   ========================================================================== */
+
+.p-summit-badge {
+  --badge-size: 168px;
+  --badge-board-w: 104px;
+  /* 地面の稜線の高さ（上から、円の直径に対する割合）。看板の足元（下から 32%）より少し下で、脚が地面に刺さって見える */
+  --badge-horizon: .7;
+  /* 雲の透け具合（山の .p-mountain__cloud-layer の --cloud-opacity と同じ値）*/
+  --badge-cloud-opacity: .82;
+
+  position: relative;
+  width: var(--badge-size);
+  height: var(--badge-size);
+  margin: 0 auto var(--space-5);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background-color: var(--badge-sky);
+}
+
+.p-summit-badge__cloud {
+  position: absolute;
+  opacity: var(--badge-cloud-opacity);
+  pointer-events: none;
+}
+
+.p-summit-badge__cloud--1 {
+  top: 10%;
+  left: -6%;
+  width: 42%;
+}
+
+.p-summit-badge__cloud--2 {
+  top: 20%;
+  right: -8%;
+  width: 34%;
+}
+
+/* 地面。★素材ごとに稜線の高さが違う（中央で画像の高さの 0〜44%）。JS（fitSummitBadge）が稜線の位置を測って
+   --badge-ridge（画像の高さに対する割合）と --badge-img-ratio（高さ÷幅）を渡し、稜線が --badge-horizon の高さに来るよう下げる。
+   ★測るまでは隠しておく（is-ready で出す）。測れなかったときも is-ready は付く（上端合わせのまま出る） */
+.p-summit-badge__ground {
+  /* 地面の箱の幅（円の何倍か。left/right の -30% と合わせる） */
+  --badge-ground-scale: 1.6;
+
+  position: absolute;
+  top: 0;
+  right: -30%;
+  bottom: 0;
+  left: -30%;
+  background-image: var(--badge-ground);
+  background-position: center calc(var(--badge-size) * var(--badge-horizon) - var(--badge-size) * var(--badge-ground-scale) * var(--badge-img-ratio, 0) * var(--badge-ridge, 0));
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.p-summit-badge__ground.is-ready {
+  opacity: 1;
+}
+
+/* 看板。地面に立てる */
+.p-summit-badge__board {
+  position: absolute;
+  bottom: 32%;
+  left: 50%;
+  display: flex;
+  width: var(--badge-board-w);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  background-image: var(--summit-img);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transform: translateX(-50%);
+}
+
+.p-summit-badge__title {
+  max-width: 78%;
+  font-family: "Yuji Syuku", serif;
+  font-size: calc(var(--badge-board-w) * .13);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--summit-ink);
+  text-align: center;
+  -webkit-text-stroke: .02em var(--summit-ink);
+  overflow-wrap: anywhere;
+}
+
+/* 「山頂」の2文字は行をまたがせない */
+.p-summit-badge__suffix {
+  white-space: nowrap;
+}
+
+.p-summit-badge__alt {
+  align-self: flex-end;
+  margin-right: 11%;
+  font-family: "Noto Serif Georgian", serif;
+  font-size: calc(var(--badge-board-w) * .075);
+  font-weight: 700;
+  color: var(--summit-ink);
+  -webkit-text-stroke: .02em var(--summit-ink);
+}
+
 /* ===== object/project/_invite.css ===== */
 /* ==========================================================================
    Object / Project / invite — 参加まわりのモーダル
