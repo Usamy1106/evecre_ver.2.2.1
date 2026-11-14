@@ -1,6 +1,6 @@
 // ===== ユーティリティ関数 =====
 
-import { LABEL_CONFIG } from './constants.js';
+import { LABEL_CONFIG, PILLAR_CATEGORIES } from './constants.js';
 
 /**
  * 日付文字列の配列を、連続した日付グループに分割する
@@ -119,6 +119,18 @@ export function todayStr() {
 /** イベントの柱（無ければ空配列）。名前の空いたものは除く */
 export function getPillars(p) {
   return Array.isArray(p?.pillars) ? p.pillars.filter(x => x && x.id && x.name) : [];
+}
+
+/**
+ * 柱の区分（'ops' 運営・進行 / 'make' 制作 / 'plan' 企画。2026-11-14）。決められなければ null。
+ * ★保存された cat → 無ければ名前が候補（PILLAR_CATEGORIES の items）と同じならその区分。
+ *   どちらでもない古い自由記述の柱は null（キャラは順番で決める。pillarChars.js の pillarCharacterFor）
+ */
+export function pillarCategoryOf(pillar) {
+  if (!pillar) return null;
+  if (PILLAR_CATEGORIES.some(c => c.id === pillar.cat)) return pillar.cat;
+  const name = String(pillar.name || '').trim();
+  return PILLAR_CATEGORIES.find(c => c.items.includes(name))?.id || null;
 }
 
 /**

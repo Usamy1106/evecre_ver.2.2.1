@@ -7,7 +7,7 @@ import { LABEL_CONFIG, MISSION_DESCRIPTIONS } from '../constants.js';
 import { suggestAssignees } from '../assigneeSuggest.js';
 import { Components } from '../components.js';
 import { logEvent } from '../logger.js';
-import { getPillars, pillarIdsOf, isInitialTask } from '../utils.js';
+import { getPillars, pillarIdsOf, isInitialTask, pillarCategoryOf } from '../utils.js';
 import { pillarCharHtml } from '../pillarChars.js';
 
 /**
@@ -313,6 +313,7 @@ function _renderPillarStep(isEdit) {
             attrs: `onclick="window._app.toggleMissionPillar('${_escAttr(x.id)}')" aria-pressed="${cur.has(x.id)}" data-pillar-option="${_escAttr(x.id)}"`,
             selected: cur.has(x.id),
             dimmed: any && !cur.has(x.id),
+            cat: pillarCategoryOf(x),   // ★キャラは柱の区分で決まる（区分の無い古い柱は順番）
           })).join('')}
         </div>
       </div>

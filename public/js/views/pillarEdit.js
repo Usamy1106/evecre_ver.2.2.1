@@ -2,9 +2,12 @@
 //
 // 目的（def-1）を支える「柱」を最大3つ決める**ページ**（モーダルではない）。管理者だけが開ける。
 //
-// ★空欄から3つ書かせない。候補（constants.js の PILLAR_CANDIDATES。固定の10個）から選び、
+// ★空欄から3つ書かせない。候補（constants.js の PILLAR_CATEGORIES。区分ごとの見出しの下に4つずつ）から選び、
 //   名前は自由に直せる。候補に無ければ「＋ 自分で足す」。
-// ★選んだ柱はキャラクター3体（mizu → mori → iwa の順）の体の中に名前で出る（pillarChars.js）。
+// ★選んだ柱はキャラクターの体の中に名前で出る（pillarChars.js）。キャラは柱の区分で決まる（2026-11-14）：
+//   運営・進行＝mizu／制作＝mori／企画＝iwa。同じ区分を複数選んでもよい（同じキャラが並ぶ）。
+// ★自由記述の柱は、名前を書いたあとに区分を必ず選ぶ（選ぶまで灰色のキャラ。区分の無いまま保存させない）。
+//   ★それ以前に保存された区分の無い柱（saved）は止めない（名前が候補と同じなら区分を推定、それ以外は順番のキャラ）。
 //   足した柱のキャラは下からぽこっと出る（.is-new）。開いたときは3体が順に出る（.is-entering）。
 //   キャラをタップすると、その下に名前の欄と「この柱を外す」が開く。
 // ★柱の id は追加したときに1回だけ振る（utils.js の newPillarId）。名前を変えても保持する。
@@ -18,8 +21,8 @@
 
 import { state } from '../state.js';
 import { logEvent } from '../logger.js';
-import { getPillars, pillarIdsOf, newPillarId, submissionText } from '../utils.js';
-import { PILLARS_MAX, PILLAR_NAME_MAX, PILLAR_CANDIDATES } from '../constants.js';
+import { getPillars, pillarIdsOf, newPillarId, submissionText, pillarCategoryOf } from '../utils.js';
+import { PILLARS_MAX, PILLAR_NAME_MAX, PILLAR_CATEGORIES } from '../constants.js';
 import { pillarCharHtml, pillarSlotHtml } from '../pillarChars.js';
 import { unassignedCount } from './pillarAssign.js';
 import { markPillarNextPending } from '../modals/pillarNextModal.js';
@@ -36,7 +39,8 @@ function _draft(p) {
   if (!state.pillarDraft || state.pillarDraft.eventId !== p.id) {
     state.pillarDraft = {
       eventId: p.id,
-      items: getPillars(p).map(x => ({ id: x.id, name: x.name, saved: true })),
+      // ★cat は保存された区分か、名前が候補と同じならその区分（それ以外の古い柱は null＝順番のキャラ）
+      items: getPillars(p).map(x => ({ id: x.id, name: x.name, cat: pillarCategoryOf(x), saved: true })),
       activeId: null,     // 名前を直している柱
       confirmId: null,    // 外す確認を出している柱
       newId: null,        // いま足した柱（ぽこっと出す）
@@ -107,6 +111,8 @@ export function renderPillarEdit(appEl) {
       attrs: `data-pillar-pick="${_esc(it.id)}" aria-label="${_esc(it.name || '名前なし')}の柱を直す"`,
       isNew: it.id === d.newId,
       active: it.id === d.activeId,
+      cat: it.cat,
+      uncategorized: _needsCat(it),
     });
   }).join('');
 
@@ -125,6 +131,14 @@ export function renderPillarEdit(appEl) {
       <label class="p-pillar-edit__panel-label" for="pillar-name-input">柱の名前</label>
       <input type="text" id="pillar-name-input" data-pillar-name="${_esc(active.id)}" maxlength="${PILLAR_NAME_MAX}"
         value="${_esc(active.name)}" placeholder="例：誰も孤立させない" class="c-input c-input--block">
+      <p class="p-pillar-edit__panel-label p-pillar-edit__panel-label--spaced" id="pillar-cat-label">区分</p>
+      <div class="p-pillar-edit__cats" role="group" aria-labelledby="pillar-cat-label">
+        ${PILLAR_CATEGORIES.map(c => `
+          <button type="button" data-pillar-cat="${_esc(c.id)}" aria-pressed="${active.cat === c.id}"
+            class="p-pillar-edit__cat${active.cat === c.id ? ' is-selected' : ''}">
+            <img class="p-pillar-edit__cat-char" src="/images/character/character-${_esc(c.char)}.svg" alt="" aria-hidden="true">${_esc(c.label)}</button>`).join('')}
+      </div>
+      ${_needsCat(active) ? '<p class="p-pillar-edit__cat-note">区分を選ぶと、その区分のキャラになります。</p>' : ''}
       <div class="p-pillar-edit__panel-actions">
         <button type="button" data-pillar-delete="${_esc(active.id)}" class="p-pillar-edit__text-button p-pillar-edit__text-button--danger">この柱を外す</button>
         <button type="button" data-pillar-done class="p-pillar-edit__text-button">閉じる</button>
@@ -156,14 +170,19 @@ export function renderPillarEdit(appEl) {
 
         <h2 class="p-pillar-edit__section-title p-pillar-edit__section-title--spaced">候補から選ぶ
           <span class="p-pillar-edit__count">${d.items.length} / ${PILLARS_MAX}</span></h2>
-        <div class="p-pillar-edit__chips">
-          ${PILLAR_CANDIDATES.map(name => {
-            const on = names.has(name);
-            return `<button type="button" data-pillar-suggest="${_esc(name)}" aria-pressed="${on}"
-              ${!on && full ? 'disabled' : ''}
-              class="p-pillar-edit__chip${on ? ' is-selected' : ''}">${_esc(name)}</button>`;
-          }).join('')}
-        </div>
+        ${PILLAR_CATEGORIES.map(c => `
+          <section class="p-pillar-edit__group" aria-labelledby="pillar-group-${_esc(c.id)}">
+            <h3 class="p-pillar-edit__group-title" id="pillar-group-${_esc(c.id)}">
+              <img class="p-pillar-edit__group-char" src="/images/character/character-${_esc(c.char)}.svg" alt="" aria-hidden="true">${_esc(c.label)}</h3>
+            <div class="p-pillar-edit__chips">
+              ${c.items.map(name => {
+                const on = names.has(name);
+                return `<button type="button" data-pillar-suggest="${_esc(name)}" data-pillar-suggest-cat="${_esc(c.id)}" aria-pressed="${on}"
+                  ${!on && full ? 'disabled' : ''}
+                  class="p-pillar-edit__chip${on ? ' is-selected' : ''}">${_esc(name)}</button>`;
+              }).join('')}
+            </div>
+          </section>`).join('')}
         <button type="button" data-pillar-add ${full ? 'disabled' : ''} data-log="pillar_add_custom"
           class="p-pillar-edit__add">＋ 自分で足す</button>
 
@@ -178,6 +197,11 @@ export function renderPillarEdit(appEl) {
   d.entering = false;
   d.newId = null;
   _bind(appEl, p, d);
+}
+
+/** 区分をまだ選んでいない自由記述の柱（★保存済みの古い柱は対象外。止めない） */
+function _needsCat(it) {
+  return !!it && !it.saved && !it.cat;
 }
 
 /** 柱を外す。保存済みでタスクが紐づいているときは確認を挟む */
@@ -224,6 +248,16 @@ function _bind(appEl, p, d) {
   });
   appEl.querySelector('[data-pillar-done]')?.addEventListener('click', () => { d.activeId = null; state.render(); });
 
+  // 区分を選ぶ（キャラが変わる）
+  appEl.querySelectorAll('[data-pillar-cat]').forEach(el => {
+    el.addEventListener('click', () => {
+      const it = d.items.find(x => x.id === d.activeId);
+      if (!it) return;
+      it.cat = el.dataset.pillarCat;
+      state.render();
+    });
+  });
+
   // 候補：選んでいなければ足す（次のキャラが下から出る）、選んでいれば外す
   appEl.querySelectorAll('[data-pillar-suggest]').forEach(el => {
     el.addEventListener('click', () => {
@@ -232,7 +266,8 @@ function _bind(appEl, p, d) {
       if (it) { _remove(d, p, it.id); return; }
       if (d.items.length >= PILLARS_MAX) return;
       const id = newPillarId();
-      d.items.push({ id, name, saved: false, suggested: true });
+      // ★候補の区分をそのまま持たせる（キャラが決まる）
+      d.items.push({ id, name, cat: el.dataset.pillarSuggestCat || null, saved: false, suggested: true });
       d.newId = id; d.activeId = null; d.confirmId = null;
       state.render();
     });
@@ -241,7 +276,7 @@ function _bind(appEl, p, d) {
   appEl.querySelector('[data-pillar-add]')?.addEventListener('click', () => {
     if (d.items.length >= PILLARS_MAX) return;
     const id = newPillarId();
-    d.items.push({ id, name: '', saved: false });
+    d.items.push({ id, name: '', cat: null, saved: false });   // ★区分は名前のあとで選ぶ（選ぶまで灰色）
     d.newId = id; d.activeId = id; d.confirmId = null;
     state.render();
     document.getElementById('pillar-name-input')?.focus();
@@ -262,18 +297,28 @@ function _bind(appEl, p, d) {
 }
 
 async function _save(p, d) {
+  // ★区分を選んでいない自由記述の柱があれば保存しない（その柱の欄を開いて知らせる）
+  const missing = d.items.find(x => String(x.name || '').trim() && _needsCat(x));
+  if (missing) {
+    d.activeId = missing.id; d.confirmId = null;
+    state.render();
+    window._app?.showToast(`「${String(missing.name).trim()}」の区分を選んでください`);
+    return;
+  }
   const items = d.items
-    .map(x => ({ id: x.id, name: String(x.name || '').trim().slice(0, PILLAR_NAME_MAX), suggested: !!x.suggested }))
+    .map(x => ({ id: x.id, name: String(x.name || '').trim().slice(0, PILLAR_NAME_MAX), cat: x.cat || null, suggested: !!x.suggested }))
     .filter(x => x.name)
     .slice(0, PILLARS_MAX);
   const before = getPillars(p).length;
-  p.pillars = items.map(({ id, name }) => ({ id, name }));
+  // ★cat は区分があるときだけ書く（区分の無い古い柱は名前・順番からキャラを決める）
+  p.pillars = items.map(({ id, name, cat }) => (cat ? { id, name, cat } : { id, name }));
   // ★すぐに保存する（デバウンスの save() にしない）。待っている間に取り直し（silentReloadEvents）や
   //   SSE が手元のイベントを差し替えると、保存する前の柱が消える
   await state.saveNow(p.id);
   logEvent('pillars_saved', {
     count: items.length, before,
     suggested: items.filter(x => x.suggested).length,
+    cats: items.map(x => x.cat || '').join(','),
   });
   window._app?.showToast(items.length ? '柱を保存しました' : '柱をすべて外しました');
   // ★柱を初めて立てたら、メインボードに戻ったときに「やることを作ってみよう」を1回出す（modals/pillarNextModal.js）
