@@ -4,7 +4,8 @@
 
    ★イベントの中身（基礎情報・目的・柱・タスクの記録）の見た目は _public-archive.css（公開の確認ページと共通）。
      ここには足さないこと（確認した姿と外に出る姿がずれる）
-   ★ナレッジページは読む幅（--reading-max-width）。一覧は広い画面で横に並べる（ブレイクポイントに頼らず auto-fill）
+   ★ナレッジページは読む幅（--reading-max-width）。入れ物が広いときは右にサブエリア（いいね・コメント。@container）。
+     一覧は広い画面で横に並べる（ブレイクポイントに頼らず auto-fill）
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
      public/js/views/explore.js … renderExplore / _headerHtml / _listHtml / _cardHtml / _detailHtml /
@@ -77,7 +78,7 @@
 }
 
 .p-explore--detail .p-explore__main {
-  max-width: calc(var(--reading-max-width) + var(--space-4) * 2);
+  max-width: calc(var(--reading-max-width) + var(--explore-side-width) + var(--space-6) + var(--space-4) * 2);
 }
 
 .p-explore__title {
@@ -285,10 +286,82 @@
   margin-top: var(--space-4);
 }
 
+/* ── ナレッジページ：本文＋右のサブエリア（2026-11-14）──
+   ★幅で切り替えるのは画面の幅ではなく、この入れ物の幅（@container。ブレイクポイントに頼らない方針）。
+     狭いときは1列（本文の下にサブエリア）、広いときは2列でサブエリアを右に固定する */
+.p-explore {
+  --explore-side-width: 320px;
+}
+
+.p-explore__detail {
+  container-type: inline-size;
+}
+
+
 .p-explore__page {
+  max-width: var(--reading-max-width);
+  margin: 0 auto;
   padding: var(--space-4);
   border-radius: var(--radius-md);
   background-color: var(--color-surface);
+}
+
+/* サブエリア：小さな白い箱。中身の量に合わせて伸び、画面の高さで止まる（その先はコメントだけスクロール） */
+.p-explore__side {
+  display: flex;
+  flex-direction: column;
+  max-width: var(--reading-max-width);
+  margin: var(--space-4) auto 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+}
+
+@container (min-width: 960px) {
+  .p-explore__detail-inner {
+    display: grid;
+    grid-template-columns: minmax(0, var(--reading-max-width)) var(--explore-side-width);
+    grid-template-rows: auto auto;
+    justify-content: center;
+    align-items: start;
+    gap: var(--space-6);
+  }
+
+  .p-explore__page {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0;
+  }
+
+  .p-explore__detail-inner > .p-explore__back--bottom {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  /* ★本文をスクロールしても動かない（ヘッダーの下に貼りつく）。高さは中身ぶん、画面の高さで止まる */
+  /* ★高さの上限は「ヘッダー＋上の余白」と「ページの下の余白（.p-explore__main の padding-bottom）」を引いたもの。
+       超えると、下までスクロールしたときに入れ物の終わりに押されて、いいねが画面の上へ隠れる */
+  .p-explore__side {
+    position: sticky;
+    top: calc(var(--explore-head-h, 56px) + var(--space-4));
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin: 0;
+    max-height: calc(100vh - var(--explore-head-h, 56px) - var(--space-4) - var(--space-10));
+    max-height: calc(100dvh - var(--explore-head-h, 56px) - var(--space-4) - var(--space-10));
+  }
+
+  .p-explore__comments {
+    flex: 1 1 auto;
+  }
+
+  /* コメントが増えたら、ここだけ中でスクロールする */
+  .p-explore__comment-scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }
 
 .p-explore__page-like {
@@ -296,14 +369,21 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
 /* ── コメント ── */
 .p-explore__comments {
-  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.p-explore__comment-scroll {
+  min-height: 0;
 }
 
 .p-explore__section-title {
@@ -363,7 +443,7 @@
 }
 
 .p-explore__comment-list {
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
 }
 
 .p-explore__comment {

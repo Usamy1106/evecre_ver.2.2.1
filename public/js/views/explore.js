@@ -390,8 +390,10 @@ function _commentsHtml(id, viewer) {
       <h2 id="ex-comments-title" class="p-explore__section-title">コメント</h2>
       ${input}
       ${c.error ? '<p class="p-explore__message">コメントを読み込めませんでした。</p>' : ''}
-      ${items.length ? `<ul class="p-explore__comment-list">${list}</ul>` : (c.loaded && !kiosk ? '<p class="p-explore__comment-empty">まだコメントはありません。</p>' : '')}
-      ${c.hasMore ? `<button type="button" class="c-button c-button--secondary p-explore__small p-explore__more" data-ex-more="${_esc(id)}" ${c.loading ? 'disabled' : ''}>もっと見る</button>` : ''}
+      <div class="p-explore__comment-scroll" data-ex-comment-scroll>
+        ${items.length ? `<ul class="p-explore__comment-list">${list}</ul>` : (c.loaded && !kiosk ? '<p class="p-explore__comment-empty">まだコメントはありません。</p>' : '')}
+        ${c.hasMore ? `<button type="button" class="c-button c-button--secondary p-explore__small p-explore__more" data-ex-more="${_esc(id)}" ${c.loading ? 'disabled' : ''}>もっと見る</button>` : ''}
+      </div>
     </section>`;
 }
 
@@ -404,15 +406,21 @@ function _detailHtml(id) {
   const d = st.data;
   return `
     ${back}
-    <article class="p-explore__page">
-      ${publicArchiveHtml(d)}
-      <div class="p-explore__page-like">
-        ${_likeButtonHtml(id, d.liked, d.likeCount)}
-        ${_copyButtonHtml(id, d.status)}
-      </div>
-      ${_commentsHtml(id, d.viewer)}
-    </article>
-    ${_backHtml('bottom')}`;
+    <div class="p-explore__detail"><div class="p-explore__detail-inner">
+      <article class="p-explore__page">
+        ${publicArchiveHtml(d)}
+      </article>
+      <!-- ★右のサブエリア（いいね・リンクをコピー・コメント）。広いときは本文の右に固定し、コメントだけ中でスクロール（2026-11-14）。
+           狭いときは本文の下に並ぶ -->
+      <aside class="p-explore__side" aria-label="いいね・コメント">
+        <div class="p-explore__page-like">
+          ${_likeButtonHtml(id, d.liked, d.likeCount)}
+          ${_copyButtonHtml(id, d.status)}
+        </div>
+        ${_commentsHtml(id, d.viewer)}
+      </aside>
+      ${_backHtml('bottom')}
+    </div></div>`;
 }
 
 // ── 告知モーダル（一覧の上で開く）──
@@ -551,6 +559,8 @@ export function renderExplore(appEl) {
   // ★描き直しで入力中のコメントのフォーカスを保つ
   const focused = document.activeElement?.id === 'ex-comment-input';
   const sel = focused ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
+  // ★コメント欄の中のスクロール位置も保つ（いいね・送信などで描き直すたびに先頭へ戻さない）
+  const commentScroll = document.querySelector('[data-ex-comment-scroll]')?.scrollTop || 0;
 
   let main = '';
   if (r.kind === 'detail') {
@@ -580,6 +590,12 @@ export function renderExplore(appEl) {
       <main class="p-explore__main">${main}</main>
     </div>`;
   _syncModal();
+  // ★サブエリアを固定する高さの基準（ヘッダーの実測。安全領域の余白で端末ごとに変わる）
+  const root = appEl.querySelector('.p-explore');
+  const head = appEl.querySelector('.p-explore__head');
+  if (root && head) root.style.setProperty('--explore-head-h', `${head.offsetHeight}px`);
+  const sc = appEl.querySelector('[data-ex-comment-scroll]');
+  if (sc && commentScroll) sc.scrollTop = commentScroll;
 
   if (focused) {
     const ta = document.getElementById('ex-comment-input');
