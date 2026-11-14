@@ -49,6 +49,8 @@ export function closeCoachMark() {
  *        'target'  … 穴をタップしたときだけ進む（②。出口をひとつに絞る）
  *        'anywhere'… どこをタップしても進む（④。操作を強制しない）
  * @param {boolean} [o.rect]      穴を角丸の四角にする（横に長いカードを指すとき。丸だと幅ぶんの大きな円になり画面を覆う）
+ * @param {boolean} [o.noTailWide] 広い画面（<html class="is-wide">）では吹き出しの尻尾を出さない（黒い箱だけ）。
+ *        吹き出しは画面の中央に出るので、右の列のカードなどを指すと尻尾が穴とずれた位置から伸びる（2026-11-14）
  * @param {function} o.onAdvance   進むときに呼ばれる
  * @param {function} [o.onDismiss] advanceOn:'target' のとき、穴の**外**をタップして
  *        閉じた場合に呼ばれる。渡さなければ外タップでは何も起きない（従来どおり）。
@@ -78,7 +80,7 @@ export function showCoachMark(o) {
   overlay.id = OVERLAY_ID;
   // 全面で操作を止める。既存モーダル（最大 z-400）より前に出す
   // スタイル: public/css/object/component/_coach-mark.css
-  overlay.className = `c-coach-mark${o.rect ? ' c-coach-mark--rect' : ''}`;
+  overlay.className = `c-coach-mark${o.rect ? ' c-coach-mark--rect' : ''}${o.noTailWide ? ' c-coach-mark--no-tail-wide' : ''}`;
   overlay.innerHTML = `
     <div data-coach-hole class="c-coach-mark__hole"></div>
     <div data-coach-pulse class="c-coach-mark__pulse c-coach-pulse"></div>

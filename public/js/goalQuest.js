@@ -91,6 +91,7 @@ export function checkGoalQuest() {
   const shown = showCoachMark({
     selector,
     rect: true,
+    noTailWide: true,   // ★広い画面では吹き出しが中央に出るので尻尾を出さない（2026-11-14）
     title: copy.title,
     body: copy.body,
     hint: 'タップして書いてみよう',

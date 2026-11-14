@@ -4836,6 +4836,12 @@ body {
   border-bottom: 10px solid rgba(0, 0, 0, .88);
 }
 
+/* 広い画面では尻尾を出さない（coachMark.js の noTailWide。初期クエストの目的・概要）。
+   ★吹き出しは画面の中央に出るので、右の列のカードを指すと尻尾が穴とずれた位置から伸びる。黒い箱だけにする */
+:root.is-wide .c-coach-mark--no-tail-wide .c-coach-mark__bubble::after {
+  content: none;
+}
+
 .c-coach-mark__counter {
   margin-bottom: var(--space-2);
   font-size: var(--font-size-xs);
