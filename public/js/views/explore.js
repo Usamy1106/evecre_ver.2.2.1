@@ -228,6 +228,33 @@ async function _deleteComment(id, cid) {
 
 // ── 描画の部品 ──
 
+// リンクをコピー（告知モーダルとナレッジページ）。★コピーしたリンクは、新しいイベントの「前のイベントの引き継ぎ」
+//   （作成フロー STEP 7・イベント設定の「前の代のイベント」）にそのまま貼れる（handoverLink.js が両方の形を読む）
+function _copyButtonHtml(id, kind) {
+  return `<button type="button" class="c-button c-button--secondary p-explore__small" data-ex-copy="${_esc(id)}" data-ex-copy-kind="${kind}">リンクをコピー</button>`;
+}
+
+/** ページのリンク：ナレッジページは /explore/<id>、告知モーダルは /explore?event=<id> */
+function _shareUrl(id, kind) {
+  const e = encodeURIComponent(id);
+  return kind === 'page' ? `${location.origin}/explore/${e}` : `${location.origin}/explore?event=${e}`;
+}
+
+/** クリップボードへ。navigator.clipboard が無い（http の LAN など）・断られたときは選択してコピーする */
+async function _copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (_) {}
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (_) {}
+  ta.remove();
+  return ok;
+}
+
 function _likeButtonHtml(id, liked, count) {
   const busy = S.likeBusy.has(id);
   return `
@@ -368,7 +395,10 @@ function _detailHtml(id) {
     ${back}
     <article class="p-explore__page">
       ${publicArchiveHtml(d)}
-      <div class="p-explore__page-like">${_likeButtonHtml(id, d.liked, d.likeCount)}</div>
+      <div class="p-explore__page-like">
+        ${_likeButtonHtml(id, d.liked, d.likeCount)}
+        ${_copyButtonHtml(id, 'page')}
+      </div>
       ${_commentsHtml(id, d.viewer)}
     </article>`;
 }
@@ -398,7 +428,7 @@ function _syncModal() {
       ${publicBasicHtml(d.basic, { status: d.status })}
       <div class="p-explore__modal-actions">
         ${_likeButtonHtml(id, d.liked, d.likeCount)}
-        <button type="button" class="c-button c-button--secondary p-explore__small" data-ex-copy="${_esc(id)}">リンクをコピー</button>
+        ${_copyButtonHtml(id, 'modal')}
       </div>`;
   }
   ov.innerHTML = `
@@ -456,9 +486,13 @@ function _bindOnce() {
     if ((el = q('[data-ex-like]'))) { _toggleLike(el.dataset.exLike); return; }
     if ((el = q('[data-ex-close]'))) { _closeModal(); return; }
     if ((el = q('[data-ex-copy]'))) {
-      const url = `${location.origin}/explore?event=${encodeURIComponent(el.dataset.exCopy)}`;
-      navigator.clipboard?.writeText(url).then(() => window._app?.showToast?.('リンクをコピーしました'))
-        .catch(() => window._app?.showToast?.('コピーできませんでした: ' + url));
+      const kind = el.dataset.exCopyKind === 'page' ? 'page' : 'modal';
+      const url = _shareUrl(el.dataset.exCopy, kind);
+      const ok = await _copyText(url);
+      if (ok) logEvent('explore_link_copied', { eventId: el.dataset.exCopy, kind });
+      window._app?.showToast?.(ok
+        ? 'リンクをコピーしました。新しいイベントの「前のイベントの引き継ぎ」に貼り付けられます'
+        : 'コピーできませんでした: ' + url);
       return;
     }
     if ((el = q('[data-ex-post]'))) { _postComment(el.dataset.exPost); return; }
