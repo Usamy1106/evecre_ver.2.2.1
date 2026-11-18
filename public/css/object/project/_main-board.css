@@ -905,6 +905,7 @@
 
 /* 閉じているときは右向き、開いたら下向き */
 .p-main-board__announce-chevron {
+  display: inline-flex;
   transform: rotate(-90deg);
   transition: transform var(--duration-fast) var(--ease);
 }

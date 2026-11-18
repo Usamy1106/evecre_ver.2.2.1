@@ -13,9 +13,24 @@
 .c-icon {
   display: inline-block;
   flex-shrink: 0;
-  width: 1em;
-  height: 1em;
+  /* 大きさは各画面のクラスで決めるか、HTML の style に --icon-size を渡す（既定は 1em）*/
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
   background-color: currentColor;
   -webkit-mask: var(--icon) center / contain no-repeat;
   mask: var(--icon) center / contain no-repeat;
+}
+
+/* 向き。素材の icon-chevron.svg は左向き（2026-11-18）。右向き＝「›」、下向き＝「⌄」 */
+.c-icon--right {
+  transform: rotate(180deg);
+}
+
+.c-icon--down {
+  transform: rotate(-90deg);
+}
+
+/* 薄い灰色（設定の行の「›」）*/
+.c-icon--muted {
+  color: var(--color-text-muted);
 }

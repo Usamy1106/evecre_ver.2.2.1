@@ -1824,11 +1824,26 @@ body {
 .c-icon {
   display: inline-block;
   flex-shrink: 0;
-  width: 1em;
-  height: 1em;
+  /* 大きさは各画面のクラスで決めるか、HTML の style に --icon-size を渡す（既定は 1em）*/
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
   background-color: currentColor;
   -webkit-mask: var(--icon) center / contain no-repeat;
   mask: var(--icon) center / contain no-repeat;
+}
+
+/* 向き。素材の icon-chevron.svg は左向き（2026-11-18）。右向き＝「›」、下向き＝「⌄」 */
+.c-icon--right {
+  transform: rotate(180deg);
+}
+
+.c-icon--down {
+  transform: rotate(-90deg);
+}
+
+/* 薄い灰色（設定の行の「›」）*/
+.c-icon--muted {
+  color: var(--color-text-muted);
 }
 
 /* ===== object/component/_icon-button.css ===== */
@@ -5935,6 +5950,7 @@ body {
 
 /* 閉じているときは右向き、開いたら下向き */
 .p-main-board__announce-chevron {
+  display: inline-flex;
   transform: rotate(-90deg);
   transition: transform var(--duration-fast) var(--ease);
 }
@@ -6944,6 +6960,7 @@ body {
 }
 
 .p-archive__sub-arrow {
+  display: inline-flex;
   flex-shrink: 0;
   width: 16px;
   height: 16px;
@@ -7647,6 +7664,7 @@ body {
 }
 
 .p-notification__group-more[aria-expanded="true"] .p-notification__group-chevron {
+  display: inline-flex;
   transform: rotate(180deg);
 }
 

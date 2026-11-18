@@ -104,11 +104,7 @@ export function renderMissionDetail(appEl) {
         <button type="button" onclick="window._app.copyMissionLink('${m.id}')"
           class="p-mission-detail__round-button"
           aria-label="リンクをコピー">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
+          <span class="c-icon" style="--icon:url('/images/icon/icon-link.svg');--icon-size:18px" aria-hidden="true"></span>
         </button>`}
       </header>
 
@@ -319,11 +315,7 @@ function _renderClearInput(m) {
         ${textOnly ? '' : `
         ${editorFormatButtonsHtml()}
         <label for="file-input" class="c-editor-field__pick">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
+          <span class="c-icon" style="--icon:url('/images/icon/icon-image.svg');--icon-size:20px" aria-hidden="true"></span>
         </label>`}
         <!-- ★hidden は「見た目を消す」ためではなく、ファイル選択を自前のボタンで代替するため -->
         <input type="file" id="file-input" class="u-hidden" accept="image/*,application/pdf" multiple
