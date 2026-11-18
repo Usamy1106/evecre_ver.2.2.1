@@ -155,7 +155,7 @@ function _renderEventsTab() {
 
   if (isEmpty) return `
     <div class="p-home__empty">
-      <img src="/images/emptystate/emptystate-home.webp" class="p-home__empty-art" width="881" height="468" alt="">
+      <img src="/images/emptystate/emptystate-home.webp" class="p-home__empty-art" width="816" height="350" alt="">
       <div>
         <p class="p-home__empty-title">イベントを始めよう</p>
         <p class="p-home__empty-text">新しいイベントを作成するか<br>招待コードで参加しましょう</p>
