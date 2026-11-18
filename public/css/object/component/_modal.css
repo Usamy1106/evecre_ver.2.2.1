@@ -67,6 +67,13 @@
   background-color: var(--icon-bg, var(--button-secondary));
 }
 
+/* 丸い枠の中のアイコン（素材の SVG を c-icon で塗る。publicBasicInfoModal の地球）*/
+.c-modal__icon-mark {
+  width: 28px;
+  height: 28px;
+  color: var(--color-primary);
+}
+
 .c-modal__emoji {
   margin-bottom: var(--space-3);
   font-size: 44px;

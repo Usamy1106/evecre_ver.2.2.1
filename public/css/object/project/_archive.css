@@ -275,8 +275,11 @@
   color: var(--color-primary);
 }
 
+/* 地球（icon-platform.svg を c-icon で文字の色に塗る。公開中は緑・非公開は灰色）*/
 .p-archive__public-icon {
   flex: none;
+  width: 16px;
+  height: 16px;
 }
 
 .p-archive__public-text {
