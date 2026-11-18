@@ -115,7 +115,7 @@ export const Components = {
             class="l-header__back">
             <img src="/images/icon/icon-chevron.svg" class="l-header__back-icon" alt="">
           </button>`}
-          <!-- ★タイトル横の山イラストは削除した（MountainMini はホームのグリッド等では継続使用）-->
+          <!-- ★タイトル横の山イラストは削除した（簡易山ビジュアル MountainMini は 2026-11-18 に廃止）-->
           <span class="l-header__title">${_escText(project.name)}</span>
         </div>
         ${opts.compact ? (opts.trailing ? `<div class="l-header__actions">${opts.trailing}</div>` : '') : opts.trailing ? `<div class="l-header__actions">${opts.trailing}</div>` : `<div class="l-header__actions">
@@ -403,36 +403,6 @@ export const Components = {
           String(label).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>` : ''}
         <div class="c-step-indicator__dots">${dots}</div>
       </div>`;
-  },
-
-  /**
-   * 簡易山ビジュアル（プラント画像の後継。ホームのイベントカード・ヘッダー・
-   * プロジェクト詳細で使用）。完了タスクの割合に応じて登山者ドットが山頂へ近づく。
-   * 後日画像が支給されたら差し替え予定のプレースホルダー実装。
-   * @param {object} project イベント（flat 形式）
-   * @param {{size?:number}} opts
-   */
-  MountainMini(project, opts = {}) {
-    const size = opts.size || 80;
-    const missions = project?.missions || [];
-    const total = missions.length;
-    const done  = missions.filter(m => m.status === 'cleared').length;
-    const ratio = total > 0 ? done / total : 0;
-    // 登山者：山裾(16,84) → 山頂(50,26) を進捗で補間
-    const cx = 16 + (50 - 16) * ratio;
-    const cy = 84 - (84 - 26) * ratio;
-    const summited = total > 0 && done === total;
-    return `
-      <svg width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" aria-hidden="true">
-        <path d="M8 88 L50 18 L92 88 Z" fill="#8A9BB8"/>
-        <path d="M50 18 L59 33 L54 29 L50 34 L46 29 L41 33 Z" fill="#FDFBF8"/>
-        <line x1="16" y1="84" x2="50" y2="26" stroke="#FDFBF8" stroke-width="2.5"
-          stroke-dasharray="1 5" stroke-linecap="round" opacity="0.9"/>
-        ${summited ? `
-          <line x1="50" y1="18" x2="50" y2="4" stroke="#484545" stroke-width="2.5"/>
-          <path d="M50 4 L62 8 L50 12 Z" fill="#EE3E12"/>` : `
-          <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5" fill="#EE3E12" stroke="#FDFBF8" stroke-width="2"/>`}
-      </svg>`;
   },
 
   /**
