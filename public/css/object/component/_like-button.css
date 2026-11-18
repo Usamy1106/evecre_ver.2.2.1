@@ -7,7 +7,7 @@
    ★押したらすぐ見た目を変え、応答が返るまで aria-busy（JS が次を送らない）
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
-     public/js/views/explore.js … _likeButtonHtml
+     public/js/views/explore.js … _likeButtonHtml / _LIKE_SPARKS / _patchLikeButtons（いいねの演出。2026-11-18）
      public/js/views/mainBoard.js … _archiveSocialHtml（アーカイブ。数だけ見せる --static）
    ========================================================================== */
 
@@ -26,9 +26,71 @@
   transition: background-color var(--duration-fast), border-color var(--duration-fast);
 }
 
+.c-like-button__icon-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .c-like-button__icon {
   width: 20px;
   height: 20px;
+}
+
+/* --- いいねした瞬間の演出（2026-11-18）------------------------------------------
+   ★付くのは押して「いいね」にした直後の描画1回だけ（explore.js の S.likePop）。取り消しでは弾まない。
+   ★応答が返っても描き直さない（数だけ差し替える）ので、演出は途中で切れない。
+   ★動かすのは transform と opacity だけ。prefers-reduced-motion では出さない */
+.c-like-button.is-popping .c-like-button__icon {
+  animation: likeHeartPop .6s var(--ease) both;
+}
+
+.c-like-button__burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.c-like-button__ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--color-danger);
+  border-radius: var(--radius-full);
+  animation: likeRing .5s ease-out both;
+}
+
+/* 粒：中心から6方向へ飛んで消える（fireSpark。行き先は --spark-tx / --spark-ty） */
+.c-like-button__spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+  animation: fireSpark .55s ease-out .05s both;
+}
+
+.c-like-button__spark:nth-child(2) { --spark-tx: 0;     --spark-ty: -24px; }
+.c-like-button__spark:nth-child(3) { --spark-tx: 21px;  --spark-ty: -12px; }
+.c-like-button__spark:nth-child(4) { --spark-tx: 21px;  --spark-ty: 12px; }
+.c-like-button__spark:nth-child(5) { --spark-tx: 0;     --spark-ty: 24px; }
+.c-like-button__spark:nth-child(6) { --spark-tx: -21px; --spark-ty: 12px; }
+.c-like-button__spark:nth-child(7) { --spark-tx: -21px; --spark-ty: -12px; }
+
+/* 1つおきに淡い色（いいねの赤だけだと重く見える） */
+.c-like-button__spark:nth-child(odd) {
+  background-color: var(--color-warning);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c-like-button.is-popping .c-like-button__icon {
+    animation: none;
+  }
+
+  .c-like-button__burst {
+    display: none;
+  }
 }
 
 /* 数だけ見せる（アプリのアーカイブ。自分たちのイベントには押させない。2026-11-18） */
@@ -42,6 +104,7 @@
   background-color: var(--color-danger-pale);
 }
 
-.c-like-button[aria-busy='true'] {
+/* 送信中は少し薄く。★弾んでいる間は薄くしない（演出がくすむ） */
+.c-like-button[aria-busy='true']:not(.is-popping) {
   opacity: .7;
 }

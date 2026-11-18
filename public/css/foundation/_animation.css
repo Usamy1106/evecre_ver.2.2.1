@@ -130,7 +130,7 @@
   100% { transform: translateY(0) scale(1);     opacity: 1; }
 }
 
-/* ★fireSpark は object/component/_modal.css（.c-modal__spark。M4・参加承認）でも使う */
+/* ★fireSpark は object/component/_modal.css（.c-modal__spark。M4・参加承認）と _like-button.css（いいねの粒）でも使う */
 
 /* 使用: object/component/_modal.css（写真のように見せるイラスト .c-modal__photo。L9。2026-10-31）
    カメラで「カシャっ」と撮った感じ：白く光って（photoFlash）、写真が少し大きいところから
@@ -164,4 +164,19 @@
   0%   { transform: scale(1); }
   40%  { transform: scale(1.25); }
   100% { transform: scale(1); }
+}
+
+/* 使用: object/component/_like-button.css（.c-like-button.is-popping。みんなの記録のいいね。2026-11-18）
+   ハートが弾む（大きく → 少し縮む → 戻る）と、広がって消える輪。粒は fireSpark を流用する */
+@keyframes likeHeartPop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.45); }
+  55%  { transform: scale(.85); }
+  75%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes likeRing {
+  0%   { transform: scale(.3); opacity: .9; }
+  100% { transform: scale(2.4); opacity: 0; }
 }
