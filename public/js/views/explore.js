@@ -37,6 +37,7 @@ const S = {
   comments: {},      // id → { items, hasMore, loading, posting, error }
   draft: {},         // id → 入力中のコメント
   likeBusy: new Set(),
+  likePop: null,       // いま押した（いいねにした）イベントの id。次の描画1回だけ弾む演出を付ける
   siteUrl: undefined,  // 外部サイトの Top（未取得は undefined、無ければ null）
   listScrollY: null,   // ナレッジページを開いたときの一覧のスクロール位置（戻ったときに戻す）
 };
@@ -188,17 +189,36 @@ async function _toggleLike(id) {
   const was = !!d?.liked;
   const count = d?.likeCount ?? (S.list?.find(e => e.id === id)?.likeCount || 0);
   S.likeBusy.add(id);
-  _setLike(id, !was, Math.max(0, count + (was ? -1 : 1)));   // すぐに見た目を変える
+  const optimistic = Math.max(0, count + (was ? -1 : 1));
+  _setLike(id, !was, optimistic);   // すぐに見た目を変える
+  if (!was) S.likePop = id;         // ★いいねにしたときだけ弾む（取り消しでは弾まない）
   _rerender();
   const r = await api.exploreLike(id, !was);
   S.likeBusy.delete(id);
+  logEvent(was ? 'explore_unliked' : 'explore_liked', { eventId: id });
+  if (r?.ok && r.liked === !was) {
+    // ★見た目どおりに通ったときは描き直さない（描き直すと弾んでいる途中のボタンが作り直されて演出が切れる）。数だけ合わせる
+    _setLike(id, r.liked, r.likeCount);
+    _patchLikeButtons(id, r.likeCount);
+    return;
+  }
   if (r?.ok) _setLike(id, r.liked, r.likeCount);
   else {
     _setLike(id, was, count);
     window._app?.showToast?.(r?.error === 'rate_limited' ? '少し時間をおいてから押してください' : 'いいねを送れませんでした');
   }
-  logEvent(was ? 'explore_unliked' : 'explore_liked', { eventId: id });
   _rerender();
+}
+
+// いいねのボタンの数と「送信中」だけを差し替える（告知モーダルとナレッジページの両方）
+function _patchLikeButtons(id, count) {
+  const n = Number(count) || 0;
+  document.querySelectorAll(`[data-ex-like="${CSS.escape(id)}"]`).forEach(btn => {
+    btn.removeAttribute('aria-busy');
+    btn.setAttribute('aria-label', `いいね（${n}）`);
+    const c = btn.querySelector('.c-like-button__count');
+    if (c) c.textContent = String(n);
+  });
 }
 
 async function _postComment(id) {
@@ -267,12 +287,20 @@ async function _copyText(text) {
   return ok;
 }
 
+// いいねした瞬間の演出（ハートが弾む・輪が広がる・粒が6つ飛ぶ。_like-button.css の .is-popping）。★粒は実要素（疑似要素では足りない）
+const _LIKE_SPARKS = '<span class="c-like-button__burst" aria-hidden="true"><span class="c-like-button__ring"></span>'
+  + '<span class="c-like-button__spark"></span>'.repeat(6) + '</span>';
+
 function _likeButtonHtml(id, liked, count) {
   const busy = S.likeBusy.has(id);
+  const pop = liked && S.likePop === id;
   return `
-    <button type="button" class="c-like-button${liked ? ' is-liked' : ''}" data-ex-like="${_esc(id)}"
+    <button type="button" class="c-like-button${liked ? ' is-liked' : ''}${pop ? ' is-popping' : ''}" data-ex-like="${_esc(id)}"
       aria-pressed="${liked ? 'true' : 'false'}" aria-label="いいね（${Number(count) || 0}）"${busy ? ' aria-busy="true"' : ''}>
-      <img src="/images/icon/icon-heart-${liked ? 'pressed' : 'default'}.svg" class="c-like-button__icon" width="20" height="20" alt="">
+      <span class="c-like-button__icon-wrap">
+        <img src="/images/icon/icon-heart-${liked ? 'pressed' : 'default'}.svg" class="c-like-button__icon" width="20" height="20" alt="">
+        ${pop ? _LIKE_SPARKS : ''}
+      </span>
       <span class="c-like-button__count">${Number(count) || 0}</span>
     </button>`;
 }
@@ -621,6 +649,7 @@ export function renderExplore(appEl) {
     </div>`;
   restoreBgLayer();
   _syncModal();
+  S.likePop = null;   // ★弾む演出は押した直後の描画1回だけ（ナレッジページと告知モーダルの両方を描いたあとに消す）
   // ★サブエリアを固定する高さの基準（ヘッダーの実測。安全領域の余白で端末ごとに変わる）
   const root = appEl.querySelector('.p-explore');
   const head = appEl.querySelector('.p-explore__head');
