@@ -248,11 +248,8 @@ function _renderCalendar(ctx) {
       <p class="p-schedule__cal-note${projDates.size > 0 ? ' is-set' : ''}">
         ${projDates.size > 0 ? `開催日 ${projDates.size}件` : '開催日未設定'}
       </p>
-      ${state.canManageCurrentEvent() ? `
-        <button id="mb-dates-edit" class="p-schedule__cal-edit" data-log="event_dates_edit_open">
-          <span class="c-icon p-schedule__cal-edit-icon" style="--icon:url('/images/icon/icon-edit.svg')" aria-hidden="true"></span>
-          ${projDates.size > 0 ? '開催日を編集' : '開催日を設定'}
-        </button>` : ''}
+      <!-- ★「開催日を編集」のボタンは置かない（2026-11-18。スマホの日付チップのシート・広い画面のカレンダーの両方）。
+           開催日はイベント設定（イベント管理）とアーカイブの「期間」から変える -->
     `}`;
 }
 
@@ -268,11 +265,6 @@ function _bindCalendarEvents(root, ctx) {
   // ── 開催日の編集モード ────────────────────────────────
   // ★誤タップで開催日が変わると全メンバーの予定が動くので、通常は閲覧専用。
   //   明示的に編集モードへ入り、「保存」を押したときだけ確定する。
-  root.querySelector('#mb-dates-edit')?.addEventListener('click', () => {
-    if (!state.canManageCurrentEvent()) return;
-    ctx.editDates = [...(ctx.p.dates || [])].sort();   // ★作業コピー。p.dates は触らない
-    _renderCalendarOnly(root, ctx);
-  });
   root.querySelector('#mb-dates-cancel')?.addEventListener('click', () => {
     ctx.editDates = null;                              // 破棄するだけ
     _renderCalendarOnly(root, ctx);
