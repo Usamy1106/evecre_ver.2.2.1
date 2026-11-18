@@ -1811,7 +1811,7 @@ body {
 /* ===== object/component/_icon.css ===== */
 /* ==========================================================================
    Object / Component / icon — 素材の SVG を文字の色で塗るアイコン
-   使用箇所: 予定をコピー（アーカイブ・スケジュールシート・広い画面の右列）／開催日を編集／アーカイブの「編集する」／「イベクリをホームに置こう」のバナー／柱の進み具合の編集（ペン）
+   使用箇所: 予定をコピー（アーカイブ・スケジュールシート・広い画面の右列）／アーカイブの公開の帯と宣伝用公開の確認の地球（icon-platform）／開催日を編集／アーカイブの「編集する」／「イベクリをホームに置こう」のバナー／柱の進み具合の編集（ペン）
 
    ★<img> で置くと SVG に書かれた色（#484545）のままで、ボタンの文字の色に追従しない。
      素材を CSS の mask で型抜きし、background-color: currentColor で塗る
@@ -2276,6 +2276,13 @@ body {
   margin: 0 auto var(--space-5);
   border-radius: var(--radius-full);
   background-color: var(--icon-bg, var(--button-secondary));
+}
+
+/* 丸い枠の中のアイコン（素材の SVG を c-icon で塗る。publicBasicInfoModal の地球）*/
+.c-modal__icon-mark {
+  width: 28px;
+  height: 28px;
+  color: var(--color-primary);
 }
 
 .c-modal__emoji {
@@ -6284,8 +6291,11 @@ body {
   color: var(--color-primary);
 }
 
+/* 地球（icon-platform.svg を c-icon で文字の色に塗る。公開中は緑・非公開は灰色）*/
 .p-archive__public-icon {
   flex: none;
+  width: 16px;
+  height: 16px;
 }
 
 .p-archive__public-text {
