@@ -136,7 +136,7 @@ function openEventMenu(projectId, opts = {}) {
       <p class="c-action-sheet__caption">${_escapeAttr(p.name)}</p>
       ${inFolder ? `<button id="pa-remove-from-project"
         class="c-action-sheet__item">
-        <span class="c-icon" style="--icon:url('/images/icon/icon-file.svg');--icon-size:20px" aria-hidden="true"></span>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-remove-from-project.svg');--icon-size:20px" aria-hidden="true"></span>
         プロジェクトから外す
       </button>` : ''}
       ${canMgr ? `<button id="pa-rename"
