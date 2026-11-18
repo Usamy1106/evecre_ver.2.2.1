@@ -1004,6 +1004,20 @@ body {
   height: 20px;
 }
 
+/* 外部サイト（プラットフォーム）への入口（2026-11-18）。★作成・参加より目立たせない：
+   枠・影・白地を持たない（地の色のまま）、アイコンは灰色の線のまま少し薄く。
+   ★参加との間はボタン1つぶん（38px）空ける。別の種類の入口だと分かるように */
+.l-header__action--platform {
+  margin-left: 38px;
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+}
+
+.l-header__action--platform .l-header__action-icon {
+  opacity: .75;
+}
+
 .l-header__action:active {
   transform: scale(.95);
 }
@@ -1030,6 +1044,21 @@ body {
 
 :root.is-wide .l-header--home .l-header__action--join .l-header__action-label {
   color: var(--create-green);
+}
+
+:root.is-wide .l-header--home .l-header__action--platform .l-header__action-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+}
+
+/* スマホの HOME はユーザー名を出さない（アバターだけ。入口が3つになり、名前の居場所が無いため。2026-11-18）。
+   広い画面では出す */
+.l-header--home .l-header__username {
+  display: none;
+}
+
+:root.is-wide .l-header--home .l-header__username {
+  display: inline;
 }
 
 /* メール未認証：押せるが、押すと認証を促される。見た目で「まだ」と分かるようにする */

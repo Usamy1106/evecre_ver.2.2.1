@@ -102,9 +102,9 @@ async function finishArchiveEditing() {
 }
 let _leavingArchiveTab = false;
 // 外部サイト（公開ページ）の URL。GET /api/config から1回だけ読む（無ければ null）
-// ★2026-11-12（指示書05 §7）から使っていない（アーカイブの「リンクをコピー」は本体の /explore を出す）。
-//   指示書の指定で消さずに残す（外部サイトの URL が要る画面を作るとき用）。GET /api/config の publicSiteUrl は
-//   公開ページの「イベクリについて」（views/explore.js）が使っている
+// ★2026-11-18 から HOME のヘッダーの「プラットフォーム」ボタン（components.js の Header）が使う。
+//   起動時に1回読んで state.publicSiteUrl に載せる（null ならボタンを出さない）。
+//   GET /api/config の publicSiteUrl は公開ページの「イベクリについて」（views/explore.js）も使っている
 let _publicSiteUrlPromise = null;
 function _publicSiteUrl() {
   _publicSiteUrlPromise ||= api.getConfig().then(r => (typeof r?.publicSiteUrl === 'string' ? r.publicSiteUrl : null)).catch(() => null);
@@ -1573,6 +1573,11 @@ initSheetDragClose(); // ボトムシートの下スワイプで閉じる（data
 watchLayoutMode(() => {
   document.getElementById('event-cal-sheet')?.remove();
   state.render();
+});
+// HOME の「プラットフォーム」ボタンの行き先（外部サイト）。届いたら HOME だけ描き直す
+_publicSiteUrl().then(url => {
+  state.publicSiteUrl = url;
+  if (url && state.currentView === 'HOME') state.render();
 });
 initImageFallback();  // data-fallback を付けた画像の読み込み失敗を代替表示に差し替える
 initBrowserBack(state, window._app); // ブラウザ・端末の「戻る」をアプリの中の「戻る」につなぐ（browserBack.js）
