@@ -121,10 +121,7 @@ export const Components = {
         ${opts.compact ? (opts.trailing ? `<div class="l-header__actions">${opts.trailing}</div>` : '') : opts.trailing ? `<div class="l-header__actions">${opts.trailing}</div>` : `<div class="l-header__actions">
           <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
             data-log="header_feedback" class="l-header__action" aria-label="フィードバックを送る">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="l-header__action-icon">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
+            <img src="/images/icon/icon-feedback.svg" class="l-header__action-image" alt="">
           </a>
           <button type="button" onclick="window._app.toggleProjectMenu(event)" id="project-menu-btn"
             data-log="header_project_menu" class="l-header__action">
@@ -173,10 +170,7 @@ export const Components = {
         </button>
         <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
           data-log="header_feedback" class="l-rail__item" aria-label="フィードバックを送る">
-          <svg class="l-rail__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
+          <img src="/images/icon/icon-feedback.svg" class="l-rail__icon" alt="">
           <span class="l-rail__label" aria-hidden="true">フィードバック</span>
         </a>
         <button type="button" onclick="window._app.toggleProjectMenu(event)" data-log="header_project_menu"

@@ -58,7 +58,7 @@ export function checkEventDateReminderModal() {
 }
 
 // figureHtml を渡すと、丸いアイコンの代わりにそれを出す（開催初日の山頂の看板）
-function _buildOverlay({ bgColor, color, iconPath, figureHtml, title, desc, buttonsHtml }) {
+function _buildOverlay({ bgColor, iconImg, figureHtml, title, desc, buttonsHtml }) {
   const overlay = document.createElement('div');
   overlay.id = 'event-date-reminder-overlay';
   overlay.className = 'c-overlay c-overlay--center c-overlay--blur c-overlay--auto';
@@ -66,9 +66,7 @@ function _buildOverlay({ bgColor, color, iconPath, figureHtml, title, desc, butt
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
       ${figureHtml || `<div class="c-modal__icon" style="--icon-bg:${bgColor}">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          ${iconPath}
-        </svg>
+        <img src="${iconImg}" width="28" height="28" alt="" aria-hidden="true">
       </div>`}
       <h3 class="c-modal__title">${title}</h3>
       <p class="c-modal__text">${desc}</p>
@@ -93,9 +91,8 @@ function _openDayStartModal(p) {
 
 function _openArchiveReminderModal() {
   const overlay = _buildOverlay({
-    bgColor: '#E8F7FD',
-    color: '#009fe5',
-    iconPath: `<path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/>`,
+    bgColor: 'var(--color-warning-pale2)',
+    iconImg: '/images/icon/icon-archive-pressed.svg',
     title: 'イベントお疲れさまでした！',
     desc: 'アーカイブから、イベントの振り返りをしよう！',
     buttonsHtml: `<div class="c-modal__actions">

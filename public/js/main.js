@@ -1144,8 +1144,8 @@ window._app = {
       };
     } else if (claimMissions.length > 0) {
       config = {
-        icon: `<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>`,
-        color: '#009fe5', bgColor: '#E8F7FD',
+        iconImg: '/images/icon/icon-assignment-request.svg',
+        color: '#009fe5', bgColor: 'var(--color-primary-pale)',
         title: '担当申請があります',
         desc:  `${claimMissions.length}件のタスクに担当申請が届いています。`,
         action: '通知タブで確認する',
@@ -1165,11 +1165,9 @@ window._app = {
     overlay.innerHTML = `
       <div class="c-modal u-animate-fade">
         <div class="c-modal__icon" style="--icon-bg:${_escH(config.bgColor)}">
-          ${config.iconUrl
-            ? `<span class="c-icon" style="--icon:url('${_escH(config.iconUrl)}');--icon-size:24px;color:${_escH(config.color)}" aria-hidden="true"></span>`
-            : `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${_escH(config.color)}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            ${config.icon}
-          </svg>`}
+          ${config.iconImg
+            ? `<img src="${_escH(config.iconImg)}" width="28" height="28" alt="" aria-hidden="true">`
+            : `<span class="c-icon" style="--icon:url('${_escH(config.iconUrl)}');--icon-size:24px;color:${_escH(config.color)}" aria-hidden="true"></span>`}
         </div>
         <h3 class="c-modal__title">${_escH(config.title)}</h3>
         <p class="c-modal__text">${_escH(config.desc)}</p>
@@ -1809,17 +1807,12 @@ function _openProjectMenu(folderId) {
       <p class="c-action-sheet__caption">${_escH(folder.name)}</p>
       <button id="pm-rename"
         class="c-action-sheet__item">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-rename.svg');--icon-size:20px" aria-hidden="true"></span>
         名前を変更
       </button>
       <button id="pm-delete"
         class="c-action-sheet__item c-action-sheet__item--danger">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="3 6 5 6 21 6"/>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-delete.svg');--icon-size:20px" aria-hidden="true"></span>
         削除
       </button>
       <button id="pm-cancel" class="c-action-sheet__cancel">キャンセル</button>

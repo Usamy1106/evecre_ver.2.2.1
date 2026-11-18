@@ -136,43 +136,28 @@ function openEventMenu(projectId, opts = {}) {
       <p class="c-action-sheet__caption">${_escapeAttr(p.name)}</p>
       ${inFolder ? `<button id="pa-remove-from-project"
         class="c-action-sheet__item">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-          <line x1="9" y1="14" x2="15" y2="14"/>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-file.svg');--icon-size:20px" aria-hidden="true"></span>
         プロジェクトから外す
       </button>` : ''}
       ${canMgr ? `<button id="pa-rename"
         class="c-action-sheet__item">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-rename.svg');--icon-size:20px" aria-hidden="true"></span>
         名前を変更
       </button>` : ''}
       ${inFolder ? '' : `<button id="pa-add-to-project"
         class="c-action-sheet__item">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-file.svg');--icon-size:20px" aria-hidden="true"></span>
         プロジェクトに追加
       </button>`}
       ${isOwner ? `
       <button id="pa-delete"
         class="c-action-sheet__item c-action-sheet__item--danger">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"></polyline>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          <line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-delete.svg');--icon-size:20px" aria-hidden="true"></span>
         削除
       </button>` : `
       <button id="pa-leave"
         class="c-action-sheet__item c-action-sheet__item--danger">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16 17 21 12 16 7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-exit.svg');--icon-size:20px" aria-hidden="true"></span>
         このイベントから脱退
       </button>`}
       <button id="pa-cancel"
@@ -288,10 +273,7 @@ export function openAddToProjectModal(eventId) {
   const folderItems = folders.map(f => `
     <button data-folder-id="${f.id}"
       class="c-action-sheet__item${currentFolderId === f.id ? ' is-current' : ''}">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-        stroke="${currentFolderId === f.id ? '#30A23D' : '#484545'}" stroke-width="2">
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-      </svg>
+      <span class="c-icon" style="--icon:url('/images/icon/icon-file.svg');--icon-size:20px" aria-hidden="true"></span>
       ${_escapeAttr(f.name)}
       ${currentFolderId === f.id ? '<span class="c-action-sheet__badge">追加済み</span>' : ''}
     </button>`).join('');
