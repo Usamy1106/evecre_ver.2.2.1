@@ -1019,11 +1019,12 @@ body {
   height: 20px;
 }
 
-/* 外部サイト（プラットフォーム）への入口（2026-11-18）。★作成・参加より目立たせない：
-   枠・影・白地を持たない（地の色のまま）、アイコンは灰色の線のまま少し薄く。
+/* プラットフォーム（公開ページ /explore）への入口（2026-11-18）。★作成・参加より目立たせない：
+   影・白地を持たない（地の色のまま）、枠は灰色（--gray）、アイコンは灰色の線のまま少し薄く。
    ★参加との間はボタン1つぶん（38px）空ける。別の種類の入口だと分かるように */
 .l-header__action--platform {
   margin-left: 38px;
+  border: 1px solid var(--gray);
   background-color: transparent;
   box-shadow: none;
   color: var(--color-text-muted);
@@ -12880,6 +12881,12 @@ border: 2px solid var(--bg-textbox);
   font-size: 13px;
   font-weight: var(--font-weight-heavy);
   color: var(--color-text);
+}
+
+/* リンクの項目（ヘルプ。外部サイトを新しいタブで開く）。ボタンと同じ見た目にする */
+.p-app-shell__user-item--link {
+  display: block;
+  text-decoration: none;
 }
 
 .p-app-shell__user-item:hover {

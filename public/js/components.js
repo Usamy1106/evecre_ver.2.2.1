@@ -90,17 +90,16 @@ export const Components = {
               <img src="/images/icon/icon-join.svg" alt="" class="l-header__action-icon">
               <span class="l-header__action-label">イベントに参加</span>
             </button>
-            ${state.publicSiteUrl ? `
-            <!-- ★外部サイト（プラットフォーム）への入口（2026-11-18）。作成・参加より目立たせない
-                 （枠も影も無い控えめなボタン。layout/_header.css の --platform）。
+            <!-- ★プラットフォーム（公開ページ「みんなの記録」/explore。2026-11-18）への入口。作成・参加より目立たせない
+                 （白地・影の無い控えめなボタン。枠は灰色。layout/_header.css の --platform）。
                  ★参加との間はボタン1つぶん空ける（別の種類の入口だと分かるように）。
-                 ★行き先は GET /api/config の publicSiteUrl（main.js が起動時に state に載せる。無ければ出さない） -->
-            <a href="${_escAttr(state.publicSiteUrl)}" target="_blank" rel="noopener"
+                 ★新しいタブで開く。同じサーバーの /explore（本番は https://evecre-ver-2-2-1.onrender.com/explore） -->
+            <a href="/explore" target="_blank" rel="noopener"
               data-log="home_platform" class="l-header__action l-header__action--platform"
               aria-label="プラットフォームを開く">
               <img src="/images/icon/icon-platform.svg" alt="" class="l-header__action-icon">
               <span class="l-header__action-label">プラットフォーム</span>
-            </a>` : ''}
+            </a>
           </div>
         </header>`;
     }

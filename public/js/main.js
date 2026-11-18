@@ -1492,6 +1492,11 @@ window._app = {
       <button id="user-menu-account" class="p-app-shell__user-item p-app-shell__user-item--divided">
         アカウント設定
       </button>
+      <!-- ★ヘルプは外部サイトのページ（新しいタブで開く。2026-11-18） -->
+      <a id="user-menu-help" href="https://evecre.pages.dev/pages/help/" target="_blank" rel="noopener"
+        data-log="user_menu_help" class="p-app-shell__user-item p-app-shell__user-item--divided p-app-shell__user-item--link">
+        ヘルプ
+      </a>
       <button id="user-menu-logout" class="p-app-shell__user-item p-app-shell__user-item--divided p-app-shell__user-item--danger">
         ログアウト
       </button>`;
@@ -1504,6 +1509,7 @@ window._app = {
       menu.remove();
       state.setView('ACCOUNT');
     };
+    document.getElementById('user-menu-help').onclick = () => { menu.remove(); };
     document.getElementById('user-menu-logout').onclick = () => {
       menu.remove();
       state.logout();
