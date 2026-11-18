@@ -2015,6 +2015,8 @@ const _LOG_LABELS = {
   explore_unliked:         'みんなの記録のいいねを取り消した',
   explore_comment_posted:  'みんなの記録にコメントした',
   explore_comment_deleted: 'みんなの記録のコメントを消した',
+  archive_comment_posted: 'アーカイブで公開ページへのコメントを書いた',
+  archive_comment_deleted: 'アーカイブで公開ページへのコメントを消した',
   explore_login_tapped:    'みんなの記録から「ログインしてコメントする」',
   explore_signup_tapped:   'みんなの記録から「イベクリをはじめる」',
   public_comment_notify_toggled: '公開ページへのコメントの通知を切り替えた',

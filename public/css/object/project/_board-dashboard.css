@@ -478,6 +478,15 @@
   margin-inline: auto;
 }
 
+/* アーカイブに、いいね・コメントの箱があるとき（宣伝用に公開中。2026-11-18）：本文＋箱の幅に広げる */
+.p-main-board--dashboard .p-main-board__page--with-side {
+  max-width: calc(var(--reading-max-width) + 320px + var(--space-6) + var(--space-4) * 2);
+}
+
+.p-main-board--dashboard:has(.p-main-board__page--with-side) .p-mountain--backdrop {
+  max-width: calc(var(--reading-max-width) + 320px + var(--space-6) + var(--space-4) * 2);
+}
+
 /* 背景の山も中央の1列の幅に（画面いっぱいに伸ばすと素材が粗く見える）。
    ★左端の列のぶん、中央を右へずらす */
 .p-main-board--dashboard .p-mountain--backdrop {

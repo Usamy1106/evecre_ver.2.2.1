@@ -9,7 +9,8 @@
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
      public/js/views/explore.js … renderExplore / _headerHtml / _listHtml / _cardHtml / _detailHtml /
-                                  _commentsHtml / _syncModal
+                                  _commentsHtml / _syncModal / exploreCommentItemHtml
+     public/js/archiveSocial.js … _innerHtml（アプリのアーカイブのいいね・コメントの箱。.p-explore__side と中身の部品を共用。2026-11-18）
    ========================================================================== */
 
 .p-explore {
@@ -219,10 +220,18 @@
 }
 
 .p-explore__card-like {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   margin-top: auto;
   padding-top: var(--space-1);
   font-size: var(--font-size-sm);
   color: var(--color-danger);
+}
+
+.p-explore__card-like-icon {
+  width: 14px;
+  height: 14px;
 }
 
 /* ── 告知モーダル ── */
@@ -298,23 +307,33 @@
 }
 
 
+/* ★本文の白い紙は .p-public-archive__doc が持つ（アプリのアーカイブと同じ見た目。2026-11-18）。ここは幅だけ */
 .p-explore__page {
   max-width: var(--reading-max-width);
   margin: 0 auto;
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface);
 }
 
-/* サブエリア：小さな白い箱。中身の量に合わせて伸び、画面の高さで止まる（その先はコメントだけスクロール） */
+/* 背景の山（ナレッジページだけ。アプリのアーカイブと同じ backdrop）。★幅は本文＋サブエリアの列に合わせる
+   （画面いっぱいに伸ばすと素材が粗く見える）。本文は山より手前 */
+.p-explore--detail .p-mountain--backdrop {
+  max-width: calc(var(--reading-max-width) + var(--explore-side-width) + var(--space-6) + var(--space-4) * 2);
+}
+
+.p-explore--detail .p-explore__main {
+  position: relative;
+  z-index: 1;
+}
+
+/* サブエリア：小さな白い箱（本文の紙と同じ角丸・影）。中身の量に合わせて伸び、画面の高さで止まる（その先はコメントだけスクロール） */
 .p-explore__side {
   display: flex;
   flex-direction: column;
   max-width: var(--reading-max-width);
   margin: var(--space-4) auto 0;
   padding: var(--space-4);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 @container (min-width: 960px) {

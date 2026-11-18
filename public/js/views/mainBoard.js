@@ -4,10 +4,12 @@ import { Components } from '../components.js';
 import { getSortedMissions, bindMissionInteractions } from '../modals/mission.js';
 import { LABEL_CONFIG, PROPOSAL_CHARACTERS, REFLECT_LABELS, REFLECT_SKIP_MISSION_IDS, OUTCOME_CHOICES, EVENT_TYPES } from '../constants.js';
 import { characterFigureHtml, sleepBubbleHtml } from '../character.js';
-import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated, taskShareState, countPublishableReflections } from '../utils.js';
+import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiveVenue, todayStr, submissionImages, submissionText, submissionSegments, getEventMainVisual, linkifyText, richTextHtml, getPillars, pillarIdsOf, pillarCategoryOf, canPromptPublicBasic, labelClearedStats, reflectShowsStruggle, goalQuestSteps, GOAL_SUMMARY_ID, isInitialTask, isAfterEventDates, taskReflectionCounts, archiveLastUpdated, taskShareState, countPublishableReflections } from '../utils.js';
 import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml, reflectEditorHtml } from '../clearEditor.js';
-import { pillarCharacterFor } from '../pillarChars.js';
+import { pillarCharacterFor, pillarCharHtml } from '../pillarChars.js';
+import { archiveSocialHtml, archiveSocialEnabled, refreshArchiveSocial, bindArchiveSocialOnce,
+  captureArchiveSocialFocus, restoreArchiveSocialFocus } from '../archiveSocial.js';
 import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchivePreviewTap, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
@@ -207,6 +209,7 @@ export function renderMainBoard(container) {
   captureBgLayer();
   // ★アーカイブの編集モードで書いている途中の欄を、描き直しで消さない（archiveInlineEdit.js）
   captureInlineEdits();
+  captureArchiveSocialFocus();
 
   container.innerHTML = `
     <div class="p-main-board ${isMain ? 'p-main-board--fixed' : 'p-main-board--scroll'}${dash ? ' p-main-board--dashboard' : ''}">
@@ -242,7 +245,7 @@ export function renderMainBoard(container) {
           </div>
         </div>
       ` : `
-        <main class="p-main-board__page u-no-scrollbar">
+        <main class="p-main-board__page u-no-scrollbar${state.mainBoardTab === 'ARCHIVE' && archiveSocialEnabled(p) ? ' p-main-board__page--with-side' : ''}">
           ${state.mainBoardTab === 'ARCHIVE' ? _renderArchiveTab(p) : ''}
           ${state.mainBoardTab === 'NOTIFICATIONS' ? _renderNotificationsTab(p) : ''}
         </main>
@@ -278,6 +281,10 @@ export function renderMainBoard(container) {
 
   if (state.mainBoardTab === 'ARCHIVE') {
     restoreInlineEdits();
+    // いいね・コメントの箱：入力中のフォーカスを戻し、控えが古ければ取り直す（箱の中身だけ差し替える）
+    restoreArchiveSocialFocus();
+    bindArchiveSocialOnce();
+    refreshArchiveSocial(p);
     if (state.archiveEditing) bindArchiveInlineEditing(container);
     else bindArchivePreviewTap(container);
     _focusArchiveMission();
@@ -1649,6 +1656,8 @@ function _archivePublicBannerHtml(p, canMgr) {
 }
 
 function _renderArchiveTab(p) {
+  // いいね・コメントの箱（宣伝用に公開しているときだけ。中身の条件はサーバーが決める）
+  const social = archiveSocialHtml(p);
   const canMgr  = state.canManageCurrentEvent();
   // ★編集できるのは管理者だけ。管理者はプレビュー中でなければ編集中（state.js の getter）
   const editing = canMgr && state.archiveEditing;
@@ -1704,7 +1713,9 @@ function _renderArchiveTab(p) {
   const pillarsHtml = pillars.length === 0 ? '' : `
     <div>
       <h2 class="p-archive__label">柱</h2>
-      <ul class="p-archive__pillars">${pillars.map(x => `<li class="p-archive__pillar">${_esc(x.name)}</li>`).join('')}</ul>
+      <!-- ★柱は柱の設定と同じキャラで描く（区分のキャラ。区分の無い柱は順番のキャラ。2026-11-18） -->
+      <div class="p-pillar-chars p-pillar-chars--lead" role="list">${pillars.map((x, i) =>
+        pillarCharHtml(i, x.name, { cat: pillarCategoryOf(x), attrs: 'role="listitem"' })).join('')}</div>
     </div>`;
   // 目的（def-1）は記録の先頭（2026-11-09）。★並び替えの対象にしない・リードの数字に数えない。
   //   決まっていれば記録の形（タスクと同じ。外に出るのでチェック・「非公開」の札は出さない）。
@@ -1819,6 +1830,10 @@ function _renderArchiveTab(p) {
         <!-- ★プレビュー＝公開される姿、と受け取られないように（非公開の部分もここでは見えている） -->
         <p class="p-archive__preview-note" role="status">編集の表示を隠しています。外に出る内容は「公開する」から確認できます。</p>` : ''}
 
+      <!-- ★本文（画像と白い紙）と、いいね・コメントの箱（宣伝用に公開しているときだけ。archiveSocial.js）。
+           広いときは箱を本文の右に固定し、狭いときは本文の下に並べる（公開ページ /explore と同じ形。2026-11-18） -->
+      <div class="p-archive__columns"><div class="p-archive__columns-inner${social ? ' has-side' : ''}">
+      <div class="p-archive__main-col">
       <!-- ① ヘッダー画像（3:2。ホームのサムネイルと同じ比率）-->
       <div class="p-archive__visual"${tap('image')}>
         ${mainVisual
@@ -1885,6 +1900,9 @@ function _renderArchiveTab(p) {
         <div class="p-archive__body">${bodyHtml}</div>
         ${pendingHtml}
       </article>
+      </div>
+      ${social}
+      </div></div>
 
 
     </div>`;

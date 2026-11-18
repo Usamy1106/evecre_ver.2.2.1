@@ -12,7 +12,8 @@
      public/js/character.js … characterFigureHtml / characterTipHtml
      public/js/modals/mission.js … _renderPillarStep / (トップレベル)
      public/js/pillarChars.js … pillarCharHtml / pillarSlotHtml
-     public/js/views/mainBoard.js … _characterBoxHtml
+     public/js/views/mainBoard.js … _characterBoxHtml / _renderArchiveTab（リードの柱）
+     public/js/views/publicArchive.js … publicPurposeHtml（公開ページ・公開の確認ページの柱）
      public/js/views/pillarEdit.js … _bind / renderPillarEdit
    ========================================================================== */
 
@@ -24,6 +25,12 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
+}
+
+/* アーカイブ・公開ページのリードに並べる柱（読むだけ。2026-11-18）。★3つで横幅を取りすぎないよう幅を抑える */
+.p-pillar-chars--lead {
+  max-width: 360px;
+  margin-top: var(--space-2);
 }
 
 /* スマホは縦並び（タスク作成の2画面目）。★広い画面（<html class="is-wide">）だけ横に戻す。
