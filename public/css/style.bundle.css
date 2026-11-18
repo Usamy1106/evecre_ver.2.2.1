@@ -1038,6 +1038,12 @@ body {
   color: var(--color-text-muted);
 }
 
+/* ★アイコンは画像（icon-home-plus.svg）なので color が効かない。灰色にして「まだ」を伝える */
+.l-header__action--locked .l-header__action-icon {
+  opacity: .5;
+  filter: grayscale(1);
+}
+
 /* --- イベント：左側（戻る＋タイトル）------------------------------------ */
 
 /* ★min-width:0 と flex:1 で、右の操作（日付チップなど）が取った残りを全部イベント名に使う。
