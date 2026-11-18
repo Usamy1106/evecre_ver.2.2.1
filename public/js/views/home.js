@@ -72,20 +72,13 @@ function _incomingRequestsCard() {
       class="p-home__request-row">
       <span class="p-home__request-name">${_esc(p.name || 'イベント')}</span>
       <span class="p-home__request-count">${(p.pendingMembers || []).length}件</span>
-      <svg class="p-home__request-arrow" width="14" height="14" viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="9 18 15 12 9 6"/>
-      </svg>
+      <span class="c-icon c-icon--right p-home__request-arrow" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:14px" aria-hidden="true"></span>
     </button>`).join('');
 
   return `
     <div class="p-home__notice p-home__request">
       <div class="p-home__request-head">
-        <svg class="p-home__request-icon" width="16" height="16" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
-        </svg>
+        <span class="c-icon p-home__request-icon" style="--icon:url('/images/icon/icon-join.svg');--icon-size:16px" aria-hidden="true"></span>
         <p class="p-home__request-title">以下のイベントへの参加申請が届いています（${total}件）</p>
       </div>
       ${rows}
@@ -195,9 +188,7 @@ function _renderProjectsTab() {
   //     それだと空のプロジェクトを作れない）。
   const createBtn = `
     <button type="button" onclick="window._app.openNewProjectModal()" class="p-home__add">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-        <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-      </svg>
+      <span class="c-icon" style="--icon:url('/images/icon/icon-home-plus.svg');--icon-size:14px" aria-hidden="true"></span>
       新規作成
     </button>`;
 

@@ -1135,7 +1135,7 @@ window._app = {
     let config = null;
     if (pendingMembers.length > 0) {
       config = {
-        icon: `<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>`,
+        iconUrl: '/images/icon/icon-join.svg',
         color: '#f9b900', bgColor: '#FFF8E1',
         title: '参加申請が届いています',
         desc:  `${pendingMembers.length}件の参加申請があります。承認または拒否してください。`,
@@ -1165,9 +1165,11 @@ window._app = {
     overlay.innerHTML = `
       <div class="c-modal u-animate-fade">
         <div class="c-modal__icon" style="--icon-bg:${_escH(config.bgColor)}">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${_escH(config.color)}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          ${config.iconUrl
+            ? `<span class="c-icon" style="--icon:url('${_escH(config.iconUrl)}');--icon-size:24px;color:${_escH(config.color)}" aria-hidden="true"></span>`
+            : `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${_escH(config.color)}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             ${config.icon}
-          </svg>
+          </svg>`}
         </div>
         <h3 class="c-modal__title">${_escH(config.title)}</h3>
         <p class="c-modal__text">${_escH(config.desc)}</p>

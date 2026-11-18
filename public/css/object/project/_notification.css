@@ -333,6 +333,7 @@
 }
 
 .p-notification__group-more[aria-expanded="true"] .p-notification__group-chevron {
+  display: inline-flex;
   transform: rotate(180deg);
 }
 

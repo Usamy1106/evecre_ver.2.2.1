@@ -79,10 +79,7 @@ function _openArchiveImageDialog(p) {
       </div>
       <label class="p-archive__file-label">
         <div class="p-archive__dropzone">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
+          <span class="c-icon" style="--icon:url('/images/icon/icon-image.svg');--icon-size:28px" aria-hidden="true"></span>
           <span class="p-archive__dropzone-text">画像を選択</span>
         </div>
         <input type="file" id="arch-file-input" class="u-hidden" accept="image/*">
