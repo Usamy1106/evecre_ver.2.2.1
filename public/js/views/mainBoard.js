@@ -1341,10 +1341,7 @@ function _renderMainTab(p) {
       <div class="p-main-board__side-actions">
         <a href="https://forms.gle/qh1nXQxXm3YNQfsk9" target="_blank" rel="noopener noreferrer"
           data-log="header_feedback" class="p-main-board__notif" aria-label="フィードバックを送る">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
+          <img src="/images/icon/icon-feedback.svg" class="p-main-board__side-icon" alt="">
         </a>
         <button type="button" onclick="window._app.toggleProjectMenu(event)"
           data-log="header_project_menu" class="p-main-board__notif" aria-label="設定">
@@ -2310,9 +2307,7 @@ function _notifRowHtml(n, p, opts = {}) {
   return `
     <div class="notif-swipe-row p-notification__row${opts.hidden ? ' is-collapsed' : ''}" data-notif-id="${n.id}">
       <div class="p-notification__row-delete">
-        <svg class="p-notification__row-delete-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
-        </svg>
+        <span class="c-icon p-notification__row-delete-icon" style="--icon:url('/images/icon/icon-delete.svg');--icon-size:20px" aria-hidden="true"></span>
       </div>
       <!-- ★p-notification__swipe-card は横スワイプの対象として JS が掴む目印 -->
       <div class="p-notification__swipe-card${n.read ? '' : ' is-unread'}"
@@ -2397,51 +2392,40 @@ export function toggleNotifGroup(key) {
 }
 
 // 通知アイコンの背景色。CSS 変数 --notif-color として渡す
-// （種類ごとに色が違うだけなので、クラスを14個作るより変数1つが読みやすい）
+// ★背景はアイコンの素材の色にそろえる（緑の素材＝淡い緑・青＝淡い青・黄＝淡い黄。2026-11-18）。
+//   素材の色を変えたら _NOTIF_ICONS の bg も直す
 function _notifIconBg(type) {
-  switch (type) {
-    case 'mission_cleared':
-    case 'assignment_decided':
-    case 'member_joined':         return 'var(--color-success-tint)';
-    case 'assigned_to_me':
-    case 'role_assigned':         return 'var(--color-primary-tint)';
-    case 'someone_claimed':
-    case 'mission_reverted':
-    case 'self_claimed':          return 'var(--color-warning-tint)';
-    case 'motivation_reaction':   return 'var(--color-danger-tint2)';
-    case 'public_comment':        return 'var(--color-primary-tint)';
-    case 'mission_created':
-    case 'mission_updated':       return 'var(--color-violet-tint)';
-    default: return 'var(--button-secondary)';
-  }
+  const icon = _NOTIF_ICONS[type];
+  if (icon) return icon.bg;
+  if (type === 'motivation_reaction') return 'var(--color-danger-tint2)';
+  return 'var(--button-secondary)';
 }
+
+// 通知の種類 → アイコンの素材（_notifIcon）と、その色に合わせた背景（_notifIconBg）
+const _NOTIF_BG_GREEN  = 'var(--color-success-tint)';
+const _NOTIF_BG_BLUE   = 'var(--color-info-tint)';
+const _NOTIF_BG_YELLOW = 'var(--color-warning-tint)';
+const _NOTIF_ICONS = {
+  mission_cleared:    { file: 'icon-mini-completion.svg',        bg: _NOTIF_BG_GREEN },
+  assigned_to_me:     { file: 'icon-mini-assignment-myself.svg', bg: _NOTIF_BG_GREEN },
+  someone_claimed:    { file: 'icon-mini-apply.svg',             bg: _NOTIF_BG_GREEN },
+  self_claimed:       { file: 'icon-mini-apply.svg',             bg: _NOTIF_BG_GREEN },
+  assignment_decided: { file: 'icon-mini-assignment.svg',        bg: _NOTIF_BG_GREEN },
+  member_joined:      { file: 'icon-mini-join.svg',              bg: _NOTIF_BG_BLUE },
+  role_assigned:      { file: 'icon-mini-roled.svg',             bg: _NOTIF_BG_BLUE },
+  mission_created:    { file: 'icon-mini-create-task.svg',       bg: _NOTIF_BG_GREEN },
+  mission_updated:    { file: 'icon-mini-modification-task.svg', bg: _NOTIF_BG_GREEN },
+  mission_reverted:   { file: 'icon-mini-cancel.svg',            bg: _NOTIF_BG_GREEN },
+  public_comment:     { file: 'icon-mini-comment.svg',           bg: _NOTIF_BG_YELLOW },
+};
 
 function _notifIcon(type) {
   const cls = 'w-4 h-4';
+  // ★種類ごとのアイコンは素材（public/images/icon/icon-mini-*.svg。色も素材が持つ）。2026-11-18
+  //   素材を足したら _NOTIF_ICONS に1行足す。意気込み（🔥）と既定（丸）はそのまま
+  const icon = _NOTIF_ICONS[type];
+  if (icon) return `<img src="/images/icon/${icon.file}" width="16" height="16" alt="">`;
   switch (type) {
-    case 'mission_cleared':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`;
-    case 'assigned_to_me':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#009fe5" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
-    case 'someone_claimed':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
-    case 'assignment_decided':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>`;
-    case 'member_joined':
-      return `<span class="c-icon" style="--icon:url('/images/icon/icon-join.svg');--icon-size:16px;color:#1A6B27" aria-hidden="true"></span>`;
-    case 'role_assigned':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#009fe5" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7"/><polyline points="15 17 17 19 21 15"/></svg>`;
-    case 'mission_created':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
-    case 'mission_updated':
-      return `<span class="c-icon" style="--icon:url('/images/icon/icon-edit.svg');--icon-size:16px;color:#7c3aed" aria-hidden="true"></span>`;
-    case 'mission_reverted':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
-    case 'self_claimed':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
-    case 'public_comment':
-      // 公開ページ（/explore）へのコメント。書いた人はメンバーでないことが多いのでアバターの代わりに吹き出し
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#009fe5" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
     case 'motivation_reaction':
       // 素材の縦横比（160.78:186.79）を保つ。背景の円は .p-notification__icon（--notif-color）のまま
       return `<img src="/images/icon/icon-fire.svg" width="16" height="19" alt="">`;

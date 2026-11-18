@@ -79,11 +79,11 @@
   --color-primary-half2: rgba(48, 162, 61, .4);
   --color-primary-pale4: #E6F4E8;  /* アナウンスカードの押下時 */
   --color-text-soft: #6B6B6B;      /* 本文より少し薄い文字 */
-  /* 通知アイコンの背景（種類ごとに色を変える。20% の淡い塗り）*/
+  /* 通知アイコンの背景（素材の色に合わせた 20% の淡い塗り。mainBoard.js の _NOTIF_ICONS）*/
   --color-primary-tint: rgba(48, 162, 61, .2);
   --color-warning-tint: rgba(249, 185, 0, .2);
+  --color-info-tint: rgba(0, 159, 229, .2);     /* 青の素材（--create-blue）の背景 */
   --color-danger-tint2: rgba(238, 62, 18, .2);
-  --color-violet-tint: rgba(167, 139, 250, .2);
 
   /* 山ビジュアル */
   /* --- 山の背景素材 --------------------------------------------------------

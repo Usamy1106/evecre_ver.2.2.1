@@ -138,9 +138,7 @@ function _openModal(p) {
   overlay.innerHTML = `
     <div class="c-modal u-animate-fade">
       <div class="c-modal__icon" style="--icon-bg:var(--color-warning-pale2)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f9b900" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="#f9b900"/>
-        </svg>
+        <img src="/images/icon/icon-purpose.svg" width="28" height="28" alt="" aria-hidden="true">
       </div>
       <h3 class="c-modal__title c-modal__title--tight">イベントづくりで困ったら</h3>
       <p class="c-modal__text c-modal__text--tight">目的という軸に立ち帰ってね</p>
