@@ -66,7 +66,7 @@ function _formBlock(sec) {
 function _sentBlock(sec) {
   return `
     <div class="c-notice c-notice--info p-auth__notice--wide">
-      <p class="c-notice__symbol">📧</p>
+      <img src="/images/onboarding/onboarding-illustration02.webp" class="p-auth__sent-illust" alt="" width="817" height="351">
       <p class="c-notice__text">
         メールをお送りしました。<br>
         受信トレイをご確認ください。

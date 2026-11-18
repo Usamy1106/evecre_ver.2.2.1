@@ -101,6 +101,14 @@
   margin-bottom: var(--space-6);
 }
 
+/* パスワードリセットのメールを送ったあとの絵（2026-11-18。以前は 📧 の絵文字）*/
+.p-auth__sent-illust {
+  display: block;
+  width: min(100%, 240px);
+  height: auto;
+  margin: 0 auto var(--space-3);
+}
+
 .p-auth__notice--form {
   margin-bottom: var(--space-5);
 }

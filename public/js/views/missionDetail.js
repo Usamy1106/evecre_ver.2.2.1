@@ -135,11 +135,7 @@ export function renderMissionDetail(appEl) {
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,112)+'px'"></textarea>
           <button type="button" onclick="window._app.sendChatMessage()" data-cmd-enter
             class="p-mission-detail__send" aria-label="送信">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
+            <span class="c-icon" style="--icon:url('/images/icon/icon-send.svg');--icon-size:18px" aria-hidden="true"></span>
           </button>
         </div>
       </div>`}

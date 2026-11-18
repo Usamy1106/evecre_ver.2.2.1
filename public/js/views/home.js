@@ -102,9 +102,7 @@ function _pendingApprovalCard() {
       </svg>
     </button>`;
   const clock = `
-    <svg class="p-home__pending-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-    </svg>`;
+    <img src="/images/icon/icon-mini-time.svg" class="p-home__pending-icon" width="16" height="16" alt="">`;
 
   // 招待プレビューが取れていない場合（旧経路・取得失敗）は一文だけ出す
   if (!inv) return `
@@ -157,7 +155,7 @@ function _renderEventsTab() {
 
   if (isEmpty) return `
     <div class="p-home__empty">
-      <img src="/images/emptystate/emptystate-home.webp" class="p-home__empty-art" width="881" height="468" alt="">
+      <img src="/images/emptystate/emptystate-home.webp" class="p-home__empty-art" width="816" height="350" alt="">
       <div>
         <p class="p-home__empty-title">イベントを始めよう</p>
         <p class="p-home__empty-text">新しいイベントを作成するか<br>招待コードで参加しましょう</p>
@@ -214,9 +212,7 @@ function _renderProjectsTab() {
       onclick="window._app.setView('PROJECT_DETAIL', '${f.id}')"
       class="p-home__folder">
       <div class="p-home__folder-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-file.svg');--icon-size:20px" aria-hidden="true"></span>
       </div>
       <div class="p-home__folder-body">
         <p class="p-home__folder-name">${_esc(f.name)}</p>
