@@ -12,6 +12,7 @@
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-10-13 時点）
      public/js/archiveInlineEdit.js … bindArchivePreviewTap / isArchiveBusy / (トップレベル)
+     public/js/archiveSocial.js … archiveSocialHtml / _innerHtml（いいね・コメントの箱。2026-11-18）
      public/js/main.js … jumpToArchiveEntry
      public/js/modals/helpers.js … _openArchiveImageDialog / openEditModal
      public/js/modals/reflectionEditModal.js … openReflectionEditModal
@@ -27,6 +28,52 @@
 
 .p-archive > * + * {
   margin-top: var(--space-6);
+}
+
+/* --- 本文と、いいね・コメントの箱（2026-11-18。archiveSocial.js）---------------------------
+   ★公開ページ（/explore/<id>）の右のサブエリアと同じ形。箱の中身の見た目は _explore.css（.p-explore__side ほか）を共用する。
+   ★切り替えは入れ物の幅（@container）。画面幅の @media にしない。箱が無いイベントは今までどおり1列 */
+.p-archive__columns {
+  container-type: inline-size;
+}
+
+.p-archive__main-col > * + * {
+  margin-top: var(--space-6);
+}
+
+/* 狭いとき：本文の下に並べる（紙と同じ左右の余白） */
+.p-archive__columns .p-archive__side {
+  margin: var(--space-6) var(--space-4) 0;
+}
+
+.p-archive__side-note {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+@container (min-width: 960px) {
+  .p-archive__columns-inner.has-side {
+    display: grid;
+    grid-template-columns: minmax(0, var(--reading-max-width)) var(--explore-side-width, 320px);
+    justify-content: center;
+    align-items: start;
+    gap: var(--space-6);
+  }
+
+  .p-archive__columns-inner.has-side .p-archive__main-col {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* ★本文をスクロールしても動かない。貼り付いた上部（ヘッダー＋タブ＋.p-archive__head）の下に止める */
+  .p-archive__columns .p-archive__side {
+    position: sticky;
+    top: calc(var(--board-stack-h, 0px) + var(--archive-head-h, 120px));
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    max-height: calc(100dvh - var(--board-stack-h, 0px) - var(--archive-head-h, 120px) - var(--space-6));
+  }
 }
 
 /* --- 上部：残り日数・予定をコピー・編集する ----------------------------- */
@@ -1210,22 +1257,6 @@
 
 .p-archive__purpose-text.is-empty:not(:focus) {
   min-height: 3em;
-}
-
-.p-archive__pillars {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-}
-
-.p-archive__pillar {
-  padding: 2px var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
 }
 
 .p-archive__stats {

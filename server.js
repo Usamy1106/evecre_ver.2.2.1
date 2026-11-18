@@ -5463,6 +5463,8 @@ app.get('/api/explore/events/:id', async (req, res) => {
     res.json({
       ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat),
       basic: pub.basic, purpose: pub.purpose, pillars: pub.pillars, knowledge: pub.knowledge,
+      // ★本体の画面だけが使う（柱のキャラ・そのイベントの山の背景）。公開 API（/api/public）には出さない
+      pillarCats: publicData.publicPillarCats(flat, pub.pillars), clearedCount: publicData.clearedCountOf(flat),
       likeCount, liked,
       viewer: { loggedIn: !!req.user, canComment: _exploreCanComment(req, pub) },
     });
@@ -5599,6 +5601,7 @@ app.get('/api/events/:id/public-preview', requireAuth, async (req, res) => {
     const pub  = publicData.buildPublicEvent(flat, subs, undefined, { preview: true });
     res.set('Cache-Control', 'no-store').json({
       ok: true, id: String(flat.id), status: publicData.publicStatusOf(flat), basic: pub.basic, purpose: pub.purpose, pillars: pub.pillars, knowledge: pub.knowledge,
+      pillarCats: publicData.publicPillarCats(flat, pub.pillars),
       // 公開の判断に使う数字（確認ページに出す）。★公開できる記録の数は countPublishable（公開の可否の判定と同じ）
       publishable: publicData.countPublishable(subs),
       knowledgeReady: publicData.canPublishKnowledge(flat.dates, subs).ok,

@@ -20,6 +20,7 @@ import { formatHandoverDates } from '../handoverLink.js';
 import { showConfirmDialog } from '../dialog.js';
 import { publicArchiveHtml, publicBasicHtml } from './publicArchive.js';
 import { rememberExploreReturn } from '../exploreReturn.js';
+import { renderMountainBg, syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
 
 const KIOSK_KEY      = 'evecre:explore-kiosk';
 const KIOSK_IDLE_MS  = 180000;            // 展示モード：この時間操作が無ければ外部サイトの Top へ
@@ -271,7 +272,7 @@ function _likeButtonHtml(id, liked, count) {
   return `
     <button type="button" class="c-like-button${liked ? ' is-liked' : ''}" data-ex-like="${_esc(id)}"
       aria-pressed="${liked ? 'true' : 'false'}" aria-label="いいね（${Number(count) || 0}）"${busy ? ' aria-busy="true"' : ''}>
-      <span class="c-like-button__icon" aria-hidden="true">${liked ? '♥' : '♡'}</span>
+      <img src="/images/icon/icon-heart-${liked ? 'pressed' : 'default'}.svg" class="c-like-button__icon" width="20" height="20" alt="">
       <span class="c-like-button__count">${Number(count) || 0}</span>
     </button>`;
 }
@@ -284,7 +285,8 @@ function _headerHtml() {
       ? `<button type="button" class="c-button c-button--secondary p-explore__small p-explore__head-action" data-ex-app>アプリに戻る</button>`
       : `<button type="button" class="c-button c-button--primary p-explore__small p-explore__head-action" data-ex-start>イベクリをはじめる</button>`;
   return `
-    <header class="p-explore__head">
+    <!-- ★js-mountain-sticky：背景の山の上端をこのヘッダーの下に合わせる目印（mountainPath.js の syncMountainBackdrop） -->
+    <header class="p-explore__head js-mountain-sticky">
       <a href="/explore" class="p-explore__brand" data-ex-home>
         <img src="/images/icon/evecre-icon-48.png" alt="" class="p-explore__logo" width="28" height="28">
         <span class="p-explore__brand-name">イベクリ</span>
@@ -312,7 +314,7 @@ function _cardHtml(e) {
           <span class="p-explore__card-title">${_esc(e.title)}</span>
           ${(e.dates || []).length ? `<span class="p-explore__card-meta">${_esc(formatHandoverDates(e.dates))}</span>` : ''}
           ${e.venue ? `<span class="p-explore__card-meta">${_esc(e.venue)}</span>` : ''}
-          <span class="p-explore__card-like" aria-label="いいね ${Number(e.likeCount) || 0}">♥ ${Number(e.likeCount) || 0}</span>
+          <span class="p-explore__card-like" aria-label="いいね ${Number(e.likeCount) || 0}"><img src="/images/icon/icon-heart-pressed.svg" class="p-explore__card-like-icon" width="14" height="14" alt="">${Number(e.likeCount) || 0}</span>
         </span>
       </button>
     </li>`;
@@ -347,6 +349,25 @@ function _listHtml() {
       : `<p class="p-explore__message">${S.list.length ? '該当するイベントはありません。' : 'まだ公開されているイベントはありません。'}</p>`}`;
 }
 
+/**
+ * コメント1件。★アプリのアーカイブ（archiveSocial.js）でも同じ形で描く（書き写さない）。
+ *   削除のボタンは data-ex-del / data-ex-del-event（受けるのは各画面の委譲）
+ */
+export function exploreCommentItemHtml(cm, id) {
+  const name = cm.author ? cm.author.username || '名前なし' : '退会したユーザー';
+  const d = new Date(cm.createdAt);
+  const when = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `
+      <li class="p-explore__comment">
+        ${Components.UserAvatar(cm.author ? { username: name, avatarUrl: cm.author.avatarUrl } : { username: '?' }, { size: 32 })}
+        <div class="p-explore__comment-main">
+          <p class="p-explore__comment-head"><span class="p-explore__comment-name">${_esc(name)}</span><time class="p-explore__comment-time">${when}</time></p>
+          <p class="p-explore__comment-body">${_esc(cm.body)}</p>
+          ${cm.canDelete ? `<button type="button" class="p-explore__comment-delete" data-ex-del="${_esc(cm.id)}" data-ex-del-event="${_esc(id)}">削除</button>` : ''}
+        </div>
+      </li>`;
+}
+
 function _commentsHtml(id, viewer) {
   const c = S.comments[id] || {};
   const items = c.items || [];
@@ -371,20 +392,7 @@ function _commentsHtml(id, viewer) {
   } else {
     input = `<button type="button" class="c-button c-button--secondary p-explore__comment-login" data-ex-login>ログインしてコメントする</button>`;
   }
-  const list = items.map(cm => {
-    const name = cm.author ? cm.author.username || '名前なし' : '退会したユーザー';
-    const d = new Date(cm.createdAt);
-    const when = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    return `
-      <li class="p-explore__comment">
-        ${Components.UserAvatar(cm.author ? { username: name, avatarUrl: cm.author.avatarUrl } : { username: '?' }, { size: 32 })}
-        <div class="p-explore__comment-main">
-          <p class="p-explore__comment-head"><span class="p-explore__comment-name">${_esc(name)}</span><time class="p-explore__comment-time">${when}</time></p>
-          <p class="p-explore__comment-body">${_esc(cm.body)}</p>
-          ${cm.canDelete ? `<button type="button" class="p-explore__comment-delete" data-ex-del="${_esc(cm.id)}" data-ex-del-event="${_esc(id)}">削除</button>` : ''}
-        </div>
-      </li>`;
-  }).join('');
+  const list = items.map(cm => exploreCommentItemHtml(cm, id)).join('');
   return `
     <section class="p-explore__comments" aria-labelledby="ex-comments-title">
       <h2 id="ex-comments-title" class="p-explore__section-title">コメント</h2>
@@ -551,6 +559,23 @@ function _bindOnce() {
   });
 }
 
+// ── 背景の山（ナレッジページだけ。2026-11-18）──
+// ★アプリのアーカイブと同じく、そのイベントの山を裏に敷く（renderMountainBg の backdrop）。
+//   山はイベントの id・開催日・完了数だけで決まる（mountainPath.js は決定的に組み立てる）ので、
+//   サーバーの clearedCount から完了の数だけのタスクを仮に作って渡す。★中身（タスク名など）は使わない
+function _mountainHtml(d) {
+  if (!d?.id) return '';
+  const n = Math.max(0, Math.min(500, Number(d.clearedCount) || 0));
+  const p = {
+    id: d.id,
+    name: d.basic?.title || '',
+    dates: Array.isArray(d.basic?.dates) ? d.basic.dates : [],
+    missions: Array.from({ length: n }, (_, i) => ({ id: `c${i}`, status: 'cleared', createdAt: i })),
+    clearedData: {},
+  };
+  return renderMountainBg(p, { backdrop: true });
+}
+
 // ── 描画 ──
 
 export function renderExplore(appEl) {
@@ -563,6 +588,7 @@ export function renderExplore(appEl) {
   const commentScroll = document.querySelector('[data-ex-comment-scroll]')?.scrollTop || 0;
 
   let main = '';
+  let mountain = '';
   if (r.kind === 'detail') {
     if (!r.id) main = `${_backHtml()}<p class="p-explore__message">見つかりませんでした。</p>`;
     else {
@@ -575,6 +601,7 @@ export function renderExplore(appEl) {
         return renderExplore(appEl);
       }
       if (st?.data && !S.comments[r.id]) _loadComments(r.id);
+      if (st?.data) mountain = _mountainHtml(st.data);
       main = _detailHtml(r.id);
     }
   } else {
@@ -584,16 +611,22 @@ export function renderExplore(appEl) {
       <p class="p-explore__lead">イベクリで公開されたイベントです。開催前の告知と、開催後の記録（つまずいたこと・次にやるなら）を読めます。</p>
       ${_listHtml()}`;
   }
+  // ★描き直し（いいね・コメント）で背景の山を作り直さない（地形の絵が一瞬消える）。アーカイブと同じ退避と差し戻し
+  captureBgLayer();
   appEl.innerHTML = `
     <div class="p-explore${r.kind === 'detail' ? ' p-explore--detail' : ''}">
+      ${mountain}
       ${_headerHtml()}
       <main class="p-explore__main">${main}</main>
     </div>`;
+  restoreBgLayer();
   _syncModal();
   // ★サブエリアを固定する高さの基準（ヘッダーの実測。安全領域の余白で端末ごとに変わる）
   const root = appEl.querySelector('.p-explore');
   const head = appEl.querySelector('.p-explore__head');
   if (root && head) root.style.setProperty('--explore-head-h', `${head.offsetHeight}px`);
+  // 背景の山：位置と大きさを測り、読み進めると山頂から麓へ下りる（アーカイブと同じ）。山が無い画面では見張りを外すだけ
+  syncMountainBackdrop({ scroll: !!mountain });
   const sc = appEl.querySelector('[data-ex-comment-scroll]');
   if (sc && commentScroll) sc.scrollTop = commentScroll;
 

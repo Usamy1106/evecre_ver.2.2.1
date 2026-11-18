@@ -11,7 +11,9 @@
 // ★文字は必ずエスケープする（_esc / linkifyText）。URL は https のものだけ（_url）
 
 import { OUTCOME_CHOICES, REFLECT_LABELS, EVENT_TYPES } from '../constants.js';
-import { formatEventPeriodLines, linkifyText } from '../utils.js';
+import { formatEventPeriodLines, linkifyText, pillarCategoryOf } from '../utils.js';
+import { pillarCharHtml } from '../pillarChars.js';
+import { Components } from '../components.js';
 
 function _esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -31,50 +33,63 @@ function _ymd(s) {
 /** 文章（改行は保つ・URL はリンク） */
 const _textHtml = (t) => `<p class="p-public-archive__text">${linkifyText(t)}</p>`;
 
+// ★見た目はアプリのアーカイブに合わせる（2026-11-18。ヘッダー画像 → 白い紙 → タイトル・種別 → 概要 → 期間・場所 → 目的・柱 → 記録）
 function _fact(label, valueHtml) {
   if (!valueHtml) return '';
   return `
-        <div class="p-public-archive__fact">
           <dt class="p-public-archive__fact-label">${_esc(label)}</dt>
-          <dd class="p-public-archive__fact-value">${valueHtml}</dd>
-        </div>`;
+          <dd class="p-public-archive__fact-value">${valueHtml}</dd>`;
+}
+
+/** ヘッダー画像（アーカイブと同じ 3:2。白い紙の上に置く） */
+function _visualHtml(basic) {
+  const img = _url(basic?.headerImage);
+  return img ? `<img src="${_esc(img)}" class="p-public-archive__visual" alt="" data-fallback="archive-visual">` : '';
 }
 
 /**
- * 基礎情報（ヘッダー画像・告知／アーカイブ・タイトル・概要・期間・場所・種別・最終更新）
+ * 基礎情報（告知／アーカイブ・タイトル・種別・最終更新・概要・期間・場所）
  * @param {object|null} basic
- * @param {{ status?: 'upcoming'|'archive' }} opts
+ * @param {{ status?: 'upcoming'|'archive', visual?: boolean }} opts … visual:false でヘッダー画像を出さない（全体を描くときは紙の外に置く）
  */
-export function publicBasicHtml(basic, { status } = {}) {
+export function publicBasicHtml(basic, { status, visual = true } = {}) {
   if (!basic) return '';
-  const img = _url(basic.headerImage);
   const period = Array.isArray(basic.dates) && basic.dates.length
     ? formatEventPeriodLines(basic.dates, basic.dateTimes).map(_esc).join('<br>') : '';
   const label = status === 'archive' ? 'アーカイブ' : status === 'upcoming' ? '告知' : '';
+  const type = _typeLabel(basic.eventType);
+  const updated = _ymd(basic.lastUpdated);
+  const facts = _fact('期間', period) + _fact('場所', basic.venue ? _esc(basic.venue) : '');
   return `
+    ${visual ? _visualHtml(basic) : ''}
     <section class="p-public-archive__basic">
-      ${img ? `<img src="${_esc(img)}" class="p-public-archive__visual" alt="" data-fallback="archive-visual">` : ''}
-      ${label ? `<span class="p-public-archive__label p-public-archive__label--${_esc(status)}">${label}</span>` : ''}
       <h3 class="p-public-archive__title">${_esc(basic.title)}</h3>
-      ${basic.summary ? _textHtml(basic.summary) : ''}
-      <dl class="p-public-archive__facts">
-        ${_fact('期間', period)}
-        ${_fact('場所', basic.venue ? _esc(basic.venue) : '')}
-        ${_fact('種別', _esc(_typeLabel(basic.eventType)))}
-        ${_fact('最終更新', _esc(_ymd(basic.lastUpdated)))}
-      </dl>
+      ${label || type || updated ? `
+      <div class="p-public-archive__lead-meta">
+        ${label ? `<span class="p-public-archive__label p-public-archive__label--${_esc(status)}">${label}</span>` : ''}
+        ${type ? `<span class="p-public-archive__type">${_esc(type)}</span>` : ''}
+        ${updated ? `<span class="p-public-archive__updated">最終更新 ${_esc(updated)}</span>` : ''}
+      </div>` : ''}
+      ${basic.summary ? `<h4 class="p-public-archive__heading">概要</h4>${_textHtml(basic.summary)}` : ''}
+      ${facts ? `<dl class="p-public-archive__facts">${facts}</dl>` : ''}
     </section>`;
 }
 
-/** 目的と柱（サーバーは記録と一緒に公開するときだけ返す） */
-export function publicPurposeHtml(purpose, pillars) {
+/**
+ * 目的と柱（サーバーは記録と一緒に公開するときだけ返す）
+ * ★柱はアプリの柱と同じキャラで描く（2026-11-18）。区分は cats（サーバーの publicPillarCats。本体の画面だけに来る）、
+ *   無ければ名前から推定し、それも無ければ順番のキャラ
+ */
+export function publicPurposeHtml(purpose, pillars, cats) {
   const names = Array.isArray(pillars) ? pillars.filter(Boolean) : [];
   if (!purpose && names.length === 0) return '';
+  const catOf = (n, i) => (Array.isArray(cats) && cats[i]) || pillarCategoryOf({ name: n });
   return `
     <section class="p-public-archive__purpose">
-      ${purpose ? `<h4 class="p-public-archive__section-title">目的</h4>${_textHtml(purpose)}` : ''}
-      ${names.length ? `<h4 class="p-public-archive__section-title">柱</h4>
-      <ul class="p-public-archive__pillars">${names.map(n => `<li class="p-public-archive__pillar">${_esc(n)}</li>`).join('')}</ul>` : ''}
+      ${purpose ? `<h4 class="p-public-archive__heading">目的</h4>${_textHtml(purpose)}` : ''}
+      ${names.length ? `<h4 class="p-public-archive__heading">柱</h4>
+      <div class="p-pillar-chars p-pillar-chars--lead" role="list">${names.map((n, i) =>
+        pillarCharHtml(i, n, { cat: catOf(n, i), attrs: 'role="listitem"' })).join('')}</div>` : ''}
     </section>`;
 }
 
@@ -132,12 +147,17 @@ export function publicRecordHtml(k, { fallback = 'submission' } = {}) {
 export function publicKnowledgeHtml(list) {
   if (!Array.isArray(list) || list.length === 0) return '';
   const entries = list.map(k => {
+    // ★成否とラベルはアーカイブと同じ札（成否は灰色の札・ラベルはラベルの色。Components.Tag はラベル名をエスケープする）
     const outcome = OUTCOME_CHOICES[k.outcome]?.label;
-    const meta = [outcome, ...(k.tags || [])].filter(Boolean);
+    const tags = (k.tags || []).filter(t => typeof t === 'string' && t);
     return `
       <article class="p-public-archive__entry">
         <h5 class="p-public-archive__entry-title">${_esc(k.title)}</h5>
-        ${meta.length ? `<p class="p-public-archive__entry-meta">${meta.map(_esc).join('・')}</p>` : ''}
+        ${outcome || tags.length ? `
+        <div class="p-public-archive__entry-meta">
+          ${outcome ? `<span class="p-public-archive__outcome">${_esc(outcome)}</span>` : ''}
+          ${tags.map(t => Components.Tag(t)).join('')}
+        </div>` : ''}
         ${publicRecordHtml(k)}
       </article>`;
   }).join('');
@@ -149,15 +169,18 @@ export function publicKnowledgeHtml(list) {
 }
 
 /**
- * 公開されるイベントの全体（基礎情報 → 目的・柱 → タスクの記録）
+ * 公開されるイベントの全体（ヘッダー画像 → 白い紙：基礎情報 → 目的・柱 → タスクの記録）
  * @param {{ status?, basic, purpose?, pillars?, knowledge? }} data … buildPublicEvent の形
  */
 export function publicArchiveHtml(data) {
   if (!data) return '';
   return `
     <div class="p-public-archive">
-      ${publicBasicHtml(data.basic, { status: data.status })}
-      ${publicPurposeHtml(data.purpose, data.pillars)}
-      ${publicKnowledgeHtml(data.knowledge)}
+      ${_visualHtml(data.basic)}
+      <div class="p-public-archive__doc">
+        ${publicBasicHtml(data.basic, { status: data.status, visual: false })}
+        ${publicPurposeHtml(data.purpose, data.pillars, data.pillarCats)}
+        ${publicKnowledgeHtml(data.knowledge)}
+      </div>
     </div>`;
 }

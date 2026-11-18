@@ -2,11 +2,13 @@
    Object / Component / like-button — いいねボタン（2026-11-12。指示書05 §5-5）
    使用箇所: 公開ページ（/explore）の告知モーダルとナレッジページ（同じいいねを共有する）
 
-   ★押した状態は aria-pressed と .is-liked の両方。色だけに頼らず、♡ / ♥ の形も変える
+   ★押した状態は aria-pressed と .is-liked の両方。色だけに頼らず、アイコンの形も変える
+     （icon-heart-default＝線だけ／icon-heart-pressed＝塗り。2026-11-18 に ♡ / ♥ の文字から差し替え）
    ★押したらすぐ見た目を変え、応答が返るまで aria-busy（JS が次を送らない）
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
      public/js/views/explore.js … _likeButtonHtml
+     public/js/views/mainBoard.js … _archiveSocialHtml（アーカイブ。数だけ見せる --static）
    ========================================================================== */
 
 .c-like-button {
@@ -25,8 +27,13 @@
 }
 
 .c-like-button__icon {
-  font-size: 18px;
-  line-height: 1;
+  width: 20px;
+  height: 20px;
+}
+
+/* 数だけ見せる（アプリのアーカイブ。自分たちのイベントには押させない。2026-11-18） */
+.c-like-button--static {
+  cursor: default;
 }
 
 .c-like-button.is-liked {

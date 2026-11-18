@@ -5,68 +5,114 @@
    ★「公開すると、アーカイブがほぼそのまま外に出る」ので、確認ページと公開ページで同じ見た目を使う。
      どちらかの画面のためだけにここを変えないこと（変えると、確認した姿と外に出る姿がずれる）。
    ★並びは本体のアーカイブ：基礎情報 → 目的・柱 → タスクの記録（1件の中は 本文 → 画像・PDF → 振り返り）
+   ★見た目もアプリのアーカイブ（_archive.css）に合わせる（2026-11-18）：ヘッダー画像の下に白い紙、タイトル 22px、
+     見出しは小さな灰色の太字、成否とラベルは札。アーカイブの数値を変えたら、ここも見直すこと
 
    ▼ マークアップの場所（このファイルのクラスを HTML に書いている・掴んでいる JS。2026-11-12 時点）
      public/js/views/publicArchive.js … publicArchiveHtml / publicBasicHtml / publicPurposeHtml / publicKnowledgeHtml
    ========================================================================== */
 
-.p-public-archive > * + * {
-  margin-top: var(--space-6);
-}
-
-/* ── 基礎情報 ── */
+/* ── ヘッダー画像と白い紙（アーカイブの .p-archive__visual / .p-archive__doc と同じ形）── */
 .p-public-archive__visual {
+  display: block;
   width: 100%;
   aspect-ratio: 3 / 2;
   object-fit: cover;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.p-public-archive__doc {
+  padding: var(--space-8) var(--space-5);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 画像の下に紙をつなげる（画像の下の角は四角・紙の上の角も四角） */
+.p-public-archive__visual + .p-public-archive__doc {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.p-public-archive__doc > * + * {
+  margin-top: var(--space-8);
+}
+
+/* ── 基礎情報 ── */
+.p-public-archive__title {
+  font-size: 22px;
+  font-weight: var(--font-weight-heavy);
+  line-height: 1.4;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.p-public-archive__lead-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .p-public-archive__label {
-  display: inline-block;
-  margin-top: var(--space-3);
   padding: 2px var(--space-2);
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text);
-  background-color: var(--color-bg);
+  background-color: var(--button-secondary);
 }
 
 .p-public-archive__label--archive {
+  color: var(--color-primary);
   background-color: var(--color-primary-pale);
 }
 
-.p-public-archive__title {
-  margin-top: var(--space-2);
-  font-size: 20px;
+.p-public-archive__type {
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-pale);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-heavy);
-  line-height: 1.4;
-  color: var(--color-text);
+  color: var(--color-primary);
+}
+
+.p-public-archive__updated {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* 概要・目的・柱の見出し（アーカイブの .p-archive__label と同じ） */
+.p-public-archive__heading {
+  margin-top: var(--space-6);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text-muted);
+}
+
+.p-public-archive__heading:first-child {
+  margin-top: 0;
 }
 
 .p-public-archive__facts {
-  margin-top: var(--space-3);
-}
-
-.p-public-archive__fact {
-  display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
-  color: var(--color-text);
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  row-gap: var(--space-3);
+  margin-top: var(--space-6);
+  font-size: var(--font-size-md);
 }
 
 .p-public-archive__fact-label {
-  flex-shrink: 0;
-  min-width: 4.5em;
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-muted);
 }
 
 .p-public-archive__fact-value {
   min-width: 0;
+  line-height: 1.625;
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
   word-break: break-word;
 }
 
@@ -74,7 +120,7 @@
 .p-public-archive__text {
   margin-top: var(--space-2);
   font-size: var(--font-size-md);
-  line-height: 1.7;
+  line-height: 1.75;
   color: var(--color-text);
   white-space: pre-wrap;
   word-break: break-word;
@@ -97,7 +143,7 @@
   word-break: break-word;
 }
 
-/* ── 目的・柱・記録の見出し ── */
+/* ── 記録の見出し（アーカイブの .p-archive__section-title と同じ）── */
 .p-public-archive__section-title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
@@ -115,41 +161,40 @@
   color: var(--color-text-muted);
 }
 
-.p-public-archive__pillars {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.p-public-archive__pillar {
-  padding: 2px var(--space-3);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  color: var(--color-text);
-  background-color: var(--color-warning-pale2);
-}
-
 /* ── タスクの記録 ── */
 .p-public-archive__entry {
-  margin-top: var(--space-4);
+  padding-block: var(--space-6);
+  word-break: break-word;
 }
 
 .p-public-archive__entry + .p-public-archive__entry {
-  padding-top: var(--space-6);
   border-top: 1px solid var(--color-border);
 }
 
 .p-public-archive__entry-title {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-heavy);
+  line-height: 1.5;
   color: var(--color-text);
 }
 
 .p-public-archive__entry-meta {
-  margin-top: var(--space-1);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-2);
+}
+
+/* 成否の札（アーカイブの .p-archive__outcome-tag と同じ）。★薄くしない・赤くしない */
+.p-public-archive__outcome {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--button-secondary);
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  font-weight: var(--font-weight-heavy);
+  color: var(--color-text);
+  white-space: nowrap;
 }
 
 .p-public-archive__image {
