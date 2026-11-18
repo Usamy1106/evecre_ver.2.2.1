@@ -365,5 +365,5 @@ export const PROPOSAL_CHARACTERS = [
 // アカウント作成の STEP 0 で同意を取った時点の版数を users.consentVersion に記録する。
 // ★public/legal/*.md を実質的に改訂したら、この値も上げること
 //   （上げないと「どの版に同意したユーザーか」が追えなくなる。誤字修正では上げなくてよい）。
-export const CONSENT_VERSION = 'v1.0';
+export const CONSENT_VERSION = 'v1.1';
 
