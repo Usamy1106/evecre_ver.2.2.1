@@ -2392,46 +2392,39 @@ export function toggleNotifGroup(key) {
 }
 
 // 通知アイコンの背景色。CSS 変数 --notif-color として渡す
-// （種類ごとに色が違うだけなので、クラスを14個作るより変数1つが読みやすい）
+// ★背景はアイコンの素材の色にそろえる（緑の素材＝淡い緑・青＝淡い青・黄＝淡い黄。2026-11-18）。
+//   素材の色を変えたら _NOTIF_ICONS の bg も直す
 function _notifIconBg(type) {
-  switch (type) {
-    case 'mission_cleared':
-    case 'assignment_decided':
-    case 'member_joined':         return 'var(--color-success-tint)';
-    case 'assigned_to_me':
-    case 'role_assigned':         return 'var(--color-primary-tint)';
-    case 'someone_claimed':
-    case 'mission_reverted':
-    case 'self_claimed':          return 'var(--color-warning-tint)';
-    case 'motivation_reaction':   return 'var(--color-danger-tint2)';
-    case 'public_comment':        return 'var(--color-primary-tint)';
-    case 'mission_created':
-    case 'mission_updated':       return 'var(--color-violet-tint)';
-    default: return 'var(--button-secondary)';
-  }
+  const icon = _NOTIF_ICONS[type];
+  if (icon) return icon.bg;
+  if (type === 'motivation_reaction') return 'var(--color-danger-tint2)';
+  return 'var(--button-secondary)';
 }
 
-// 通知の種類 → アイコンの素材（_notifIcon）。★ファイル名は支給のまま（con-mini-join / icon-mini-coomment）
-const _NOTIF_ICON_FILES = {
-  mission_cleared:    'icon-mini-completion.svg',
-  assigned_to_me:     'icon-mini-assignment-myself.svg',
-  someone_claimed:    'icon-mini-apply.svg',
-  self_claimed:       'icon-mini-apply.svg',
-  assignment_decided: 'icon-mini-assignment.svg',
-  member_joined:      'con-mini-join.svg',
-  role_assigned:      'icon-mini-roled.svg',
-  mission_created:    'icon-mini-create-task.svg',
-  mission_updated:    'icon-mini-modification-task.svg',
-  mission_reverted:   'icon-mini-cancel.svg',
-  public_comment:     'icon-mini-coomment.svg',
+// 通知の種類 → アイコンの素材（_notifIcon）と、その色に合わせた背景（_notifIconBg）
+const _NOTIF_BG_GREEN  = 'var(--color-success-tint)';
+const _NOTIF_BG_BLUE   = 'var(--color-info-tint)';
+const _NOTIF_BG_YELLOW = 'var(--color-warning-tint)';
+const _NOTIF_ICONS = {
+  mission_cleared:    { file: 'icon-mini-completion.svg',        bg: _NOTIF_BG_GREEN },
+  assigned_to_me:     { file: 'icon-mini-assignment-myself.svg', bg: _NOTIF_BG_GREEN },
+  someone_claimed:    { file: 'icon-mini-apply.svg',             bg: _NOTIF_BG_GREEN },
+  self_claimed:       { file: 'icon-mini-apply.svg',             bg: _NOTIF_BG_GREEN },
+  assignment_decided: { file: 'icon-mini-assignment.svg',        bg: _NOTIF_BG_GREEN },
+  member_joined:      { file: 'icon-mini-join.svg',              bg: _NOTIF_BG_BLUE },
+  role_assigned:      { file: 'icon-mini-roled.svg',             bg: _NOTIF_BG_BLUE },
+  mission_created:    { file: 'icon-mini-create-task.svg',       bg: _NOTIF_BG_GREEN },
+  mission_updated:    { file: 'icon-mini-modification-task.svg', bg: _NOTIF_BG_GREEN },
+  mission_reverted:   { file: 'icon-mini-cancel.svg',            bg: _NOTIF_BG_GREEN },
+  public_comment:     { file: 'icon-mini-comment.svg',           bg: _NOTIF_BG_YELLOW },
 };
 
 function _notifIcon(type) {
   const cls = 'w-4 h-4';
   // ★種類ごとのアイコンは素材（public/images/icon/icon-mini-*.svg。色も素材が持つ）。2026-11-18
-  //   素材を足したら _NOTIF_ICON_FILES に1行足す。意気込み（🔥）と既定（丸）はそのまま
-  const file = _NOTIF_ICON_FILES[type];
-  if (file) return `<img src="/images/icon/${file}" width="16" height="16" alt="">`;
+  //   素材を足したら _NOTIF_ICONS に1行足す。意気込み（🔥）と既定（丸）はそのまま
+  const icon = _NOTIF_ICONS[type];
+  if (icon) return `<img src="/images/icon/${icon.file}" width="16" height="16" alt="">`;
   switch (type) {
     case 'motivation_reaction':
       // 素材の縦横比（160.78:186.79）を保つ。背景の円は .p-notification__icon（--notif-color）のまま
