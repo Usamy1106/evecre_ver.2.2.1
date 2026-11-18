@@ -1,0 +1,9 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="24" height="24" fill="white"/>
+<circle cx="12" cy="12" r="9" stroke-width="1.5" stroke="#484545"/>
+<path d="M5 6.20399C6.29512 7.86477 8.90993 9 11.9247 9C15.0614 9 17.7651 7.77111 19 6" stroke-width="1.5" stroke="#484545"/>
+<path d="M19 17.796C17.7049 16.1352 15.0901 15 12.0753 15C8.9386 15 6.23489 16.2289 5 18" stroke-width="1.5" stroke="#484545"/>
+<ellipse cx="12" cy="12" rx="5" ry="9" stroke-width="1.5" stroke="#484545"/>
+<path d="M3 12H21" stroke-width="1.5" stroke="#484545"/>
+<path d="M12 3V21" stroke-width="1.5" stroke="#484545"/>
+</svg>
