@@ -55,6 +55,12 @@
   color: var(--color-text);
 }
 
+/* リンクの項目（ヘルプ。外部サイトを新しいタブで開く）。ボタンと同じ見た目にする */
+.p-app-shell__user-item--link {
+  display: block;
+  text-decoration: none;
+}
+
 .p-app-shell__user-item:hover {
   background-color: var(--color-bg);
 }
