@@ -357,7 +357,7 @@ function _eventManagementSection(p, sec) {
             <p class="c-settings-list__label">このイベントの柱</p>
             <span class="c-settings-list__value">${_esc(value)}</span>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="c-icon c-icon--right c-icon--muted" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:18px" aria-hidden="true"></span>
         </button>` : `
         <div class="c-settings-list__row">
           <p class="c-settings-list__label">このイベントの柱</p>
@@ -548,7 +548,7 @@ function _eventManagementSection(p, sec) {
             <p class="c-settings-list__label">みんなの活躍</p>
             <span class="c-settings-list__value">完了者・作者のグラフ</span>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="c-icon c-icon--right c-icon--muted" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:18px" aria-hidden="true"></span>
         </button>
         <button type="button" onclick="window._app.openArchiveAnswers()" data-log="settings_answers_open"
           class="c-settings-list__link">
@@ -556,7 +556,7 @@ function _eventManagementSection(p, sec) {
             <p class="c-settings-list__label">メンバー情報</p>
             <span class="c-settings-list__value">参加するときに答えてもらった内容</span>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="c-icon c-icon--right c-icon--muted" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:18px" aria-hidden="true"></span>
         </button>
 
         <!-- 操作履歴（管理者のみ。★運営の読み取り専用オブザーバーも読める） -->
@@ -567,7 +567,7 @@ function _eventManagementSection(p, sec) {
             <p class="c-settings-list__label">操作履歴</p>
             <span class="c-settings-list__value">誰がいつ何をしたか</span>
           </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A7AAAC" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="c-icon c-icon--right c-icon--muted" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:18px" aria-hidden="true"></span>
         </button>` : ''}
 
       </div>`;

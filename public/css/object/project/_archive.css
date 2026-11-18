@@ -925,6 +925,7 @@
 }
 
 .p-archive__sub-arrow {
+  display: inline-flex;
   flex-shrink: 0;
   width: 16px;
   height: 16px;

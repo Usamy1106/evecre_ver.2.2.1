@@ -250,9 +250,7 @@ export function renderMainBoard(container) {
       ${state.mainBoardTab === 'MAIN' && state.canManageCurrentEvent() ? `
         <button type="button" onclick="window._app.openMissionModal()" data-log="mission_add_open" data-coach="fab"
           class="l-fab l-fab--primary${dash ? '' : ' l-fab--above-nav'}" aria-label="タスクを作成">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
+          <span class="c-icon" style="--icon:url('/images/icon/icon-home-plus.svg');--icon-size:28px" aria-hidden="true"></span>
         </button>` : ''}
       <!-- ★スマホ：ボトムナビ（メインボード／アーカイブ／通知）。中身の上に重ねる（下に余白は足さない） -->
       ${dash ? '' : Components.BottomNav(p, state.mainBoardTab)}
@@ -660,8 +658,7 @@ function _purposeBoxHtml(p, { compact = false } = {}) {
             <span class="p-purpose__pillar-title">柱を立てる</span>
             <span class="p-purpose__pillar-text">目的達成のために大事なことを3つ決めましょう</span>
           </span>
-          <svg class="p-purpose__pillar-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="c-icon c-icon--right p-purpose__pillar-arrow" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:16px" aria-hidden="true"></span>
         </button>` : ''}
     </div>`;
 }
@@ -827,8 +824,7 @@ function _calInsightsHtml(p) {
         <span class="p-board-dash__insight-link-title">${title}</span>
         <span class="p-board-dash__insight-link-sub">${sub}</span>
       </span>
-      <svg class="p-board-dash__insight-link-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+      <span class="c-icon c-icon--right p-board-dash__insight-link-arrow" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:16px" aria-hidden="true"></span>
     </button>`;
   return `
     <div class="p-board-dash__insights">
@@ -1285,11 +1281,7 @@ function _renderMainTab(p) {
             <div onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
               class="p-main-board__mission-action"
               aria-label="リンクをコピー">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-              </svg>
+              <span class="c-icon" style="--icon:url('/images/icon/icon-link.svg');--icon-size:18px" aria-hidden="true"></span>
             </div>`}
         </div>`;});
 
@@ -1461,10 +1453,7 @@ function _renderPendingMembersBanner(members) {
     <div onclick="window._app.openPendingMembersSheet()"
       class="p-main-board__banner p-main-board__banner--pending">
       <div class="p-main-board__banner-head">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
-        </svg>
+        <span class="c-icon" style="--icon:url('/images/icon/icon-join.svg');--icon-size:16px" aria-hidden="true"></span>
         <p class="p-main-board__banner-text">参加申請が届いています（${members.length}件）</p>
       </div>
     </div>`;
@@ -1569,11 +1558,7 @@ function _renderAnnounceCards(p, meId) {
           <img src="/images/icon/icon-notification-default.svg" width="14" height="14" alt="">
           ${_announceExpanded ? '他のアナウンスを隠す' : `他のアナウンス${rest.length}件を見る`}
         </span>
-        <svg class="p-main-board__announce-chevron${_announceExpanded ? ' is-open' : ''}"
-          width="16" height="16" viewBox="0 0 24 24"
-          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
+        <span class="p-main-board__announce-chevron${_announceExpanded ? ' is-open' : ''}"><span class="c-icon c-icon--down" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:16px" aria-hidden="true"></span></span>
       </button>
       ${_announceExpanded
         ? `<div class="p-main-board__announce-list">${rest.map(m => cardHtml(m, false)).join('')}</div>`
@@ -2004,9 +1989,7 @@ function _archiveSubmissionEditHtml(p, m, cd, userId) {
         ${m.id === PURPOSE_MISSION_ID ? '' : `
         ${editorFormatButtonsHtml()}
         <label class="c-editor-field__pick" aria-label="画像・PDF を追加">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-          </svg>
+          <span class="c-icon" style="--icon:url('/images/icon/icon-image.svg');--icon-size:20px" aria-hidden="true"></span>
           <input type="file" class="u-hidden" accept="image/*,application/pdf" multiple onchange="window._app.handleImageSelect(this)">
         </label>`}
       </div>
@@ -2068,8 +2051,7 @@ function _archiveIndividualHtml(p, m, editing) {
               ${_outcomeTagHtml(cd.outcome)}</span>
             ${preview ? `<span class="p-archive__sub-preview">${preview}</span>` : ''}
           </span>
-          <svg class="p-archive__sub-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="p-archive__sub-arrow"><span class="c-icon c-icon--down" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:16px" aria-hidden="true"></span></span>
         </summary>
         <div class="p-archive__sub-body">${_archiveSubmissionHtml(p, m, cd, editing, uid)}</div>
       </details>`;
@@ -2145,11 +2127,7 @@ function _renderArchiveEntry(p, m, editing) {
     </button>` : `
     <button type="button" onclick="event.stopPropagation(); window._app.copyMissionLink('${m.id}')"
       class="p-archive__entry-action" aria-label="リンクをコピー">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-      </svg>
+      <span class="c-icon" style="--icon:url('/images/icon/icon-link.svg');--icon-size:16px" aria-hidden="true"></span>
     </button>`;
 
   // 公開（タスク単位。2026-11-07。指示書B §4-5）。★半透明＋「非公開」のタグは全員に出す（プレビューでも残す）。
@@ -2394,8 +2372,7 @@ function _renderNotifGroups(list, p) {
             data-log="notif_group_toggled"
             class="p-notification__group-more" aria-expanded="${open}">
             <span>同じタスクの通知 他${g.length - 1}件${unread > 0 && !open ? `（未読${unread}）` : ''}</span>
-            <svg class="p-notification__group-chevron" width="14" height="14" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            <span class="p-notification__group-chevron"><span class="c-icon c-icon--down" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:14px" aria-hidden="true"></span></span>
           </button>
         </div>`;
     }).join('');
@@ -2455,13 +2432,13 @@ function _notifIcon(type) {
     case 'assignment_decided':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>`;
     case 'member_joined':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#1A6B27" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>`;
+      return `<span class="c-icon" style="--icon:url('/images/icon/icon-join.svg');--icon-size:16px;color:#1A6B27" aria-hidden="true"></span>`;
     case 'role_assigned':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#009fe5" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7"/><polyline points="15 17 17 19 21 15"/></svg>`;
     case 'mission_created':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`;
     case 'mission_updated':
-      return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+      return `<span class="c-icon" style="--icon:url('/images/icon/icon-edit.svg');--icon-size:16px;color:#7c3aed" aria-hidden="true"></span>`;
     case 'mission_reverted':
       return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="#9b7700" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
     case 'self_claimed':

@@ -29,9 +29,7 @@ export function renderProjectDetail(container) {
           ${!!state.currentUser?.isVerified ? `
             <button type="button" onclick="window._app.createEventInFolder('${folder.id}')"
               class="p-project-detail__add">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
+              <span class="c-icon" style="--icon:url('/images/icon/icon-home-plus.svg');--icon-size:14px" aria-hidden="true"></span>
               イベント
             </button>` : ''}
           <button type="button" onclick="window._app.openProjectMenu('${folder.id}')"
@@ -47,9 +45,7 @@ export function renderProjectDetail(container) {
         ${folderEvents.length === 0 ? `
           <div class="p-project-detail__empty">
             <div class="p-project-detail__empty-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
+              <span class="c-icon" style="--icon:url('/images/icon/icon-calendar-default.svg');--icon-size:32px" aria-hidden="true"></span>
             </div>
             <p class="p-project-detail__empty-title">このプロジェクトにイベントがありません</p>
             <p class="p-project-detail__empty-hint">ここで作るか、イベント一覧から長押しで追加できます</p>
@@ -83,9 +79,7 @@ function _renderEventList(list) {
           <p class="p-project-detail__event-name">${_esc(p.name)}</p>
           ${p.dates?.length ? `<p class="p-project-detail__event-dates">${p.dates[0]}${p.dates.length > 1 ? ` 〜 ${p.dates[p.dates.length - 1]}` : ''}</p>` : ''}
         </div>
-        <svg class="p-project-detail__event-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
+        <span class="c-icon c-icon--right p-project-detail__event-chevron" style="--icon:url('/images/icon/icon-chevron.svg');--icon-size:16px" aria-hidden="true"></span>
       </div>`).join('') + `</div>`;
 }
 
