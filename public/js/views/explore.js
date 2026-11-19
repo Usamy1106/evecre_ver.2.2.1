@@ -305,23 +305,28 @@ function _likeButtonHtml(id, liked, count) {
     </button>`;
 }
 
+// ★紹介サイト（evecre.pages.dev）の通常のヘッダーと同じ形（2026-11-18）：ロゴを置かず、右寄せの文字リンク
+//   「TOP / みんなの記録 / ヘルプ」。いまのページ（みんなの記録）は緑。紹介サイトの layout/_header.css に合わせてある
+// ★本体だけの「アプリに戻る」「イベクリをはじめる」は同じ形のリンクで最後に置く（展示モードでは出さない）
+const _INTRO_SITE = 'https://evecre.pages.dev';
 function _headerHtml() {
   const kiosk = isKiosk();
-  const site = S.siteUrl ? (kiosk ? `${S.siteUrl}/?kiosk=1` : `${S.siteUrl}/`) : null;
+  const site = S.siteUrl || _INTRO_SITE;
+  const top = kiosk ? `${site}/?kiosk=1` : `${site}/`;
   const auth = kiosk ? ''
     : state.currentUser
-      ? `<button type="button" class="c-button c-button--secondary p-explore__small p-explore__head-action" data-ex-app>アプリに戻る</button>`
-      : `<button type="button" class="c-button c-button--primary p-explore__small p-explore__head-action" data-ex-start>イベクリをはじめる</button>`;
+      ? `<li class="p-explore__nav-item"><button type="button" class="p-explore__nav-link" data-ex-app>アプリに戻る</button></li>`
+      : `<li class="p-explore__nav-item"><button type="button" class="p-explore__nav-link" data-ex-start>イベクリをはじめる</button></li>`;
   return `
     <!-- ★js-mountain-sticky：背景の山の上端をこのヘッダーの下に合わせる目印（mountainPath.js の syncMountainBackdrop） -->
     <header class="p-explore__head js-mountain-sticky">
-      <a href="/explore" class="p-explore__brand" data-ex-home>
-        <img src="/images/icon/evecre-icon-48.png" alt="" class="p-explore__logo" width="28" height="28">
-        <span class="p-explore__brand-name">イベクリ</span>
-      </a>
       <nav class="p-explore__nav" aria-label="サイト内">
-        ${site ? `<a href="${_esc(site)}" class="p-explore__nav-link">イベクリについて</a>` : ''}
-        ${auth}
+        <ul class="p-explore__nav-list">
+          <li class="p-explore__nav-item"><a href="${_esc(top)}" class="p-explore__nav-link">TOP</a></li>
+          <li class="p-explore__nav-item"><a href="/explore" class="p-explore__nav-link" aria-current="page" data-ex-home>みんなの記録</a></li>
+          <li class="p-explore__nav-item"><a href="${_esc(site)}/pages/help/" class="p-explore__nav-link">ヘルプ</a></li>
+          ${auth}
+        </ul>
       </nav>
     </header>`;
 }

@@ -248,31 +248,8 @@
 /* --- 開催日の編集 --------------------------------------------------------
    ★通常は閲覧専用。明示的に編集モードへ入り、「保存」で確定する。
      誤タップで開催日が変わると全メンバーの予定が動くため。
+   ★2026-11-18：編集モードへ入る「開催日を編集」のボタンは外した（入口が無い）。下の保存・キャンセルは編集モードの中だけ
    使用箇所: public/js/modals/eventCalendarSheet.js */
-
-.p-schedule__cal-edit {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  padding-block: var(--space-2);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
-  transition: background-color var(--duration-fast) var(--ease);
-}
-
-.p-schedule__cal-edit:active {
-  background-color: var(--color-primary-tint2);
-}
-
-.p-schedule__cal-edit-icon {
-  width: 16px;
-  height: 16px;
-}
 
 .p-schedule__cal-actions {
   display: flex;

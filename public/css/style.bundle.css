@@ -9911,31 +9911,8 @@ border: 2px solid var(--bg-textbox);
 /* --- 開催日の編集 --------------------------------------------------------
    ★通常は閲覧専用。明示的に編集モードへ入り、「保存」で確定する。
      誤タップで開催日が変わると全メンバーの予定が動くため。
+   ★2026-11-18：編集モードへ入る「開催日を編集」のボタンは外した（入口が無い）。下の保存・キャンセルは編集モードの中だけ
    使用箇所: public/js/modals/eventCalendarSheet.js */
-
-.p-schedule__cal-edit {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-  padding-block: var(--space-2);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
-  transition: background-color var(--duration-fast) var(--ease);
-}
-
-.p-schedule__cal-edit:active {
-  background-color: var(--color-primary-tint2);
-}
-
-.p-schedule__cal-edit-icon {
-  width: 16px;
-  height: 16px;
-}
 
 .p-schedule__cal-actions {
   display: flex;
@@ -15671,48 +15648,37 @@ border: 2px solid var(--bg-textbox);
   background-color: var(--color-bg);
 }
 
-/* ── ヘッダー ── */
+/* ── ヘッダー ──
+   ★紹介サイト（evecre.pages.dev）の通常のヘッダー（layout/_header.css）と同じ形（2026-11-18）：
+     ロゴなし・右寄せの文字リンク・地の色・枠線なし。いまのページは緑（--create-green）。値を変えるときは紹介サイトと合わせる */
 .p-explore__head {
   position: sticky;
   top: 0;
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: calc(var(--space-2) + env(safe-area-inset-top)) var(--space-4) var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-surface);
+  justify-content: flex-end;
+  gap: var(--space-4);
+  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3);
+  background-color: var(--color-bg);
 }
 
-.p-explore__brand {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--space-2);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-text);
-}
-
-.p-explore__logo {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-}
-
-.p-explore__nav {
+.p-explore__nav-list {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
   justify-content: flex-end;
-  gap: var(--space-1) var(--space-3);
-  min-width: 0;
+  gap: var(--space-1) var(--space-4);
 }
 
 .p-explore__nav-link {
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  text-decoration: underline;
+  font-weight: var(--font-weight-medium);
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.p-explore__nav-link[aria-current='page'] {
+  color: var(--create-green);   /* 紹介サイトの --color-accent（#22AC38）と同じ色 */
 }
 
 /* 小さめのボタン（ヘッダー・モーダル・コメント） */
