@@ -14692,10 +14692,23 @@ border: 2px solid var(--bg-textbox);
   opacity: .4;
 }
 
-/* 区分をまだ選んでいない自由記述の柱（2026-11-14）。区分を選ぶとその区分のキャラになる */
-.p-pillar-char.is-uncategorized .p-char__body,
+/* 区分をまだ選んでいない自由記述の柱（2026-11-14）。区分を選ぶとその区分のキャラになる。
+   ★キャラ（を灰色にしたもの）は使わず、まだ埋まっていない枠（.p-pillar-char--empty）と同じ角丸四角に目だけ付けた灰色の箱（2026-11-19）。
+     どのキャラでもない＝まだ区分が決まっていない、と見て分かるように。黒目も灰色 */
+.p-pillar-char.is-uncategorized .p-char__body {
+  inset: 0;
+  border-radius: 42%;
+  background-image: none;
+  background-color: var(--color-border);
+}
+
 .p-pillar-char.is-uncategorized .p-char__iris {
   filter: grayscale(1);
+}
+
+/* 灰色の地の上なので、名前は白抜きではなく本文の色 */
+.p-pillar-char.is-uncategorized .p-pillar-char__name {
+  color: var(--color-text);
 }
 
 /* 選ばれている印（右上） */
