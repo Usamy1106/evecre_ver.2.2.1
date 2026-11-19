@@ -46,7 +46,7 @@ export function pillarCharacterFor(pillar, index) {
  * @param {boolean} [o.active]    編集中（枠を出す）
  * @param {string} [o.placeholder]
  * @param {string|null} [o.cat]   柱の区分（ops / make / plan）。キャラはこれで決まる
- * @param {boolean} [o.uncategorized] 区分をまだ選んでいない自由記述の柱（灰色で出す）
+ * @param {boolean} [o.uncategorized] 区分をまだ選んでいない自由記述の柱（キャラではなく、目の付いた灰色の角丸四角で出す。_pillar-char.css）
  */
 export function pillarCharHtml(index, name, o = {}) {
   const ch = categoryCharacter(o.cat) || pillarCharacter(index);
