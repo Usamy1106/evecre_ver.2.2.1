@@ -177,7 +177,7 @@
                       Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
   /* ★紹介サイト（evecre.pages.dev）と同じ書体。Adobe Fonts の kit jtx8lwo（JS だけの kit）。
      いまは「みんなの記録」（/explore）のヘッダーだけが使う。読むのは views/explore.js の _loadIntroFont（/explore を開いたときだけ）
-     ★kit の「ドメイン」に本体の URL（localhost・onrender.com）が入っていないと読めず、--font-family-base の書体で出る */
+     ★Adobe Fonts の Web プロジェクトにドメインの設定は無い。読めなかったときは --font-family-base の書体で出る */
   --font-family-intro: 'ryo-gothic-plusn', var(--font-family-base);
   --font-size-xs: 11px;
   --font-size-sm: 12px;
@@ -15819,7 +15819,8 @@ border: 2px solid var(--bg-textbox);
 /* ── 一覧のカード ── */
 .p-explore__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  /* ★スマホでも2列（2026-11-23）。カードの最小幅を「半分（間の半分を引く）」までに抑える。広い画面は今までどおり 260px から */
+  grid-template-columns: repeat(auto-fill, minmax(min(calc(50% - var(--space-4) / 2), 260px), 1fr));
   gap: var(--space-4);
   margin-top: var(--space-3);
 }
