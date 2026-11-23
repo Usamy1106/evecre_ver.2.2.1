@@ -313,7 +313,7 @@ const _INTRO_SITE = 'https://evecre.pages.dev';
 // ★紹介サイトと同じ書体（りょうゴシック PlusN。Adobe Fonts の kit jtx8lwo。2026-11-23）。ヘッダーだけが使う（--font-family-intro）
 //   kit は JS だけ（日本語のダイナミックサブセット）なので CSS の link では読めない。/explore を開いたときに1回だけ読む
 //   （index.html に置かない＝アプリの起動では第三者のドメインへつながない。CLAUDE.md 16-1-2）
-//   ★kit の「ドメイン」に本体の URL（localhost・onrender.com）が無いと読めない。読めなくてもシステムの書体で出る
+//   ★Adobe Fonts の Web プロジェクトにはドメインの設定が無い（どのドメインからでも読める）。読めなくてもシステムの書体で出る
 const _INTRO_FONT_KIT = 'jtx8lwo';
 function _loadIntroFont() {
   if (document.querySelector('script[data-adobe-fonts]')) return;

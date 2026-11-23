@@ -177,7 +177,7 @@
                       Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
   /* ★紹介サイト（evecre.pages.dev）と同じ書体。Adobe Fonts の kit jtx8lwo（JS だけの kit）。
      いまは「みんなの記録」（/explore）のヘッダーだけが使う。読むのは views/explore.js の _loadIntroFont（/explore を開いたときだけ）
-     ★kit の「ドメイン」に本体の URL（localhost・onrender.com）が入っていないと読めず、--font-family-base の書体で出る */
+     ★Adobe Fonts の Web プロジェクトにドメインの設定は無い。読めなかったときは --font-family-base の書体で出る */
   --font-family-intro: 'ryo-gothic-plusn', var(--font-family-base);
   --font-size-xs: 11px;
   --font-size-sm: 12px;
