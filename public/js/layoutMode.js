@@ -19,7 +19,9 @@ export const DASHBOARD_QUERY = '(min-width: 768px) and (min-height: 560px)';
 
 // ★ARCHIVE_ANSWERS（メンバー情報）はメンバーの箱をグリッドに並べるので見渡す幅（2026-11-05）
 const DASHBOARD_VIEWS = new Set(['HOME', 'PROJECT_DETAIL', 'MAIN_BOARD', 'ARCHIVE_ANSWERS', 'EXPLORE']);
-const FULL_VIEWS = new Set(['MAIN_BOARD']);
+// ★EXPLORE（みんなの記録）は、ヘッダーを紹介サイトと同じく画面の右端から測るため画面いっぱい（2026-11-23）。
+//   本文は .p-explore__main が自分で 1280px（ナレッジページは読む幅＋サブエリア）に収める。背景の山も _explore.css で同じ幅
+const FULL_VIEWS = new Set(['MAIN_BOARD', 'EXPLORE']);
 const READING_VIEWS = new Set([
   'MISSION_DETAIL', 'MISSION_REFLECT', 'PILLAR_EDIT', 'PILLAR_ASSIGN', 'EVENT_SETTINGS', 'ACCOUNT',
   'ARCHIVE_STATS', 'LEGAL', 'HANDOVER_PICK', 'LINEAGE',

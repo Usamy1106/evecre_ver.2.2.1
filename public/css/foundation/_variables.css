@@ -170,6 +170,10 @@
   /* --- タイポグラフィ ----------------------------------------------------- */
   --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
                       Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  /* ★紹介サイト（evecre.pages.dev）と同じ書体。Adobe Fonts の kit jtx8lwo（JS だけの kit）。
+     いまは「みんなの記録」（/explore）のヘッダーだけが使う。読むのは views/explore.js の _loadIntroFont（/explore を開いたときだけ）
+     ★kit の「ドメイン」に本体の URL（localhost・onrender.com）が入っていないと読めず、--font-family-base の書体で出る */
+  --font-family-intro: 'ryo-gothic-plusn', var(--font-family-base);
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-md: 14px;
@@ -367,4 +371,17 @@
 /* 広い画面（タブレット・PC。layoutMode.js が <html> に is-wide を付ける）で切り替えるトークン */
 :root.is-wide {
   --header-event-padding: var(--space-6) var(--space-6) var(--space-6);
+}
+
+/* 紹介サイト（evecre.pages.dev）のヘッダーと同じ大きさにするための単位（2026-11-23）。
+   紹介サイトの --top-u と同じ式（基準のフレーム：横長 1728×1117／縦長 390×700）。使うのは「みんなの記録」のヘッダーだけ。
+   ★値を変えるときは紹介サイトの assets/css/layout/_header.css と揃えること */
+:root {
+  --intro-header-u: min(calc(100vw / 1728), calc(100svh / 1117));
+}
+
+@media (max-aspect-ratio: 4/5) {
+  :root {
+    --intro-header-u: min(calc(100vw / 390), calc(100svh / 700));
+  }
 }
