@@ -38,8 +38,12 @@
 }
 
 /* 空のときの例文（textarea の placeholder の代わり） */
+/* ★高さ 0 のブロックにして、例文は下へはみ出させて見せる。行の中（インライン）に置くと、
+     空の欄をタップしたときカーソルが例文の最後の文字の後ろに出る（2026-11-23） */
 .c-editor.is-empty::before {
   content: attr(data-placeholder);
+  display: block;
+  height: 0;
   color: var(--color-text-muted);
   pointer-events: none;
 }
