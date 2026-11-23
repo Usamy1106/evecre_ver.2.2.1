@@ -309,6 +309,25 @@ function _likeButtonHtml(id, liked, count) {
 //   「TOP / みんなの記録 / ヘルプ」。いまのページ（みんなの記録）は緑。紹介サイトの layout/_header.css に合わせてある
 // ★本体だけの「アプリに戻る」「イベクリをはじめる」は同じ形のリンクで最後に置く（展示モードでは出さない）
 const _INTRO_SITE = 'https://evecre.pages.dev';
+
+// ★紹介サイトと同じ書体（りょうゴシック PlusN。Adobe Fonts の kit jtx8lwo。2026-11-23）。ヘッダーだけが使う（--font-family-intro）
+//   kit は JS だけ（日本語のダイナミックサブセット）なので CSS の link では読めない。/explore を開いたときに1回だけ読む
+//   （index.html に置かない＝アプリの起動では第三者のドメインへつながない。CLAUDE.md 16-1-2）
+//   ★kit の「ドメイン」に本体の URL（localhost・onrender.com）が無いと読めない。読めなくてもシステムの書体で出る
+const _INTRO_FONT_KIT = 'jtx8lwo';
+function _loadIntroFont() {
+  if (document.querySelector('script[data-adobe-fonts]')) return;
+  try {
+    const script = document.createElement('script');
+    script.src = `https://use.typekit.net/${_INTRO_FONT_KIT}.js`;
+    script.async = true;
+    script.dataset.adobeFonts = '';
+    script.addEventListener('load', () => {
+      try { window.Typekit.load({ kitId: _INTRO_FONT_KIT, async: true }); } catch (_) { /* 代わりの書体で出る */ }
+    });
+    document.head.append(script);
+  } catch (_) { /* 代わりの書体で出る */ }
+}
 function _headerHtml() {
   const kiosk = isKiosk();
   const site = S.siteUrl || _INTRO_SITE;
@@ -613,6 +632,7 @@ function _mountainHtml(d) {
 
 export function renderExplore(appEl) {
   _bindOnce();
+  _loadIntroFont();
   const r = S.route;
   // ★描き直しで入力中のコメントのフォーカスを保つ
   const focused = document.activeElement?.id === 'ex-comment-input';

@@ -30,7 +30,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-4);
-  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3);
+  /* ★紹介サイトのヘッダーと同じ位置（--intro-header-u。2026-11-23）。左はリンクが右寄せなので 0 */
+  padding: calc(64 * var(--intro-header-u) + env(safe-area-inset-top)) calc(120 * var(--intro-header-u)) calc(24 * var(--intro-header-u)) 0;
+  font-family: var(--font-family-intro);
   background-color: var(--color-bg);
 }
 
@@ -38,14 +40,35 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-1) var(--space-4);
+  gap: var(--space-1) calc(44 * var(--intro-header-u));
 }
 
 .p-explore__nav-link {
-  font-size: var(--font-size-sm);
+  /* ★「アプリに戻る」「イベクリをはじめる」は <button>。reset で枠・背景・余白は消えているが、書体と字間は念のためここで揃える */
+  padding: 0;
+  font-family: inherit;
+  font-size: calc(24 * var(--intro-header-u));
   font-weight: var(--font-weight-medium);
   line-height: 1.7;
+  letter-spacing: 0;
   color: var(--color-text);
+  background: none;
+  border: 0;
+}
+
+/* 縦長の画面（紹介サイトと同じ切り替え） */
+@media (max-aspect-ratio: 4/5) {
+  .p-explore__head {
+    padding: calc(18 * var(--intro-header-u) + env(safe-area-inset-top)) calc(20 * var(--intro-header-u)) calc(12 * var(--intro-header-u)) 0;
+  }
+
+  .p-explore__nav-list {
+    gap: var(--space-1) calc(18 * var(--intro-header-u));
+  }
+
+  .p-explore__nav-link {
+    font-size: calc(14 * var(--intro-header-u));
+  }
 }
 
 .p-explore__nav-link[aria-current='page'] {

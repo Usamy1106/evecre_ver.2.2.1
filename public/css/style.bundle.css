@@ -175,6 +175,10 @@
   /* --- タイポグラフィ ----------------------------------------------------- */
   --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
                       Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  /* ★紹介サイト（evecre.pages.dev）と同じ書体。Adobe Fonts の kit jtx8lwo（JS だけの kit）。
+     いまは「みんなの記録」（/explore）のヘッダーだけが使う。読むのは views/explore.js の _loadIntroFont（/explore を開いたときだけ）
+     ★kit の「ドメイン」に本体の URL（localhost・onrender.com）が入っていないと読めず、--font-family-base の書体で出る */
+  --font-family-intro: 'ryo-gothic-plusn', var(--font-family-base);
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-md: 14px;
@@ -372,6 +376,19 @@
 /* 広い画面（タブレット・PC。layoutMode.js が <html> に is-wide を付ける）で切り替えるトークン */
 :root.is-wide {
   --header-event-padding: var(--space-6) var(--space-6) var(--space-6);
+}
+
+/* 紹介サイト（evecre.pages.dev）のヘッダーと同じ大きさにするための単位（2026-11-23）。
+   紹介サイトの --top-u と同じ式（基準のフレーム：横長 1728×1117／縦長 390×700）。使うのは「みんなの記録」のヘッダーだけ。
+   ★値を変えるときは紹介サイトの assets/css/layout/_header.css と揃えること */
+:root {
+  --intro-header-u: min(calc(100vw / 1728), calc(100svh / 1117));
+}
+
+@media (max-aspect-ratio: 4/5) {
+  :root {
+    --intro-header-u: min(calc(100vw / 390), calc(100svh / 700));
+  }
 }
 
 /* ===== foundation/_reset.css ===== */
@@ -15672,7 +15689,9 @@ border: 2px solid var(--bg-textbox);
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-4);
-  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-4) var(--space-3);
+  /* ★紹介サイトのヘッダーと同じ位置（--intro-header-u。2026-11-23）。左はリンクが右寄せなので 0 */
+  padding: calc(64 * var(--intro-header-u) + env(safe-area-inset-top)) calc(120 * var(--intro-header-u)) calc(24 * var(--intro-header-u)) 0;
+  font-family: var(--font-family-intro);
   background-color: var(--color-bg);
 }
 
@@ -15680,14 +15699,35 @@ border: 2px solid var(--bg-textbox);
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--space-1) var(--space-4);
+  gap: var(--space-1) calc(44 * var(--intro-header-u));
 }
 
 .p-explore__nav-link {
-  font-size: var(--font-size-sm);
+  /* ★「アプリに戻る」「イベクリをはじめる」は <button>。reset で枠・背景・余白は消えているが、書体と字間は念のためここで揃える */
+  padding: 0;
+  font-family: inherit;
+  font-size: calc(24 * var(--intro-header-u));
   font-weight: var(--font-weight-medium);
   line-height: 1.7;
+  letter-spacing: 0;
   color: var(--color-text);
+  background: none;
+  border: 0;
+}
+
+/* 縦長の画面（紹介サイトと同じ切り替え） */
+@media (max-aspect-ratio: 4/5) {
+  .p-explore__head {
+    padding: calc(18 * var(--intro-header-u) + env(safe-area-inset-top)) calc(20 * var(--intro-header-u)) calc(12 * var(--intro-header-u)) 0;
+  }
+
+  .p-explore__nav-list {
+    gap: var(--space-1) calc(18 * var(--intro-header-u));
+  }
+
+  .p-explore__nav-link {
+    font-size: calc(14 * var(--intro-header-u));
+  }
 }
 
 .p-explore__nav-link[aria-current='page'] {
