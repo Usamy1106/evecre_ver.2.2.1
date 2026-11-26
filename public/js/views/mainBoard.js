@@ -8,7 +8,7 @@ import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiv
 import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml, reflectEditorHtml } from '../clearEditor.js';
 import { pillarCharacterFor, pillarCharHtml } from '../pillarChars.js';
-import { archiveSocialHtml, archiveSocialEnabled, refreshArchiveSocial, bindArchiveSocialOnce,
+import { archiveSocialHtml, archiveSocialCompactHtml, archiveSocialEnabled, refreshArchiveSocial, bindArchiveSocialOnce,
   captureArchiveSocialFocus, restoreArchiveSocialFocus } from '../archiveSocial.js';
 import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchivePreviewTap, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
@@ -1638,17 +1638,18 @@ function _archiveSections(p, missions, mode) {
 //   管理者には、開催後なら「公開できる記録 N件」（countPublishableReflections。公開の可否の判定と同じ数）も出す
 function _archivePublicBannerHtml(p, canMgr) {
   const on = p.publicBasicInfo === true;
+  // ★2026-11-26：公開中の帯は出さない。その場所には、狭いとき（右の箱が横に並ばないとき）だけ
+  //   いいねの数と最新のコメント1件を出す（archiveSocial.js。広いときは右の箱が同じものを出すので CSS で隠す）
+  if (on) return archiveSocialCompactHtml(p);
   const ready = canPromptPublicBasic(p);
-  const text = on ? 'ヘッダー画像・タイトル・概要・期間・場所を、宣伝用に公開しています'
-    : ready ? 'ヘッダー画像・タイトル・概要・期間・場所は、右上の「公開する」から宣伝用に公開できます'
+  const text = ready ? 'ヘッダー画像・タイトル・概要・期間・場所は、上の「公開する」から宣伝用に公開できます'
     : '概要を書くと、ヘッダー画像・タイトル・概要・期間・場所を宣伝用に公開できます';
   const n = canMgr && isAfterEventDates(p) ? countPublishableReflections(p) : null;
   return `
-    <div class="p-archive__public${on ? ' is-public' : ''}">
+    <div class="p-archive__public">
       <span class="c-icon p-archive__public-icon" style="--icon:url('/images/icon/icon-platform.svg')" aria-hidden="true"></span>
       <span class="p-archive__public-text">${text}${n !== null ? `<br>公開できる記録：${n}件` : ''}</span>
-      ${on ? '<span class="p-archive__public-state">公開中</span>'
-        : '<span class="p-archive__public-state p-archive__public-state--off">非公開</span>'}
+      <span class="p-archive__public-state p-archive__public-state--off">非公開</span>
     </div>`;
 }
 
@@ -1656,10 +1657,13 @@ function _renderArchiveTab(p) {
   // いいね・コメントの箱（宣伝用に公開しているときだけ。中身の条件はサーバーが決める）
   const social = archiveSocialHtml(p);
   const canMgr  = state.canManageCurrentEvent();
+  const published = p.publicBasicInfo === true;
+  // ★プレビューは公開したアーカイブだけ（2026-11-26）。公開を止めた（ほかの管理者・SSE も）ならプレビューを解いて編集に戻す
+  if (state.archivePreview && !published) state.archivePreview = false;
   // ★編集できるのは管理者だけ。管理者はプレビュー中でなければ編集中（state.js の getter）
   const editing = canMgr && state.archiveEditing;
   const preview = canMgr && !editing;
-  // ★プレビュー中に本文をタップしたら「右上の『編集』で書けます」と知らせる（archiveInlineEdit.js の bindArchivePreviewTap）
+  // ★プレビュー中に本文をタップしたら「上の『編集』で書けます」と知らせる（archiveInlineEdit.js の bindArchivePreviewTap）
   const tap = (target) => (preview ? ` data-archive-tap="${_esc(target)}"` : '');
   // 基礎情報の行のペン（編集中だけ）。★押せる範囲は 44px 四方（CSS）。アイコンは c-icon（色は文字に追従）
   const fieldIcon = (label, icon, onclick, mod = '') => `
@@ -1781,51 +1785,45 @@ function _renderArchiveTab(p) {
     </details>`;
 
   const hasDatesA = Array.isArray(p.dates) && p.dates.length > 0;
-  // 公開（右上。2026-11-07。指示書B §5-2）。★公開は確認ページ（publishConfirmModal.js）の1か所から。
-  //   まだ公開していない、または開催後でタスクの記録をまだ公開していないなら「公開する」。公開し終えていれば「公開中」
+  // ── 上部（2026-11-26）：［残り日数］［公開する or プレビュー｜編集］……［⋯］を1行に並べる ──
+  // ★残り日数は開催前だけ（開催後は出さない）。★予定のコピーはアーカイブには置かない（メインボードのスケジュールにある）
+  // ★公開は確認ページ（publishConfirmModal.js）の1か所から。まだ公開していない、または開催後でタスクの記録を
+  //   まだ公開していないなら「公開する」を優先して出す。公開し終えていれば、その場所が「プレビュー｜編集」になる。
+  //   「公開中」の札は出さない（セグメントがあること自体が公開中の印）
   const knowledgeOpen = isAfterEventDates(p) && countPublishableReflections(p) > 0 && p.publicKnowledge !== true;
-  const publishHtml = p.publicBasicInfo === true && !knowledgeOpen
-    ? '<span class="p-archive__published">公開中</span>'
-    : canMgr ? `<button type="button" onclick="window._app.openPublishConfirm()" data-log="archive_publish_open"
-        class="p-archive__publish">公開する</button>` : '';
+  const daysHtml = isAfterEventDates(p) ? '' : `
+          <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
+            class="p-archive__days">
+            <img src="/images/icon/icon-calendar-pressed.svg" class="p-archive__days-icon${hasDatesA ? '' : ' is-muted'}" alt="">
+            ${hasDatesA
+              ? `<span class="p-archive__days-text">あと <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
+              : `<span class="p-archive__days-text p-archive__days-text--muted">開催日未設定</span>`}
+          </div>`;
+  const publishHtml = !canMgr ? ''
+    : (!published || knowledgeOpen) ? `<button type="button" onclick="window._app.openPublishConfirm()" data-log="archive_publish_open"
+        class="p-archive__publish">公開する</button>`
+    : Components.Segmented('archive-view', [
+        { id: 'preview', label: 'プレビュー', onclick: 'window._app.setArchivePreview(true)', log: 'archive_preview_on' },
+        { id: 'edit',    label: '編集',       onclick: 'window._app.setArchivePreview(false)', log: 'archive_preview_off' },
+      ], { active: preview ? 'preview' : 'edit', round: true, compact: true, className: 'p-archive__view-seg' });
   return `
     <div class="p-archive${editing ? ' p-archive--editing' : ''}${preview ? ' p-archive--preview' : ''} u-page-transition">
       <div class="p-archive__head">
-        <div onclick="window._app.openEventCalendarSheet()" data-log="event_calendar_open"
-          class="p-archive__days">
-          <img src="/images/icon/icon-calendar-pressed.svg" class="p-archive__days-icon${hasDatesA ? '' : ' is-muted'}" alt="">
-          ${hasDatesA
-            ? `<span class="p-archive__days-text">あと <span class="p-archive__days-count">${calculateDaysLeft([...p.dates].sort()[0])}</span> 日</span>`
-            : `<span class="p-archive__days-text p-archive__days-text--muted">開催日未設定</span>`}
-        </div>
-        <div class="p-archive__head-actions">
-          <!-- ★コピーされるのは「未完了・締め切りあり」全件（記録の中身ではない）。 -->
-          <button type="button" onclick="window._app.copySchedule('archive')"
-            data-log="schedule_copy" class="p-archive__copy" aria-label="予定をコピー">
-            <span class="c-icon p-archive__copy-icon" style="--icon:url('/images/icon/icon-link.svg')" aria-hidden="true"></span>
-            予定をコピー
-          </button>
-          ${canMgr ? `
-            <!-- ★編集 ⇄ プレビュー。行き先を書く（編集中は「プレビュー」、プレビュー中は「編集」）。プレビュー中も必ず出す -->
-            <button type="button" onclick="window._app.toggleArchivePreview()"
-              data-log="${editing ? 'archive_preview_on' : 'archive_preview_off'}"
-              class="p-archive__view-toggle${preview ? ' is-preview' : ''}">
-              ${preview ? `<span class="c-icon p-archive__view-toggle-icon" style="--icon:url('/images/icon/icon-edit.svg')" aria-hidden="true"></span>` : ''}
-              ${preview ? '編集' : 'プレビュー'}
-            </button>` : ''}
+        <div class="p-archive__head-main">
+          ${daysHtml}
           ${publishHtml}
-          <!-- ★メニュー（⋯）：編集／プレビュー・リンクをコピー・公開されている内容を見る・公開を停止する（main.js の openArchiveMenu） -->
-          <button type="button" onclick="window._app.openArchiveMenu(event)" class="p-archive__menu" aria-label="アーカイブのメニュー"
-            data-log="archive_menu_open">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>
-            </svg>
-          </button>
         </div>
+        <!-- ★メニュー（⋯）：プレビュー／編集・リンクをコピー・公開されている内容を見る・公開を停止する（main.js の openArchiveMenu）。右に寄せる -->
+        <button type="button" onclick="window._app.openArchiveMenu(event)" class="p-archive__menu" aria-label="アーカイブのメニュー"
+          data-log="archive_menu_open">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>
+          </svg>
+        </button>
       </div>
       ${preview ? `
         <!-- ★プレビュー＝公開される姿、と受け取られないように（非公開の部分もここでは見えている） -->
-        <p class="p-archive__preview-note" role="status">編集の表示を隠しています。外に出る内容は「公開する」から確認できます。</p>` : ''}
+        <p class="p-archive__preview-note" role="status">編集の表示を隠しています。外に出ている内容は ⋯ の「公開されている内容を見る」で確認できます。</p>` : ''}
 
       <!-- ★本文（画像と白い紙）と、いいね・コメントの箱（宣伝用に公開しているときだけ。archiveSocial.js）。
            広いときは箱を本文の右に固定し、狭いときは本文の下に並べる（公開ページ /explore と同じ形。2026-11-18） -->
@@ -1857,8 +1855,8 @@ function _renderArchiveTab(p) {
           <div data-inline-block>
             <div class="p-archive__label-row">
               <h2 class="p-archive__label">概要</h2>
-              ${editing ? `<span class="p-archive__save-status" data-save-status></span>
-                ${fieldIcon('概要を編集', 'icon-edit.svg', summaryRich ? "window._app.openMissionDetail('def-3')" : "window._app.focusArchiveInline('summary')")}` : ''}
+              ${editing ? `${fieldIcon('概要を編集', 'icon-edit.svg', summaryRich ? "window._app.openMissionDetail('def-3')" : "window._app.focusArchiveInline('summary')")}
+                <span class="p-archive__save-status" data-save-status></span>` : ''}
             </div>
             ${summaryRich ? `
               <!-- ★概要（def-3）に画像・PDF・書式があるときは、ここでは直さずタスクの画面で編集する -->
@@ -1939,7 +1937,7 @@ function _archiveSubmissionHtml(p, m, cd, editing, userId = null) {
   if (!cd) return '';
   if (editing) return _archiveSubmissionEditHtml(p, m, cd, userId);
   const canMgr = state.canManageCurrentEvent();
-  // ★プレビュー中のタップは「右上の『編集』で書けます」を出す（bindArchivePreviewTap）。値は「sub|ref:タスク:人」
+  // ★プレビュー中のタップは「上の『編集』で書けます」を出す（bindArchivePreviewTap）。値は「sub|ref:タスク:人」
   const tapKey = `${m.id}:${userId || ''}`;
   const tap = (kind) => (canMgr ? ` data-archive-tap="${kind}:${_esc(tapKey)}"` : '');
   // ★画像・PDF は本文の途中にも入る。読み分けは utils.js の submissionSegments
@@ -2318,7 +2316,8 @@ function _notifRowHtml(n, p, opts = {}) {
     body = body.slice(`${n.actorName} さんが`.length);
     head = n.actorName;
   }
-  const avatar = actor
+  // ★アーカイブの公開は、やった人のアバターではなく種類のアイコン（icon-mainboard-pressed.svg）を出す（2026-11-26。名前は見出しに出る）
+  const avatar = actor && n.type !== 'archive_published'
     ? Components.UserAvatar(actor, { size: 32 })
     : `<div class="p-notification__icon" style="--notif-color:${_notifIconBg(n.type)}">${_notifIcon(n.type)}</div>`;
 
@@ -2435,6 +2434,8 @@ const _NOTIF_ICONS = {
   mission_updated:    { file: 'icon-mini-modification-task.svg', bg: _NOTIF_BG_GREEN },
   mission_reverted:   { file: 'icon-mini-cancel.svg',            bg: _NOTIF_BG_GREEN },
   public_comment:     { file: 'icon-mini-comment.svg',           bg: _NOTIF_BG_YELLOW },
+  // アーカイブを公開した（2026-11-26）。★アイコンは既存の icon-mainboard-pressed.svg（緑）
+  archive_published:  { file: 'icon-mainboard-pressed.svg',      bg: _NOTIF_BG_GREEN },
 };
 
 function _notifIcon(type) {

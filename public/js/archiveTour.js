@@ -24,8 +24,9 @@ const STEPS = [
     body: '完了したタスクの内容が、1つの文書にまとまっていくよ。' },
   { selector: '.p-archive__toc-head', title: '目次から、各記録へ飛べるよ。',
     body: 'ラベル・完了日・優先度で並べ替えられるよ。' },
-  { selector: '.p-archive__view-toggle', title: '記録はそのまま書き直せるよ。',
-    body: 'タイトル・概要・場所や、タスクの内容と振り返りは、タップしてそのまま書けるよ。通して読みたいときは「プレビュー」。', managerOnly: true },
+  // ★2026-11-26：「プレビュー｜編集」は公開したアーカイブにしか出ないので、ここはタイトルの行（ペンのアイコン）を指す
+  { selector: '.p-archive--editing .p-archive__title-row', title: '記録はそのまま書き直せるよ。',
+    body: 'タイトル・概要・場所や、タスクの内容と振り返りは、タップしてそのまま書けるよ。', managerOnly: true },
   { selector: '.p-archive__public', title: 'ここの情報は、宣伝に使えるよ。',
     body: 'タイトル・概要・期間・場所・ヘッダー画像を、イベクリの外に公開できるよ。' },
 ];

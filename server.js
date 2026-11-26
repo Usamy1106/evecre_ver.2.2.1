@@ -2871,6 +2871,21 @@ async function _guardPublicKnowledge(eventId, flat, existing) {
   }
 }
 
+// ★アーカイブを公開した（宣伝用に／タスクも含めて）ことを、公開した本人も含めたメンバー全員へ知らせる（2026-11-26）。
+//   公開の経路はいくつかある（確認ページ POST /publish・イベント設定のスイッチ・振り返り後の問いかけ＝ PUT/PATCH /api/data）。
+//   どれも「false/未設定 → true」に変わったときだけ呼ぶ。アプリ内通知だけ（push は送らない）。
+//   タップでそのイベントのアーカイブを開く（main.js の openNotification）。アイコンは icon-mainboard-pressed.svg（mainBoard.js の _NOTIF_ICONS）
+function _notifyArchivePublished(raw, actor, { basic, knowledge }) {
+  if (!basic && !knowledge) return;
+  const ids = [...new Set((raw?.members || []).map(m => m.userId))].filter(Boolean);
+  const name = actor?.username || 'だれか';
+  notifStore.notifyAll(ids, {
+    type: 'archive_published', eventId: raw.id,
+    message: knowledge ? `${name} さんがアーカイブをタスクも含めて公開しました` : `${name} さんがアーカイブを宣伝用に公開しました`,
+    actorId: actor?.id, actorName: name,
+  }).catch(e => console.warn('[archive] 公開の通知に失敗:', e.message));
+}
+
 async function _saveIncomingEvents(req, incoming, current, now) {
   const currentIds = new Set(current.map(p => p.id));
   // --- 新規イベント ---
@@ -3118,6 +3133,11 @@ async function _saveIncomingEvents(req, incoming, current, now) {
 
     const merged = await eventStore.applyPatch(incomingP.id, patchFlat, {
       timestamp: now, missionDeletions, proposalDeletions,
+    });
+    // アーカイブの公開（false/未設定 → true）をメンバーへ知らせる（イベント設定のスイッチ・振り返り後の問いかけの経路）
+    _notifyArchivePublished(merged, req.user, {
+      basic:     existing.fields?.publicBasicInfo?.v !== true && merged?.fields?.publicBasicInfo?.v === true,
+      knowledge: existing.fields?.publicKnowledge?.v !== true && merged?.fields?.publicKnowledge?.v === true,
     });
     // ★消すのはタスクの保存が通ってから（保存に失敗したのに提出物だけ消えた、を起こさない）
     if (purgeKeys.length > 0) await _purgeSubmissions(incomingP.id, purgeSubs, purgeKeys);
@@ -5629,6 +5649,8 @@ app.post('/api/events/:id/publish', requireAuth, async (req, res) => {
     const flat0 = crdt.crdtToFlat(p);
     const subs  = await submissionStore.getSubmissionsForProject(flat0.id);
     const knowledge = publicData.canPublishKnowledge(flat0.dates, subs).ok;
+    const wasBasic = flat0.publicBasicInfo === true;
+    const wasKnowledge = flat0.publicKnowledge === true;
     const now = Date.now();
     const updated = await eventStore.applyPatch(p.id, {
       id: p.id, publicBasicInfo: true, publishCheckedAt: now, ...(knowledge ? { publicKnowledge: true } : {}),
@@ -5637,6 +5659,7 @@ app.post('/api/events/:id/publish', requireAuth, async (req, res) => {
     await _mergeSubmissions(p.id, flat);
     eventBus.broadcast(p.id, 'eventUpdated', { eventId: p.id, rev: updated.rev, event: flat }, req.get('X-Client-Id') || null);
     logServerEvent(p.id, req.user.id, 'public_published', { knowledge });
+    _notifyArchivePublished(updated, req.user, { basic: !wasBasic, knowledge: knowledge && !wasKnowledge });
     res.json({ ok: true, publicBasicInfo: true, publicKnowledge: flat.publicKnowledge === true, publishCheckedAt: now });
   } catch (e) {
     console.error('POST publish error:', e);
