@@ -8,7 +8,7 @@ import { calculateDaysLeft, formatEventPeriodLines, getArchiveSummary, getArchiv
 import { redirectGoalQuest } from '../goalQuest.js';
 import { editorFormatButtonsHtml, reflectEditorHtml } from '../clearEditor.js';
 import { pillarCharacterFor, pillarCharHtml } from '../pillarChars.js';
-import { archiveSocialHtml, archiveSocialEnabled, refreshArchiveSocial, bindArchiveSocialOnce,
+import { archiveSocialHtml, archiveSocialCompactHtml, archiveSocialEnabled, refreshArchiveSocial, bindArchiveSocialOnce,
   captureArchiveSocialFocus, restoreArchiveSocialFocus } from '../archiveSocial.js';
 import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchivePreviewTap, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
@@ -1638,17 +1638,18 @@ function _archiveSections(p, missions, mode) {
 //   管理者には、開催後なら「公開できる記録 N件」（countPublishableReflections。公開の可否の判定と同じ数）も出す
 function _archivePublicBannerHtml(p, canMgr) {
   const on = p.publicBasicInfo === true;
+  // ★2026-11-26：公開中の帯は出さない。その場所には、狭いとき（右の箱が横に並ばないとき）だけ
+  //   いいねの数と最新のコメント1件を出す（archiveSocial.js。広いときは右の箱が同じものを出すので CSS で隠す）
+  if (on) return archiveSocialCompactHtml(p);
   const ready = canPromptPublicBasic(p);
-  const text = on ? 'ヘッダー画像・タイトル・概要・期間・場所を、宣伝用に公開しています'
-    : ready ? 'ヘッダー画像・タイトル・概要・期間・場所は、右上の「公開する」から宣伝用に公開できます'
+  const text = ready ? 'ヘッダー画像・タイトル・概要・期間・場所は、上の「公開する」から宣伝用に公開できます'
     : '概要を書くと、ヘッダー画像・タイトル・概要・期間・場所を宣伝用に公開できます';
   const n = canMgr && isAfterEventDates(p) ? countPublishableReflections(p) : null;
   return `
-    <div class="p-archive__public${on ? ' is-public' : ''}">
+    <div class="p-archive__public">
       <span class="c-icon p-archive__public-icon" style="--icon:url('/images/icon/icon-platform.svg')" aria-hidden="true"></span>
       <span class="p-archive__public-text">${text}${n !== null ? `<br>公開できる記録：${n}件` : ''}</span>
-      ${on ? '<span class="p-archive__public-state">公開中</span>'
-        : '<span class="p-archive__public-state p-archive__public-state--off">非公開</span>'}
+      <span class="p-archive__public-state p-archive__public-state--off">非公開</span>
     </div>`;
 }
 

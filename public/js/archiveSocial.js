@@ -8,12 +8,15 @@
 //   コメントは読める・書ける（メール認証済み）・消せる（本人か管理者。サーバーが canDelete を返す）
 // ★描き直し（SSE・保存）では手元の控え（_cache）から同じ HTML を作る。通信は開いたときと、少し時間がたったときだけ
 // ★コメントの1件の形は公開ページと共通（views/explore.js の exploreCommentItemHtml）。CSS も公開ページのもの（_explore.css）
+// ★2026-11-26：狭いとき（右の箱が横に並ばないとき）は、右の箱の代わりに概要の上へ1行（いいね＋最新のコメント1件）を出し、
+//   コメントのタップでボトムシート（全部・入力欄）を開く（archiveSocialCompactHtml / _openSheet）
 
 import { state } from './state.js';
 import { api } from './api.js';
 import { logEvent } from './logger.js';
 import { showConfirmDialog } from './dialog.js';
 import { exploreCommentItemHtml } from './views/explore.js';
+import { Components } from './components.js';
 
 const COMMENT_MAX = 1000;
 const STALE_MS    = 60 * 1000;   // これより古ければ、アーカイブを描いたときに取り直す
@@ -34,13 +37,9 @@ function _entry(id) {
   return _cache.get(id);
 }
 
-function _innerHtml(id) {
-  const c = _entry(id);
-  if (c.gone) return '';
-  if (!c.data) return '<p class="p-explore__comment-empty">読み込み中…</p>';
-  const d = c.data;
-  const count = Number(d.likeCount) || 0;
-  const like = `
+function _likeHtml(c) {
+  const count = Number(c.data?.likeCount) || 0;
+  return `
     <div class="p-explore__page-like">
       <span class="c-like-button c-like-button--static" aria-label="いいね ${count}">
         <img src="/images/icon/icon-heart-pressed.svg" class="c-like-button__icon" width="20" height="20" alt="">
@@ -48,15 +47,20 @@ function _innerHtml(id) {
       </span>
       <span class="p-archive__side-note">公開ページでもらったいいね</span>
     </div>`;
-  // ★コメントはナレッジが出ているときだけ（サーバーは出ていなければ knowledge を null で返す）
-  if (d.knowledge === null) return like;
+}
+
+// コメントの欄（見出し・入力欄・一覧）。右の箱とボトムシートで共用する。
+// ★入力欄の id は置き場所ごとに変える（右の箱は狭いとき display:none で DOM に残るので、同じ id だと getElementById が隠れた方を掴む）
+function _commentsHtml(id, inputId, titleId) {
+  const c = _entry(id);
+  const d = c.data;
   const cm = c.comments;
   let input;
   if (d.viewer?.canComment) {
     const left = COMMENT_MAX - [...c.draft].length;
     input = `
       <div class="p-explore__comment-form">
-        <textarea id="${INPUT_ID}" class="p-explore__comment-input" rows="3" maxlength="${COMMENT_MAX}"
+        <textarea id="${inputId}" class="p-explore__comment-input" rows="3" maxlength="${COMMENT_MAX}"
           placeholder="コメントへの返事・お礼など" data-as-draft="${_esc(id)}">${_esc(c.draft)}</textarea>
         <div class="p-explore__comment-actions">
           <span class="p-explore__comment-left${left < 0 ? ' is-over' : ''}" data-as-left>あと${left}文字</span>
@@ -69,9 +73,8 @@ function _innerHtml(id) {
   }
   const items = cm.items || [];
   return `
-    ${like}
-    <section class="p-explore__comments" aria-labelledby="archive-comments-title">
-      <h2 id="archive-comments-title" class="p-explore__section-title">公開ページへのコメント</h2>
+    <section class="p-explore__comments" aria-labelledby="${titleId}">
+      <h2 id="${titleId}" class="p-explore__section-title">公開ページへのコメント</h2>
       ${input}
       ${cm.error ? '<p class="p-explore__comment-empty">コメントを読み込めませんでした。</p>' : ''}
       <div class="p-explore__comment-scroll" data-as-comment-scroll>
@@ -80,6 +83,56 @@ function _innerHtml(id) {
         ${cm.hasMore ? `<button type="button" class="c-button c-button--secondary p-explore__small p-explore__more" data-as-more="${_esc(id)}" ${cm.loading ? 'disabled' : ''}>もっと見る</button>` : ''}
       </div>
     </section>`;
+}
+
+// 右の箱（広いとき）の中身
+function _innerHtml(id) {
+  const c = _entry(id);
+  if (c.gone) return '';
+  if (!c.data) return '<p class="p-explore__comment-empty">読み込み中…</p>';
+  // ★コメントはナレッジが出ているときだけ（サーバーは出ていなければ knowledge を null で返す）
+  if (c.data.knowledge === null) return _likeHtml(c);
+  return _likeHtml(c) + _commentsHtml(id, INPUT_ID, 'archive-comments-title');
+}
+
+// 狭いとき（右の箱が横に並ばないとき）に、概要の上（もとの「公開中」の帯の場所）へ出す1行。
+// ★いいねの数と、いちばん新しいコメント1件だけ。コメントのタップでボトムシート（全部・入力欄）を開く
+function _compactInnerHtml(id) {
+  const c = _entry(id);
+  if (c.gone) return '';
+  if (!c.data) return '<p class="p-archive__social-loading">読み込み中…</p>';
+  const count = Number(c.data.likeCount) || 0;
+  const like = `
+    <span class="p-archive__social-like" aria-label="公開ページでもらったいいね ${count}">
+      <img src="/images/icon/icon-heart-pressed.svg" class="p-archive__social-heart" width="20" height="20" alt="">
+      <span class="p-archive__social-count">${count}</span>
+    </span>`;
+  if (c.data.knowledge === null) {
+    return `<div class="p-archive__social-row">${like}<span class="p-archive__side-note">公開ページでもらったいいね</span></div>`;
+  }
+  const cm = c.comments;
+  const latest = (cm.items || [])[0];
+  let comment;
+  if (latest) {
+    const name = latest.author ? latest.author.username || '名前なし' : '退会したユーザー';
+    comment = `
+      ${Components.UserAvatar(latest.author ? { username: name, avatarUrl: latest.author.avatarUrl } : { username: '?' }, { size: 24 })}
+      <span class="p-archive__social-comment-main">
+        <span class="p-archive__social-comment-name">${_esc(name)}</span>
+        <span class="p-archive__social-comment-body">${_esc(latest.body)}</span>
+      </span>`;
+  } else {
+    comment = `<span class="p-archive__social-comment-empty">${cm.loaded ? 'まだコメントはありません' : 'コメントを読み込み中…'}</span>`;
+  }
+  return `
+    <div class="p-archive__social-row">
+      ${like}
+      <button type="button" class="p-archive__social-comment" data-as-open-sheet="${_esc(id)}" data-log="archive_comments_sheet_open"
+        aria-label="公開ページへのコメントをすべて見る">
+        ${comment}
+        <span class="c-icon c-icon--right p-archive__social-chevron" style="--icon:url('/images/icon/icon-chevron.svg')" aria-hidden="true"></span>
+      </button>
+    </div>`;
 }
 
 /**
@@ -91,25 +144,68 @@ export function archiveSocialHtml(p) {
   const inner = _innerHtml(p.id);
   if (_entry(p.id).gone) return '';
   return `
-    <aside class="p-explore__side p-archive__side" data-archive-social="${_esc(p.id)}" aria-label="いいね・コメント">
+    <aside class="p-explore__side p-archive__side" data-archive-social="${_esc(p.id)}" data-as-kind="side" aria-label="いいね・コメント">
       ${inner}
     </aside>`;
 }
 
-// 箱の中身だけ差し替える（アーカイブ全体は描き直さない＝書きかけの欄やスクロール位置を動かさない）
+/**
+ * 概要の上（もとの「公開中」の帯の場所）に置く1行（2026-11-26）。宣伝用に公開していないイベントでは空文字。
+ * ★見せるのは右の箱が横に並ばないときだけ（_archive.css の @container。並ぶときは右の箱が同じものを出す）
+ */
+export function archiveSocialCompactHtml(p) {
+  if (!archiveSocialEnabled(p) || _entry(p.id).gone) return '';
+  return `
+    <div class="p-archive__social-compact" data-archive-social="${_esc(p.id)}" data-as-kind="compact">
+      ${_compactInnerHtml(p.id)}
+    </div>`;
+}
+
+const SHEET_ID       = 'archive-comments-sheet';
+const SHEET_INPUT_ID = 'archive-comment-sheet-input';
+
+function _sheetInnerHtml(id) {
+  const c = _entry(id);
+  if (c.gone || !c.data || c.data.knowledge === null) return '<p class="p-explore__comment-empty">コメントはありません。</p>';
+  return _commentsHtml(id, SHEET_INPUT_ID, 'archive-comments-sheet-title');
+}
+
+// コメントを全部見るボトムシート。★body の直下に置く（アーカイブの描き直しでは消えない）
+function _openSheet(id) {
+  document.getElementById(SHEET_ID)?.remove();
+  const overlay = document.createElement('div');
+  overlay.id = SHEET_ID;
+  overlay.className = 'c-overlay c-overlay--bottom c-overlay--action u-page-transition';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div data-sheet class="p-archive__comments-sheet u-animate-fade">
+      <div data-sheet-handle class="c-sheet__handle c-sheet__handle--mid"><div class="c-sheet__grip"></div></div>
+      <div class="p-archive__comments-sheet-body" data-archive-social="${_esc(id)}" data-as-kind="sheet">${_sheetInnerHtml(id)}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  logEvent('archive_comments_sheet_opened', { eventId: id });
+}
+
+// 箱の中身だけ差し替える（アーカイブ全体は描き直さない＝書きかけの欄やスクロール位置を動かさない）。
+// ★置き場所は3つ（右の箱・概要の上の1行・ボトムシート）。どれも data-archive-social と data-as-kind を持つ
+const _RENDER = { side: _innerHtml, compact: _compactInnerHtml, sheet: _sheetInnerHtml };
 function _patch(id) {
-  const box = document.querySelector(`[data-archive-social="${CSS.escape(id)}"]`);
-  if (!box) return;
-  const focused = document.activeElement?.id === INPUT_ID;
-  const ta = focused ? document.activeElement : null;
-  const sel = ta ? [ta.selectionStart, ta.selectionEnd] : null;
-  const scroll = box.querySelector('[data-as-comment-scroll]')?.scrollTop || 0;
-  if (_entry(id).gone) { box.remove(); return; }
-  box.innerHTML = _innerHtml(id);
-  const sc = box.querySelector('[data-as-comment-scroll]');
-  if (sc && scroll) sc.scrollTop = scroll;
-  if (focused) {
-    const n = document.getElementById(INPUT_ID);
+  const boxes = document.querySelectorAll(`[data-archive-social="${CSS.escape(id)}"]`);
+  if (!boxes.length) return;
+  const a = document.activeElement;
+  const focusedId = a && (a.id === INPUT_ID || a.id === SHEET_INPUT_ID) ? a.id : null;
+  const sel = focusedId ? [a.selectionStart, a.selectionEnd] : null;
+  const gone = _entry(id).gone;
+  boxes.forEach((box) => {
+    const kind = box.dataset.asKind || 'side';
+    if (gone && kind !== 'sheet') { box.remove(); return; }
+    const scroll = box.querySelector('[data-as-comment-scroll]')?.scrollTop || 0;
+    box.innerHTML = (_RENDER[kind] || _innerHtml)(id);
+    const sc = box.querySelector('[data-as-comment-scroll]');
+    if (sc && scroll) sc.scrollTop = scroll;
+  });
+  if (focusedId) {
+    const n = document.getElementById(focusedId);
     if (n) { n.focus(); try { n.setSelectionRange(sel[0], sel[1]); } catch (_) {} }
   }
 }
@@ -201,6 +297,7 @@ export function bindArchiveSocialOnce() {
     const t = e.target instanceof Element ? e.target : null;
     if (!t || !t.closest('[data-archive-social]')) return;
     let el;
+    if ((el = t.closest('[data-as-open-sheet]'))) { _openSheet(el.dataset.asOpenSheet); return; }
     if ((el = t.closest('[data-as-post]'))) { _post(el.dataset.asPost); return; }
     if ((el = t.closest('[data-as-more]'))) { _loadComments(el.dataset.asMore, true); return; }
     if ((el = t.closest('[data-ex-del]'))) { _delete(el.dataset.exDelEvent, el.dataset.exDel); }
