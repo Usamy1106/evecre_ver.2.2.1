@@ -30,6 +30,16 @@
   margin-top: var(--space-6);
 }
 
+/* ★ヘッダー画像は上部（.p-archive__head）のすぐ下に付ける（2026-11-26。背景が見えるのは左右だけ）。
+   プレビュー中の帯があるときは、帯と画像のあいだだけ少し空ける */
+.p-archive > .p-archive__columns {
+  margin-top: 0;
+}
+
+.p-archive > .p-archive__preview-note + .p-archive__columns {
+  margin-top: var(--space-3);
+}
+
 /* --- 本文と、いいね・コメントの箱（2026-11-18。archiveSocial.js）---------------------------
    ★公開ページ（/explore/<id>）の右のサブエリアと同じ形。箱の中身の見た目は _explore.css（.p-explore__side ほか）を共用する。
    ★切り替えは入れ物の幅（@container）。画面幅の @media にしない。箱が無いイベントは今までどおり1列 */
@@ -39,6 +49,13 @@
 
 .p-archive__main-col > * + * {
   margin-top: var(--space-6);
+}
+
+/* ★ヘッダー画像と白い紙は1枚につなげる（2026-11-26）。画像は紙と同じ幅で、上の角だけ丸める */
+.p-archive__main-col > .p-archive__doc {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 /* 狭いとき：本文の下に並べる（紙と同じ左右の余白） */
@@ -83,12 +100,14 @@
      mainBoard.js が描画のたびに実測して .p-main-board に書く）。
    ★親の .p-main-board__page に overflow: auto / hidden を付けないこと（スクロールの箱になり sticky が効かない）
    ★背景を持たせる（下を流れる文書が透けて文字が重なるため） */
+/* ★2026-11-26：［残り日数］［公開する or プレビュー｜編集］……［⋯］の1行。高さは --archive-head-ctl-h でそろえる */
 .p-archive__head {
+  --archive-head-ctl-h: 34px;
+
   position: sticky;
   top: var(--board-stack-h, 0px);
   z-index: var(--z-archive-head);
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
@@ -96,13 +115,22 @@
   background-color: var(--color-bg);
 }
 
+.p-archive__head-main {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .p-archive__days {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   gap: var(--space-2);
+  height: var(--archive-head-ctl-h);
   white-space: nowrap;
-  padding: 6px var(--space-3);
+  padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   background-color: var(--color-surface);
@@ -146,7 +174,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  margin-inline: var(--space-4);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   overflow: hidden;
   aspect-ratio: 3 / 2;
   background-color: var(--button-secondary);
@@ -173,47 +202,6 @@
 
 /* --- 上部右：予定のコピーと編集モードの切り替え ---------------------------- */
 
-.p-archive__head-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-/* 編集 ⇄ プレビュー（管理者のみ。2026-11-07）。★行き先を書く。
-   編集中の「プレビュー」は控えめ（枠だけ）。プレビュー中の「編集」は塗りで目立たせる（戻り道を見失わせない） */
-.p-archive__view-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: var(--space-2) var(--space-4);
-  white-space: nowrap;
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-full);
-  background-color: var(--color-surface);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
-  transition: transform var(--duration-fast) var(--ease);
-}
-
-.p-archive__view-toggle.is-preview {
-  background-color: var(--color-primary);
-  box-shadow: var(--shadow-primary);
-  color: var(--color-text-inverse);
-}
-
-.p-archive__view-toggle-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.p-archive__view-toggle:active {
-  transform: scale(.96);
-}
-
 /* プレビュー中の帯（1行）。★「プレビュー＝公開される姿」と受け取られないように */
 .p-archive__preview-note {
   margin-inline: var(--space-4);
@@ -233,7 +221,9 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin: -10px -10px -10px auto;
+  /* ★欄のすぐ横に置く（2026-11-26。右端に寄せると、どの欄のペンか分かりにくかった）。
+     押せる範囲は 44px のまま、負の余白で見た目の間隔だけ詰める */
+  margin: -10px -10px -10px -6px;
   border-radius: var(--radius-md);
   color: var(--color-text-muted);
 }
@@ -245,30 +235,6 @@
 .p-archive__field-icon-mark {
   width: 20px;
   height: 20px;
-}
-
-/* 予定のコピー。★スケジュールシートの同名ボタンと見た目を揃えること
-   （同じことをする2つのボタンが違って見えると迷う）。 */
-.p-archive__copy {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-  padding: 4px var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
-  transition: background-color var(--duration-fast) var(--ease);
-}
-
-.p-archive__copy:active {
-  background-color: var(--color-primary-tint2);
-}
-
-.p-archive__copy-icon {
-  width: 24px;
-  height: 24px;
 }
 
 /* --- 文書 ---------------------------------------------------------------- */
@@ -349,44 +315,58 @@
   color: var(--color-text-muted);
 }
 
-/* 右上の「公開する」（管理者・公開の確認ページへ）と「公開中」（全員）。2026-11-07 */
+/* 上部の「公開する」（管理者・公開の確認ページへ）。2026-11-07。
+   ★2026-11-26：残り日数（.p-archive__days）と同じ行に並べ、高さも揃える（--archive-head-ctl-h） */
 .p-archive__publish {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
-  padding: var(--space-2) var(--space-4);
+  height: var(--archive-head-ctl-h);
+  padding: 0 var(--space-4);
   border-radius: var(--radius-full);
   background-color: var(--color-primary);
   box-shadow: var(--shadow-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-heavy);
   color: var(--color-text-inverse);
   white-space: nowrap;
 }
 
-/* 右上のメニュー（⋯）。★押せる範囲は 36px 四方 */
+/* 公開したアーカイブの「プレビュー｜編集」（Components.Segmented）。★高さは残り日数に揃える */
+.p-archive__view-seg {
+  height: var(--archive-head-ctl-h);
+  padding: 2px;
+}
+
+.p-archive__view-seg .c-segmented__thumb {
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--seg-count, 2));
+}
+
+.p-archive__view-seg .c-segmented__item {
+  padding-block: 0;
+  padding-inline: var(--space-4);
+  white-space: nowrap;
+}
+
+/* 上部のメニュー（⋯）。★右端に寄せ、大きさと見た目は残り日数に揃える */
 .p-archive__menu {
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  flex-shrink: 0;
+  width: var(--archive-head-ctl-h);
+  height: var(--archive-head-ctl-h);
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
   color: var(--color-text-muted);
 }
 
 .p-archive__menu:active {
   background-color: var(--button-secondary);
-}
-
-.p-archive__published {
-  padding: 2px var(--space-3);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-heavy);
-  color: var(--color-primary);
-  white-space: nowrap;
 }
 
 .p-archive__intro > * + * {
@@ -441,7 +421,7 @@
 
 /* 値の右端にアイコン（編集中）。★値は伸ばして、アイコンを右端に寄せる */
 .p-archive__fact-value--with-icon > :first-child {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
@@ -784,7 +764,7 @@
 
 .p-archive__inline--line {
   display: inline-block;
-  flex: 1;
+  flex: 0 1 auto;
   margin-inline: 0;
 }
 

@@ -1279,6 +1279,8 @@ window._app = {
   //   プレビューへ切り替えるときは、保存待ちの欄を全部保存してから（保存は欄ごとに自動。archiveInlineEdit.js）
   toggleArchivePreview: async () => {
     if (!state.canManageCurrentEvent() || _togglingPreview) return;
+    // ★プレビューは公開したアーカイブだけ（2026-11-26）
+    if (!state.archivePreview && state.events.find(x => x.id === state.selectedEventId)?.publicBasicInfo !== true) return;
     if (!state.archivePreview) {
       _togglingPreview = true;
       try { await finishArchiveEditing(); } finally { _togglingPreview = false; }
@@ -1292,6 +1294,11 @@ window._app = {
       }
     } else state.archivePreview = false;
     state.render();
+  },
+  // アーカイブ上部の「プレビュー｜編集」のセグメント（公開したアーカイブだけ。2026-11-26）。同じ側を押したら何もしない
+  setArchivePreview: (on) => {
+    if (!!on === !!state.archivePreview) return;
+    window._app.toggleArchivePreview();
   },
   // 基礎情報の行のペン（タイトル・概要・場所）：その場の欄にカーソルを置く。
   // ★focus はタップのハンドラから同期で当てる（iOS は操作の外の focus を無視してキーボードが出ない）
@@ -1315,7 +1322,7 @@ window._app = {
     try { localStorage.setItem(`evecre:handoverCard:dismissed:v1:${state.currentUser?.id}:${state.selectedEventId}`, '1'); } catch (_) {}
     state.render();
   },
-  // アーカイブ右上のメニュー（⋯。2026-11-07。指示書B §4-6）。
+  // アーカイブ右上のメニュー（⋯。2026-11-07。指示書B §4-6）。★「プレビュー／編集」は公開したアーカイブだけ（2026-11-26）。
   // ★入れないもの：タスクの並び順（目次にある）・複製・イベントの削除（イベント設定にある。ここから消せると事故る）・PDF
   openArchiveMenu: async (e) => {
     e.stopPropagation();
@@ -1336,7 +1343,7 @@ window._app = {
     //   ナレッジページ /explore/<id>、基礎情報だけなら告知モーダル /explore?event=<id>。
     //   未公開だとリンク先が「見つかりませんでした」なので押せなくする
     menu.innerHTML = `
-      ${canMgr ? `<button id="am-view" class="c-context-menu__item">${state.archivePreview ? '編集' : 'プレビュー'}</button>` : ''}
+      ${canMgr && published ? `<button id="am-view" class="c-context-menu__item">${state.archivePreview ? '編集' : 'プレビュー'}</button>` : ''}
       <button id="am-link" class="c-context-menu__item${published ? '' : ' is-disabled'}"${published ? '' : ' aria-disabled="true"'}>
         リンクをコピー${published ? '' : '<span class="c-context-menu__note">公開するとコピーできます</span>'}</button>
       ${p.parentEventId ? '<button id="am-lineage" class="c-context-menu__item">前の代を見る</button>'
@@ -1373,6 +1380,7 @@ window._app = {
       if (!ok) return;
       p.publicBasicInfo = false;
       p.publicKnowledge = false;
+      state.archivePreview = false;   // ★プレビューは公開したアーカイブだけ
       logEvent('archive_unpublished', { eventId: p.id });
       try { await state.saveNow(p.id); _showToast('公開を停止しました'); }
       catch (_) { _showToast('保存できませんでした'); }

@@ -309,7 +309,7 @@ function _bindOutcomePick(btn) {
 
 // ── プレビュー中に本文をタップしたら、編集の場所を知らせる（管理者だけ。2026-11-07）──────────
 //
-// プレビュー中の欄（data-archive-tap）をタップしたら「右上の『編集』で書けます」と知らせるだけ。
+// プレビュー中の欄（data-archive-tap）をタップしたら「上の『編集』で書けます」と知らせるだけ。
 // ★勝手に編集へ戻さない（プレビューは自分で選んだ状態。戻るのは右上のボタンから）。
 // ★リンク・ボタン・PDF のカード・個別完了の行の開閉・文字を選んでいるときは知らせない（コピーを邪魔しない）。
 const _TAP_IGNORE = 'a, button, summary, input, textarea, label, select, video, [role="button"], .c-file-card';
@@ -325,7 +325,7 @@ export function bindArchivePreviewTap(root = document) {
     const sel = window.getSelection?.();
     if (sel && !sel.isCollapsed && t.contains(sel.anchorNode)) return;
     logEvent('archive_preview_tap', { target: String(t.dataset.archiveTap).split(':')[0] });
-    window._app?.showToast?.('いまはプレビューです。右上の「編集」で書けます。');
+    window._app?.showToast?.('いまはプレビューです。「編集」に切り替えると書けます。');
   });
 }
 
