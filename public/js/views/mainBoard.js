@@ -2316,7 +2316,8 @@ function _notifRowHtml(n, p, opts = {}) {
     body = body.slice(`${n.actorName} さんが`.length);
     head = n.actorName;
   }
-  const avatar = actor
+  // ★アーカイブの公開は、やった人のアバターではなく種類のアイコン（icon-mainboard-pressed.svg）を出す（2026-11-26。名前は見出しに出る）
+  const avatar = actor && n.type !== 'archive_published'
     ? Components.UserAvatar(actor, { size: 32 })
     : `<div class="p-notification__icon" style="--notif-color:${_notifIconBg(n.type)}">${_notifIcon(n.type)}</div>`;
 
@@ -2433,6 +2434,8 @@ const _NOTIF_ICONS = {
   mission_updated:    { file: 'icon-mini-modification-task.svg', bg: _NOTIF_BG_GREEN },
   mission_reverted:   { file: 'icon-mini-cancel.svg',            bg: _NOTIF_BG_GREEN },
   public_comment:     { file: 'icon-mini-comment.svg',           bg: _NOTIF_BG_YELLOW },
+  // アーカイブを公開した（2026-11-26）。★アイコンは既存の icon-mainboard-pressed.svg（緑）
+  archive_published:  { file: 'icon-mainboard-pressed.svg',      bg: _NOTIF_BG_GREEN },
 };
 
 function _notifIcon(type) {

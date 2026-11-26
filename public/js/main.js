@@ -748,6 +748,13 @@ window._app = {
       return;
     }
 
+    // ★アーカイブを公開した報せは、そのイベントのアーカイブを開く（2026-11-26）
+    if (n?.type === 'archive_published') {
+      state.mainBoardTab = 'ARCHIVE';
+      state.render();
+      return;
+    }
+
     // ★完了の報せはアーカイブへ（2026-09-23）。完了したタスクは「これから
     //   やること」ではなく**記録**なので、詳細ページより記録の並びで見せる。
     //   該当の記録まで自動で送る（mainBoard.js の _focusArchiveMission）。
