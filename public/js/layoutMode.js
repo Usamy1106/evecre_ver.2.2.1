@@ -1,8 +1,10 @@
 // ===== 画面の広さによる表示の切り替え（タブレット・PC）=====
 //
 // ★広い画面かどうかの判定は、ここ1か所に集約する（各画面で matchMedia を書かないこと）。
-//   ダッシュボード表示 … (min-width: 768px) and (min-height: 560px)。iPad 縦〜PC。
+//   ダッシュボード表示 … (min-width: 768px) and (min-height: 560px) and (min-aspect-ratio: 2/3)。iPad 縦〜PC。
 //                        横向きのスマホ（高さが足りない）は含めない
+//                        ★とても縦長の画面（高さが幅の 1.5 倍を超える。9:16 の縦型の展示用ディスプレイ 1080×1920 など）は
+//                          スマホ表示（2026-11-28）。iPad の縦向き（3:4）はダッシュボードのまま
 //   それ未満          … 今までのスマホ表示（1列）
 //
 // <html> に付けるクラス（CSS は foundation/_variables.css の --layout-max-width を切り替える）：
@@ -15,7 +17,7 @@
 // ★ダッシュボード表示は MAIN_BOARD の「表示の違い」であって、別のビューにはしない。
 // ★スマホ表示の DOM・挙動は変えないこと（分岐は isDashboard() の中だけ）。
 
-export const DASHBOARD_QUERY = '(min-width: 768px) and (min-height: 560px)';
+export const DASHBOARD_QUERY = '(min-width: 768px) and (min-height: 560px) and (min-aspect-ratio: 2/3)';
 
 // ★ARCHIVE_ANSWERS（メンバー情報）はメンバーの箱をグリッドに並べるので見渡す幅（2026-11-05）
 const DASHBOARD_VIEWS = new Set(['HOME', 'PROJECT_DETAIL', 'MAIN_BOARD', 'ARCHIVE_ANSWERS', 'EXPLORE']);
