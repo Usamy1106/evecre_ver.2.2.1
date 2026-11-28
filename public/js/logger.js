@@ -78,6 +78,8 @@ export function logEvent(name, props = {}) {
       //   push.js を import すると循環参照になるのでここで直接判定する。
       standalone: window.matchMedia?.('(display-mode: standalone)').matches
         || window.navigator.standalone === true,
+      // ★展示用のスマホ表示（index.html の ?layout=phone。アプリを iframe の中で起動する）で開いているか（2026-11-28）
+      framed: window.self !== window.top,
     },
   });
 
