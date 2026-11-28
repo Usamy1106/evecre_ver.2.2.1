@@ -294,8 +294,12 @@
 }
 
 /* ★デスクトップ幅でだけ、アプリを中央の1カラムに絞る。
-   640px はスマホ横向き（一般的な最大 ~430px）より十分上に取ってある。 */
-@media (min-width: 640px) {
+   640px はスマホ横向き（一般的な最大 ~430px）より十分上に取ってある。
+   ★横長の画面（orientation: landscape）だけ。縦長の画面は 640〜767px でも画面いっぱい（2026-11-28）。
+     縦型の大型タッチディスプレイ（9:16・拡大率 150% などで幅 720px 前後）で、左右に白い帯が出ていた。
+     768px 以上はダッシュボード表示（layoutMode.js）なので、ここに当たるのは 640〜767px の幅だけ。
+   ★_mountain.css の --art-unit の切り替えも同じ条件。片方だけ変えないこと。 */
+@media (min-width: 640px) and (orientation: landscape) {
   :root {
     --layout-max-width: 448px;
   }
@@ -8684,14 +8688,14 @@ body {
      mountainPath.js の measure()（メインタブ）または syncMountainBackdrop()
      （アーカイブ・通知タブ）が上書きする。
    ★分母の 2049 は landform の原寸幅（mountainPath.js の ART_W）。
-   ★下の 640px / 448px は --layout-max-width（foundation/_variables.css）の
-     切り替えと同じ値。**アプリ幅を変えるときは一緒に直すこと。**
+   ★下の 640px / 448px（と orientation: landscape）は --layout-max-width（foundation/_variables.css）の
+     切り替えと同じ条件。**アプリ幅を変えるときは一緒に直すこと。**
      長さ同士は割れないので var() では書けず、ここだけ値が重複する。 */
 .p-mountain__canvas {
   --art-unit: calc(100vw / 2049);
 }
 
-@media (min-width: 640px) {
+@media (min-width: 640px) and (orientation: landscape) {
   .p-mountain__canvas {
     --art-unit: calc(448px / 2049);
   }

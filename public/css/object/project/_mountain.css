@@ -84,14 +84,14 @@
      mountainPath.js の measure()（メインタブ）または syncMountainBackdrop()
      （アーカイブ・通知タブ）が上書きする。
    ★分母の 2049 は landform の原寸幅（mountainPath.js の ART_W）。
-   ★下の 640px / 448px は --layout-max-width（foundation/_variables.css）の
-     切り替えと同じ値。**アプリ幅を変えるときは一緒に直すこと。**
+   ★下の 640px / 448px（と orientation: landscape）は --layout-max-width（foundation/_variables.css）の
+     切り替えと同じ条件。**アプリ幅を変えるときは一緒に直すこと。**
      長さ同士は割れないので var() では書けず、ここだけ値が重複する。 */
 .p-mountain__canvas {
   --art-unit: calc(100vw / 2049);
 }
 
-@media (min-width: 640px) {
+@media (min-width: 640px) and (orientation: landscape) {
   .p-mountain__canvas {
     --art-unit: calc(448px / 2049);
   }
