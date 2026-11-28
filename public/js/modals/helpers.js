@@ -349,31 +349,10 @@ export async function afterMissionCleared(project, m, r, { format = null, imageC
   // ★山の演出は、実際にマスが増えたとき（status が 'cleared' になったとき）だけ。フラグは renderMainBoard が消費する
   if (r.mission?.status === 'cleared') state.mountainCelebrate = true;
   document.getElementById('clear-mission-modal')?.remove();
-  const newStatus = r.mission?.status || 'yet';
-  window._app?.showToast(m.individualClear && newStatus === 'yet' ? '完了を記録しました' : 'タスク完了');
-  // 山に出たオブジェクトを続けて知らせる（抽選はサーバー。tier つき）
-  _announceMountainObject(r.object);
-}
-
-/**
- * 完了で出たオブジェクトをトーストで伝える。
- * ★tier で文言を変える。tag は毎回必ず出るので控えめに、期限内でしか引けない
- *   ontime / rare は「期限内に終わらせたから出た」と分かる言い方にする。
- */
-async function _announceMountainObject(rolled) {
-  if (!rolled?.objectId) return;
-  try {
-    const { findObject } = await import('../mountainObjects.js');
-    const o = findObject(rolled.objectId);
-    if (!o) return;
-    const msg = rolled.objectTier === 'rare'
-      ? `期限内達成！めずらしい「${o.name}」が現れた ${o.icon}`
-      : rolled.objectTier === 'ontime'
-        ? `期限内達成！「${o.name}」が現れた ${o.icon}`
-        : `山に「${o.name}」が増えた ${o.icon}`;
-    // 完了トーストと重ならないよう少し遅らせる
-    setTimeout(() => window._app?.showToast(msg), 1800);
-  } catch (_) { /* 演出なので、失敗しても完了自体は成立している */ }
+  // ★完了のトーストは「〇〇を完了しました」の1つだけ（2026-11-28）。
+  //   以前は続けて山のオブジェクトのトースト（「〇〇」が現れた 🌸）も出していたが、やめた（山にオブジェクトは描いていない。SHOW_OBJECTS）
+  const title = String(m.title || '').trim();
+  window._app?.showToast(title ? `「${title}」を完了しました` : 'タスクを完了しました');
 }
 
 // ★縮小と 2MB 上限は clearEditor.js（_resizeImageDataUrl / SUBMISSION_MAX_BYTES）に移した
