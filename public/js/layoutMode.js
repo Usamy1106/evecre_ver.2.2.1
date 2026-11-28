@@ -38,6 +38,15 @@ export function isDashboard() {
   return !!_query()?.matches;
 }
 
+/**
+ * 展示用のスマホ表示（public/phone.html の枠の中）で開いているか（2026-11-28）。
+ * ★?layout=phone で固定した端末は、アプリを幅 430px の iframe に入れて画面の幅まで拡大している。
+ *   枠の中は本物のスマホと同じなので、ふだんはスマホ表示と何も変えない。展示で詰まって見える所だけ、これで少し変える
+ */
+export function isPhoneFrame() {
+  try { return typeof window !== 'undefined' && window.self !== window.top; } catch (_) { return true; }
+}
+
 /** state.render() の最初に呼ぶ。今の画面に合わせて <html> のクラスを付け替える */
 export function applyLayoutClasses(view) {
   const root = document.documentElement;

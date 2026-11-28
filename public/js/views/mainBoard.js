@@ -14,7 +14,7 @@ import { isRichSubmission } from '../initialTasks.js';
 import { bindArchiveInlineEditing, bindArchivePreviewTap, captureInlineEdits, restoreInlineEdits } from '../archiveInlineEdit.js';
 import { renderMountainBg, renderMountainScrollWindow, initMountainPathSync,
   syncMountainBackdrop, captureBgLayer, restoreBgLayer } from '../mountainPath.js';
-import { isDashboard } from '../layoutMode.js';
+import { isDashboard, isPhoneFrame } from '../layoutMode.js';
 import { logEvent } from '../logger.js';
 import { lineageOf } from './lineage.js';
 import {
@@ -35,7 +35,9 @@ const BOARD_PANEL_VIEWS = ['calendar', 'gantt'];
 //   ★パネルの位置を変えるときはこの2つを直す（マークアップの初期位置もここから作る）。
 //   ★たたんだときの位置を変えたら、mountainPath.js の BOTTOM_PAD（いちばん下のマスの高さ）も合わせる
 //   たたんだとき：大きくすると山（プログレスマップ）が広く見え、小さくするとやることの一覧が広くなる
-const PANEL_COLLAPSED_RATIO = 0.48;
+//   ★展示用のスマホ表示（phone.html の枠の中）だけ少し下げる（2026-11-28。縦型の展示用ディスプレイで、
+//     上のお知らせのカードと下部パネルのあいだが詰まって見えたため）。ふつうのスマホは 0.48 のまま
+const PANEL_COLLAPSED_RATIO = isPhoneFrame() ? 0.55 : 0.48;
 //   上へ引き上げたとき（一覧を読むための位置）
 const PANEL_EXPANDED_RATIO  = 0.22;
 const _scheduleCtxByEvent = new Map();

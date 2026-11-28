@@ -11,7 +11,7 @@
   <!-- ===== 展示用のスマホ表示（2026-11-28）=====
        URL に ?layout=phone を付けて開くと、その端末ではスマホ表示に固定する（localStorage に覚える）。
        ?layout=auto で元に戻す。縦型の展示用ディスプレイ（1080×1920 など）で、スマホと同じ見た目にするため。
-       ★固定しているときは /phone.html（アプリを幅 390px の iframe に入れて画面の幅まで拡大するページ）へ移る。
+       ★固定しているときは /phone.html（アプリを幅 430px の iframe に入れて画面の幅まで拡大するページ）へ移る。
          中身は public/phone.html を参照。
        ★ここはアプリより先に動く必要があるので、<head> の先頭に直接書く（読み込みを1本増やさない）。
        ★枠の中（window.top でない）では何もしない＝アプリはふつうに起動する。
@@ -116,6 +116,6 @@
        ★更新するときは必ずパスのバージョンを変えること。同じパスのまま中身を差し替えると、
        古いものが配信され続ける（images/bg と同じ約束）。 -->
   <script defer src="/js/vendor/lottie-web/5.13.0/lottie_light.min.js"></script>
-  <script type="module" src="/js/v1c6f5f4a/main.js"></script>
+  <script type="module" src="/js/v02a41fa2/main.js"></script>
 </body>
 </html>
