@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex" />
+  <title>イベクリ - イベントづくりを楽しく</title>
+  <link rel="icon" href="/favicon.ico">
+  <!-- ===== 展示用のスマホ表示（2026-11-28）=====
+       index.html の ?layout=phone で固定した端末だけがここへ来る（手で開く画面ではない）。
+       ★アプリ（/）を幅 390px のスマホの画面として iframe の中で起動し、その枠ごと画面の幅まで拡大する。
+         枠の中は本物のスマホと同じ大きさ（innerWidth・100vw・100vh・matchMedia）になるので、
+         文字も部品もスマホと同じ比率で大きくなる。
+       ★CSS の zoom は使わないこと。100vw / 100vh まで拡大されて画面の外にはみ出す（Chrome で実測）。
+       ★外部ファイルを参照しない（このページだけで成立させる）。
+       ★固定が外れていたら（?layout=auto のあと）アプリへ戻る。 -->
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
+    iframe { position: fixed; top: 0; left: 0; border: 0; display: block; transform-origin: 0 0; }
+  </style>
+</head>
+<body>
+  <iframe id="frame" title="イベクリ" allow="clipboard-read; clipboard-write; fullscreen"></iframe>
+  <script>
+    (function () {
+      var KEY = 'evecre:layout:v1';
+      var BASE_W = 390;   // スマホの画面の幅（iPhone の標準的な幅）
+      var on = false;
+      try { on = localStorage.getItem(KEY) === 'phone'; } catch (e) {}
+      if (!on || window.self !== window.top) { location.replace('/'); return; }
+
+      // 開く先（index.html が # に入れて渡す）。同じサイトの中のパスだけ受け付ける
+      var src = '/';
+      try {
+        var h = decodeURIComponent(location.hash.slice(1));
+        if (h.charAt(0) === '/' && h.charAt(1) !== '/' && h.indexOf('\\') < 0) src = h;
+      } catch (e) {}
+      // 再読み込みではホームから開き直す（枠の中の画面の移り変わりは、この URL に写さない）
+      history.replaceState(null, '', '/phone.html');
+
+      var f = document.getElementById('frame');
+      function fit() {
+        var s = window.innerWidth / BASE_W;
+        f.style.width = BASE_W + 'px';
+        f.style.height = (window.innerHeight / s) + 'px';
+        f.style.transform = 'scale(' + s + ')';
+      }
+      fit();
+      window.addEventListener('resize', fit);
+      f.src = src;
+    })();
+  </script>
+</body>
+</html>
