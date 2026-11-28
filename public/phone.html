@@ -8,7 +8,7 @@
   <link rel="icon" href="/favicon.ico">
   <!-- ===== 展示用のスマホ表示（2026-11-28）=====
        index.html の ?layout=phone で固定した端末だけがここへ来る（手で開く画面ではない）。
-       ★アプリ（/）を幅 390px のスマホの画面として iframe の中で起動し、その枠ごと画面の幅まで拡大する。
+       ★アプリ（/）を幅 430px のスマホの画面として iframe の中で起動し、その枠ごと画面の幅まで拡大する。
          枠の中は本物のスマホと同じ大きさ（innerWidth・100vw・100vh・matchMedia）になるので、
          文字も部品もスマホと同じ比率で大きくなる。
        ★CSS の zoom は使わないこと。100vw / 100vh まで拡大されて画面の外にはみ出す（Chrome で実測）。
@@ -24,7 +24,9 @@
   <script>
     (function () {
       var KEY = 'evecre:layout:v1';
-      var BASE_W = 390;   // スマホの画面の幅（iPhone の標準的な幅）
+      // スマホの画面の幅。★大きくすると画面全体（文字も部品も）が同じ比率のまま小さくなる。
+      //   390（iPhone の標準）では展示用ディスプレイで詰まって見えたので 430（大きめの iPhone）にした（2026-11-28）
+      var BASE_W = 430;
       var on = false;
       try { on = localStorage.getItem(KEY) === 'phone'; } catch (e) {}
       if (!on || window.self !== window.top) { location.replace('/'); return; }
